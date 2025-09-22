@@ -67,6 +67,13 @@ public class GridMoverNewInput : MonoBehaviour
         }
         transform.position = target;
         isMoving = false;
+
+        // Révéler la cellule atteinte
+        if (FogController.Instance != null)
+        {
+            var cell = FogController.Instance.WorldToCell(transform.position);
+            FogController.Instance.RevealCell(cell);
+        }
     }
 
     bool HasTileUnder(Vector3 worldPos)

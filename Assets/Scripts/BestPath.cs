@@ -2,9 +2,12 @@ using UnityEngine;
 
 public class BestPath : MonoBehaviour
 {
+    [Header("Références")]
     public Transform player;
-
     public GameObject bugCloudPrefab;
+
+    [Header("Visibility")]
+    public bool visible = true;
 
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -12,6 +15,11 @@ public class BestPath : MonoBehaviour
     {
         // Récupérer les positions des nuages
         GameObject[] clouds = GameObject.FindGameObjectsWithTag("BugCloud");
+        if (clouds.Length < 2)
+        {
+            Debug.LogWarning("[BestPath] Moins de 2 nuages trouvés (vérifie BugCloudSpawner).");
+            return;
+        }
 
         // Déterminer le nuage de gauche et celui de droite
         GameObject leftCloud = null;
@@ -24,6 +32,11 @@ public class BestPath : MonoBehaviour
                 rightCloud = cloud;
         }
         Debug.Log($"[BestPath] Nuage gauche: {leftCloud.transform.position}, Nuage droite: {rightCloud.transform.position}");
+
+
+
+
+
 
         // ------ DEFINITION DES DEUX CHEMINS (best paths) ------
 
@@ -83,10 +96,37 @@ public class BestPath : MonoBehaviour
 
 
 
+
+        // ------ INSTANTIATION DES QUADS LE LONG DES CHEMINS ------
+
+        // Si visible est false, on ne fait rien
+        if (!visible) return;
+
+        // On tire au sort quel chemin on affiche
+        Vector3[] chosenPath = (Random.value < 0.5f) ? pathToLeftCloud : pathToRightCloud;
         // Instancier les quads le long des chemins
-        foreach (var pos in pathToLeftCloud)
+        foreach (var pos in chosenPath)
         {
             Instantiate(bugCloudPrefab, new Vector3(pos.x, 0.01f, pos.z), bugCloudPrefab.transform.rotation, transform);
+        }
+
+        
+
+
+
+
+
+        // ------ REVELER LES CASES DU CHEMIN DANS LE FOG OF WAR ------
+        if (FogController.Instance != null)
+        {
+            var cells = new System.Collections.Generic.List<Vector2Int>(chosenPath.Length);
+            foreach (var p in chosenPath)
+                cells.Add(new Vector2Int(Mathf.RoundToInt(p.x), Mathf.RoundToInt(p.z)));
+
+            // Révèle aussi la case de départ si tu veux
+            cells.Add(FogController.Instance.WorldToCell(player.position));
+
+            FogController.Instance.RevealCells(cells);
         }
     }
 }
