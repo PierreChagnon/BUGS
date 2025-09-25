@@ -30,4 +30,14 @@ public class BugCloud : MonoBehaviour
             Destroy(gameObject);
         }
     }
+
+    void OnDestroy()
+    {
+        // Assure la désinscription même si l'objet est détruit autrement
+        if (LevelRegistry.Instance != null)
+        {
+            var cell = LevelRegistry.Instance.WorldToCell(transform.position);
+            LevelRegistry.Instance.UnregisterBugCloud(cell);
+        }
+    }
 }

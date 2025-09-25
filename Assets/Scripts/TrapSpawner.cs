@@ -28,32 +28,24 @@ public class TrapSpawner : MonoBehaviour
             for (int z = 0; z < gridSize.y; z++)
                 candidates.Add(new Vector2Int(x, z));
 
+
+        var registry = LevelRegistry.Instance;
         // Éviter la case du joueur
         if (player != null)
         {
-            int cx = Mathf.RoundToInt(player.position.x);
-            int cz = Mathf.RoundToInt(player.position.z);
-            Vector2Int playerCell = new(cx, cz);
+            Vector2Int playerCell = registry.WorldToCell(player.position);
             candidates.Remove(playerCell);
         }
 
-        // Eviter les cases des nuages
-        var clouds = GameObject.FindGameObjectsWithTag("BugCloud");
-        foreach (var cloud in clouds)
-        {
-            Vector2Int cloudCell = new(Mathf.RoundToInt(cloud.transform.position.x), Mathf.RoundToInt(cloud.transform.position.z));
-            Debug.Log($"[TrapSpawner] Évite la case du nuage {cloudCell}");
-            candidates.Remove(cloudCell);
-        }
 
-        // Eviter les cases du chemin optimal
-        var bestPath = GameObject.FindGameObjectsWithTag("BestPath");
-        foreach (var quad in bestPath)
+        // Filtrer les cases interdites depuis le LevelRegistry 
+        if (registry == null)
         {
-            Vector2Int quadCell = new(Mathf.RoundToInt(quad.transform.position.x), Mathf.RoundToInt(quad.transform.position.z));
-            Debug.Log($"[TrapSpawner] Évite la case du chemin optimal {quadCell}");
-            candidates.Remove(quadCell);
+            Debug.LogError("[TrapSpawner] LevelRegistry manquant dans la scène.");
+            return;
         }
+        candidates.RemoveAll(c => !registry.IsFreeForTrap(c));
+
 
         // Mélanger les cases
         for (int i = 0; i < candidates.Count; i++)
@@ -66,8 +58,12 @@ public class TrapSpawner : MonoBehaviour
         int placed = 0;
         for (int i = 0; i < candidates.Count && placed < trapCount; i++)
         {
-            Vector3 pos = new(candidates[i].x, trapYOffset, candidates[i].y);
+
+            var cell = candidates[i];
+            if (!registry.RegisterTrap(cell)) continue; // s'assure registre à jour + évite doublon
+            Vector3 pos = registry.CellToWorld(cell, trapYOffset);
             Instantiate(trapPrefab, pos, Quaternion.identity, transform);
+
             Debug.Log($"[TrapSpawner] Piège placé en {pos} (cell {candidates[i]})");
             placed++;
         }

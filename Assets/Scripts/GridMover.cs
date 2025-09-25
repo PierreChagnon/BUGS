@@ -11,14 +11,22 @@ public class GridMoverNewInput : MonoBehaviour
     public bool rotateToDirection = true;
 
     [Header("Validation de la case cible")]
-    public bool requireTileUnderTarget = false;
     public LayerMask tileLayer;
     public float raycastStartHeight = 2f;
     public float raycastDistance = 5f;
 
     bool isMoving = false;
 
-    void Start() => SnapToGrid();
+    void Start()
+    {
+        SnapToGrid();
+
+        if (FogController.Instance != null)
+            FogController.Instance.RevealCell(FogController.Instance.WorldToCell(transform.position));
+        if (LevelRegistry.Instance != null)
+            LevelRegistry.Instance.MarkVisited(LevelRegistry.Instance.WorldToCell(transform.position));
+
+    }
 
     void Update()
     {
@@ -27,10 +35,14 @@ public class GridMoverNewInput : MonoBehaviour
         Vector2Int step = ReadStepNewInput();
         if (step == Vector2Int.zero) return;
 
-        Vector3 dir = new Vector3(step.x, 0f, step.y);
+        Vector3 dir = new(step.x, 0f, step.y);
         Vector3 targetPos = GetSnappedPosition(transform.position + dir * cellSize);
 
-        if (requireTileUnderTarget && !HasTileUnder(targetPos)) return;
+        // if (requireTileUnderTarget && !HasTileUnder(targetPos)) return;
+        var targetCell = new Vector2Int(Mathf.RoundToInt(targetPos.x), Mathf.RoundToInt(targetPos.z));
+        if (LevelRegistry.Instance != null && !LevelRegistry.Instance.InBounds(targetCell))
+            return; // hors plateau → on ignore l’input
+
 
         if (rotateToDirection && dir != Vector3.zero)
             transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
@@ -74,13 +86,12 @@ public class GridMoverNewInput : MonoBehaviour
             var cell = FogController.Instance.WorldToCell(transform.position);
             FogController.Instance.RevealCell(cell);
         }
+
+        if (LevelRegistry.Instance != null)
+            LevelRegistry.Instance.MarkVisited(LevelRegistry.Instance.WorldToCell(transform.position));
+
     }
 
-    bool HasTileUnder(Vector3 worldPos)
-    {
-        Vector3 origin = worldPos + Vector3.up * raycastStartHeight;
-        return Physics.Raycast(origin, Vector3.down, raycastDistance, tileLayer, QueryTriggerInteraction.Ignore);
-    }
 
     Vector3 GetSnappedPosition(Vector3 worldPos)
     {

@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class BestPath : MonoBehaviour
 {
@@ -95,6 +96,24 @@ public class BestPath : MonoBehaviour
 
 
 
+        // ------ ENREGISTREMENT DANS LE REGISTRE (réserver les deux chemins) ------
+        if (LevelRegistry.Instance != null)
+        {
+            var leftCells = new List<Vector2Int>(pathToLeftCloud.Length);
+            var rightCells = new List<Vector2Int>(pathToRightCloud.Length);
+
+            foreach (var p in pathToLeftCloud)
+                leftCells.Add(LevelRegistry.Instance.WorldToCell(p));
+            foreach (var p in pathToRightCloud)
+                rightCells.Add(LevelRegistry.Instance.WorldToCell(p));
+
+            LevelRegistry.Instance.ReservePathLeft(leftCells);
+            LevelRegistry.Instance.ReservePathRight(rightCells);
+        }
+
+
+
+
 
 
         // ------ INSTANTIATION DES QUADS LE LONG DES CHEMINS ------
@@ -110,7 +129,7 @@ public class BestPath : MonoBehaviour
             Instantiate(bugCloudPrefab, new Vector3(pos.x, 0.01f, pos.z), bugCloudPrefab.transform.rotation, transform);
         }
 
-        
+
 
 
 
@@ -119,7 +138,7 @@ public class BestPath : MonoBehaviour
         // ------ REVELER LES CASES DU CHEMIN DANS LE FOG OF WAR ------
         if (FogController.Instance != null)
         {
-            var cells = new System.Collections.Generic.List<Vector2Int>(chosenPath.Length);
+            var cells = new List<Vector2Int>(chosenPath.Length);
             foreach (var p in chosenPath)
                 cells.Add(new Vector2Int(Mathf.RoundToInt(p.x), Mathf.RoundToInt(p.z)));
 

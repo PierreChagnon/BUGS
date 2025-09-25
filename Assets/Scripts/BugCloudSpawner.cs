@@ -62,6 +62,12 @@ public class BugCloudSpawner : MonoBehaviour
         Instantiate(bugCloudPrefab, new Vector3(cellA.x, spawnY, cellA.y), Quaternion.identity, transform);
         Instantiate(bugCloudPrefab, new Vector3(cellB.x, spawnY, cellB.y), Quaternion.identity, transform);
 
+        // Enregistrer les nuages dans le LevelRegistry
+        var cell = new Vector2Int(Mathf.RoundToInt(cellA.x), Mathf.RoundToInt(cellA.y));
+        LevelRegistry.Instance.RegisterBugCloud(cell);
+        cell = new Vector2Int(Mathf.RoundToInt(cellB.x), Mathf.RoundToInt(cellB.y));
+        LevelRegistry.Instance.RegisterBugCloud(cell);
+
         Debug.Log($"[BugCloudSpawner] D={chosenD}  A={cellA}  B={cellB}");
     }
 
