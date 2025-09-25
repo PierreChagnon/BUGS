@@ -90,6 +90,13 @@ public class GridMoverNewInput : MonoBehaviour
         if (LevelRegistry.Instance != null)
             LevelRegistry.Instance.MarkVisited(LevelRegistry.Instance.WorldToCell(transform.position));
 
+        // Informer le GameManager
+        if (GameManager.Instance != null && LevelRegistry.Instance != null)
+        {
+            var cell = LevelRegistry.Instance.WorldToCell(transform.position);
+            GameManager.Instance.OnPlayerStep(cell);
+        }
+
     }
 
 

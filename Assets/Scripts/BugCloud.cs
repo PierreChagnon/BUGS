@@ -26,6 +26,10 @@ public class BugCloud : MonoBehaviour
         if (other.CompareTag("Player"))
         {
             print("Collecte d'insectes !");
+            // On informe le GameManager
+            if (GameManager.Instance != null)
+                GameManager.Instance.OnCloudCollected(this);
+
             // Destroy the bug cloud when the player collides with it
             Destroy(gameObject);
         }
@@ -40,4 +44,11 @@ public class BugCloud : MonoBehaviour
             LevelRegistry.Instance.UnregisterBugCloud(cell);
         }
     }
+
+    public void AddBugs(int delta)
+    {
+        totalBugs = Mathf.Max(0, totalBugs + delta);
+        // (option: mettre à jour un label au-dessus du nuage si tu en as un)
+    }
+
 }

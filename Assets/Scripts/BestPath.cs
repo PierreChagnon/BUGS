@@ -121,8 +121,27 @@ public class BestPath : MonoBehaviour
         // Si visible est false, on ne fait rien
         if (!visible) return;
 
-        // On tire au sort quel chemin on affiche
+        // On tire au sort quel chemin on affiche, par défaut
         Vector3[] chosenPath = (Random.value < 0.5f) ? pathToLeftCloud : pathToRightCloud;
+        // Si GameManager connaît un nuage "meilleur", on force le chemin correspondant
+        if (GameManager.Instance != null)
+        {
+            var best = GameManager.Instance.GetBestCloud();
+            if (best != null)
+                chosenPath = (Mathf.RoundToInt(best.transform.position.x) ==
+                              Mathf.RoundToInt(leftCloud.transform.position.x))
+                             ? pathToLeftCloud
+                             : pathToRightCloud;
+
+            // Publier la liste des cellules du chemin conseillé
+            var advisorCells = new System.Collections.Generic.List<Vector2Int>(chosenPath.Length);
+            foreach (var p in chosenPath)
+                advisorCells.Add(LevelRegistry.Instance.WorldToCell(p));
+
+            GameManager.Instance.SetChosenPath(advisorCells);
+        }
+
+        
         // Instancier les quads le long des chemins
         foreach (var pos in chosenPath)
         {

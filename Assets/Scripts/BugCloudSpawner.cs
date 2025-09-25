@@ -59,14 +59,30 @@ public class BugCloudSpawner : MonoBehaviour
         Vector2Int cellB = validRing[j];
 
         // Instancier (origine=0,0 ; cellSize=1)
-        Instantiate(bugCloudPrefab, new Vector3(cellA.x, spawnY, cellA.y), Quaternion.identity, transform);
-        Instantiate(bugCloudPrefab, new Vector3(cellB.x, spawnY, cellB.y), Quaternion.identity, transform);
+        var goA = Instantiate(bugCloudPrefab, new Vector3(cellA.x, spawnY, cellA.y), Quaternion.identity, transform);
+        var goB = Instantiate(bugCloudPrefab, new Vector3(cellB.x, spawnY, cellB.y), Quaternion.identity, transform);
+
+        // Randomise le nombre de bugs dans chaque nuage
+        var cloudA = goA.GetComponent<BugCloud>();
+        cloudA.totalBugs = Random.Range(5, 11); // 5..10 inclus
+        var cloudB = goB.GetComponent<BugCloud>();
+        // cloudB ne doit pas être égal à cloudA
+        do { cloudB.totalBugs = Random.Range(5, 11); } while (cloudB.totalBugs == cloudA.totalBugs);
 
         // Enregistrer les nuages dans le LevelRegistry
-        var cell = new Vector2Int(Mathf.RoundToInt(cellA.x), Mathf.RoundToInt(cellA.y));
-        LevelRegistry.Instance.RegisterBugCloud(cell);
-        cell = new Vector2Int(Mathf.RoundToInt(cellB.x), Mathf.RoundToInt(cellB.y));
-        LevelRegistry.Instance.RegisterBugCloud(cell);
+        if (LevelRegistry.Instance != null)
+        {
+            LevelRegistry.Instance.RegisterBugCloud(cellA);
+            LevelRegistry.Instance.RegisterBugCloud(cellB);
+        }
+
+        // On informe le GameManager
+        if (GameManager.Instance != null)
+        {
+            BugCloud left = (goA.transform.position.x <= goB.transform.position.x) ? cloudA : cloudB;
+            BugCloud right = (left == cloudA) ? cloudB : cloudA;
+            GameManager.Instance.RegisterClouds(left, right);
+        }
 
         Debug.Log($"[BugCloudSpawner] D={chosenD}  A={cellA}  B={cellB}");
     }
