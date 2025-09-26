@@ -32,6 +32,9 @@ public class GridMoverNewInput : MonoBehaviour
     {
         if (isMoving) return;
 
+        // Si le round est fini, on n’accepte plus d’input
+        if (GameManager.Instance != null && GameManager.Instance.inputLocked) return;
+
         Vector2Int step = ReadStepNewInput();
         if (step == Vector2Int.zero) return;
 
