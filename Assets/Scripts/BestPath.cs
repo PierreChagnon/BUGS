@@ -32,8 +32,6 @@ public class BestPath : MonoBehaviour
             if (rightCloud == null || cloud.transform.position.x > rightCloud.transform.position.x)
                 rightCloud = cloud;
         }
-        Debug.Log($"[BestPath] Nuage gauche: {leftCloud.transform.position}, Nuage droite: {rightCloud.transform.position}");
-
 
 
 
@@ -50,7 +48,6 @@ public class BestPath : MonoBehaviour
         Vector3 playerPos = new Vector3(Mathf.Round(player.position.x), 0, Mathf.Round(player.position.z));
         Vector3 leftCloudPos = new Vector3(Mathf.Round(leftCloud.transform.position.x), 0, Mathf.Round(leftCloud.transform.position.z));
         Vector3 rightCloudPos = new Vector3(Mathf.Round(rightCloud.transform.position.x), 0, Mathf.Round(rightCloud.transform.position.z));
-        Debug.Log($"[BestPath] Positions arrondies: Joueur {playerPos}, Nuage gauche {leftCloudPos}, Nuage droite {rightCloudPos}");
 
         // On crée les deux tableaux de positions pour les deux chemins
         Vector3[] pathToLeftCloud = new Vector3[(int)(Mathf.Abs(playerPos.x - leftCloudPos.x) + Mathf.Abs(playerPos.z - leftCloudPos.z)) + 1];
@@ -82,16 +79,9 @@ public class BestPath : MonoBehaviour
                 currentPos.z++; // Se déplacer verticalement
             pathToRightCloud[index++] = currentPos; // On ajoute la nouvelle position au chemin
         }
-        // Afficher les deux chemins dans la console
-        string path1 = "[BestPath] Chemin vers nuage gauche: ";
-        foreach (var pos in pathToLeftCloud)
-            path1 += pos + " ";
-        Debug.Log(path1);
 
-        string path2 = "[BestPath] Chemin vers nuage droite: ";
-        foreach (var pos in pathToRightCloud)
-            path2 += pos + " ";
-        Debug.Log(path2);
+
+
 
 
 
@@ -116,6 +106,8 @@ public class BestPath : MonoBehaviour
 
 
 
+
+
         // ------ INSTANTIATION DES QUADS LE LONG DES CHEMINS ------
 
         // Si visible est false, on ne fait rien
@@ -134,14 +126,14 @@ public class BestPath : MonoBehaviour
                              : pathToRightCloud;
 
             // Publier la liste des cellules du chemin conseillé
-            var advisorCells = new System.Collections.Generic.List<Vector2Int>(chosenPath.Length);
+            var advisorCells = new List<Vector2Int>(chosenPath.Length);
             foreach (var p in chosenPath)
                 advisorCells.Add(LevelRegistry.Instance.WorldToCell(p));
 
             GameManager.Instance.SetChosenPath(advisorCells);
         }
 
-        
+
         // Instancier les quads le long des chemins
         foreach (var pos in chosenPath)
         {

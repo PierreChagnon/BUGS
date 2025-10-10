@@ -64,7 +64,6 @@ public class TrapSpawner : MonoBehaviour
             Vector3 pos = registry.CellToWorld(cell, trapYOffset);
             Instantiate(trapPrefab, pos, Quaternion.identity, transform);
 
-            Debug.Log($"[TrapSpawner] Piège placé en {pos} (cell {candidates[i]})");
             placed++;
         }
 

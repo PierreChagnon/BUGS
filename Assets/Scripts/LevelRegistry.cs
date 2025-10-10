@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+// -----------------------------
+// Gère l’état de la grille (nuages, pièges, chemins…)
+// -----------------------------
+
 [DefaultExecutionOrder(-500)]
 public class LevelRegistry : MonoBehaviour
 {

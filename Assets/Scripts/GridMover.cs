@@ -1,6 +1,10 @@
 using UnityEngine;
 using UnityEngine.InputSystem; // <— nouveau système
 
+// -----------------------------
+// Déplace un GameObject par pas sur une grille (New Input System)
+// -----------------------------
+
 public class GridMoverNewInput : MonoBehaviour
 {
     [Header("Grille")]
