@@ -57,7 +57,7 @@ public class TrialManager : MonoBehaviour
     {
         if (currentTrial != null)
         {
-            currentTrial.player_path_log.Add(position);
+            currentTrial.player_path_log.Add(new PlayerStep(position, System.DateTime.UtcNow.ToString("o")));
         }
     }
 
@@ -68,10 +68,22 @@ public class TrialManager : MonoBehaviour
 
         currentTrial.proximal_choice = playerChoice;
         currentTrial.choice_correct = correct;
-        // currentTrial.rt_ms = Mathf.RoundToInt(Time.timeSinceLevelLoad * 1000f); // simplifié
+        // currentTrial.rt_ms = Mathf.RoundToInt(Time.timeSinceLevelLoad * 1000f);
         currentTrial.end_timestamp = System.DateTime.UtcNow.ToString("o");
 
         Debug.Log("Manche terminée !");
+    }
+
+    // Setter appelé par le Gameplay pour fournir la longueur de chemin optimal
+    public void SetOptimalPathLength(int value)
+    {
+        if (currentTrial == null)
+        {
+            Debug.LogWarning("[TrialManager] SetOptimalPathLength() ignoré: currentTrial est null");
+            return;
+        }
+
+        currentTrial.optimal_path_length = value;
     }
 
     // Envoi de toutes les manches accumulées vers ton API

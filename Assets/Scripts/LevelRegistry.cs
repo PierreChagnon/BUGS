@@ -14,6 +14,10 @@ public class LevelRegistry : MonoBehaviour
     [Header("Grille (origine 0,0 ; cellSize 1)")]
     public Vector2Int gridSize = new(10, 10);
 
+    [HideInInspector]
+    public int optimalPathLength;
+
+
     // --- Etat par case (flags) ---
     [Flags]
     public enum CellFlags
@@ -72,6 +76,12 @@ public class LevelRegistry : MonoBehaviour
         AddFlags(c, CellFlags.Trap);
         return true;
     }
+    public void RegisterOptimalPath(List<Vector2Int> path)
+    {
+        optimalPathLength = path != null ? path.Count : 0;
+        Debug.Log($"[LevelRegistry] Chemin optimal enregistré ({optimalPathLength} cases).");
+    }
+
     public void UnregisterTrap(Vector2Int c) => RemoveFlags(c, CellFlags.Trap);
 
     public void ReservePathLeft(IEnumerable<Vector2Int> cells)

@@ -5,6 +5,7 @@ using UnityEngine;
 // -----------------------------
 // Classe représentant UNE manche
 // -----------------------------
+
 [Serializable]
 public class TrialData
 {
@@ -25,7 +26,8 @@ public class TrialData
     public int optimal_path_length;
 
     // Chemin du joueur
-    public List<Vector2Int> player_path_log = new();
+
+    public List<PlayerStep> player_path_log = new();
 
     // Résultats
     public string proximal_choice;

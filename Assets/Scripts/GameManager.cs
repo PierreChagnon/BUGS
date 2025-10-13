@@ -152,6 +152,13 @@ public class GameManager : MonoBehaviour
             var best = GetBestCloud(); // déjà fourni par ton GameManager
             bool correct = (best != null) ? (cloud == best) : false;
 
+            // Fournir la longueur du chemin optimal au TrialManager
+            // on fait ca ici car c'est le moment de la fin de manche, et toutes les infos de gameplay sont figées
+            if (LevelRegistry.Instance != null)
+            {
+                trialManager.SetOptimalPathLength(LevelRegistry.Instance.optimalPathLength);
+            }
+
             // Fin de la manche, on envoie les résultats a TrialData
             trialManager.EndCurrentTrial(choice, correct);
 
@@ -184,7 +191,7 @@ public class GameManager : MonoBehaviour
     // Restart de la scène (appelé par le bouton UI)
     public void RestartRound()
     {
-        // Débloquer si tu avais des locks globaux (optionnel)
+        // Débloquer les inputs
         inputLocked = false;
         roundOver = false;
 
@@ -201,18 +208,7 @@ public class GameManager : MonoBehaviour
         return (leftCloud.totalBugs > rightCloud.totalBugs) ? leftCloud : rightCloud;
     }
 
-    // --- Fin de round + restart simple ---
-    void EndRound()
-    {
-        // ici tu peux logguer/écrire un fichier/etc. puis relancer un round
-        StartCoroutine(RestartSceneAfter(1.0f));
-    }
-    IEnumerator RestartSceneAfter(float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-    }
-
+    // Met à jour l’UI du score
     void UpdateScoreUI()
     {
         if (scoreText == null) return;

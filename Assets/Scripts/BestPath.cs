@@ -131,6 +131,10 @@ public class BestPath : MonoBehaviour
                 advisorCells.Add(LevelRegistry.Instance.WorldToCell(p));
 
             GameManager.Instance.SetChosenPath(advisorCells);
+
+            // Enregistrer le chemin optimal dans le LevelRegistry
+            LevelRegistry.Instance.RegisterOptimalPath(advisorCells);
+
         }
 
 
