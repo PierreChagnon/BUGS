@@ -16677,7 +16677,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 449489812925837503, guid: 688d62e3969902e45b9377349eec24df, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4290076745784801433, guid: 688d62e3969902e45b9377349eec24df, type: 3}
       propertyPath: m_CastShadows
@@ -16777,6 +16777,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelRegistry
   gridSize: {x: 11, y: 11}
+  optimalPathLength: 0
 --- !u!4 &1310475316
 Transform:
   m_ObjectHideFlags: 0

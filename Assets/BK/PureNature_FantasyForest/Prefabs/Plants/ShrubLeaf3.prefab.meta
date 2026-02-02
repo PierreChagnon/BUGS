@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: a6458a655abb49cb8d64d58c54dab513
+labels:
+- Plant
+- Vegetation
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282665
+  packageName: 'Pure Nature 2 : Fantasy Forest'
+  packageVersion: 2.1
+  assetPath: Assets/BK/PureNature_FantasyForest/Prefabs/Plants/ShrubLeaf3.prefab
+  uploadId: 745099

@@ -50,6 +50,9 @@ public class GridMoverNewInput : MonoBehaviour
         if (LevelRegistry.Instance != null && !LevelRegistry.Instance.InBounds(targetCell))
             return; // hors plateau → on ignore l’input
 
+        if (LevelRegistry.Instance != null && !LevelRegistry.Instance.IsWalkable(targetCell))
+            return; // mur / case bloquante → on ignore l’input
+
 
         if (rotateToDirection && dir != Vector3.zero)
             transform.rotation = Quaternion.LookRotation(dir, Vector3.up);

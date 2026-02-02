@@ -1,7 +1,5 @@
-using System.Text;
 using System.Collections;
 using UnityEngine;
-using UnityEngine.Networking;
 
 // -----------------------------
 // Gère la création et l’envoi de la session de jeu
@@ -12,10 +10,9 @@ public class SessionManager : MonoBehaviour
     [Header("Refs")]
     public TrialManager trialManager;
     public GameManager gameManager;
+    public TrapSpawner trapSpawner; // optionnel: assigner dans l'inspecteur
 
-    [Header("API")]
-    public string apiBaseUrl = "http://localhost:3000";
-    public string studyToken = "change-moi-en-long-secret-aleatoire";
+    // Plus de création de session côté Unity; sessions sont gérées par le dashboard
 
     [Header("Session meta (optionnel)")]
     public long randomizationSeed = 0;
@@ -23,42 +20,81 @@ public class SessionManager : MonoBehaviour
 
     IEnumerator Start()
     {
-        yield return StartCoroutine(CreateSession());
-        // Ici seulement, on démarre le jeu
+        // 1) Lire les arguments passés au build Unity (WebGL/Desktop)
+        // Format attendu: "trapCount=<int>" (ex: trapCount=12)
+        TryApplyTrapCountFromArgs();
+
+        // 2) Lire sessionId et l'injecter dans TrialManager pour taguer les trials
+        TryApplySessionIdFromArgs();
+
+        // Démarrer directement le jeu (la session de recherche existe déjà côté dashboard)
+        yield return null;
         gameManager.BeginFirstRound();
     }
 
-
-    IEnumerator CreateSession()
+    void TryApplyTrapCountFromArgs()
     {
-        var payload = new
+        var args = System.Environment.GetCommandLineArgs();
+        foreach (var a in args)
         {
-            randomization_seed = randomizationSeed,
-            build_version = buildVersion,
-            consent_given_at = System.DateTime.UtcNow.ToString("o")
-        };
-        string json = JsonUtility.ToJson(payload);
+            if (!a.StartsWith("trapCount=", System.StringComparison.OrdinalIgnoreCase)) continue;
 
-        using var req = new UnityWebRequest(apiBaseUrl + "/api/session", "POST");
-        byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
-        req.uploadHandler = new UploadHandlerRaw(bodyRaw);
-        req.downloadHandler = new DownloadHandlerBuffer();
-        req.SetRequestHeader("Content-Type", "application/json");
-        req.SetRequestHeader("x-study-token", studyToken);
+            var val = a.Substring("trapCount=".Length);
+            if (!int.TryParse(val, out var parsed) || parsed < 0)
+            {
+                Debug.LogWarning($"[SessionManager] Argument trapCount invalide: '{val}'");
+                return;
+            }
 
-        yield return req.SendWebRequest();
+            // Priorité: si un TrapSpawner est référencé, on le met à jour
+            if (trapSpawner != null)
+            {
+                trapSpawner.trapCount = parsed;
+                Debug.Log($"[SessionManager] trapCount reçu via args: {parsed} (assigné au TrapSpawner référencé)");
+                return;
+            }
 
-        if (req.result == UnityWebRequest.Result.Success)
-        {
-            var resp = JsonUtility.FromJson<SessionResp>(req.downloadHandler.text);
-            trialManager.SetSessionId(resp.game_session_id); // informe TrialManager
-            Debug.Log("Session créée: " + resp.game_session_id);
-        }
-        else
-        {
-            Debug.LogError($"CreateSession FAIL {req.responseCode} {req.error} {req.downloadHandler.text}");
+            // Sinon, tenter d'en trouver un dans la scène
+            var spawner = Object.FindFirstObjectByType<TrapSpawner>();
+            if (spawner != null)
+            {
+                spawner.trapCount = parsed;
+                Debug.Log($"[SessionManager] trapCount reçu via args: {parsed} (assigné au TrapSpawner trouvé)");
+            }
+            else
+            {
+                Debug.LogWarning("[SessionManager] Aucun TrapSpawner trouvé pour appliquer trapCount.");
+            }
+            return;
         }
     }
 
-    [System.Serializable] private struct SessionResp { public string game_session_id; }
+    void TryApplySessionIdFromArgs()
+    {
+        var args = System.Environment.GetCommandLineArgs();
+        foreach (var a in args)
+        {
+            if (!a.StartsWith("sessionId=", System.StringComparison.OrdinalIgnoreCase)) continue;
+
+            var val = a.Substring("sessionId=".Length);
+            if (string.IsNullOrWhiteSpace(val))
+            {
+                Debug.LogWarning("[SessionManager] Argument sessionId vide.");
+                return;
+            }
+
+            if (trialManager != null)
+            {
+                trialManager.SetSessionId(val);
+                Debug.Log($"[SessionManager] sessionId reçu via args: '{val}'");
+            }
+            else
+            {
+                Debug.LogWarning("[SessionManager] TrialManager est null: impossible d'assigner sessionId.");
+            }
+            return;
+        }
+    }
 }
+
+

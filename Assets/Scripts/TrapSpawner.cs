@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[DefaultExecutionOrder(-10)]
 public class TrapSpawner : MonoBehaviour
 {
     [Header("Références")]
@@ -30,6 +31,12 @@ public class TrapSpawner : MonoBehaviour
 
 
         var registry = LevelRegistry.Instance;
+        if (registry == null)
+        {
+            Debug.LogError("[TrapSpawner] LevelRegistry manquant dans la scène.");
+            return;
+        }
+
         // Éviter la case du joueur
         if (player != null)
         {
@@ -39,11 +46,6 @@ public class TrapSpawner : MonoBehaviour
 
 
         // Filtrer les cases interdites depuis le LevelRegistry 
-        if (registry == null)
-        {
-            Debug.LogError("[TrapSpawner] LevelRegistry manquant dans la scène.");
-            return;
-        }
         candidates.RemoveAll(c => !registry.IsFreeForTrap(c));
 
 

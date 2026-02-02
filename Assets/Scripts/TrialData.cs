@@ -10,7 +10,7 @@ using UnityEngine;
 public class TrialData
 {
     // Identifiants de session et de manche
-    public string game_session_id;   // donné par l’API /api/session
+    public string session_id;   // donné par l’API /api/session
     public int block_id;
     public int screen_id;
 
@@ -42,7 +42,7 @@ public class TrialData
     // Constructeur (appelé au début de la manche)
     public TrialData(string sessionId, int block, int screen, string type)
     {
-        game_session_id = sessionId;
+        session_id = sessionId;
         block_id = block;
         screen_id = screen;
         screen_type = type;

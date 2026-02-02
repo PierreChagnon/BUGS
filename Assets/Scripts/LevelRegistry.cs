@@ -6,7 +6,7 @@ using UnityEngine;
 // Gère l’état de la grille (nuages, pièges, chemins…)
 // -----------------------------
 
-[DefaultExecutionOrder(-500)]
+[DefaultExecutionOrder(-300)]
 public class LevelRegistry : MonoBehaviour
 {
     public static LevelRegistry Instance { get; private set; }
@@ -29,6 +29,7 @@ public class LevelRegistry : MonoBehaviour
         PathRight = 1 << 3,  // la case appartient au chemin droit
         Reserved = 1 << 4,  // case réservée (exclure spawn piège)
         Visited = 1 << 5,  // le joueur a déjà marché ici
+        Wall = 1 << 6,  // case bloquante (mur / non-praticable)
     }
 
     // Store “truth” here
@@ -111,10 +112,22 @@ public class LevelRegistry : MonoBehaviour
     public bool IsOnAnyPath(Vector2Int c) => (GetFlags(c) & (CellFlags.PathLeft | CellFlags.PathRight)) != 0;
     public bool IsReserved(Vector2Int c) => (GetFlags(c) & CellFlags.Reserved) != 0;
     public bool IsVisited(Vector2Int c) => (GetFlags(c) & CellFlags.Visited) != 0;
+    public bool IsWall(Vector2Int c) => (GetFlags(c) & CellFlags.Wall) != 0;
+
+    // Murs : bloquent le déplacement et interdisent le spawn de pièges.
+    public void RegisterWall(Vector2Int c)
+    {
+        if (!InBounds(c)) return;
+        AddFlags(c, CellFlags.Wall);
+    }
+    public void UnregisterWall(Vector2Int c) => RemoveFlags(c, CellFlags.Wall);
+
+    // Déplacement : une case est praticable si elle est dans la grille et non-mur.
+    public bool IsWalkable(Vector2Int c) => InBounds(c) && !IsWall(c);
 
     // Pour le spawn de pièges : simple et clair
     public bool IsFreeForTrap(Vector2Int c)
-        => InBounds(c) && !IsReserved(c) && !HasTrap(c);
+        => InBounds(c) && !IsReserved(c) && !IsWall(c) && !HasTrap(c);
 
     // Conversions grille <-> monde (origine 0,0 ; cellSize 1)
     public Vector2Int WorldToCell(Vector3 world)

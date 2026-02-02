@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 6b9213981e4f4545829bc4f8bcddef0d
+labels:
+- Plant
+- Vegetation
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282665
+  packageName: 'Pure Nature 2 : Fantasy Forest'
+  packageVersion: 2.1
+  assetPath: Assets/BK/PureNature_FantasyForest/Prefabs/Plants/Shrub1.prefab
+  uploadId: 745099
