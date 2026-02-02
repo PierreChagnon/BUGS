@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 6eb97e95f27a4c90888ea63447778fdf
+labels:
+- Plant
+- Vegetation
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282665
+  packageName: 'Pure Nature 2 : Fantasy Forest'
+  packageVersion: 2.1
+  assetPath: Assets/BK/PureNature_FantasyForest/Prefabs/Plants/GrassMoss.prefab
+  uploadId: 745099

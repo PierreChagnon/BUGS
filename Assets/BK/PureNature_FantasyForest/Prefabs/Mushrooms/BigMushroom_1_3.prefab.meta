@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 921318f5d24d4da2ab4f71d6de880f15
+labels:
+- Mushroom
+- Vegetation
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282665
+  packageName: 'Pure Nature 2 : Fantasy Forest'
+  packageVersion: 2.1
+  assetPath: Assets/BK/PureNature_FantasyForest/Prefabs/Mushrooms/BigMushroom_1_3.prefab
+  uploadId: 745099

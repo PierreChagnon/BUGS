@@ -1,6 +1,10 @@
 using UnityEngine;
 using UnityEngine.InputSystem; // <— nouveau système
 
+// -----------------------------
+// Déplace un GameObject par pas sur une grille (New Input System)
+// -----------------------------
+
 public class GridMoverNewInput : MonoBehaviour
 {
     [Header("Grille")]
@@ -45,6 +49,9 @@ public class GridMoverNewInput : MonoBehaviour
         var targetCell = new Vector2Int(Mathf.RoundToInt(targetPos.x), Mathf.RoundToInt(targetPos.z));
         if (LevelRegistry.Instance != null && !LevelRegistry.Instance.InBounds(targetCell))
             return; // hors plateau → on ignore l’input
+
+        if (LevelRegistry.Instance != null && !LevelRegistry.Instance.IsWalkable(targetCell))
+            return; // mur / case bloquante → on ignore l’input
 
 
         if (rotateToDirection && dir != Vector3.zero)

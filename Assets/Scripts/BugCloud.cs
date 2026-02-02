@@ -11,7 +11,7 @@ public class BugCloud : MonoBehaviour
     public float greenRatio = 0.7f;
 
     [Header("Effets")]
-    public float rotationSpeed = 0.3f; // Vitesse de rotation du nuage
+    public float rotationSpeed = 0.03f; // Vitesse de rotation du nuage
 
     // Update is called once per frame
     void Update()

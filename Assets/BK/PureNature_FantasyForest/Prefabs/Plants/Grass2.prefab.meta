@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 361d30ef7cb14e528ba800dbd231ff88
+labels:
+- Plant
+- Vegetation
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282665
+  packageName: 'Pure Nature 2 : Fantasy Forest'
+  packageVersion: 2.1
+  assetPath: Assets/BK/PureNature_FantasyForest/Prefabs/Plants/Grass2.prefab
+  uploadId: 745099

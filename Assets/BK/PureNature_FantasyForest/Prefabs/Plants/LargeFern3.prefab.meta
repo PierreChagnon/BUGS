@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 904558eef9d448f7bf3f2fd80c5d9f36
+labels:
+- Plant
+- Vegetation
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282665
+  packageName: 'Pure Nature 2 : Fantasy Forest'
+  packageVersion: 2.1
+  assetPath: Assets/BK/PureNature_FantasyForest/Prefabs/Plants/LargeFern3.prefab
+  uploadId: 745099

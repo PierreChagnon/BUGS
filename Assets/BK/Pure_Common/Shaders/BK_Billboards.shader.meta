@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 922009cd7df1b8349a0d4524598e1be5
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures: []
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282665
+  packageName: 'Pure Nature 2 : Fantasy Forest'
+  packageVersion: 2.1
+  assetPath: Assets/BK/Pure_Common/Shaders/BK_Billboards.shader
+  uploadId: 745099

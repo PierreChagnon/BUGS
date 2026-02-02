@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Renderer))]
+[DefaultExecutionOrder(-250)]
 public class FogController : MonoBehaviour
 {
     public static FogController Instance { get; private set; }

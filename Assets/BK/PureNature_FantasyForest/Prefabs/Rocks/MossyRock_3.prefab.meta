@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: d9c2a7cf8c84479685995d60cf3b6c22
+labels:
+- Rock
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 282665
+  packageName: 'Pure Nature 2 : Fantasy Forest'
+  packageVersion: 2.1
+  assetPath: Assets/BK/PureNature_FantasyForest/Prefabs/Rocks/MossyRock_3.prefab
+  uploadId: 745099

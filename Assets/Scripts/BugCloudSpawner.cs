@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+[DefaultExecutionOrder(-200)]
 public class BugCloudSpawner : MonoBehaviour
 {
     [Header("Références")]
@@ -13,6 +14,7 @@ public class BugCloudSpawner : MonoBehaviour
     [Header("Placement")]
     [Tooltip("Distance Manhattan minimale (en cases) depuis le joueur.")]
     public int minDistance = 3;
+    readonly int minZ = 5; // Z minimale pour placer un nuage (évite les nuages trop proches du joueur en Y)
     [Tooltip("Hauteur Y pour instancier les nuages (pivot au centre du prefab).")]
     public float spawnY = 0.5f;
 
@@ -47,12 +49,19 @@ public class BugCloudSpawner : MonoBehaviour
         // Choisir une couronne au hasard
         int chosenD = candidateDs[Random.Range(0, candidateDs.Count)];
         var validRing = GetRingCells(playerCell, chosenD);
-        validRing.RemoveAll(c => !InBounds(c) || c == playerCell); // On enlève les cases hors-grille et la case du joueur
+        validRing.RemoveAll(c => !InBounds(c) || c == playerCell || c.y < minZ); // On enlève les cases hors-grille, la case du joueur et celles en dessous de minZ
+        Debug.Log($"[BugCloudSpawner] Couronne D={chosenD} a {validRing.Count} cases valides après filtrage.");
 
         // Choisir 2 cases distinctes au hasard dans la couronne valide
         // Il faut une case plutot à gauche et une plutot à droite pour éviter qu'elles soient trop proches
-        int i = Random.Range(0, (validRing.Count / 2) - 1);               // Indice dans la moitié gauche (-1 pour décaler)
-        int j = Random.Range((validRing.Count / 2) + 1, validRing.Count); // Indice dans la moitié droite (+1 pour décaler)
+        // Il faut aussi que les cases soient symétriques par rapport au joueur pour l'équilibrage
+        int j = -1;
+        int i = -1;
+        while (j == -1)
+        {
+            i = Random.Range(0, validRing.Count / 2 - 1); // Indice dans la moitié gauche (-1 pour éviter le milieu)
+            j = validRing.FindIndex(validRing.Count / 2, c => c.y == validRing[i].y);
+        }
 
         // On récupère les coordonnées des cases choisies
         Vector2Int cellA = validRing[i];
