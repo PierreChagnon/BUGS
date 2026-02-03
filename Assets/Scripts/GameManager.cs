@@ -41,6 +41,7 @@ public class GameManager : MonoBehaviour
 
     void Awake()
     {
+        Debug.Log("[GameManager] Awake");
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
         UpdateScoreUI();
@@ -191,6 +192,7 @@ public class GameManager : MonoBehaviour
     // Restart de la scène (appelé par le bouton UI)
     public void RestartRound()
     {
+        Debug.Log("Redémarrage de la manche...");
         // Débloquer les inputs
         inputLocked = false;
         roundOver = false;

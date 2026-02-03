@@ -135,6 +135,10 @@ PrefabInstance:
       propertyPath: m_ConstrainProportionsScale
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 1580588267265929519, guid: 9c3319485ff7f0940a60a0a5e3cac5b8, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 10301, guid: 0000000000000000f000000000000000, type: 0}
     - target: {fileID: 5947399113130487219, guid: 9c3319485ff7f0940a60a0a5e3cac5b8, type: 3}
       propertyPath: m_Name
       value: GreenBugs
@@ -209,6 +213,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1580588267265929519, guid: 9c3319485ff7f0940a60a0a5e3cac5b8, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 10301, guid: 0000000000000000f000000000000000, type: 0}
     - target: {fileID: 5947399113130487219, guid: 9c3319485ff7f0940a60a0a5e3cac5b8, type: 3}
       propertyPath: m_Name
       value: RedBugs
