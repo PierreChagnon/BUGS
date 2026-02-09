@@ -18,6 +18,18 @@ public class BugCloudSpawner : MonoBehaviour
     [Tooltip("Hauteur Y pour instancier les nuages (pivot au centre du prefab).")]
     public float spawnY = 0.5f;
 
+    //Parameters to set number of bugs in clouds
+    [Header("BugsCloud Parameters : Researchers Input")]
+    [SerializeField]
+    private int minTotalBugs = 20;
+    [SerializeField]
+    private int maxTotalBugs = 80;
+    [SerializeField]
+    private float minGreenBugsRatio = 0.4f;
+    [SerializeField]
+    private float maxGreenBugsRatio = 0.8f;
+
+
     // À l'Awake, on place les 2 nuages (permet d'acceder à leurs positions dans Start du TrapSpawner)
     void Awake()
     {
@@ -71,12 +83,23 @@ public class BugCloudSpawner : MonoBehaviour
         var goA = Instantiate(bugCloudPrefab, new Vector3(cellA.x, spawnY, cellA.y), Quaternion.identity, transform);
         var goB = Instantiate(bugCloudPrefab, new Vector3(cellB.x, spawnY, cellB.y), Quaternion.identity, transform);
 
-        // Randomise le nombre de bugs dans chaque nuage
+        // Randomise le nombre de bugs dans chaque nuage, basé sur les paramètres min/maxTotalBugs et min/maxGreenBugsRatio
+        // Cloud A et B on le même total de bugs mais des quantités différentes de verts et de rouges.
+        // Ici on tire les valeurs dans le range : 1 totalBugs et 2 ratio (un pour chaque cloud). et on initialize les particles
+
+        int trialTotalBugs = Random.Range(minTotalBugs, maxTotalBugs + 1);
         var cloudA = goA.GetComponent<BugCloud>();
-        cloudA.totalBugs = Random.Range(5, 11); // 5..10 inclus
         var cloudB = goB.GetComponent<BugCloud>();
-        // cloudB ne doit pas être égal à cloudA
-        do { cloudB.totalBugs = Random.Range(5, 11); } while (cloudB.totalBugs == cloudA.totalBugs);
+
+        cloudA.totalBugs = trialTotalBugs;
+        cloudB.totalBugs = trialTotalBugs;
+
+        cloudA.greenRatio = Random.Range(minGreenBugsRatio, maxGreenBugsRatio);
+        cloudB.greenRatio = Random.Range(minGreenBugsRatio, maxGreenBugsRatio);
+
+        cloudA.InitializeParticlesQty();
+        cloudB.InitializeParticlesQty();
+
 
         // Enregistrer les nuages dans le LevelRegistry
         if (LevelRegistry.Instance != null)

@@ -12,6 +12,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: BugCloud_V2_Red
       objectReference: {fileID: 0}
+    - target: {fileID: 3549027226947719328, guid: c68cf9b3ad79345d9b3f8a1937174435, type: 3}
+      propertyPath: m_TagString
+      value: BugCloud
+      objectReference: {fileID: 0}
     - target: {fileID: 4436276761635452632, guid: c68cf9b3ad79345d9b3f8a1937174435, type: 3}
       propertyPath: InitialModule.startColor.maxColor.g
       value: 0.30980393
