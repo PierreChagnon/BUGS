@@ -6498,7 +6498,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BugCloudSpawner
   player: {fileID: 2120981595}
-  bugCloudPrefab: {fileID: 8717559223869614996, guid: 91bbe6211f083ba4486722d12824fc83, type: 3}
+  bugCloudPrefab: {fileID: 1829720265693855184, guid: 99ffeb67015994a0787351c8dc68d858, type: 3}
   gridSize: {x: 11, y: 11}
   minDistance: 7
   spawnY: 0.5

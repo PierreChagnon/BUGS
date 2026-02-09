@@ -2,6 +2,12 @@ using UnityEngine;
 
 public class BugCloud : MonoBehaviour
 {
+    [Header("Références Particules")]
+    [SerializeField]
+    private ParticleSystem greenBugsParticles;
+    [SerializeField]
+    private ParticleSystem redBugsParticles;
+
     [Header("Butin")]
     [Tooltip("Nombre total d'insectes remis à la collecte.")]
     public int totalBugs = 20;
@@ -49,6 +55,24 @@ public class BugCloud : MonoBehaviour
     {
         totalBugs = Mathf.Max(0, totalBugs + delta);
         // (option: mettre à jour un label au-dessus du nuage si tu en as un)
+    }
+
+    //Méthode appelée par le spawner pour configuer les particules
+    public void InitializeParticlesQty()
+    {
+        if (greenBugsParticles == null || redBugsParticles == null)
+        {
+            Debug.LogWarning("[BugCloud] Systèmes de particules manquants !");
+            return;
+        }
+
+        int greenCount = Mathf.RoundToInt(totalBugs * greenRatio);
+        int redCount = totalBugs - greenCount;
+
+        //Configurer le nombre de particules vertes
+        var greenMain = greenBugsParticles.main;
+        //TODO : Ajuster les paramètres à modifier au besoin ! ici juste pour test
+
     }
 
 }
