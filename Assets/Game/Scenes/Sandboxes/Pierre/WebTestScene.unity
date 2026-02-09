@@ -11177,7 +11177,7 @@ MonoBehaviour:
   player: {fileID: 2120981595}
   registry: {fileID: 1066850207}
   corridorWidth: 3
-  extraConnections: 100
+  extraConnections: 0
   fallbackConnectToClouds: 1
   wallPrefab: {fileID: 5936082048506224353, guid: 9f662cf1313c14a4eb9f0770c63182e3, type: 3}
   wallMaterial: {fileID: 0}
