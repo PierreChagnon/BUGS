@@ -19,13 +19,6 @@ public class CorridorWallsGenerator : MonoBehaviour
     [Min(1)]
     public int corridorWidth = 2;
 
-    [Tooltip("Ajoute quelques connexions supplémentaires pour réduire les cul-de-sac.")]
-    [Range(0, 100)]
-    public int extraConnections = 10;
-
-    [Tooltip("Si aucun chemin n'est réservé (BestPath absent), on connecte quand même le joueur aux nuages.")]
-    public bool fallbackConnectToClouds = true;
-
     [Header("Visuel / Mur")]
     [Tooltip("Prefab optionnel de mur. Si null, un Cube est créé.")]
     public GameObject wallPrefab;
@@ -65,17 +58,12 @@ public class CorridorWallsGenerator : MonoBehaviour
         CacheTilesByCell();
 
         var walkable = BuildWalkableCells(reg);
-        if (walkable.Count == 0 && fallbackConnectToClouds)
-            walkable = BuildFallbackWalkable(reg);
-
         if (walkable.Count == 0)
         {
             Debug.LogWarning("[CorridorWallsGenerator] Aucun couloir généré (walkable vide).\n" +
-                             "Vérifie que BestPath réserve des cases ou active fallbackConnectToClouds.");
+                             "Vérifie que BestPath réserve des cases ou que les BugClouds sont bien enregistrés.");
             return;
         }
-
-        AddExtraConnections(reg, walkable);
 
         // Tout ce qui n'est pas couloir devient un mur.
         int wallsPlaced = 0;
@@ -92,7 +80,6 @@ public class CorridorWallsGenerator : MonoBehaviour
                 }
 
                 reg.RegisterWall(c);
-                PaintTileAsWall(c);
                 SpawnWallVisual(c);
                 wallsPlaced++;
             }
@@ -127,84 +114,46 @@ public class CorridorWallsGenerator : MonoBehaviour
 
     HashSet<Vector2Int> BuildWalkableCells(LevelRegistry reg)
     {
+        // Version ultra minimale + plus organique :
+        // - On prend la base (BestPath si présent)
+        // - On relie la case du joueur à chaque BugCloud via une marche aléatoire biaisée
+        // - On "roughen" un peu les bords
+        // - On élargit avec Inflate
+
         var baseCells = new HashSet<Vector2Int>();
 
-        // 1) Les chemins réservés (BestPath) définissent l'ossature des couloirs.
+        // 1) Ossature éventuelle via BestPath (si votre système de réservation est actif)
         for (int y = 0; y < reg.gridSize.y; y++)
         {
             for (int x = 0; x < reg.gridSize.x; x++)
             {
                 var c = new Vector2Int(x, y);
-                if (reg.IsOnAnyPath(c) || reg.HasBugCloud(c))
+                if (reg.IsOnAnyPath(c))
                     baseCells.Add(c);
             }
         }
 
-        // 2) Ajouter la case du joueur pour éviter de l'enfermer.
-        if (player != null)
-            baseCells.Add(reg.WorldToCell(player.position));
-
-        // 3) Élargissement pour obtenir des couloirs de largeur > 1.
-        return Inflate(baseCells, corridorWidth, reg);
-    }
-
-    HashSet<Vector2Int> BuildFallbackWalkable(LevelRegistry reg)
-    {
-        var result = new HashSet<Vector2Int>();
-
+        // 2) Start (joueur)
         var start = player != null ? reg.WorldToCell(player.position) : new Vector2Int(0, 0);
         if (!reg.InBounds(start)) start = new Vector2Int(0, 0);
-        result.Add(start);
+        baseCells.Add(start);
 
-        // Essayer de récupérer les nuages par tag.
-        var clouds = GameObject.FindGameObjectsWithTag("BugCloud");
-        if (clouds == null || clouds.Length == 0) return Inflate(result, corridorWidth, reg);
+        // 3) Récupérer les cibles (BugClouds + pièges si déjà posés)
+        var goals = CollectBugCloudCells(reg);
+        goals.UnionWith(CollectTrapCells(reg));
 
-        foreach (var cloud in clouds)
+        // 4) Carving organique: start -> chaque objectif
+        foreach (var goal in goals)
         {
-            if (cloud == null) continue;
-            var goal = reg.WorldToCell(cloud.transform.position);
-            CarveLPath(start, goal, result);
+            baseCells.Add(goal); // garantit au minimum "pas de mur" sur l'objectif
+            CarveOrganicPath(start, goal, reg, baseCells);
         }
 
-        return Inflate(result, corridorWidth, reg);
-    }
+        // 5) Légère irrégularité des bords (organique sans paramètres)
+        baseCells = RoughenEdges(baseCells, reg);
 
-    void AddExtraConnections(LevelRegistry reg, HashSet<Vector2Int> walkable)
-    {
-        if (extraConnections <= 0) return;
-
-        // Collecter des cul-de-sac (degré <= 1) puis tenter de les connecter.
-        var deadEnds = new List<Vector2Int>();
-        foreach (var c in walkable)
-        {
-            int deg = 0;
-            foreach (var n in Neighbors4(c))
-                if (walkable.Contains(n)) deg++;
-
-            if (deg <= 1) deadEnds.Add(c);
-        }
-
-        int attempts = 0;
-        int added = 0;
-        while (attempts < extraConnections && deadEnds.Count > 0)
-        {
-            attempts++;
-            var from = deadEnds[UnityEngine.Random.Range(0, deadEnds.Count)];
-
-            // Chercher une cible walkable proche (hors voisins immédiats).
-            if (!TryFindNearbyTarget(reg, walkable, from, out var to))
-                continue;
-
-            var carved = new HashSet<Vector2Int>();
-            CarveLPath(from, to, carved);
-            var inflated = Inflate(carved, corridorWidth, reg);
-            foreach (var c in inflated) walkable.Add(c);
-            added++;
-        }
-
-        if (added > 0)
-            Debug.Log($"[CorridorWallsGenerator] Extra connections added: {added}");
+        // 6) Largeur de couloir
+        return Inflate(baseCells, corridorWidth, reg);
     }
 
     static IEnumerable<Vector2Int> Neighbors4(Vector2Int c)
@@ -215,40 +164,166 @@ public class CorridorWallsGenerator : MonoBehaviour
         yield return new Vector2Int(c.x, c.y - 1);
     }
 
-    static void CarveLPath(Vector2Int a, Vector2Int b, HashSet<Vector2Int> into)
+    static HashSet<Vector2Int> CollectBugCloudCells(LevelRegistry reg)
     {
-        // L simple (avec un coude aléatoire) - pas un A* (suffisant pour une grille sans obstacles en fallback).
-        bool horizontalFirst = UnityEngine.Random.value < 0.5f;
+        var result = new HashSet<Vector2Int>();
 
-        var cur = a;
+        // 1) Source principale: registry (plus fiable, pas de Find par défaut)
+        for (int y = 0; y < reg.gridSize.y; y++)
+        {
+            for (int x = 0; x < reg.gridSize.x; x++)
+            {
+                var c = new Vector2Int(x, y);
+                if (reg.HasBugCloud(c))
+                    result.Add(c);
+            }
+        }
+
+        if (result.Count > 0)
+            return result;
+
+        // 2) Fallback minimal: tag (si le LevelRegistry ne track pas les nuages)
+        GameObject[] clouds;
+        try
+        {
+            clouds = GameObject.FindGameObjectsWithTag("BugCloud");
+        }
+        catch
+        {
+            return result;
+        }
+
+        if (clouds == null) return result;
+        foreach (var cloud in clouds)
+        {
+            if (cloud == null) continue;
+            var cell = reg.WorldToCell(cloud.transform.position);
+            if (reg.InBounds(cell)) result.Add(cell);
+        }
+
+        return result;
+    }
+
+    static HashSet<Vector2Int> CollectTrapCells(LevelRegistry reg)
+    {
+        var result = new HashSet<Vector2Int>();
+        for (int y = 0; y < reg.gridSize.y; y++)
+        {
+            for (int x = 0; x < reg.gridSize.x; x++)
+            {
+                var c = new Vector2Int(x, y);
+                if (reg.HasTrap(c))
+                    result.Add(c);
+            }
+        }
+        return result;
+    }
+
+    static void CarveOrganicPath(Vector2Int start, Vector2Int goal, LevelRegistry reg, HashSet<Vector2Int> into)
+    {
+        if (!reg.InBounds(start) || !reg.InBounds(goal)) return;
+
+        var cur = start;
         into.Add(cur);
+        if (cur == goal) return;
 
-        if (horizontalFirst)
+        int manhattan = Mathf.Abs(goal.x - start.x) + Mathf.Abs(goal.y - start.y);
+        int maxSteps = Mathf.Clamp(manhattan * 4 + 32, 32, 4096);
+
+        for (int i = 0; i < maxSteps && cur != goal; i++)
         {
-            while (cur.x != b.x)
+            var next = PickOrganicNextStep(cur, goal);
+            if (!reg.InBounds(next))
             {
-                cur.x += Math.Sign(b.x - cur.x);
-                into.Add(cur);
+                if (!TryPickAnyInBoundsNeighbor(cur, reg, out next))
+                    break;
             }
-            while (cur.y != b.y)
+
+            cur = next;
+            into.Add(cur);
+        }
+
+        into.Add(goal);
+    }
+
+    static Vector2Int PickOrganicNextStep(Vector2Int cur, Vector2Int goal)
+    {
+        // 75%: on se rapproche de la cible (mais en choisissant X/Y aléatoirement)
+        // 25%: on part dans une direction aléatoire ("organic")
+        if (UnityEngine.Random.value < 0.75f)
+        {
+            int dx = goal.x - cur.x;
+            int dy = goal.y - cur.y;
+
+            bool moveX;
+            if (dx == 0) moveX = false;
+            else if (dy == 0) moveX = true;
+            else moveX = UnityEngine.Random.value < 0.5f;
+
+            if (moveX)
+                return new Vector2Int(cur.x + Math.Sign(dx), cur.y);
+            return new Vector2Int(cur.x, cur.y + Math.Sign(dy));
+        }
+
+        // Random step
+        int r = UnityEngine.Random.Range(0, 4);
+        return r switch
+        {
+            0 => new Vector2Int(cur.x + 1, cur.y),
+            1 => new Vector2Int(cur.x - 1, cur.y),
+            2 => new Vector2Int(cur.x, cur.y + 1),
+            _ => new Vector2Int(cur.x, cur.y - 1),
+        };
+    }
+
+    static bool TryPickAnyInBoundsNeighbor(Vector2Int cur, LevelRegistry reg, out Vector2Int next)
+    {
+        // On mélange un peu l'ordre pour éviter les biais visibles
+        var dirs = new[]
+        {
+            new Vector2Int(1, 0),
+            new Vector2Int(-1, 0),
+            new Vector2Int(0, 1),
+            new Vector2Int(0, -1),
+        };
+
+        for (int i = 0; i < dirs.Length; i++)
+        {
+            int j = UnityEngine.Random.Range(i, dirs.Length);
+            (dirs[i], dirs[j]) = (dirs[j], dirs[i]);
+        }
+
+        foreach (var d in dirs)
+        {
+            var c = cur + d;
+            if (reg.InBounds(c))
             {
-                cur.y += Math.Sign(b.y - cur.y);
-                into.Add(cur);
+                next = c;
+                return true;
             }
         }
-        else
+
+        next = default;
+        return false;
+    }
+
+    static HashSet<Vector2Int> RoughenEdges(HashSet<Vector2Int> cells, LevelRegistry reg)
+    {
+        // Très léger “flou” pour casser les bords carrés.
+        // Gardé volontairement minimal, sans paramètre.
+        const float addChance = 0.22f;
+
+        var outSet = new HashSet<Vector2Int>(cells);
+        foreach (var c in cells)
         {
-            while (cur.y != b.y)
+            foreach (var n in Neighbors4(c))
             {
-                cur.y += Math.Sign(b.y - cur.y);
-                into.Add(cur);
-            }
-            while (cur.x != b.x)
-            {
-                cur.x += Math.Sign(b.x - cur.x);
-                into.Add(cur);
+                if (!reg.InBounds(n)) continue;
+                if (UnityEngine.Random.value < addChance)
+                    outSet.Add(n);
             }
         }
+        return outSet;
     }
 
     static HashSet<Vector2Int> Inflate(HashSet<Vector2Int> cells, int width, LevelRegistry reg)
@@ -275,50 +350,6 @@ public class CorridorWallsGenerator : MonoBehaviour
         return outSet;
     }
 
-    bool TryFindNearbyTarget(LevelRegistry reg, HashSet<Vector2Int> walkable, Vector2Int from, out Vector2Int to)
-    {
-        // Recherche brute: on regarde dans un carré croissant et on prend la 1ère case walkable différente.
-        for (int r = 2; r <= 6; r++)
-        {
-            var candidates = new List<Vector2Int>();
-            for (int dy = -r; dy <= r; dy++)
-            {
-                for (int dx = -r; dx <= r; dx++)
-                {
-                    var c = new Vector2Int(from.x + dx, from.y + dy);
-                    if (!reg.InBounds(c)) continue;
-                    if (!walkable.Contains(c)) continue;
-                    if (Mathf.Abs(dx) + Mathf.Abs(dy) < 2) continue;
-                    candidates.Add(c);
-                }
-            }
-
-            if (candidates.Count > 0)
-            {
-                to = candidates[UnityEngine.Random.Range(0, candidates.Count)];
-                return true;
-            }
-        }
-
-        to = default;
-        return false;
-    }
-
-    void PaintTileAsWall(Vector2Int c)
-    {
-        if (wallMaterial == null) return;
-        if (!_tilesByCell.TryGetValue(c, out var tile) || tile == null) return;
-
-        var renderers = tile.GetComponentsInChildren<Renderer>();
-        if (renderers == null) return;
-
-        foreach (var r in renderers)
-        {
-            if (r == null) continue;
-            r.sharedMaterial = wallMaterial;
-        }
-    }
-
     void SpawnWallVisual(Vector2Int c)
     {
         if (wallPrefab != null)
@@ -334,11 +365,5 @@ public class CorridorWallsGenerator : MonoBehaviour
         go.transform.SetParent(transform, false);
         go.transform.position = new Vector3(c.x, wallY, c.y);
         go.transform.localScale = new Vector3(wallThickness, wallHeight, wallThickness);
-
-        if (wallMaterial != null)
-        {
-            var r = go.GetComponent<Renderer>();
-            if (r != null) r.sharedMaterial = wallMaterial;
-        }
     }
 }
