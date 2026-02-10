@@ -1771,7 +1771,7 @@ Camera:
     y: 0
     width: 1
     height: 1
-  near clip plane: 0.3
+  near clip plane: 2.5
   far clip plane: 1000
   field of view: 60
   orthographic: 0
@@ -6500,8 +6500,12 @@ MonoBehaviour:
   player: {fileID: 2120981595}
   bugCloudPrefab: {fileID: 1829720265693855184, guid: 99ffeb67015994a0787351c8dc68d858, type: 3}
   gridSize: {x: 11, y: 11}
-  minDistance: 7
+  minDistance: 10
   spawnY: 0.5
+  minTotalBugs: 20
+  maxTotalBugs: 80
+  minGreenBugsRatio: 0.4
+  maxGreenBugsRatio: 0.8
 --- !u!4 &1175264287
 Transform:
   m_ObjectHideFlags: 0
@@ -11176,9 +11180,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CorridorWallsGenerator
   player: {fileID: 2120981595}
   registry: {fileID: 1066850207}
-  corridorWidth: 3
-  extraConnections: 0
-  fallbackConnectToClouds: 1
+  corridorWidth: 1
   wallPrefab: {fileID: 5936082048506224353, guid: 9f662cf1313c14a4eb9f0770c63182e3, type: 3}
   wallMaterial: {fileID: 0}
   wallY: 0.5
