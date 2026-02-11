@@ -70,16 +70,16 @@ public class BugCloud : MonoBehaviour
         int redCount = totalBugs - greenCount;
 
         //Configurer le nombre de particules vertes
-        var greenEmission = greenBugsParticles.emission;
-        var greenMain = greenBugsParticles.main;
+        var greenEmission = greenBugsParticles.emission; //TODO : Ajuster les paramètres à modifier au besoin ! ici juste pour test
+        var greenMain = greenBugsParticles.main; //TODO : Ajuster les paramètres à modifier au besoin ! ici juste pour test
         greenMain.maxParticles = greenCount;
-        greenEmission.rateOverTime = greenCount;
+        greenEmission.rateOverTime = greenCount * 2;
 
         //Configurer le nombre de particules rouges
-        var redEmission = redBugsParticles.emission;
-        var redMain = redBugsParticles.main;
+        var redEmission = redBugsParticles.emission; //TODO : Ajuster les paramètres à modifier au besoin ! ici juste pour test
+        var redMain = redBugsParticles.main; //TODO : Ajuster les paramètres à modifier au besoin ! ici juste pour test
         redMain.maxParticles = redCount;
-        redEmission.rateOverTime = redCount;
+        redEmission.rateOverTime = redCount * 2;
 
         Debug.Log($"[BugCloud] Initialisé: {greenCount} verts, {redCount} rouges (total={totalBugs};ratio={greenRatio})");
     }
