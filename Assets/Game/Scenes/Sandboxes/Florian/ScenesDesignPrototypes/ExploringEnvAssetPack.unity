@@ -1231,6 +1231,10 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2402971004830888788, guid: 48f989fcb01534a1c9bfaab0c1aab712, type: 3}
+      propertyPath: greenRatio
+      value: 0.5
+      objectReference: {fileID: 0}
     - target: {fileID: 4556280163858290189, guid: 48f989fcb01534a1c9bfaab0c1aab712, type: 3}
       propertyPath: m_IsActive
       value: 0
