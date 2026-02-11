@@ -6,7 +6,7 @@ public class BestPath : MonoBehaviour
 {
     [Header("Références")]
     public Transform player;
-    public GameObject bugCloudPrefab;
+    public GameObject quadPrefab;
 
     [Header("Visibility")]
     public bool visible = true;
@@ -142,7 +142,7 @@ public class BestPath : MonoBehaviour
         // Instancier les quads le long des chemins
         foreach (var pos in chosenPath)
         {
-            Instantiate(bugCloudPrefab, new Vector3(pos.x, 0.01f, pos.z), bugCloudPrefab.transform.rotation, transform);
+            Instantiate(quadPrefab, new Vector3(pos.x, 0.01f, pos.z), quadPrefab.transform.rotation, transform);
         }
 
 
