@@ -8,8 +8,7 @@ public class BugCloudSpawner : MonoBehaviour
     public Transform player;
     public GameObject bugCloudPrefab;
 
-    [Header("Grille (origine = 0,0 ; cellSize = 1)")]
-    public Vector2Int gridSize = new(10, 10); // X (colonnes), Z (lignes)
+    // Source de vérité: LevelRegistry (gridSize/cellSize/originWorld)
 
     [Header("Placement")]
     [Tooltip("Distance Manhattan minimale (en cases) depuis le joueur.")]
@@ -36,12 +35,19 @@ public class BugCloudSpawner : MonoBehaviour
         if (bugCloudPrefab == null) { Debug.LogError("[BugCloudSpawner] bugCloudPrefab manquant."); return; }
         if (player == null) { Debug.LogError("[BugCloudSpawner] player manquant."); return; }
 
+        var registry = LevelRegistry.Instance;
+        if (registry == null)
+        {
+            Debug.LogError("[BugCloudSpawner] LevelRegistry manquant dans la scène.");
+            return;
+        }
+
         // Case du joueur
-        Vector2Int playerCell = new(Mathf.RoundToInt(player.position.x), Mathf.RoundToInt(player.position.z));
+        Vector2Int playerCell = registry.WorldToCell(player.position);
 
         // Bornes pour la distance au joueur (D)
         int Dmin = Mathf.Max(1, minDistance);
-        int Dmax = gridSize.x + gridSize.y; // borne large, on filtrera par InBounds
+        int Dmax = registry.gridSize.x + registry.gridSize.y; // borne large, on filtrera par InBounds
 
         // Liste des distances D qui ont ≥ 2 cases valides dans la grille
         List<int> candidateDs = new();
@@ -80,8 +86,8 @@ public class BugCloudSpawner : MonoBehaviour
         Vector2Int cellB = validRing[j];
 
         // Instancier (origine=0,0 ; cellSize=1)
-        var goA = Instantiate(bugCloudPrefab, new Vector3(cellA.x, spawnY, cellA.y), Quaternion.identity, transform);
-        var goB = Instantiate(bugCloudPrefab, new Vector3(cellB.x, spawnY, cellB.y), Quaternion.identity, transform);
+        var goA = Instantiate(bugCloudPrefab, registry.CellToWorld(cellA, spawnY), Quaternion.identity, transform);
+        var goB = Instantiate(bugCloudPrefab, registry.CellToWorld(cellB, spawnY), Quaternion.identity, transform);
 
         // Randomise le nombre de bugs dans chaque nuage, basé sur les paramètres min/maxTotalBugs et min/maxGreenBugsRatio
         // Cloud A et B on le même total de bugs mais des quantités différentes de verts et de rouges.
@@ -102,11 +108,8 @@ public class BugCloudSpawner : MonoBehaviour
 
 
         // Enregistrer les nuages dans le LevelRegistry
-        if (LevelRegistry.Instance != null)
-        {
-            LevelRegistry.Instance.RegisterBugCloud(cellA);
-            LevelRegistry.Instance.RegisterBugCloud(cellB);
-        }
+        registry.RegisterBugCloud(cellA);
+        registry.RegisterBugCloud(cellB);
 
         // On informe le GameManager
         if (GameManager.Instance != null)
@@ -135,6 +138,10 @@ public class BugCloudSpawner : MonoBehaviour
     }
 
     // Vérifie si une case est dans les limites de la grille
-    bool InBounds(Vector2Int c) =>
-        c.x >= 0 && c.x < gridSize.x && c.y >= 0 && c.y < gridSize.y;
+    bool InBounds(Vector2Int c)
+    {
+        var reg = LevelRegistry.Instance;
+        if (reg == null) return false;
+        return c.x >= 0 && c.x < reg.gridSize.x && c.y >= 0 && c.y < reg.gridSize.y;
+    }
 }

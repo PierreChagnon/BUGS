@@ -62,7 +62,7 @@ public class CorridorWallsGenerator : MonoBehaviour
                 Destroy(transform.GetChild(i).gameObject);
         }
 
-        CacheTilesByCell();
+        CacheTilesByCell(reg);
 
         var walkable = BuildWalkableCells(reg);
         if (walkable.Count == 0 && fallbackConnectToClouds)
@@ -93,7 +93,7 @@ public class CorridorWallsGenerator : MonoBehaviour
 
                 reg.RegisterWall(c);
                 PaintTileAsWall(c);
-                SpawnWallVisual(c);
+                SpawnWallVisual(reg, c);
                 wallsPlaced++;
             }
         }
@@ -101,7 +101,7 @@ public class CorridorWallsGenerator : MonoBehaviour
         Debug.Log($"[CorridorWallsGenerator] Walkable={walkable.Count}  Walls={wallsPlaced}");
     }
 
-    void CacheTilesByCell()
+    void CacheTilesByCell(LevelRegistry reg)
     {
         _tilesByCell.Clear();
 
@@ -119,7 +119,7 @@ public class CorridorWallsGenerator : MonoBehaviour
         foreach (var t in tiles)
         {
             if (t == null) continue;
-            var cell = new Vector2Int(Mathf.RoundToInt(t.transform.position.x), Mathf.RoundToInt(t.transform.position.z));
+            var cell = reg.WorldToCell(t.transform.position);
             if (!_tilesByCell.ContainsKey(cell))
                 _tilesByCell.Add(cell, t);
         }
@@ -319,11 +319,11 @@ public class CorridorWallsGenerator : MonoBehaviour
         }
     }
 
-    void SpawnWallVisual(Vector2Int c)
+    void SpawnWallVisual(LevelRegistry reg, Vector2Int c)
     {
         if (wallPrefab != null)
         {
-            var pos = new Vector3(c.x, wallY, c.y);
+            var pos = reg.CellToWorld(c, wallY);
             Instantiate(wallPrefab, pos, Quaternion.identity, transform);
             return;
         }
@@ -332,7 +332,7 @@ public class CorridorWallsGenerator : MonoBehaviour
         var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
         go.name = $"Wall ({c.x},{c.y})";
         go.transform.SetParent(transform, false);
-        go.transform.position = new Vector3(c.x, wallY, c.y);
+        go.transform.position = reg.CellToWorld(c, wallY);
         go.transform.localScale = new Vector3(wallThickness, wallHeight, wallThickness);
 
         if (wallMaterial != null)

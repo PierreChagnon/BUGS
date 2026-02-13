@@ -15,6 +15,13 @@ public class BestPath : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        var reg = LevelRegistry.Instance;
+        if (reg == null)
+        {
+            Debug.LogError("[BestPath] LevelRegistry manquant dans la scène.");
+            return;
+        }
+
         // Récupérer les positions des nuages
         GameObject[] clouds = GameObject.FindGameObjectsWithTag("BugCloud");
         if (clouds.Length < 2)
@@ -45,39 +52,39 @@ public class BestPath : MonoBehaviour
         // On détermine un chemin aléatoire mais avec la distance la plus courte possible entre le joueur et le nuage de gauche, 
         // puis entre le joueur de gauche et le nuage de droite
 
-        // On récupère les positions arrondies des trois entités
-        Vector3 playerPos = new Vector3(Mathf.Round(player.position.x), 0, Mathf.Round(player.position.z));
-        Vector3 leftCloudPos = new Vector3(Mathf.Round(leftCloud.transform.position.x), 0, Mathf.Round(leftCloud.transform.position.z));
-        Vector3 rightCloudPos = new Vector3(Mathf.Round(rightCloud.transform.position.x), 0, Mathf.Round(rightCloud.transform.position.z));
+        // On travaille en cellules (source de vérité: LevelRegistry)
+        Vector2Int playerCell = reg.WorldToCell(player.position);
+        Vector2Int leftCloudCell = reg.WorldToCell(leftCloud.transform.position);
+        Vector2Int rightCloudCell = reg.WorldToCell(rightCloud.transform.position);
 
-        // On crée les deux tableaux de positions pour les deux chemins
-        Vector3[] pathToLeftCloud = new Vector3[(int)(Mathf.Abs(playerPos.x - leftCloudPos.x) + Mathf.Abs(playerPos.z - leftCloudPos.z)) + 1];
-        Vector3[] pathToRightCloud = new Vector3[(int)(Mathf.Abs(playerPos.x - rightCloudPos.x) + Mathf.Abs(playerPos.z - rightCloudPos.z)) + 1];
+        // On crée les deux tableaux de cellules pour les deux chemins
+        Vector2Int[] pathToLeftCloud = new Vector2Int[Mathf.Abs(playerCell.x - leftCloudCell.x) + Mathf.Abs(playerCell.y - leftCloudCell.y) + 1];
+        Vector2Int[] pathToRightCloud = new Vector2Int[Mathf.Abs(playerCell.x - rightCloudCell.x) + Mathf.Abs(playerCell.y - rightCloudCell.y) + 1];
 
         // On remplit les deux tableaux avec les positions des cases du chemin
         int index = 0;
-        Vector3 currentPos = playerPos;
+        Vector2Int currentPos = playerCell;
         pathToLeftCloud[index++] = currentPos;  // Ajouter la position initiale du joueur
 
-        while (currentPos != leftCloudPos)  // Chemin vers le nuage gauche
+        while (currentPos != leftCloudCell)  // Chemin vers le nuage gauche
         {
-            if (currentPos.x != leftCloudPos.x && (currentPos.z == leftCloudPos.z || Random.value < 0.5f))
+            if (currentPos.x != leftCloudCell.x && (currentPos.y == leftCloudCell.y || Random.value < 0.5f))
                 currentPos.x--; // Se déplacer horizontalement
-            else if (currentPos.z != leftCloudPos.z)
-                currentPos.z++; // Se déplacer verticalement
+            else if (currentPos.y != leftCloudCell.y)
+                currentPos.y++; // Se déplacer verticalement
             pathToLeftCloud[index++] = currentPos; // On ajoute la nouvelle position au chemin
         }
 
         index = 0;
-        currentPos = playerPos;
+        currentPos = playerCell;
         pathToRightCloud[index++] = currentPos;  // Ajouter la position initiale du nuage gauche
 
-        while (currentPos != rightCloudPos) // Chemin vers le nuage droite
+        while (currentPos != rightCloudCell) // Chemin vers le nuage droite
         {
-            if (currentPos.x != rightCloudPos.x && (currentPos.z == rightCloudPos.z || Random.value < 0.5f))
+            if (currentPos.x != rightCloudCell.x && (currentPos.y == rightCloudCell.y || Random.value < 0.5f))
                 currentPos.x++; // Se déplacer horizontalement
-            else if (currentPos.z != rightCloudPos.z)
-                currentPos.z++; // Se déplacer verticalement
+            else if (currentPos.y != rightCloudCell.y)
+                currentPos.y++; // Se déplacer verticalement
             pathToRightCloud[index++] = currentPos; // On ajoute la nouvelle position au chemin
         }
 
@@ -88,19 +95,14 @@ public class BestPath : MonoBehaviour
 
 
         // ------ ENREGISTREMENT DANS LE REGISTRE (réserver les deux chemins) ------
-        if (LevelRegistry.Instance != null)
-        {
-            var leftCells = new List<Vector2Int>(pathToLeftCloud.Length);
-            var rightCells = new List<Vector2Int>(pathToRightCloud.Length);
+        var leftCells = new List<Vector2Int>(pathToLeftCloud.Length);
+        var rightCells = new List<Vector2Int>(pathToRightCloud.Length);
 
-            foreach (var p in pathToLeftCloud)
-                leftCells.Add(LevelRegistry.Instance.WorldToCell(p));
-            foreach (var p in pathToRightCloud)
-                rightCells.Add(LevelRegistry.Instance.WorldToCell(p));
+        foreach (var c in pathToLeftCloud) leftCells.Add(c);
+        foreach (var c in pathToRightCloud) rightCells.Add(c);
 
-            LevelRegistry.Instance.ReservePathLeft(leftCells);
-            LevelRegistry.Instance.ReservePathRight(rightCells);
-        }
+        reg.ReservePathLeft(leftCells);
+        reg.ReservePathRight(rightCells);
 
 
 
@@ -115,34 +117,33 @@ public class BestPath : MonoBehaviour
         if (!visible) return;
 
         // On tire au sort quel chemin on affiche, par défaut
-        Vector3[] chosenPath = (Random.value < 0.5f) ? pathToLeftCloud : pathToRightCloud;
+        Vector2Int[] chosenPath = (Random.value < 0.5f) ? pathToLeftCloud : pathToRightCloud;
         // Si GameManager connaît un nuage "meilleur", on force le chemin correspondant
         if (GameManager.Instance != null)
         {
             var best = GameManager.Instance.GetBestCloud();
             if (best != null)
-                chosenPath = (Mathf.RoundToInt(best.transform.position.x) ==
-                              Mathf.RoundToInt(leftCloud.transform.position.x))
+                chosenPath = (reg.WorldToCell(best.transform.position).x == reg.WorldToCell(leftCloud.transform.position).x)
                              ? pathToLeftCloud
                              : pathToRightCloud;
 
             // Publier la liste des cellules du chemin conseillé
             var advisorCells = new List<Vector2Int>(chosenPath.Length);
-            foreach (var p in chosenPath)
-                advisorCells.Add(LevelRegistry.Instance.WorldToCell(p));
+            foreach (var c in chosenPath)
+                advisorCells.Add(c);
 
             GameManager.Instance.SetChosenPath(advisorCells);
 
             // Enregistrer le chemin optimal dans le LevelRegistry
-            LevelRegistry.Instance.RegisterOptimalPath(advisorCells);
+            reg.RegisterOptimalPath(advisorCells);
 
         }
 
 
         // Instancier les quads le long des chemins
-        foreach (var pos in chosenPath)
+        foreach (var cell in chosenPath)
         {
-            Instantiate(quadPrefab, new Vector3(pos.x, 0.01f, pos.z), quadPrefab.transform.rotation, transform);
+            Instantiate(quadPrefab, reg.CellToWorld(cell, 0.01f), quadPrefab.transform.rotation, transform);
         }
 
 
@@ -155,11 +156,11 @@ public class BestPath : MonoBehaviour
         if (FogController.Instance != null)
         {
             var cells = new List<Vector2Int>(chosenPath.Length);
-            foreach (var p in chosenPath)
-                cells.Add(new Vector2Int(Mathf.RoundToInt(p.x), Mathf.RoundToInt(p.z)));
+            foreach (var c in chosenPath)
+                cells.Add(c);
 
             // Révèle aussi la case de départ si tu veux
-            cells.Add(FogController.Instance.WorldToCell(player.position));
+            cells.Add(reg.WorldToCell(player.position));
 
             FogController.Instance.RevealCells(cells);
         }

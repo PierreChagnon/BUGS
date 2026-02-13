@@ -8,6 +8,7 @@ using UnityEngine.InputSystem; // <— nouveau système
 public class GridMoverNewInput : MonoBehaviour
 {
     [Header("Grille")]
+    [Tooltip("Optionnel. Si LevelRegistry est présent, on utilise sa cellSize + son originWorld.")]
     public float cellSize = 1f;
 
     [Header("Déplacement")]
@@ -43,15 +44,26 @@ public class GridMoverNewInput : MonoBehaviour
         if (step == Vector2Int.zero) return;
 
         Vector3 dir = new(step.x, 0f, step.y);
-        Vector3 targetPos = GetSnappedPosition(transform.position + dir * cellSize);
 
-        // if (requireTileUnderTarget && !HasTileUnder(targetPos)) return;
-        var targetCell = new Vector2Int(Mathf.RoundToInt(targetPos.x), Mathf.RoundToInt(targetPos.z));
-        if (LevelRegistry.Instance != null && !LevelRegistry.Instance.InBounds(targetCell))
-            return; // hors plateau → on ignore l’input
+        var reg = LevelRegistry.Instance;
+        Vector3 targetPos;
+        Vector2Int targetCell;
 
-        if (LevelRegistry.Instance != null && !LevelRegistry.Instance.IsWalkable(targetCell))
-            return; // mur / case bloquante → on ignore l’input
+        if (reg != null)
+        {
+            // Source de vérité: LevelRegistry (originWorld + cellSize)
+            var curCell = reg.WorldToCell(transform.position);
+            targetCell = curCell + step;
+            if (!reg.InBounds(targetCell)) return;
+            if (!reg.IsWalkable(targetCell)) return;
+            targetPos = reg.CellToWorld(targetCell, transform.position.y);
+        }
+        else
+        {
+            // Fallback (ancienne logique)
+            targetPos = GetSnappedPosition(transform.position + dir * cellSize);
+            targetCell = new Vector2Int(Mathf.RoundToInt(targetPos.x), Mathf.RoundToInt(targetPos.z));
+        }
 
 
         if (rotateToDirection && dir != Vector3.zero)
@@ -117,5 +129,15 @@ public class GridMoverNewInput : MonoBehaviour
         return new Vector3(x, worldPos.y, z);
     }
 
-    public void SnapToGrid() => transform.position = GetSnappedPosition(transform.position);
+    public void SnapToGrid()
+    {
+        var reg = LevelRegistry.Instance;
+        if (reg != null)
+        {
+            transform.position = reg.SnapWorldToCellCenter(transform.position);
+            return;
+        }
+
+        transform.position = GetSnappedPosition(transform.position);
+    }
 }

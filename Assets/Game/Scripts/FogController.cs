@@ -10,6 +10,8 @@ public class FogController : MonoBehaviour
     [Header("Grille")]
     public Vector2Int gridSize = new(10, 10); // X,Z
 
+    LevelRegistry registry;
+
     [Header("Masque")]
     [Tooltip("Résolution du masque en pixels par case (32 = doux, 1 = carré net).")]
     public int pixelsPerCell = 32;
@@ -28,6 +30,10 @@ public class FogController : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+
+        registry = LevelRegistry.Instance;
+        if (registry != null)
+            gridSize = registry.gridSize;
 
         fogRenderer = GetComponent<Renderer>();
 
@@ -64,8 +70,13 @@ public class FogController : MonoBehaviour
         // (Apply déjà appelé dans RevealCell)
     }
 
-    public Vector2Int WorldToCell(Vector3 world) =>
-        new Vector2Int(Mathf.RoundToInt(world.x), Mathf.RoundToInt(world.z));
+    public Vector2Int WorldToCell(Vector3 world)
+    {
+        if (registry != null)
+            return registry.WorldToCell(world);
+
+        return new Vector2Int(Mathf.RoundToInt(world.x), Mathf.RoundToInt(world.z));
+    }
 
     // --- Internes ---
 

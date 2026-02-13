@@ -11,8 +11,16 @@ public class LevelRegistry : MonoBehaviour
 {
     public static LevelRegistry Instance { get; private set; }
 
-    [Header("Grille (origine 0,0 ; cellSize 1)")]
+    [Header("Grille")]
     public Vector2Int gridSize = new(10, 10);
+
+    [Header("Monde ↔ Grille")]
+    [Tooltip("Taille d'une case en unités monde.")]
+    [Min(0.0001f)]
+    public float cellSize = 1f;
+
+    [Tooltip("Position monde (X,Z) de la case (0,0).")]
+    public Vector3 originWorld = Vector3.zero;
 
     [HideInInspector]
     public int optimalPathLength;
@@ -129,12 +137,26 @@ public class LevelRegistry : MonoBehaviour
     public bool IsFreeForTrap(Vector2Int c)
         => InBounds(c) && !IsReserved(c) && !IsWall(c) && !HasTrap(c);
 
-    // Conversions grille <-> monde (origine 0,0 ; cellSize 1)
+    // Conversions grille <-> monde (utilise originWorld + cellSize)
     public Vector2Int WorldToCell(Vector3 world)
-        => new(Mathf.RoundToInt(world.x), Mathf.RoundToInt(world.z));
+    {
+        float size = Mathf.Max(0.0001f, cellSize);
+        float x = (world.x - originWorld.x) / size;
+        float z = (world.z - originWorld.z) / size;
+        return new Vector2Int(Mathf.RoundToInt(x), Mathf.RoundToInt(z));
+    }
 
     public Vector3 CellToWorld(Vector2Int cell, float y = 0f)
-        => new(cell.x, y, cell.y);
+    {
+        float size = Mathf.Max(0.0001f, cellSize);
+        return new Vector3(originWorld.x + cell.x * size, y, originWorld.z + cell.y * size);
+    }
+
+    public Vector3 SnapWorldToCellCenter(Vector3 world)
+    {
+        var cell = WorldToCell(world);
+        return CellToWorld(cell, world.y);
+    }
 
     // --- internes ---
     void AddFlags(Vector2Int c, CellFlags add)

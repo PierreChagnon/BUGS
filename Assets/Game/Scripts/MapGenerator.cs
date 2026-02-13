@@ -20,7 +20,7 @@ public class MapGenerator : MonoBehaviour
     public Transform playerInScene;
 
     [Header("Grille")]
-    public Vector2Int gridSize = new(10, 10);
+    public Vector2Int gridSize = new(11, 11);
     public float cellSize = 1f;
 
     [Header("Tiles")]
@@ -77,13 +77,14 @@ public class MapGenerator : MonoBehaviour
             return;
         }
 
-        // Source de vérité: LevelRegistry si présent
-        gridSize = registry.gridSize;
+        // En preview éditeur, la source de vérité est l'inspecteur de ce MapGenerator.
+        // On pousse donc la valeur dans le LevelRegistry pour que toute la génération
+        // (réservations, murs, traps) soit cohérente sur la même taille de grille.
+        registry.gridSize = gridSize;
 
         EnsureRoot();
         ClearEditorPreview();
 
-        registry.gridSize = gridSize;
         registry.ClearPathReservations();
 
         GenerateTiles();
@@ -156,7 +157,7 @@ public class MapGenerator : MonoBehaviour
 
     void ResolveRefs()
     {
-        if (registry == null) registry = FindObjectOfType<LevelRegistry>();
+        if (registry == null) registry = FindFirstObjectByType<LevelRegistry>();
         if (playerInScene == null)
         {
             var go = GameObject.FindWithTag("Player");
@@ -176,7 +177,11 @@ public class MapGenerator : MonoBehaviour
     {
         if (playerPrefab != null)
         {
-            var playerGo = InstantiateEditor(playerPrefab, new Vector3(0, 0, 0), Quaternion.identity, root);
+            // En preview éditeur, on place le joueur au milieu de la première ligne (z=0)
+            // pour reproduire la logique runtime "nuages devant le joueur".
+            var playerCell = new Vector2Int(Mathf.Clamp(gridSize.x / 2, 0, Mathf.Max(0, gridSize.x - 1)), 0);
+            var playerWorld = CellToWorld(playerCell, 0f);
+            var playerGo = InstantiateEditor(playerPrefab, playerWorld, Quaternion.identity, root);
             playerGo.name = "PlayerPreview";
             return playerGo.transform;
         }
@@ -238,34 +243,67 @@ public class MapGenerator : MonoBehaviour
             return result;
         }
 
-        int chosenD = candidateDs[UnityEngine.Random.Range(0, candidateDs.Count)];
-        var validRing = GetRingCells(playerCell, chosenD);
-        validRing.RemoveAll(c => !InBounds(c) || c == playerCell || c.y < minCloudZ);
+        // Runtime: on choisit un D au hasard puis on filtre par minZ.
+        // Ici on garde la même logique, mais on borne les tentatives et on retente avec d'autres D
+        // pour éviter les cas "couronne devient trop petite après filtrage".
+        Vector2Int cellA = default;
+        Vector2Int cellB = default;
+        bool found = false;
 
-        if (validRing.Count < 2)
+        // Shuffle léger des distances candidates
+        for (int s = 0; s < candidateDs.Count; s++)
         {
-            Debug.LogWarning("[MapGenerator] Couronne choisie invalide après filtrage (minCloudZ).");
+            int swap = UnityEngine.Random.Range(s, candidateDs.Count);
+            (candidateDs[s], candidateDs[swap]) = (candidateDs[swap], candidateDs[s]);
+        }
+
+        int maxDRetries = Mathf.Min(candidateDs.Count, 8);
+        for (int dTry = 0; dTry < maxDRetries && !found; dTry++)
+        {
+            int chosenD = candidateDs[dTry];
+            var validRing = GetRingCells(playerCell, chosenD);
+            validRing.RemoveAll(c => !InBounds(c) || c == playerCell || c.y < minCloudZ);
+
+            if (validRing.Count < 2)
+                continue;
+
+            // Choix de 2 cases distinctes dans la couronne valide, en respectant le pattern runtime:
+            // une "plutôt à gauche" et une "plutôt à droite" sur la même ligne (y).
+            int halfStart = validRing.Count / 2;
+            if (halfStart <= 0 || halfStart >= validRing.Count)
+                continue;
+
+            int i = -1;
+            int j = -1;
+            int attempts = 0;
+            int maxAttempts = 50;
+
+            while (j == -1 && attempts < maxAttempts)
+            {
+                attempts++;
+
+                // Comme le runtime: i dans la moitié gauche, en évitant le "milieu".
+                int leftMaxExclusive = Mathf.Max(1, halfStart - 1);
+                i = UnityEngine.Random.Range(0, leftMaxExclusive);
+                j = validRing.FindIndex(halfStart, c => c.y == validRing[i].y);
+            }
+
+            if (j < 0 || i < 0 || i >= validRing.Count || j >= validRing.Count)
+                continue;
+
+            cellA = validRing[i];
+            cellB = validRing[j];
+            found = cellA != cellB;
+
+            if (found)
+                Debug.Log($"[MapGenerator] Couronne D={chosenD} a {validRing.Count} cases valides après filtrage.");
+        }
+
+        if (!found)
+        {
+            Debug.LogWarning("[MapGenerator] Impossible de placer 2 nuages (vérifie gridSize/minDistance/minCloudZ)." );
             return result;
         }
-
-        int j = -1;
-        int i = -1;
-        while (j == -1)
-        {
-            int half = Mathf.Max(1, validRing.Count / 2);
-            i = UnityEngine.Random.Range(0, Mathf.Max(1, half - 1));
-            j = validRing.FindIndex(half, c => c.y == validRing[i].y);
-            if (half >= validRing.Count) break;
-        }
-
-        if (j < 0 || i < 0 || i >= validRing.Count || j >= validRing.Count)
-        {
-            Debug.LogWarning("[MapGenerator] Impossible de choisir 2 cases symétriques pour les nuages.");
-            return result;
-        }
-
-        var cellA = validRing[i];
-        var cellB = validRing[j];
 
         var cloudsRoot = GetOrCreateChildRoot("BugClouds");
 
@@ -303,18 +341,13 @@ public class MapGenerator : MonoBehaviour
 
         if (leftCloud == null || rightCloud == null) return;
 
-        Vector3 playerPos = new Vector3(Mathf.Round(player.position.x), 0, Mathf.Round(player.position.z));
-        Vector3 leftCloudPos = new Vector3(Mathf.Round(leftCloud.transform.position.x), 0, Mathf.Round(leftCloud.transform.position.z));
-        Vector3 rightCloudPos = new Vector3(Mathf.Round(rightCloud.transform.position.x), 0, Mathf.Round(rightCloud.transform.position.z));
+        // Utiliser des cellules (entiers) évite les soucis d'égalité flottante et garantit la terminaison.
+        var playerCell = WorldToCell(player.position);
+        var leftCloudCell = WorldToCell(leftCloud.transform.position);
+        var rightCloudCell = WorldToCell(rightCloud.transform.position);
 
-        var pathToLeft = BuildShortestRandomManhattanPath(playerPos, leftCloudPos, horizontalDir: -1);
-        var pathToRight = BuildShortestRandomManhattanPath(playerPos, rightCloudPos, horizontalDir: +1);
-
-        var leftCells = new List<Vector2Int>(pathToLeft.Count);
-        var rightCells = new List<Vector2Int>(pathToRight.Count);
-
-        foreach (var p in pathToLeft) leftCells.Add(WorldToCell(p));
-        foreach (var p in pathToRight) rightCells.Add(WorldToCell(p));
+        var leftCells = BuildShortestRandomManhattanPath(playerCell, leftCloudCell);
+        var rightCells = BuildShortestRandomManhattanPath(playerCell, rightCloudCell);
 
         registry.ReservePathLeft(leftCells);
         registry.ReservePathRight(rightCells);
@@ -665,23 +698,36 @@ public class MapGenerator : MonoBehaviour
         return list;
     }
 
-    static List<Vector3> BuildShortestRandomManhattanPath(Vector3 start, Vector3 goal, int horizontalDir)
+    static List<Vector2Int> BuildShortestRandomManhattanPath(Vector2Int start, Vector2Int goal)
     {
-        int len = (int)(Mathf.Abs(start.x - goal.x) + Mathf.Abs(start.z - goal.z)) + 1;
-        var path = new List<Vector3>(len);
+        int len = Mathf.Abs(start.x - goal.x) + Mathf.Abs(start.y - goal.y) + 1;
+        var path = new List<Vector2Int>(len);
 
         var cur = start;
         path.Add(cur);
 
-        while (cur != goal)
+        // Safety: on ne devrait jamais dépasser cette limite, mais ça évite tout blocage éditeur.
+        int maxSteps = Mathf.Max(1, len * 4);
+        int steps = 0;
+
+        while (cur != goal && steps < maxSteps)
         {
-            if (cur.x != goal.x && (cur.z == goal.z || UnityEngine.Random.value < 0.5f))
-                cur.x += horizontalDir;
-            else if (cur.z != goal.z)
-                cur.z += Math.Sign(goal.z - cur.z);
+            steps++;
+
+            bool canMoveX = cur.x != goal.x;
+            bool canMoveY = cur.y != goal.y;
+
+            // Choix aléatoire mais toujours dans la direction du but.
+            if (canMoveX && (!canMoveY || UnityEngine.Random.value < 0.5f))
+                cur.x += Math.Sign(goal.x - cur.x);
+            else if (canMoveY)
+                cur.y += Math.Sign(goal.y - cur.y);
 
             path.Add(cur);
         }
+
+        if (cur != goal)
+            Debug.LogWarning("[MapGenerator] BuildShortestRandomManhattanPath: limite de sécurité atteinte (chemin tronqué).");
 
         return path;
     }

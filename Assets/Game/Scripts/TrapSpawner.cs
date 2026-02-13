@@ -8,9 +8,6 @@ public class TrapSpawner : MonoBehaviour
     public Transform player;          // Pour éviter la case du joueur au départ
     public GameObject trapPrefab;     // Prefab du piège (avec Trap.cs + BoxCollider IsTrigger)
 
-    [Header("Grille")]
-    public Vector2Int gridSize = new Vector2Int(10, 10); // nombre de cases (X,Z)
-
     [Header("Placement")]
     public int trapCount = 10;        // nombre de pièges à poser
     public float trapYOffset = 0.5f; // moitié de la hauteur du cube si pivot au centre
@@ -23,19 +20,18 @@ public class TrapSpawner : MonoBehaviour
             return;
         }
 
-        // Construire la liste de toutes les cases possibles
-        List<Vector2Int> candidates = new List<Vector2Int>();
-        for (int x = 0; x < gridSize.x; x++)
-            for (int z = 0; z < gridSize.y; z++)
-                candidates.Add(new Vector2Int(x, z));
-
-
         var registry = LevelRegistry.Instance;
         if (registry == null)
         {
             Debug.LogError("[TrapSpawner] LevelRegistry manquant dans la scène.");
             return;
         }
+
+        // Construire la liste de toutes les cases possibles (source de vérité: LevelRegistry)
+        List<Vector2Int> candidates = new List<Vector2Int>();
+        for (int x = 0; x < registry.gridSize.x; x++)
+            for (int z = 0; z < registry.gridSize.y; z++)
+                candidates.Add(new Vector2Int(x, z));
 
         // Éviter la case du joueur
         if (player != null)
