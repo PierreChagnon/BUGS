@@ -11262,13 +11262,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fcf462a030f6c634a995b90e15b13568, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CorridorWallsGenerator
-  player: {fileID: 0}
   registry: {fileID: 1066850207}
-  corridorWidth: 3
+  corridorWidth: 1
   randomizeMazeSeed: 1
   mazeSeed: 12345
-  mazeExtraOpenings: 20
-  extraConnections: 4
+  mazeExtraOpenings: 0
+  extraConnections: 16
   fallbackConnectToClouds: 1
   wallPrefab: {fileID: 5936082048506224353, guid: 9f662cf1313c14a4eb9f0770c63182e3, type: 3}
   wallMaterial: {fileID: 0}
