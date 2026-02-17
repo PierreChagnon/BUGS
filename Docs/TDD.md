@@ -2,7 +2,7 @@
 
 | Nom du projet :    | BUGS                          |
 | :----------------- | :---------------------------- |
-| **Version :**      | 1.4                           |
+| **Version :**      | 1.5                           |
 | **Dernière MAJ :** | 17/02/26                      |
 | **Auteur(s) :**    | @florian, @pierre             |
 | **Moteur :**       | Unity 6000.3.5f2              |
@@ -462,7 +462,7 @@ trapCount          = valeur Inspector par défaut (10), overridable via arg CLI 
 
 ### 3.5.1 Responsabilités
 
-- Capturer les inputs clavier (flèches + ZQSD) via le New Input System
+- Capturer les inputs clavier (flèches directionnelles) via le New Input System
 - Valider le mouvement cible via LevelRegistry (InBounds, IsWalkable)
 - Interpoler le déplacement du joueur par coroutine avec SmoothStep
 - Révéler le brouillard de guerre et marquer les cellules visitées à chaque pas
@@ -498,7 +498,7 @@ public class GridMoverNewInput : MonoBehaviour
 | rotateToDirection      | bool               | Rotation du joueur vers la direction du mouvement (défaut : true)                 |
 | tileLayer              | LayerMask          | Layer pour le raycast de validation (fallback sans LevelRegistry)                 |
 | isMoving               | bool (privé)       | Verrou empêchant un nouveau mouvement pendant l'interpolation                     |
-| ReadStepNewInput()     | Vector2Int (privé) | Lit un pas discret depuis `Keyboard.current.wasPressedThisFrame`                  |
+| ReadStepNewInput()     | Vector2Int (privé) | Lit un pas discret depuis les flèches via `Keyboard.current.wasPressedThisFrame` (flèches uniquement) |
 | MoveTo(Vector3, float) | Coroutine (privé)  | Interpolation SmoothStep + callbacks post-mouvement                               |
 | SnapToGrid()           | void               | Aligne la position du joueur au centre de la cellule la plus proche               |
 
@@ -540,7 +540,7 @@ graph TD
 ### 3.5.5 Formules et règles métier
 
 ```
-Input mapping      = Flèches ←→↑↓ + QZSD (layout AZERTY)
+Input mapping      = Flèches ←→↑↓ uniquement
                      wasPressedThisFrame → 1 step par appui (pas de repeat)
 Mouvement          = 1 case par input, 4 directions cardinales
 Interpolation      = Vector3.Lerp(start, target, SmoothStep(0, 1, t))
@@ -551,7 +551,7 @@ Verrouillage       = isMoving (pendant interpolation) || GameManager.inputLocked
 
 ### 3.5.6 Points d'attention
 
-- **⚠️ Input :** Les touches QZSD correspondent au layout AZERTY — pas de WASD. Si le jeu cible un public international, un rebinding sera nécessaire
+- **⚠️ Input :** Seules les flèches directionnelles sont supportées — pas de WASD/ZQSD. Si des contrôles alternatifs sont requis, un rebinding ou un Input Action Map sera nécessaire
 - **⚠️ Fallback :** Si `LevelRegistry.Instance` est null, le système bascule sur un snap local sans validation de marchabilité — le joueur peut sortir de la grille
 - **⚠️ Performance :** `Keyboard.current.*.wasPressedThisFrame` est appelé chaque frame dans Update — pas de coût significatif mais pourrait être migré vers un Input Action pour plus de flexibilité
 - **🔧 Legacy :** Les champs `tileLayer`, `raycastStartHeight`, `raycastDistance` sont déclarés mais non utilisés dans le code actuel — vestiges d'une validation par raycast abandonnée
@@ -561,6 +561,7 @@ Verrouillage       = isMoving (pendant interpolation) || GameManager.inputLocked
 | Date     | Développeur | Note / Décision Technique                                                                         |
 | :------- | :---------- | :------------------------------------------------------------------------------------------------ |
 | 17/02/26 | @auteur     | Documentation initiale. Mouvement discret par coroutine SmoothStep, validation via LevelRegistry. |
+| 17/02/26 | @auteur     | Suppression des touches ZQSD/WASD. Seules les flèches directionnelles restent comme contrôles de mouvement. |
 
 # 4. Systèmes Core
 
@@ -1326,3 +1327,4 @@ _Section à compléter._
 | 17/02/26 | 1.2     | Ajout sections 3.1-3.4 (BugCloudSpawner, BestPath, CorridorWallsGenerator, TrapSpawner) |
 | 17/02/26 | 1.3     | Ajout sections 3.5 (GridMoverNewInput) et 4.4 (FogController)                           |
 | 17/02/26 | 1.4     | Ajout section 4.5 (TrialManager) et section 5.1 (TrialData, PlayerStep, format JSON)    |
+| 17/02/26 | 1.5     | MAJ section 3.5 (GridMoverNewInput) — suppression support ZQSD, flèches uniquement      |
