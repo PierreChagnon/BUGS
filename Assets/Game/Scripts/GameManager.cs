@@ -82,14 +82,14 @@ public class GameManager : MonoBehaviour
                 grid_h = LevelRegistry.Instance ? LevelRegistry.Instance.gridSize.y : 10,
                 cloud_left = new CloudInfo
                 {
-                    x = Mathf.RoundToInt(leftCloud.transform.position.x),
-                    y = Mathf.RoundToInt(leftCloud.transform.position.z),
+                    x = LevelRegistry.Instance ? LevelRegistry.Instance.WorldToCell(leftCloud.transform.position).x : Mathf.RoundToInt(leftCloud.transform.position.x),
+                    y = LevelRegistry.Instance ? LevelRegistry.Instance.WorldToCell(leftCloud.transform.position).y : Mathf.RoundToInt(leftCloud.transform.position.z),
                     bugs = leftCloud.totalBugs
                 },
                 cloud_right = new CloudInfo
                 {
-                    x = Mathf.RoundToInt(rightCloud.transform.position.x),
-                    y = Mathf.RoundToInt(rightCloud.transform.position.z),
+                    x = LevelRegistry.Instance ? LevelRegistry.Instance.WorldToCell(rightCloud.transform.position).x : Mathf.RoundToInt(rightCloud.transform.position.x),
+                    y = LevelRegistry.Instance ? LevelRegistry.Instance.WorldToCell(rightCloud.transform.position).y : Mathf.RoundToInt(rightCloud.transform.position.z),
                     bugs = rightCloud.totalBugs
                 }
             };

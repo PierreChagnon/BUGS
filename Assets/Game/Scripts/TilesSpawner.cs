@@ -10,7 +10,7 @@ public class TilesSpawner : MonoBehaviour
     public GameObject tilePrefab;
 
     [Header("Placement")]
-    [Tooltip("Transform de référence pour positionner la grille (optionnel si LevelRegistry connaît la position de départ).")]
+    [Tooltip("Transform de référence obligatoire pour positionner la grille.")]
     public Transform root;
 
     [Tooltip("Hauteur Y à laquelle la grille est générée.")]
@@ -50,16 +50,13 @@ public class TilesSpawner : MonoBehaviour
             return;
         }
 
-        Vector3 playerWorld;
-        if (root != null)
+        if (root == null)
         {
-            playerWorld = root.position;
-        }
-        else if (!registry.TryGetPlayerStartWorld(out playerWorld))
-        {
-            Debug.LogError("[TilesSpawner] root manquant et player start non enregistré dans LevelRegistry.");
+            Debug.LogError("[TilesSpawner] root manquant (obligatoire pour positionner la grille).");
             return;
         }
+
+        Vector3 playerWorld = root.position;
 
         // On positionne la grille de manière à ce que la cellule du milieu de la première ligne (z=0) soit sous le player.
         registry.originWorld = ComputeOriginFromPlayer(registry, playerWorld);
