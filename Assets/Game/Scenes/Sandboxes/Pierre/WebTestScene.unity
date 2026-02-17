@@ -4493,7 +4493,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 449489812925837503, guid: 688d62e3969902e45b9377349eec24df, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4290076745784801433, guid: 688d62e3969902e45b9377349eec24df, type: 3}
       propertyPath: m_CastShadows
@@ -4521,11 +4521,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7440182040984958636, guid: 688d62e3969902e45b9377349eec24df, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.36
+      value: 0.3599999
       objectReference: {fileID: 0}
     - target: {fileID: 7440182040984958636, guid: 688d62e3969902e45b9377349eec24df, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 5
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 7440182040984958636, guid: 688d62e3969902e45b9377349eec24df, type: 3}
       propertyPath: m_LocalRotation.w
@@ -12493,7 +12493,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 5, y: 0.557, z: 1}
-  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 976564138}

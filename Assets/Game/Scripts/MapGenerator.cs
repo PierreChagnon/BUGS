@@ -180,7 +180,7 @@ public class MapGenerator : MonoBehaviour
             // En preview éditeur, on place le joueur au milieu de la première ligne (z=0)
             // pour reproduire la logique runtime "nuages devant le joueur".
             var playerCell = new Vector2Int(Mathf.Clamp(gridSize.x / 2, 0, Mathf.Max(0, gridSize.x - 1)), 0);
-            var playerWorld = CellToWorld(playerCell, 0f);
+            var playerWorld = CellToWorld(playerCell, 0.55f);
             var playerGo = InstantiateEditor(playerPrefab, playerWorld, Quaternion.identity, root);
             playerGo.name = "PlayerPreview";
             return playerGo.transform;
