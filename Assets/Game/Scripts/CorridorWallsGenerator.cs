@@ -12,12 +12,22 @@ using UnityEngine;
 public class CorridorWallsGenerator : MonoBehaviour
 {
     [Header("Références")]
-    public Transform player;
     public LevelRegistry registry; // optionnel: sinon LevelRegistry.Instance
 
     [Header("Couloirs")]
     [Min(1)]
     public int corridorWidth = 2;
+
+    [Header("Maze")]
+    [Tooltip("Si vrai, une seed aléatoire est utilisée à chaque run.")]
+    public bool randomizeMazeSeed = true;
+
+    [Tooltip("Seed utilisée si randomizeMazeSeed est désactivé.")]
+    public int mazeSeed = 12345;
+
+    [Tooltip("Nombre d'ouvertures supplémentaires pour créer des boucles (maze non parfait).")]
+    [Range(0, 200)]
+    public int mazeExtraOpenings = 20;
 
     [Tooltip("Ajoute quelques connexions supplémentaires pour réduire les cul-de-sac.")]
     [Range(0, 100)]
@@ -46,6 +56,7 @@ public class CorridorWallsGenerator : MonoBehaviour
     public bool clearPreviousChildren = true;
 
     readonly Dictionary<Vector2Int, GameObject> _tilesByCell = new();
+    int _mazeSeedUsed;
 
     void Start()
     {
@@ -62,9 +73,11 @@ public class CorridorWallsGenerator : MonoBehaviour
                 Destroy(transform.GetChild(i).gameObject);
         }
 
+        _mazeSeedUsed = randomizeMazeSeed ? UnityEngine.Random.Range(1, int.MaxValue) : mazeSeed;
+
         CacheTilesByCell(reg);
 
-        var walkable = BuildWalkableCells(reg);
+        var walkable = BuildWalkableCells(reg, _mazeSeedUsed);
         if (walkable.Count == 0 && fallbackConnectToClouds)
             walkable = BuildFallbackWalkable(reg);
 
@@ -98,7 +111,7 @@ public class CorridorWallsGenerator : MonoBehaviour
             }
         }
 
-        Debug.Log($"[CorridorWallsGenerator] Walkable={walkable.Count}  Walls={wallsPlaced}");
+        Debug.Log($"[CorridorWallsGenerator] Walkable={walkable.Count}  Walls={wallsPlaced}  Seed={_mazeSeedUsed}");
     }
 
     void CacheTilesByCell(LevelRegistry reg)
@@ -125,7 +138,7 @@ public class CorridorWallsGenerator : MonoBehaviour
         }
     }
 
-    HashSet<Vector2Int> BuildWalkableCells(LevelRegistry reg)
+    HashSet<Vector2Int> BuildWalkableCells(LevelRegistry reg, int seed)
     {
         var baseCells = new HashSet<Vector2Int>();
 
@@ -141,18 +154,28 @@ public class CorridorWallsGenerator : MonoBehaviour
         }
 
         // 2) Ajouter la case du joueur pour éviter de l'enfermer.
-        if (player != null)
-            baseCells.Add(reg.WorldToCell(player.position));
+        if (reg.TryGetPlayerStartCell(out var playerCell))
+            baseCells.Add(playerCell);
 
-        // 3) Élargissement pour obtenir des couloirs de largeur > 1.
-        return Inflate(baseCells, corridorWidth, reg);
+        // 3) Générer un maze classique, puis forcer l'ouverture des chemins réservés.
+        var maze = MazeGenerator.Generate(reg.gridSize.x, reg.gridSize.y, seed, mazeExtraOpenings);
+        var walkable = new HashSet<Vector2Int>();
+
+        foreach (var c in maze.AllCells())
+            if (maze.IsWalkable(c)) walkable.Add(c);
+
+        foreach (var c in baseCells)
+            walkable.Add(c);
+
+        // 4) Élargissement pour obtenir des couloirs de largeur > 1.
+        return Inflate(walkable, corridorWidth, reg);
     }
 
     HashSet<Vector2Int> BuildFallbackWalkable(LevelRegistry reg)
     {
         var result = new HashSet<Vector2Int>();
 
-        var start = player != null ? reg.WorldToCell(player.position) : new Vector2Int(0, 0);
+        var start = reg.TryGetPlayerStartCell(out var playerCell) ? playerCell : new Vector2Int(0, 0);
         if (!reg.InBounds(start)) start = new Vector2Int(0, 0);
         result.Add(start);
 

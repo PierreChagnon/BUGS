@@ -5125,7 +5125,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3cd757dbe01a789459966dae9905a587, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BestPath
-  player: {fileID: 0}
   quadPrefab: {fileID: 124041359568741063, guid: 1b2558a29e783d54d97c50a655f50a06, type: 3}
   visible: 1
 --- !u!4 &918383696
@@ -5495,7 +5494,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bce1107787d6553479d9f90232cad64a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrapSpawner
-  player: {fileID: 0}
   trapPrefab: {fileID: 7046270674791465870, guid: e49ae2268eef18a4f805a56853ba691b, type: 3}
   trapCount: 20
   trapYOffset: 0.1
@@ -6508,7 +6506,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dc3fc69e54b30a640a4702b04102ddea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BugCloudSpawner
-  player: {fileID: 0}
   bugCloudPrefab: {fileID: 1829720265693855184, guid: 99ffeb67015994a0787351c8dc68d858, type: 3}
   minDistance: 8
   spawnY: 0.5
@@ -11268,7 +11265,10 @@ MonoBehaviour:
   player: {fileID: 0}
   registry: {fileID: 1066850207}
   corridorWidth: 3
-  extraConnections: 0
+  randomizeMazeSeed: 1
+  mazeSeed: 12345
+  mazeExtraOpenings: 20
+  extraConnections: 4
   fallbackConnectToClouds: 1
   wallPrefab: {fileID: 5936082048506224353, guid: 9f662cf1313c14a4eb9f0770c63182e3, type: 3}
   wallMaterial: {fileID: 0}
@@ -12164,7 +12164,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TilesSpawner
   tilePrefab: {fileID: 1961823369822145244, guid: c8ca65ecdf242ce43bbcc052a0064679, type: 3}
-  playerPosition: {fileID: 1671159056}
+  root: {fileID: 1671159056}
   tilesY: 0
 --- !u!4 &2076279665 stripped
 Transform:
