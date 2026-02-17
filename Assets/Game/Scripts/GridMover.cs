@@ -78,10 +78,10 @@ public class GridMoverNewInput : MonoBehaviour
         // Clavier
         if (Keyboard.current != null)
         {
-            if (Keyboard.current.leftArrowKey.wasPressedThisFrame || Keyboard.current.qKey.wasPressedThisFrame) return new Vector2Int(-1, 0);
-            if (Keyboard.current.rightArrowKey.wasPressedThisFrame || Keyboard.current.dKey.wasPressedThisFrame) return new Vector2Int(+1, 0);
-            if (Keyboard.current.upArrowKey.wasPressedThisFrame || Keyboard.current.zKey.wasPressedThisFrame) return new Vector2Int(0, +1);
-            if (Keyboard.current.downArrowKey.wasPressedThisFrame || Keyboard.current.sKey.wasPressedThisFrame) return new Vector2Int(0, -1);
+            if (Keyboard.current.leftArrowKey.wasPressedThisFrame) return new Vector2Int(-1, 0);
+            if (Keyboard.current.rightArrowKey.wasPressedThisFrame) return new Vector2Int(+1, 0);
+            if (Keyboard.current.upArrowKey.wasPressedThisFrame) return new Vector2Int(0, +1);
+            if (Keyboard.current.downArrowKey.wasPressedThisFrame) return new Vector2Int(0, -1);
         }
 
         return Vector2Int.zero;

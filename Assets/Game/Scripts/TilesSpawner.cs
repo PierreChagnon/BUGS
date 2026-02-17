@@ -11,13 +11,12 @@ public class TilesSpawner : MonoBehaviour
 
     [Header("Placement")]
     [Tooltip("Référence player placée manuellement dans la scène (ou trouvée via tag Player si null).")]
-    public Transform player;
+    public Transform playerPosition;
 
     [Tooltip("Hauteur Y à laquelle la grille est générée.")]
     public float tilesY = 0f;
 
-    [Header("Root")]
-    public Transform root;
+    private Transform root;
 
     void Awake()
     {
@@ -32,15 +31,9 @@ public class TilesSpawner : MonoBehaviour
             return;
         }
 
-        if (!player)
+        if (!playerPosition)
         {
-            var go = GameObject.FindWithTag("Player");
-            if (go) player = go.transform;
-        }
-
-        if (!player)
-        {
-            Debug.LogError("[TilesSpawner] player missing");
+            Debug.LogError("[TilesSpawner] playerPosition missing");
             return;
         }
 
@@ -62,8 +55,9 @@ public class TilesSpawner : MonoBehaviour
             Debug.LogError("[TilesSpawner] registry.gridSize invalide (doit être > 0). Configure-le dans LevelRegistry.");
             return;
         }
-
-        registry.originWorld = ComputeOriginFromPlayer(registry, player.position);
+        
+        // On positionne la grille de manière à ce que la cellule du milieu de la première ligne (z=0) soit sous le player.
+        registry.originWorld = ComputeOriginFromPlayer(registry, playerPosition.position);
 
         EnsureRoot();
         ClearRuntime();
@@ -83,8 +77,7 @@ public class TilesSpawner : MonoBehaviour
 
     void EnsureRoot()
     {
-        if (root) return;
-
+        // En runtime, on crée un root temporaire pour organiser les tiles.
         var go = new GameObject("TilesRootRuntime");
         go.transform.SetParent(transform);
         go.transform.localPosition = Vector3.zero;
