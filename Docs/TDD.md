@@ -2,7 +2,7 @@
 
 | Nom du projet :    | BUGS                          |
 | :----------------- | :---------------------------- |
-| **Version :**      | 1.5                           |
+| **Version :**      | 1.6                           |
 | **Dernière MAJ :** | 17/02/26                      |
 | **Auteur(s) :**    | @florian, @pierre             |
 | **Moteur :**       | Unity 6000.3.5f2              |
@@ -1145,6 +1145,154 @@ graph TD
 | :------- | :---------- | :-------------------------------------------------------------------------------------------------------------- |
 | 17/02/26 | @auteur     | Documentation initiale. Pipeline de collecte trial complet avec tampon map_config et envoi batch par coroutine. |
 
+## 4.6 TilesSpawner
+
+### 4.6.1 Responsabilités
+
+- Générer la grille de tuiles au runtime à partir du prefab tile
+- Calculer et initialiser `LevelRegistry.originWorld` depuis la position du joueur
+- Garantir que le joueur se retrouve centré en X sur la première rangée (z=0)
+- Organiser les tuiles instanciées sous un GameObject root dédié
+
+### 4.6.2 Composants clés (Data Model)
+
+→ **TilesSpawner.cs** : MonoBehaviour, génération de la grille à l'Awake. Ordre d'exécution : `-240`.
+
+```csharp
+[DefaultExecutionOrder(-240)]
+public class TilesSpawner : MonoBehaviour
+{
+    [Header("Tiles")]
+    public GameObject tilePrefab;
+
+    [Header("Placement")]
+    public Transform playerPosition;
+    public float tilesY = 0f;
+
+    private Transform root;
+}
+```
+
+| Variable / Méthode                          | Type              | Description                                                              |
+| :------------------------------------------ | :---------------- | :----------------------------------------------------------------------- |
+| tilePrefab                                  | GameObject        | Prefab de tuile à instancier pour chaque cellule de la grille            |
+| playerPosition                              | Transform         | Transform de référence pour le calcul de l'origine (position du joueur)  |
+| tilesY                                      | float             | Hauteur Y de génération de la grille (défaut : 0)                        |
+| root                                        | Transform (privé) | GameObject parent regroupant toutes les tuiles instanciées               |
+| Spawn()                                     | void (public)     | Méthode principale : calcule l'origine, crée le root, instancie les tuiles |
+| ComputeOriginFromPlayer(registry, worldPos) | Vector3 (statique)| Calcule l'origine grille pour centrer le joueur sur la cellule médiane   |
+| EnsureRoot()                                | void (privé)      | Crée le GameObject "TilesRootRuntime" comme enfant du TilesSpawner       |
+| ClearRuntime()                              | void (privé)      | Détruit tous les enfants du root (nettoyage avant régénération)          |
+
+### 4.6.3 Dépendances
+
+- **Nécessite :** `LevelRegistry.Instance` (gridSize, cellSize — lecture ; originWorld — écriture)
+- **Est utilisé par :** Aucun système directement — produit les GameObjects tuiles taggés "Tile" consommés par `CorridorWallsGenerator`
+- **Déclenche :** Initialisation de `LevelRegistry.originWorld`
+
+### 4.6.4 Diagramme de flux
+
+```mermaid
+graph TD
+    A["Awake()"] --> B["Spawn()"]
+    B --> C{tilePrefab assigné ?}
+    C -->|Non| D["LogError + return"]
+    C -->|Oui| E{playerPosition assigné ?}
+    E -->|Non| D
+    E -->|Oui| F["Récupérer LevelRegistry.Instance"]
+    F --> G{registry trouvé ?}
+    G -->|Non| D
+    G -->|Oui| H{gridSize valide > 0 ?}
+    H -->|Non| D
+    H -->|Oui| I["ComputeOriginFromPlayer(registry, playerPosition)"]
+    I --> J["registry.originWorld = origin calculée"]
+    J --> K["EnsureRoot() — créer TilesRootRuntime"]
+    K --> L["ClearRuntime() — nettoyer enfants existants"]
+    L --> M["Boucle x=[0..gridSize.x), y=[0..gridSize.y)"]
+    M --> N["Instantiate tilePrefab sous root"]
+    N --> O["tile.localPosition = (x × cellSize, 0, y × cellSize)"]
+```
+
+### 4.6.5 Formules et règles métier
+
+```
+midX                = gridSize.x / 2 (division entière)
+originWorld.x       = playerPosition.x - (midX × cellSize)
+originWorld.z       = playerPosition.z
+originWorld.y       = 0
+
+Tile localPosition  = (x × cellSize, 0, y × cellSize)  pour x ∈ [0, gridSize.x), y ∈ [0, gridSize.y)
+
+Contrainte joueur   = le joueur doit se retrouver sur la cellule (midX, 0) après calcul de l'origine
+```
+
+### 4.6.6 Points d'attention
+
+- **⚠️ Écriture dans LevelRegistry :** TilesSpawner est le seul système qui écrit `originWorld` — tous les autres systèmes le lisent. Si TilesSpawner ne s'exécute pas, toutes les conversions WorldToCell/CellToWorld seront faussées
+- **⚠️ Ordre d'exécution :** `-240` s'exécute après LevelRegistry (-300) et FogController (-250), mais avant BugCloudSpawner (-200) — l'origine doit être calculée avant tout placement d'entité
+- **⚠️ Fallback :** Si `LevelRegistry.Instance` est null, tente `FindFirstObjectByType<LevelRegistry>()` — couverture du cas où l'ordre Awake n'est pas garanti
+- **⚠️ cellSize guard :** `Mathf.Max(0.0001f, cellSize)` empêche une division par zéro ou un espacement nul des tuiles
+
+### 4.6.7 Journal d'implémentation
+
+| Date     | Développeur | Note / Décision Technique                                                                                          |
+| :------- | :---------- | :----------------------------------------------------------------------------------------------------------------- |
+| 17/02/26 | @auteur     | Documentation initiale. Génération runtime de la grille avec calcul d'origine centré sur le joueur.                |
+
+## 4.7 PlayerSpawner
+
+### 4.7.1 Responsabilités
+
+- Instancier le prefab joueur au runtime à une position et rotation définies par un Transform de spawn
+- Découpler le placement du joueur de la scène (le joueur n'a pas besoin d'être pré-placé)
+
+### 4.7.2 Composants clés (Data Model)
+
+→ **PlayerSpawner.cs** : MonoBehaviour, instanciation du joueur au Start. Pas d'ordre d'exécution explicite (défaut : `0`).
+
+```csharp
+public class PlayerSpawner : MonoBehaviour
+{
+    [Header("Références")]
+    [SerializeField] private GameObject playerPrefab;
+    [SerializeField] private Transform spawnTransform;
+}
+```
+
+| Variable / Méthode | Type       | Description                                                          |
+| :------------------ | :--------- | :------------------------------------------------------------------- |
+| playerPrefab        | GameObject | Prefab du joueur à instancier (doit avoir GridMoverNewInput, etc.)   |
+| spawnTransform      | Transform  | Transform définissant la position et rotation de spawn du joueur     |
+
+### 4.7.3 Dépendances
+
+- **Nécessite :** Aucune dépendance système — utilise uniquement `Instantiate`
+- **Est utilisé par :** Aucun système directement — instancie le GameObject joueur qui est ensuite référencé par les spawners via l'Inspector ou les tags
+- **Déclenche :** Rien (pas d'event, pas d'enregistrement dans LevelRegistry)
+
+### 4.7.4 Diagramme de flux
+
+```mermaid
+graph TD
+    A["Start()"] --> B{playerPrefab != null ?}
+    B -->|Non| C["LogError + return"]
+    B -->|Oui| D{spawnTransform != null ?}
+    D -->|Non| C
+    D -->|Oui| E["Instantiate(playerPrefab, spawnTransform.position, spawnTransform.rotation)"]
+```
+
+### 4.7.5 Points d'attention
+
+- **⚠️ Ordre d'exécution :** PlayerSpawner n'a pas de `[DefaultExecutionOrder]` — il s'exécute à l'ordre par défaut (0) dans `Start()`. Tous les spawners qui référencent le joueur via l'Inspector (BugCloudSpawner, BestPath, etc.) utilisent un Transform assigné en scène, pas le joueur instancié — donc pas de conflit d'ordre
+- **⚠️ Code mort :** La méthode `Update()` est vide — vestige du template MonoBehaviour, peut être supprimée
+- **⚠️ Pas d'enregistrement :** Le joueur instancié n'est pas enregistré dans LevelRegistry ni GameManager — les autres systèmes doivent référencer le Transform de spawn ou utiliser `FindWithTag("Player")`
+
+### 4.7.6 Journal d'implémentation
+
+| Date     | Développeur | Note / Décision Technique                                                                           |
+| :------- | :---------- | :-------------------------------------------------------------------------------------------------- |
+| 17/02/26 | @auteur     | Documentation initiale. Spawner simple — instanciation du joueur à un point de spawn configurable. |
+
 # 5. Gestion des données
 
 ## 5.1 Structures de données de recherche
@@ -1328,3 +1476,4 @@ _Section à compléter._
 | 17/02/26 | 1.3     | Ajout sections 3.5 (GridMoverNewInput) et 4.4 (FogController)                           |
 | 17/02/26 | 1.4     | Ajout section 4.5 (TrialManager) et section 5.1 (TrialData, PlayerStep, format JSON)    |
 | 17/02/26 | 1.5     | MAJ section 3.5 (GridMoverNewInput) — suppression support ZQSD, flèches uniquement      |
+| 17/02/26 | 1.6     | Ajout sections 4.6 (TilesSpawner) et 4.7 (PlayerSpawner)                                |
