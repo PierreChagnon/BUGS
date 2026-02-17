@@ -10,13 +10,13 @@ public class TilesSpawner : MonoBehaviour
     public GameObject tilePrefab;
 
     [Header("Placement")]
-    [Tooltip("Référence player placée manuellement dans la scène (ou trouvée via tag Player si null).")]
-    public Transform playerPosition;
+    [Tooltip("Transform de référence pour positionner la grille (optionnel si LevelRegistry connaît la position de départ).")]
+    public Transform root;
 
     [Tooltip("Hauteur Y à laquelle la grille est générée.")]
     public float tilesY = 0f;
 
-    private Transform root;
+    private Transform tilesRoot;
 
     void Awake()
     {
@@ -28,12 +28,6 @@ public class TilesSpawner : MonoBehaviour
         if (!tilePrefab)
         {
             Debug.LogError("[TilesSpawner] tilePrefab missing");
-            return;
-        }
-
-        if (!playerPosition)
-        {
-            Debug.LogError("[TilesSpawner] playerPosition missing");
             return;
         }
 
@@ -55,20 +49,31 @@ public class TilesSpawner : MonoBehaviour
             Debug.LogError("[TilesSpawner] registry.gridSize invalide (doit être > 0). Configure-le dans LevelRegistry.");
             return;
         }
-        
+
+        Vector3 playerWorld;
+        if (root != null)
+        {
+            playerWorld = root.position;
+        }
+        else if (!registry.TryGetPlayerStartWorld(out playerWorld))
+        {
+            Debug.LogError("[TilesSpawner] root manquant et player start non enregistré dans LevelRegistry.");
+            return;
+        }
+
         // On positionne la grille de manière à ce que la cellule du milieu de la première ligne (z=0) soit sous le player.
-        registry.originWorld = ComputeOriginFromPlayer(registry, playerPosition.position);
+        registry.originWorld = ComputeOriginFromPlayer(registry, playerWorld);
 
         EnsureRoot();
         ClearRuntime();
 
         // Pour garder une hiérarchie claire: root représente la case (0,0).
-        root.position = new Vector3(registry.originWorld.x, tilesY, registry.originWorld.z);
+        tilesRoot.position = new Vector3(registry.originWorld.x, tilesY, registry.originWorld.z);
 
         for (int y = 0; y < registry.gridSize.y; y++)
         for (int x = 0; x < registry.gridSize.x; x++)
         {
-            var tile = Instantiate(tilePrefab, root);
+            var tile = Instantiate(tilePrefab, tilesRoot);
             float size = Mathf.Max(0.0001f, registry.cellSize);
             tile.transform.localPosition = new Vector3(x * size, 0f, y * size);
             tile.name = $"Tile_{x}_{y}";
@@ -81,15 +86,15 @@ public class TilesSpawner : MonoBehaviour
         var go = new GameObject("TilesRootRuntime");
         go.transform.SetParent(transform);
         go.transform.localPosition = Vector3.zero;
-        root = go.transform;
+        tilesRoot = go.transform;
     }
 
     void ClearRuntime()
     {
-        if (!root) return;
+        if (!tilesRoot) return;
 
-        for (int i = root.childCount - 1; i >= 0; i--)
-            Destroy(root.GetChild(i).gameObject);
+        for (int i = tilesRoot.childCount - 1; i >= 0; i--)
+            Destroy(tilesRoot.GetChild(i).gameObject);
     }
 
     static Vector3 ComputeOriginFromPlayer(LevelRegistry registry, Vector3 playerWorld)

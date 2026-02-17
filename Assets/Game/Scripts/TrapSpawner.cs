@@ -5,7 +5,6 @@ using UnityEngine;
 public class TrapSpawner : MonoBehaviour
 {
     [Header("Références")]
-    public Transform player;          // Pour éviter la case du joueur au départ
     public GameObject trapPrefab;     // Prefab du piège (avec Trap.cs + BoxCollider IsTrigger)
 
     [Header("Placement")]
@@ -34,11 +33,8 @@ public class TrapSpawner : MonoBehaviour
                 candidates.Add(new Vector2Int(x, z));
 
         // Éviter la case du joueur
-        if (player != null)
-        {
-            Vector2Int playerCell = registry.WorldToCell(player.position);
+        if (registry.TryGetPlayerStartCell(out var playerCell))
             candidates.Remove(playerCell);
-        }
 
 
         // Filtrer les cases interdites depuis le LevelRegistry 

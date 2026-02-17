@@ -5,7 +5,6 @@ using System.Collections.Generic;
 public class BestPath : MonoBehaviour
 {
     [Header("Références")]
-    public Transform player;
     public GameObject quadPrefab;
 
     [Header("Visibility")]
@@ -27,6 +26,12 @@ public class BestPath : MonoBehaviour
         if (clouds.Length < 2)
         {
             Debug.LogWarning("[BestPath] Moins de 2 nuages trouvés (vérifie BugCloudSpawner).");
+            return;
+        }
+
+        if (!reg.TryGetPlayerStartCell(out var playerCell))
+        {
+            Debug.LogError("[BestPath] player start non enregistré (vérifie PlayerSpawner / LevelRegistry).");
             return;
         }
 
@@ -53,7 +58,6 @@ public class BestPath : MonoBehaviour
         // puis entre le joueur de gauche et le nuage de droite
 
         // On travaille en cellules (source de vérité: LevelRegistry)
-        Vector2Int playerCell = reg.WorldToCell(player.position);
         Vector2Int leftCloudCell = reg.WorldToCell(leftCloud.transform.position);
         Vector2Int rightCloudCell = reg.WorldToCell(rightCloud.transform.position);
 
@@ -160,7 +164,7 @@ public class BestPath : MonoBehaviour
                 cells.Add(c);
 
             // Révèle aussi la case de départ si tu veux
-            cells.Add(reg.WorldToCell(player.position));
+            cells.Add(playerCell);
 
             FogController.Instance.RevealCells(cells);
         }

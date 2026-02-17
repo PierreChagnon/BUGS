@@ -38,10 +38,16 @@ public class LevelRegistry : MonoBehaviour
         Reserved = 1 << 4,  // case réservée (exclure spawn piège)
         Visited = 1 << 5,  // le joueur a déjà marché ici
         Wall = 1 << 6,  // case bloquante (mur / non-praticable)
+        PlayerStart = 1 << 7, // case de départ du joueur (pour éviter d'y mettre des pièges)
     }
 
     // Store “truth” here
     readonly Dictionary<Vector2Int, CellFlags> _cells = new();
+
+    bool _hasPlayerStart;
+    bool _hasPlayerStartWorld;
+    Vector2Int _playerStartCell;
+    Vector3 _playerStartWorld;
 
     // Optionnel : HUD / debug peut s’abonner
     public event Action<Vector2Int, CellFlags> OnCellChanged;
@@ -62,6 +68,37 @@ public class LevelRegistry : MonoBehaviour
 
     public void MarkVisited(Vector2Int c) => AddFlags(c, CellFlags.Visited);
 
+    public void RegisterPlayerStart(Vector2Int c, Vector3 world)
+    {
+        if (!InBounds(c)) return;
+        _hasPlayerStart = true;
+        _playerStartCell = c;
+        AddFlags(c, CellFlags.PlayerStart | CellFlags.Reserved);
+        _hasPlayerStartWorld = true;
+        _playerStartWorld = world;
+    }
+
+    public void UnregisterPlayerStart(Vector2Int c)
+    {
+        RemoveFlags(c, CellFlags.PlayerStart | CellFlags.Reserved);
+        _hasPlayerStart = false;
+        _hasPlayerStartWorld = false;
+        _playerStartCell = default;
+        _playerStartWorld = default;
+    }
+
+    public bool TryGetPlayerStartCell(out Vector2Int cell)
+    {
+        cell = _playerStartCell;
+        return _hasPlayerStart;
+    }
+
+    public bool TryGetPlayerStartWorld(out Vector3 world)
+    {
+        world = _playerStartWorld;
+        return _hasPlayerStartWorld;
+    }
+
     public void RegisterBugCloud(Vector2Int c)
     {
         // Un nuage “réserve” naturellement sa case (pas de piège dessus)
@@ -71,8 +108,8 @@ public class LevelRegistry : MonoBehaviour
     {
         var f = GetFlags(c);
         f &= ~CellFlags.BugCloud; // retire seulement BugCloud
-                                  // On ne retire Reserved que si la case n'appartient à aucun chemin
-        if ((f & (CellFlags.PathLeft | CellFlags.PathRight)) == 0)
+        // On ne retire Reserved que si la case n'appartient à aucun chemin et n'est pas le départ du joueur
+        if ((f & (CellFlags.PathLeft | CellFlags.PathRight | CellFlags.PlayerStart)) == 0)
             f &= ~CellFlags.Reserved;
         SetFlags(c, f);
     }
@@ -80,7 +117,7 @@ public class LevelRegistry : MonoBehaviour
     public bool RegisterTrap(Vector2Int c)
     {
         if (!InBounds(c)) return false;
-        if (IsReserved(c)) return false;        // refuse si réservé (nuages / paths)
+        if (IsReserved(c) || (GetFlags(c) & CellFlags.PlayerStart) != 0) return false; // refuse si réservé (nuages / paths) ou case de départ du joueur
         if (HasTrap(c)) return false;           // évite doublon
         AddFlags(c, CellFlags.Trap);
         return true;

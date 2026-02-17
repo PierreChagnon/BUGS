@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[DefaultExecutionOrder(-250)] // s'assure de s'exécuter avant TilesSpawner (qui est à -240) pour enregistrer la position de départ du joueur dans le LevelRegistry
 public class PlayerSpawner : MonoBehaviour
 {
     [Header("Références")]
@@ -24,11 +25,13 @@ public class PlayerSpawner : MonoBehaviour
         }
 
         Instantiate(playerPrefab, spawnTransform.position, spawnTransform.rotation);
-    }
 
-    // Update is called once per frame
-    void Update()
-    {
-
+        // Enregistre l'info dans le LevelRegistry pour éviter de placer des pièges sur la case de départ du joueur
+        var registry = LevelRegistry.Instance;
+        if (registry != null)
+        {
+            Vector2Int spawnCell = registry.WorldToCell(spawnTransform.position);
+            registry.RegisterPlayerStart(spawnCell, spawnTransform.position);
+        }
     }
 }

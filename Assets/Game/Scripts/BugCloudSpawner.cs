@@ -5,7 +5,7 @@ using System.Collections.Generic;
 public class BugCloudSpawner : MonoBehaviour
 {
     [Header("Références")]
-    public Transform player;
+
     public GameObject bugCloudPrefab;
 
     // Source de vérité: LevelRegistry (gridSize/cellSize/originWorld)
@@ -28,12 +28,10 @@ public class BugCloudSpawner : MonoBehaviour
     [SerializeField]
     private float maxGreenBugsRatio = 0.8f;
 
-
     // À l'Awake, on place les 2 nuages (permet d'acceder à leurs positions dans Start du TrapSpawner)
-    void Awake()
+    void Start()
     {
         if (bugCloudPrefab == null) { Debug.LogError("[BugCloudSpawner] bugCloudPrefab manquant."); return; }
-        if (player == null) { Debug.LogError("[BugCloudSpawner] player manquant."); return; }
 
         var registry = LevelRegistry.Instance;
         if (registry == null)
@@ -42,8 +40,11 @@ public class BugCloudSpawner : MonoBehaviour
             return;
         }
 
-        // Case du joueur
-        Vector2Int playerCell = registry.WorldToCell(player.position);
+        if (!registry.TryGetPlayerStartCell(out var playerCell))
+        {
+            Debug.LogError("[BugCloudSpawner] player start non enregistré (vérifie PlayerSpawner / LevelRegistry).");
+            return;
+        }
 
         // Bornes pour la distance au joueur (D)
         int Dmin = Mathf.Max(1, minDistance);
