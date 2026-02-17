@@ -99,3 +99,11 @@ Thumbs.db
 !*.prefab
 
 !*.asset
+
+# Python venv
+.venv/
+
+# Google credentials & secrets
+cosmic-envoy-487711-i4-a8e723205126.json
+token.json
+.env
