@@ -392,7 +392,7 @@ public class MapGenerator : MonoBehaviour
         var pathRoot = GetOrCreateChildRoot("BestPath");
         foreach (var c in chosen)
         {
-            var pos = registry.CellToWorld(c, 0.01f);
+            var pos = registry.CellToWorld(c, 0.11f);
             InstantiateEditor(pathQuadPrefab, pos, pathQuadPrefab.transform.rotation, pathRoot);
         }
     }

@@ -21,11 +21,17 @@ public class BestPath : MonoBehaviour
             return;
         }
 
+        if (quadPrefab == null)
+        {
+            Debug.LogError("[BestPath] quadPrefab manquant (assigne le prefab de quad dans l'inspecteur).");
+            return;
+        }
+
         // Récupérer les positions des nuages
         GameObject[] clouds = GameObject.FindGameObjectsWithTag("BugCloud");
         if (clouds.Length < 2)
         {
-            Debug.LogWarning("[BestPath] Moins de 2 nuages trouvés (vérifie BugCloudSpawner).");
+            Debug.LogWarning($"[BestPath] Moins de 2 nuages trouvés (count={clouds.Length}). Vérifie BugCloudSpawner + tag 'BugCloud'.");
             return;
         }
 
@@ -118,7 +124,11 @@ public class BestPath : MonoBehaviour
         // ------ INSTANTIATION DES QUADS LE LONG DES CHEMINS ------
 
         // Si visible est false, on ne fait rien
-        if (!visible) return;
+        if (!visible)
+        {
+            Debug.Log("[BestPath] visible=false => instanciation des quads ignorée.");
+            return;
+        }
 
         // On tire au sort quel chemin on affiche, par défaut
         Vector2Int[] chosenPath = (Random.value < 0.5f) ? pathToLeftCloud : pathToRightCloud;
@@ -145,10 +155,21 @@ public class BestPath : MonoBehaviour
 
 
         // Instancier les quads le long des chemins
+        int spawned = 0;
         foreach (var cell in chosenPath)
         {
-            Instantiate(quadPrefab, reg.CellToWorld(cell, 0.01f), quadPrefab.transform.rotation, transform);
+            var pos = reg.CellToWorld(cell, 0.1f);
+
+            // Important: on instancie sans parent puis on parent en conservant la transform monde.
+            // Cela évite les surprises si le GO BestPath a une scale non-1.
+            var quad = Instantiate(quadPrefab, pos, quadPrefab.transform.rotation);
+            quad.transform.SetParent(transform, true);
+
+            if (!quad.activeSelf) quad.SetActive(true);
+            spawned++;
         }
+
+        Debug.Log($"[BestPath] Quads instanciés: {spawned} (originWorld={reg.originWorld}, cellSize={reg.cellSize}).");
 
 
 
