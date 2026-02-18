@@ -158,7 +158,7 @@ public class BestPath : MonoBehaviour
         int spawned = 0;
         foreach (var cell in chosenPath)
         {
-            var pos = reg.CellToWorld(cell, 0.1f);
+            var pos = reg.CellToWorld(cell, 0.11f);
 
             // Important: on instancie sans parent puis on parent en conservant la transform monde.
             // Cela évite les surprises si le GO BestPath a une scale non-1.
