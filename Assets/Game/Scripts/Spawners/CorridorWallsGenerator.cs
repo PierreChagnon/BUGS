@@ -16,7 +16,7 @@ public class CorridorWallsGenerator : MonoBehaviour
 
     [Header("Couloirs")]
     [Min(1)]
-    public int corridorWidth = 2;
+    public int corridorWidth = 1;
 
     [Header("Maze")]
     [Tooltip("Si vrai, une seed aléatoire est utilisée à chaque run.")]
@@ -27,11 +27,11 @@ public class CorridorWallsGenerator : MonoBehaviour
 
     [Tooltip("Nombre d'ouvertures supplémentaires pour créer des boucles (maze non parfait).")]
     [Range(0, 200)]
-    public int mazeExtraOpenings = 20;
+    public int mazeExtraOpenings = 0;
 
     [Tooltip("Ajoute quelques connexions supplémentaires pour réduire les cul-de-sac.")]
     [Range(0, 100)]
-    public int extraConnections = 10;
+    public int extraConnections = 16;
 
     [Tooltip("Si aucun chemin n'est réservé (BestPath absent), on connecte quand même le joueur aux nuages.")]
     public bool fallbackConnectToClouds = true;

@@ -40,9 +40,21 @@ public class MapGenerator : MonoBehaviour
 
     [Header("Corridors / Walls")]
     [Min(1)]
-    public int corridorWidth = 2;
+    public int corridorWidth = 1;
+
+    [Header("Maze")]
+    [Tooltip("Si vrai, une seed aléatoire est utilisée à chaque génération.")]
+    public bool randomizeMazeSeed = true;
+
+    [Tooltip("Seed utilisée si randomizeMazeSeed est désactivé.")]
+    public int mazeSeed = 12345;
+
+    [Tooltip("Nombre d'ouvertures supplémentaires pour créer des boucles (maze non parfait).")]
+    [Range(0, 200)]
+    public int mazeExtraOpenings = 0;
+
     [Range(0, 100)]
-    public int extraConnections = 10;
+    public int extraConnections = 16;
     public bool fallbackConnectToClouds = true;
 
     public GameObject wallPrefab;
@@ -60,6 +72,7 @@ public class MapGenerator : MonoBehaviour
     public Transform root;
 
     readonly Dictionary<Vector2Int, GameObject> _tilesByCell = new();
+    int _mazeSeedUsed;
 
     [ContextMenu("Generate (Editor Preview)")]
     public void GenerateEditorPreview()
@@ -81,13 +94,12 @@ public class MapGenerator : MonoBehaviour
         // On pousse donc la valeur dans le LevelRegistry pour que toute la génération
         // (réservations, murs, traps) soit cohérente sur la même taille de grille.
         registry.gridSize = gridSize;
+        registry.cellSize = cellSize;
 
         EnsureRoot();
         ClearEditorPreview();
 
         registry.ClearPathReservations();
-
-        GenerateTiles();
 
         var player = EnsurePlayer();
         if (player == null)
@@ -96,7 +108,15 @@ public class MapGenerator : MonoBehaviour
             return;
         }
 
-        var playerCell = WorldToCell(player.position);
+        // Reproduit la logique runtime: TilesSpawner calcule originWorld à partir de la position du joueur.
+        registry.originWorld = ComputeOriginFromPlayer(registry, player.position);
+
+        GenerateTiles();
+
+        var playerCell = registry.WorldToCell(player.position);
+
+        // Runtime: PlayerSpawner enregistre la case de départ (réserve la cellule).
+        registry.RegisterPlayerStart(playerCell, player.position);
 
         // 1) Nuages (réservent leurs cases dans le registre)
         var clouds = GenerateBugClouds(playerCell);
@@ -108,7 +128,7 @@ public class MapGenerator : MonoBehaviour
             Debug.LogWarning("[MapGenerator] Moins de 2 nuages générés: best path ignoré.");
 
         // 3) Couloirs + Murs
-        GenerateCorridorWalls(player);
+        GenerateCorridorWalls();
 
         // 4) Traps (respecte IsFreeForTrap => pas sur mur / pas sur réservé / pas sur trap)
         GenerateTraps(playerCell);
@@ -135,6 +155,10 @@ public class MapGenerator : MonoBehaviour
 
         if (registry != null)
         {
+            // Reset du départ joueur
+            if (registry.TryGetPlayerStartCell(out var startCell))
+                registry.UnregisterPlayerStart(startCell);
+
             // On garde la grille, mais on nettoie les flags liés à la génération.
             // (Les clouds/traps/walls/path/reserved sont propres au layout.)
             // La classe n'a pas d'API publique de ClearAll: on remet au minimum.
@@ -179,8 +203,9 @@ public class MapGenerator : MonoBehaviour
         {
             // En preview éditeur, on place le joueur au milieu de la première ligne (z=0)
             // pour reproduire la logique runtime "nuages devant le joueur".
-            var playerCell = new Vector2Int(Mathf.Clamp(gridSize.x / 2, 0, Mathf.Max(0, gridSize.x - 1)), 0);
-            var playerWorld = CellToWorld(playerCell, 0.55f);
+            int midX = Mathf.Clamp(gridSize.x / 2, 0, Mathf.Max(0, gridSize.x - 1));
+            float size = Mathf.Max(0.0001f, cellSize);
+            var playerWorld = new Vector3(midX * size, 0.55f, 0f);
             var playerGo = InstantiateEditor(playerPrefab, playerWorld, Quaternion.identity, root);
             playerGo.name = "PlayerPreview";
             return playerGo.transform;
@@ -206,9 +231,10 @@ public class MapGenerator : MonoBehaviour
         {
             for (int x = 0; x < gridSize.x; x++)
             {
-                var pos = CellToWorld(new Vector2Int(x, y), 0f);
+                var pos = registry.CellToWorld(new Vector2Int(x, y), 0f);
                 var tile = InstantiateEditor(tilePrefab, pos, tilePrefab.transform.rotation, tilesRoot.transform);
                 tile.name = $"Tile_{x}_{y}";
+                SafeSetTag(tile, "Tile");
                 if (!_tilesByCell.ContainsKey(new Vector2Int(x, y)))
                     _tilesByCell.Add(new Vector2Int(x, y), tile);
             }
@@ -233,7 +259,7 @@ public class MapGenerator : MonoBehaviour
         for (int D = Dmin; D <= Dmax; D++)
         {
             var ring = GetRingCells(playerCell, D);
-            ring.RemoveAll(c => !InBounds(c) || c == playerCell);
+            ring.RemoveAll(c => !registry.InBounds(c) || c == playerCell);
             if (ring.Count >= 2) candidateDs.Add(D);
         }
 
@@ -262,7 +288,7 @@ public class MapGenerator : MonoBehaviour
         {
             int chosenD = candidateDs[dTry];
             var validRing = GetRingCells(playerCell, chosenD);
-            validRing.RemoveAll(c => !InBounds(c) || c == playerCell || c.y < minCloudZ);
+            validRing.RemoveAll(c => !registry.InBounds(c) || c == playerCell || c.y < minCloudZ);
 
             if (validRing.Count < 2)
                 continue;
@@ -307,8 +333,8 @@ public class MapGenerator : MonoBehaviour
 
         var cloudsRoot = GetOrCreateChildRoot("BugClouds");
 
-        var goA = InstantiateEditor(bugCloudPrefab, CellToWorld(cellA, cloudY), Quaternion.identity, cloudsRoot);
-        var goB = InstantiateEditor(bugCloudPrefab, CellToWorld(cellB, cloudY), Quaternion.identity, cloudsRoot);
+        var goA = InstantiateEditor(bugCloudPrefab, registry.CellToWorld(cellA, cloudY), Quaternion.identity, cloudsRoot);
+        var goB = InstantiateEditor(bugCloudPrefab, registry.CellToWorld(cellB, cloudY), Quaternion.identity, cloudsRoot);
 
         SafeSetTag(goA, "BugCloud");
         SafeSetTag(goB, "BugCloud");
@@ -342,9 +368,9 @@ public class MapGenerator : MonoBehaviour
         if (leftCloud == null || rightCloud == null) return;
 
         // Utiliser des cellules (entiers) évite les soucis d'égalité flottante et garantit la terminaison.
-        var playerCell = WorldToCell(player.position);
-        var leftCloudCell = WorldToCell(leftCloud.transform.position);
-        var rightCloudCell = WorldToCell(rightCloud.transform.position);
+        var playerCell = registry.WorldToCell(player.position);
+        var leftCloudCell = registry.WorldToCell(leftCloud.transform.position);
+        var rightCloudCell = registry.WorldToCell(rightCloud.transform.position);
 
         var leftCells = BuildShortestRandomManhattanPath(playerCell, leftCloudCell);
         var rightCells = BuildShortestRandomManhattanPath(playerCell, rightCloudCell);
@@ -366,18 +392,20 @@ public class MapGenerator : MonoBehaviour
         var pathRoot = GetOrCreateChildRoot("BestPath");
         foreach (var c in chosen)
         {
-            var pos = CellToWorld(c, 0.01f);
+            var pos = registry.CellToWorld(c, 0.01f);
             InstantiateEditor(pathQuadPrefab, pos, pathQuadPrefab.transform.rotation, pathRoot);
         }
     }
 
-    void GenerateCorridorWalls(Transform player)
+    void GenerateCorridorWalls()
     {
         var wallsRoot = GetOrCreateChildRoot("Walls");
 
-        var walkable = BuildWalkableCells(player);
+        _mazeSeedUsed = randomizeMazeSeed ? UnityEngine.Random.Range(1, int.MaxValue) : mazeSeed;
+
+        var walkable = BuildWalkableCells(registry, _mazeSeedUsed);
         if (walkable.Count == 0 && fallbackConnectToClouds)
-            walkable = BuildFallbackWalkable(player);
+            walkable = BuildFallbackWalkable(registry);
 
         if (walkable.Count == 0)
         {
@@ -385,7 +413,7 @@ public class MapGenerator : MonoBehaviour
             return;
         }
 
-        AddExtraConnections(walkable);
+        AddExtraConnections(registry, walkable);
 
         int wallsPlaced = 0;
         for (int y = 0; y < gridSize.y; y++)
@@ -406,7 +434,7 @@ public class MapGenerator : MonoBehaviour
             }
         }
 
-        Debug.Log($"[MapGenerator] Walkable={walkable.Count} Walls={wallsPlaced}");
+        Debug.Log($"[MapGenerator] Walkable={walkable.Count} Walls={wallsPlaced} Seed={_mazeSeedUsed}");
     }
 
     void GenerateTraps(Vector2Int playerCell)
@@ -439,7 +467,7 @@ public class MapGenerator : MonoBehaviour
         {
             var cell = candidates[i];
             if (!registry.RegisterTrap(cell)) continue;
-            InstantiateEditor(trapPrefab, CellToWorld(cell, trapY), Quaternion.identity, trapsRoot);
+            InstantiateEditor(trapPrefab, registry.CellToWorld(cell, trapY), Quaternion.identity, trapsRoot);
             placed++;
         }
 
@@ -450,50 +478,64 @@ public class MapGenerator : MonoBehaviour
     // Corridor logic (copie CorridorWallsGenerator)
     // -----------------
 
-    HashSet<Vector2Int> BuildWalkableCells(Transform player)
+    HashSet<Vector2Int> BuildWalkableCells(LevelRegistry reg, int seed)
     {
         var baseCells = new HashSet<Vector2Int>();
 
-        for (int y = 0; y < gridSize.y; y++)
+        // 1) Les chemins réservés (BestPath) définissent l'ossature des couloirs.
+        for (int y = 0; y < reg.gridSize.y; y++)
         {
-            for (int x = 0; x < gridSize.x; x++)
+            for (int x = 0; x < reg.gridSize.x; x++)
             {
                 var c = new Vector2Int(x, y);
-                if (registry.IsOnAnyPath(c) || registry.HasBugCloud(c))
+                if (reg.IsOnAnyPath(c) || reg.HasBugCloud(c))
                     baseCells.Add(c);
             }
         }
 
-        if (player != null)
-            baseCells.Add(WorldToCell(player.position));
+        // 2) Ajouter la case du joueur pour éviter de l'enfermer.
+        if (reg.TryGetPlayerStartCell(out var playerCell))
+            baseCells.Add(playerCell);
 
-        return Inflate(baseCells, corridorWidth);
+        // 3) Générer un maze classique, puis forcer l'ouverture des chemins réservés.
+        var maze = MazeGenerator.Generate(reg.gridSize.x, reg.gridSize.y, seed, mazeExtraOpenings);
+        var walkable = new HashSet<Vector2Int>();
+
+        foreach (var c in maze.AllCells())
+            if (maze.IsWalkable(c)) walkable.Add(c);
+
+        foreach (var c in baseCells)
+            walkable.Add(c);
+
+        // 4) Élargissement pour obtenir des couloirs de largeur > 1.
+        return Inflate(walkable, corridorWidth, reg);
     }
 
-    HashSet<Vector2Int> BuildFallbackWalkable(Transform player)
+    HashSet<Vector2Int> BuildFallbackWalkable(LevelRegistry reg)
     {
         var result = new HashSet<Vector2Int>();
-        var start = player != null ? WorldToCell(player.position) : new Vector2Int(0, 0);
-        if (!InBounds(start)) start = new Vector2Int(0, 0);
+
+        var start = reg.TryGetPlayerStartCell(out var playerCell) ? playerCell : new Vector2Int(0, 0);
+        if (!reg.InBounds(start)) start = new Vector2Int(0, 0);
         result.Add(start);
 
         // Cherche les nuages générés dans notre root (plus robuste qu'un FindWithTag global)
         var cloudsRoot = root != null ? root.Find("BugClouds") : null;
         if (cloudsRoot == null || cloudsRoot.childCount == 0)
-            return Inflate(result, corridorWidth);
+            return Inflate(result, corridorWidth, reg);
 
         for (int i = 0; i < cloudsRoot.childCount; i++)
         {
             var cloud = cloudsRoot.GetChild(i);
             if (cloud == null) continue;
-            var goal = WorldToCell(cloud.position);
+            var goal = reg.WorldToCell(cloud.position);
             CarveLPath(start, goal, result);
         }
 
-        return Inflate(result, corridorWidth);
+        return Inflate(result, corridorWidth, reg);
     }
 
-    void AddExtraConnections(HashSet<Vector2Int> walkable)
+    void AddExtraConnections(LevelRegistry reg, HashSet<Vector2Int> walkable)
     {
         if (extraConnections <= 0) return;
 
@@ -519,7 +561,7 @@ public class MapGenerator : MonoBehaviour
 
             var carved = new HashSet<Vector2Int>();
             CarveLPath(from, to, carved);
-            var inflated = Inflate(carved, corridorWidth);
+            var inflated = Inflate(carved, corridorWidth, reg);
             foreach (var c in inflated) walkable.Add(c);
             added++;
         }
@@ -571,7 +613,7 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
-    HashSet<Vector2Int> Inflate(HashSet<Vector2Int> cells, int width)
+    static HashSet<Vector2Int> Inflate(HashSet<Vector2Int> cells, int width, LevelRegistry reg)
     {
         if (cells == null) return new HashSet<Vector2Int>();
         if (width <= 1) return new HashSet<Vector2Int>(cells);
@@ -587,7 +629,7 @@ public class MapGenerator : MonoBehaviour
                 for (int dx = -left; dx <= right; dx++)
                 {
                     var cc = new Vector2Int(c.x + dx, c.y + dy);
-                    if (InBounds(cc)) outSet.Add(cc);
+                    if (reg != null && reg.InBounds(cc)) outSet.Add(cc);
                 }
             }
         }
@@ -604,7 +646,7 @@ public class MapGenerator : MonoBehaviour
                 for (int dx = -r; dx <= r; dx++)
                 {
                     var c = new Vector2Int(from.x + dx, from.y + dy);
-                    if (!InBounds(c)) continue;
+                    if (!registry.InBounds(c)) continue;
                     if (!walkable.Contains(c)) continue;
                     if (Mathf.Abs(dx) + Mathf.Abs(dy) < 2) continue;
                     candidates.Add(c);
@@ -641,14 +683,14 @@ public class MapGenerator : MonoBehaviour
     {
         if (wallPrefab != null)
         {
-            InstantiateEditor(wallPrefab, CellToWorld(c, wallY), Quaternion.identity, parent);
+            InstantiateEditor(wallPrefab, registry.CellToWorld(c, wallY), Quaternion.identity, parent);
             return;
         }
 
         var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
         go.name = $"Wall ({c.x},{c.y})";
         go.transform.SetParent(parent, false);
-        go.transform.position = CellToWorld(c, wallY);
+        go.transform.position = registry.CellToWorld(c, wallY);
         go.transform.localScale = new Vector3(wallThickness, wallHeight, wallThickness);
 
         if (wallMaterial != null)
@@ -678,14 +720,15 @@ public class MapGenerator : MonoBehaviour
         catch { /* tag absent */ }
     }
 
-    bool InBounds(Vector2Int c)
-        => c.x >= 0 && c.x < gridSize.x && c.y >= 0 && c.y < gridSize.y;
+    static Vector3 ComputeOriginFromPlayer(LevelRegistry registry, Vector3 playerWorld)
+    {
+        int width = registry != null ? registry.gridSize.x : 0;
+        int midX = Mathf.Clamp(width / 2, 0, Mathf.Max(0, width - 1));
+        float size = Mathf.Max(0.0001f, registry != null ? registry.cellSize : 1f);
 
-    Vector2Int WorldToCell(Vector3 world)
-        => new(Mathf.RoundToInt(world.x / Mathf.Max(0.0001f, cellSize)), Mathf.RoundToInt(world.z / Mathf.Max(0.0001f, cellSize)));
-
-    Vector3 CellToWorld(Vector2Int cell, float y)
-        => new(cell.x * cellSize, y, cell.y * cellSize);
+        // On veut que la cellule (midX, 0) soit sous le joueur.
+        return new Vector3(playerWorld.x - (midX * size), 0f, playerWorld.z);
+    }
 
     static List<Vector2Int> GetRingCells(Vector2Int center, int D)
     {
