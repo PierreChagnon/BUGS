@@ -19,12 +19,6 @@ public class CorridorWallsGenerator : MonoBehaviour
     public int corridorWidth = 1;
 
     [Header("Maze")]
-    [Tooltip("Si vrai, une seed aléatoire est utilisée à chaque run.")]
-    public bool randomizeMazeSeed = true;
-
-    [Tooltip("Seed utilisée si randomizeMazeSeed est désactivé.")]
-    public int mazeSeed = 12345;
-
     [Tooltip("Nombre d'ouvertures supplémentaires pour créer des boucles (maze non parfait).")]
     [Range(0, 200)]
     public int mazeExtraOpenings = 0;
@@ -67,13 +61,16 @@ public class CorridorWallsGenerator : MonoBehaviour
             return;
         }
 
+        var rng = reg.CreateRng(nameof(CorridorWallsGenerator));
+
         if (clearPreviousChildren)
         {
             for (int i = transform.childCount - 1; i >= 0; i--)
                 Destroy(transform.GetChild(i).gameObject);
         }
 
-        _mazeSeedUsed = randomizeMazeSeed ? UnityEngine.Random.Range(1, int.MaxValue) : mazeSeed;
+        // Seed du maze dérivée de la seed globale (déterministe par manche)
+        _mazeSeedUsed = reg.DeriveSeed(nameof(CorridorWallsGenerator) + ".Maze");
 
         CacheTilesByCell(reg);
 
@@ -88,7 +85,7 @@ public class CorridorWallsGenerator : MonoBehaviour
             return;
         }
 
-        AddExtraConnections(reg, walkable);
+        AddExtraConnections(reg, walkable, rng);
 
         // Tout ce qui n'est pas couloir devient un mur.
         int wallsPlaced = 0;
@@ -193,7 +190,7 @@ public class CorridorWallsGenerator : MonoBehaviour
         return Inflate(result, corridorWidth, reg);
     }
 
-    void AddExtraConnections(LevelRegistry reg, HashSet<Vector2Int> walkable)
+    void AddExtraConnections(LevelRegistry reg, HashSet<Vector2Int> walkable, System.Random rng)
     {
         if (extraConnections <= 0) return;
 
@@ -213,7 +210,7 @@ public class CorridorWallsGenerator : MonoBehaviour
         while (attempts < extraConnections && deadEnds.Count > 0)
         {
             attempts++;
-            var from = deadEnds[UnityEngine.Random.Range(0, deadEnds.Count)];
+            var from = deadEnds[rng.Next(0, deadEnds.Count)];
 
             // Chercher une cible walkable proche (hors voisins immédiats).
             if (!TryFindNearbyTarget(reg, walkable, from, out var to))
@@ -241,7 +238,8 @@ public class CorridorWallsGenerator : MonoBehaviour
     static void CarveLPath(Vector2Int a, Vector2Int b, HashSet<Vector2Int> into)
     {
         // L simple (avec un coude aléatoire) - pas un A* (suffisant pour une grille sans obstacles en fallback).
-        bool horizontalFirst = UnityEngine.Random.value < 0.5f;
+        // Note: la partie RNG "globale" est gérée dans Start() via rng; ici on garde un fallback déterministe.
+        bool horizontalFirst = (a.x + a.y + b.x + b.y) % 2 == 0;
 
         var cur = a;
         into.Add(cur);
@@ -318,7 +316,9 @@ public class CorridorWallsGenerator : MonoBehaviour
 
             if (candidates.Count > 0)
             {
-                to = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+                // Utilise une sélection déterministe stable (ordre de scan) pour éviter UnityEngine.Random ici.
+                // La randomisation globale des connexions est déjà assurée par le choix de 'from' dans Start().
+                to = candidates[0];
                 return true;
             }
         }

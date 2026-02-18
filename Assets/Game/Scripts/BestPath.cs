@@ -21,6 +21,8 @@ public class BestPath : MonoBehaviour
             return;
         }
 
+        var rng = reg.CreateRng(nameof(BestPath));
+
         if (quadPrefab == null)
         {
             Debug.LogError("[BestPath] quadPrefab manquant (assigne le prefab de quad dans l'inspecteur).");
@@ -78,7 +80,7 @@ public class BestPath : MonoBehaviour
 
         while (currentPos != leftCloudCell)  // Chemin vers le nuage gauche
         {
-            if (currentPos.x != leftCloudCell.x && (currentPos.y == leftCloudCell.y || Random.value < 0.5f))
+            if (currentPos.x != leftCloudCell.x && (currentPos.y == leftCloudCell.y || rng.NextDouble() < 0.5))
                 currentPos.x--; // Se déplacer horizontalement
             else if (currentPos.y != leftCloudCell.y)
                 currentPos.y++; // Se déplacer verticalement
@@ -91,7 +93,7 @@ public class BestPath : MonoBehaviour
 
         while (currentPos != rightCloudCell) // Chemin vers le nuage droite
         {
-            if (currentPos.x != rightCloudCell.x && (currentPos.y == rightCloudCell.y || Random.value < 0.5f))
+            if (currentPos.x != rightCloudCell.x && (currentPos.y == rightCloudCell.y || rng.NextDouble() < 0.5))
                 currentPos.x++; // Se déplacer horizontalement
             else if (currentPos.y != rightCloudCell.y)
                 currentPos.y++; // Se déplacer verticalement
@@ -131,7 +133,7 @@ public class BestPath : MonoBehaviour
         }
 
         // On tire au sort quel chemin on affiche, par défaut
-        Vector2Int[] chosenPath = (Random.value < 0.5f) ? pathToLeftCloud : pathToRightCloud;
+        Vector2Int[] chosenPath = (rng.NextDouble() < 0.5) ? pathToLeftCloud : pathToRightCloud;
         // Si GameManager connaît un nuage "meilleur", on force le chemin correspondant
         if (GameManager.Instance != null)
         {

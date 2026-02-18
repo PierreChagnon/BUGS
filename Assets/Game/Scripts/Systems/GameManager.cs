@@ -60,7 +60,12 @@ public class GameManager : MonoBehaviour
     public void StartNewRound(string screenType)
     {
         screenCounter++;
-        trialManager.StartNewTrial(blockId, screenCounter, screenType);
+
+        long seed = 0;
+        if (LevelRegistry.Instance != null && LevelRegistry.Instance.TryGetRoundSeed(out var s))
+            seed = s;
+
+        trialManager.StartNewTrial(blockId, screenCounter, screenType, seed);
     }
 
     // Spawner nous fournit les 2 nuages

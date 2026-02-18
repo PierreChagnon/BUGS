@@ -4689,7 +4689,7 @@ MonoBehaviour:
   registry: {fileID: 1066850207}
   playerPrefab: {fileID: 7532722886283897293, guid: c7dd3535dac704a2998970422f31a6bb, type: 3}
   playerInScene: {fileID: 0}
-  gridSize: {x: 16, y: 16}
+  gridSize: {x: 11, y: 11}
   cellSize: 1
   tilePrefab: {fileID: 1961823369822145244, guid: c8ca65ecdf242ce43bbcc052a0064679, type: 3}
   bugCloudPrefab: {fileID: 1829720265693855184, guid: 99ffeb67015994a0787351c8dc68d858, type: 3}
@@ -5762,7 +5762,7 @@ MonoBehaviour:
   gridSize: {x: 11, y: 11}
   cellSize: 1
   originWorld: {x: 0, y: 0, z: 0}
-  optimalPathLength: 15
+  optimalPathLength: 21
 --- !u!1001 &1068364789
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -12776,10 +12776,10 @@ SceneRoots:
   - {fileID: 1671159056}
   - {fileID: 1353873900}
   - {fileID: 413587350}
-  - {fileID: 1039294639}
   - {fileID: 858630452}
   - {fileID: 1931019249}
   - {fileID: 3858523560812578618}
   - {fileID: 2065169760}
   - {fileID: 871509270}
   - {fileID: 1524407913}
+  - {fileID: 1039294639}

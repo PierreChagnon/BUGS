@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 [DefaultExecutionOrder(-10)]
 public class TrapSpawner : MonoBehaviour
@@ -26,6 +27,8 @@ public class TrapSpawner : MonoBehaviour
             return;
         }
 
+        var rng = registry.CreateRng(nameof(TrapSpawner));
+
         // Construire la liste de toutes les cases possibles (source de vérité: LevelRegistry)
         List<Vector2Int> candidates = new List<Vector2Int>();
         for (int x = 0; x < registry.gridSize.x; x++)
@@ -44,7 +47,7 @@ public class TrapSpawner : MonoBehaviour
         // Mélanger les cases
         for (int i = 0; i < candidates.Count; i++)
         {
-            int j = Random.Range(i, candidates.Count);
+            int j = rng.Next(i, candidates.Count);
             (candidates[i], candidates[j]) = (candidates[j], candidates[i]);
         }
 

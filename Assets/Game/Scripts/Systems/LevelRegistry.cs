@@ -25,6 +25,9 @@ public class LevelRegistry : MonoBehaviour
     [HideInInspector]
     public int optimalPathLength;
 
+    long _roundSeed;
+    bool _hasRoundSeed;
+
 
     // --- Etat par case (flags) ---
     [Flags]
@@ -56,6 +59,70 @@ public class LevelRegistry : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+    }
+
+    public void SetRoundSeed(long seed)
+    {
+        _roundSeed = seed;
+        _hasRoundSeed = true;
+        Debug.Log($"[LevelRegistry] roundSeed={_roundSeed}");
+    }
+
+    public bool TryGetRoundSeed(out long seed)
+    {
+        seed = _roundSeed;
+        return _hasRoundSeed;
+    }
+
+    public System.Random CreateRng(string scope)
+    {
+        if (!_hasRoundSeed)
+            SetRoundSeed(GenerateSeed());
+
+        int s = DeriveSeed(scope);
+        return new System.Random(s);
+    }
+
+    public int DeriveSeed(string scope)
+    {
+        unchecked
+        {
+            // FNV-1a 64-bit sur (roundSeed + scope) => stable, rapide, cross-platform.
+            const ulong offset = 1469598103934665603UL;
+            const ulong prime = 1099511628211UL;
+
+            ulong h = offset;
+            ulong seed64 = (ulong)_roundSeed;
+
+            for (int i = 0; i < 8; i++)
+            {
+                h ^= (byte)(seed64 & 0xFF);
+                h *= prime;
+                seed64 >>= 8;
+            }
+
+            if (!string.IsNullOrEmpty(scope))
+            {
+                for (int i = 0; i < scope.Length; i++)
+                {
+                    h ^= (byte)scope[i];
+                    h *= prime;
+                }
+            }
+
+            return (int)h;
+        }
+    }
+
+    static long GenerateSeed()
+    {
+        // Assez "random" pour une seed de run sans dépendre de UnityEngine.Random.
+        unchecked
+        {
+            long t = System.DateTime.UtcNow.Ticks;
+            int g = System.Guid.NewGuid().GetHashCode();
+            return (t << 1) ^ g;
+        }
     }
 
     // --- API publique (utilisable par tes autres scripts) ---

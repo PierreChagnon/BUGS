@@ -25,6 +25,9 @@ public class TrialData
     public string true_cloud;
     public int optimal_path_length;
 
+    // Randomisation
+    public long trial_seed;
+
     // Chemin du joueur
 
     public List<PlayerStep> player_path_log = new();

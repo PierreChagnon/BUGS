@@ -29,7 +29,7 @@ public class TrialManager : MonoBehaviour
     }
 
     // Appelé au début de chaque manche
-    public void StartNewTrial(int blockId, int screenId, string screenType)
+    public void StartNewTrial(int blockId, int screenId, string screenType, long trialSeed)
     {
         if (string.IsNullOrEmpty(gameSessionId))
         {
@@ -39,6 +39,7 @@ public class TrialManager : MonoBehaviour
 
         // Crée une nouvelle manche et l’ajoute à la liste
         currentTrial = new TrialData(gameSessionId, blockId, screenId, screenType);
+        currentTrial.trial_seed = trialSeed;
         trials.Add(currentTrial);
 
         // Applique la config de map en attente si elle existe
@@ -49,7 +50,7 @@ public class TrialManager : MonoBehaviour
             pendingMapConfigJson = null;
         }
 
-        Debug.Log($"Nouvelle manche : block {blockId}, screen {screenId}");
+        Debug.Log($"Nouvelle manche : block {blockId}, screen {screenId}, seed {trialSeed}");
     }
 
     // Appelé à chaque déplacement du joueur

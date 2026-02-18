@@ -10,6 +10,10 @@ using UnityEngine;
 
 public class MapGenerator : MonoBehaviour
 {
+    [Header("Seed")]
+    [Tooltip("Seed utilisée pour la génération en preview. Si 0, une seed est générée.")]
+    public int seed = 0;
+
     [Header("Références (Scene)")]
     public LevelRegistry registry;
 
@@ -43,12 +47,6 @@ public class MapGenerator : MonoBehaviour
     public int corridorWidth = 1;
 
     [Header("Maze")]
-    [Tooltip("Si vrai, une seed aléatoire est utilisée à chaque génération.")]
-    public bool randomizeMazeSeed = true;
-
-    [Tooltip("Seed utilisée si randomizeMazeSeed est désactivé.")]
-    public int mazeSeed = 12345;
-
     [Tooltip("Nombre d'ouvertures supplémentaires pour créer des boucles (maze non parfait).")]
     [Range(0, 200)]
     public int mazeExtraOpenings = 0;
@@ -73,6 +71,7 @@ public class MapGenerator : MonoBehaviour
 
     readonly Dictionary<Vector2Int, GameObject> _tilesByCell = new();
     int _mazeSeedUsed;
+    int _seedUsed;
 
     [ContextMenu("Generate (Editor Preview)")]
     public void GenerateEditorPreview()
@@ -95,6 +94,11 @@ public class MapGenerator : MonoBehaviour
         // (réservations, murs, traps) soit cohérente sur la même taille de grille.
         registry.gridSize = gridSize;
         registry.cellSize = cellSize;
+
+        _seedUsed = seed != 0 ? seed : GenerateSeedInt();
+        var rng = new System.Random(_seedUsed);
+        registry.SetRoundSeed(_seedUsed);
+        Debug.Log($"[MapGenerator] Seed utilisée: {_seedUsed}");
 
         EnsureRoot();
         ClearEditorPreview();
@@ -119,19 +123,19 @@ public class MapGenerator : MonoBehaviour
         registry.RegisterPlayerStart(playerCell, player.position);
 
         // 1) Nuages (réservent leurs cases dans le registre)
-        var clouds = GenerateBugClouds(playerCell);
+        var clouds = GenerateBugClouds(playerCell, rng);
 
         // 2) BestPath (réserve les chemins)
         if (clouds.Count >= 2)
-            GenerateBestPath(player, clouds);
+            GenerateBestPath(player, clouds, rng);
         else
             Debug.LogWarning("[MapGenerator] Moins de 2 nuages générés: best path ignoré.");
 
         // 3) Couloirs + Murs
-        GenerateCorridorWalls();
+        GenerateCorridorWalls(rng);
 
         // 4) Traps (respecte IsFreeForTrap => pas sur mur / pas sur réservé / pas sur trap)
-        GenerateTraps(playerCell);
+        GenerateTraps(playerCell, rng);
 
         Debug.Log("[MapGenerator] Preview générée.");
     }
@@ -241,7 +245,7 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
-    List<GameObject> GenerateBugClouds(Vector2Int playerCell)
+    List<GameObject> GenerateBugClouds(Vector2Int playerCell, System.Random rng)
     {
         var result = new List<GameObject>(2);
 
@@ -279,7 +283,7 @@ public class MapGenerator : MonoBehaviour
         // Shuffle léger des distances candidates
         for (int s = 0; s < candidateDs.Count; s++)
         {
-            int swap = UnityEngine.Random.Range(s, candidateDs.Count);
+            int swap = rng.Next(s, candidateDs.Count);
             (candidateDs[s], candidateDs[swap]) = (candidateDs[swap], candidateDs[s]);
         }
 
@@ -310,7 +314,7 @@ public class MapGenerator : MonoBehaviour
 
                 // Comme le runtime: i dans la moitié gauche, en évitant le "milieu".
                 int leftMaxExclusive = Mathf.Max(1, halfStart - 1);
-                i = UnityEngine.Random.Range(0, leftMaxExclusive);
+                i = rng.Next(0, leftMaxExclusive);
                 j = validRing.FindIndex(halfStart, c => c.y == validRing[i].y);
             }
 
@@ -348,7 +352,7 @@ public class MapGenerator : MonoBehaviour
         return result;
     }
 
-    void GenerateBestPath(Transform player, List<GameObject> clouds)
+    void GenerateBestPath(Transform player, List<GameObject> clouds, System.Random rng)
     {
         if (player == null) return;
         if (clouds == null || clouds.Count < 2) return;
@@ -372,14 +376,14 @@ public class MapGenerator : MonoBehaviour
         var leftCloudCell = registry.WorldToCell(leftCloud.transform.position);
         var rightCloudCell = registry.WorldToCell(rightCloud.transform.position);
 
-        var leftCells = BuildShortestRandomManhattanPath(playerCell, leftCloudCell);
-        var rightCells = BuildShortestRandomManhattanPath(playerCell, rightCloudCell);
+        var leftCells = BuildShortestRandomManhattanPath(playerCell, leftCloudCell, rng);
+        var rightCells = BuildShortestRandomManhattanPath(playerCell, rightCloudCell, rng);
 
         registry.ReservePathLeft(leftCells);
         registry.ReservePathRight(rightCells);
 
         // Choix du best path (sans GameManager => aléatoire 50/50 comme fallback)
-        var chosen = (UnityEngine.Random.value < 0.5f) ? leftCells : rightCells;
+        var chosen = (rng.NextDouble() < 0.5) ? leftCells : rightCells;
         registry.RegisterOptimalPath(chosen);
 
         if (!showBestPath) return;
@@ -397,11 +401,12 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
-    void GenerateCorridorWalls()
+    void GenerateCorridorWalls(System.Random rng)
     {
         var wallsRoot = GetOrCreateChildRoot("Walls");
 
-        _mazeSeedUsed = randomizeMazeSeed ? UnityEngine.Random.Range(1, int.MaxValue) : mazeSeed;
+        // Seed du maze dérivée de la seed globale (déterministe pour une même preview seed)
+        _mazeSeedUsed = registry.DeriveSeed(nameof(MapGenerator) + ".Maze");
 
         var walkable = BuildWalkableCells(registry, _mazeSeedUsed);
         if (walkable.Count == 0 && fallbackConnectToClouds)
@@ -413,7 +418,7 @@ public class MapGenerator : MonoBehaviour
             return;
         }
 
-        AddExtraConnections(registry, walkable);
+        AddExtraConnections(registry, walkable, rng);
 
         int wallsPlaced = 0;
         for (int y = 0; y < gridSize.y; y++)
@@ -437,7 +442,7 @@ public class MapGenerator : MonoBehaviour
         Debug.Log($"[MapGenerator] Walkable={walkable.Count} Walls={wallsPlaced} Seed={_mazeSeedUsed}");
     }
 
-    void GenerateTraps(Vector2Int playerCell)
+    void GenerateTraps(Vector2Int playerCell, System.Random rng)
     {
         if (trapPrefab == null)
         {
@@ -458,7 +463,7 @@ public class MapGenerator : MonoBehaviour
         // Shuffle
         for (int i = 0; i < candidates.Count; i++)
         {
-            int j = UnityEngine.Random.Range(i, candidates.Count);
+            int j = rng.Next(i, candidates.Count);
             (candidates[i], candidates[j]) = (candidates[j], candidates[i]);
         }
 
@@ -529,13 +534,13 @@ public class MapGenerator : MonoBehaviour
             var cloud = cloudsRoot.GetChild(i);
             if (cloud == null) continue;
             var goal = reg.WorldToCell(cloud.position);
-            CarveLPath(start, goal, result);
+            CarveLPath(start, goal, new System.Random(reg.DeriveSeed("MapGenerator.FallbackLPath")), result);
         }
 
         return Inflate(result, corridorWidth, reg);
     }
 
-    void AddExtraConnections(LevelRegistry reg, HashSet<Vector2Int> walkable)
+    void AddExtraConnections(LevelRegistry reg, HashSet<Vector2Int> walkable, System.Random rng)
     {
         if (extraConnections <= 0) return;
 
@@ -554,13 +559,13 @@ public class MapGenerator : MonoBehaviour
         while (attempts < extraConnections && deadEnds.Count > 0)
         {
             attempts++;
-            var from = deadEnds[UnityEngine.Random.Range(0, deadEnds.Count)];
+            var from = deadEnds[rng.Next(0, deadEnds.Count)];
 
-            if (!TryFindNearbyTarget(walkable, from, out var to))
+            if (!TryFindNearbyTarget(walkable, from, rng, out var to))
                 continue;
 
             var carved = new HashSet<Vector2Int>();
-            CarveLPath(from, to, carved);
+            CarveLPath(from, to, rng, carved);
             var inflated = Inflate(carved, corridorWidth, reg);
             foreach (var c in inflated) walkable.Add(c);
             added++;
@@ -578,9 +583,9 @@ public class MapGenerator : MonoBehaviour
         yield return new Vector2Int(c.x, c.y - 1);
     }
 
-    static void CarveLPath(Vector2Int a, Vector2Int b, HashSet<Vector2Int> into)
+    static void CarveLPath(Vector2Int a, Vector2Int b, System.Random rng, HashSet<Vector2Int> into)
     {
-        bool horizontalFirst = UnityEngine.Random.value < 0.5f;
+        bool horizontalFirst = rng.NextDouble() < 0.5;
 
         var cur = a;
         into.Add(cur);
@@ -636,7 +641,7 @@ public class MapGenerator : MonoBehaviour
         return outSet;
     }
 
-    bool TryFindNearbyTarget(HashSet<Vector2Int> walkable, Vector2Int from, out Vector2Int to)
+    bool TryFindNearbyTarget(HashSet<Vector2Int> walkable, Vector2Int from, System.Random rng, out Vector2Int to)
     {
         for (int r = 2; r <= 6; r++)
         {
@@ -655,7 +660,7 @@ public class MapGenerator : MonoBehaviour
 
             if (candidates.Count > 0)
             {
-                to = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+                to = candidates[rng.Next(0, candidates.Count)];
                 return true;
             }
         }
@@ -741,7 +746,7 @@ public class MapGenerator : MonoBehaviour
         return list;
     }
 
-    static List<Vector2Int> BuildShortestRandomManhattanPath(Vector2Int start, Vector2Int goal)
+    static List<Vector2Int> BuildShortestRandomManhattanPath(Vector2Int start, Vector2Int goal, System.Random rng)
     {
         int len = Mathf.Abs(start.x - goal.x) + Mathf.Abs(start.y - goal.y) + 1;
         var path = new List<Vector2Int>(len);
@@ -761,7 +766,7 @@ public class MapGenerator : MonoBehaviour
             bool canMoveY = cur.y != goal.y;
 
             // Choix aléatoire mais toujours dans la direction du but.
-            if (canMoveX && (!canMoveY || UnityEngine.Random.value < 0.5f))
+            if (canMoveX && (!canMoveY || rng.NextDouble() < 0.5))
                 cur.x += Math.Sign(goal.x - cur.x);
             else if (canMoveY)
                 cur.y += Math.Sign(goal.y - cur.y);
@@ -773,6 +778,14 @@ public class MapGenerator : MonoBehaviour
             Debug.LogWarning("[MapGenerator] BuildShortestRandomManhattanPath: limite de sécurité atteinte (chemin tronqué).");
 
         return path;
+    }
+
+    static int GenerateSeedInt()
+    {
+        unchecked
+        {
+            return (int)(System.DateTime.UtcNow.Ticks ^ System.Guid.NewGuid().GetHashCode());
+        }
     }
 
     static GameObject InstantiateEditor(GameObject prefab, Vector3 pos, Quaternion rot, Transform parent)

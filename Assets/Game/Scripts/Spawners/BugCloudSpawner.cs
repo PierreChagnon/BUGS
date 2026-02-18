@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System;
 
 [DefaultExecutionOrder(-200)]
 public class BugCloudSpawner : MonoBehaviour
@@ -46,6 +47,8 @@ public class BugCloudSpawner : MonoBehaviour
             return;
         }
 
+        var rng = registry.CreateRng(nameof(BugCloudSpawner));
+
         // Bornes pour la distance au joueur (D)
         int Dmin = Mathf.Max(1, minDistance);
         int Dmax = registry.gridSize.x + registry.gridSize.y; // borne large, on filtrera par InBounds
@@ -66,7 +69,7 @@ public class BugCloudSpawner : MonoBehaviour
         }
 
         // Choisir une couronne au hasard
-        int chosenD = candidateDs[Random.Range(0, candidateDs.Count)];
+        int chosenD = candidateDs[rng.Next(0, candidateDs.Count)];
         var validRing = GetRingCells(playerCell, chosenD);
         validRing.RemoveAll(c => !InBounds(c) || c == playerCell || c.y < minZ); // On enlève les cases hors-grille, la case du joueur et celles en dessous de minZ
         Debug.Log($"[BugCloudSpawner] Couronne D={chosenD} a {validRing.Count} cases valides après filtrage.");
@@ -78,7 +81,7 @@ public class BugCloudSpawner : MonoBehaviour
         int i = -1;
         while (j == -1)
         {
-            i = Random.Range(0, validRing.Count / 2 - 1); // Indice dans la moitié gauche (-1 pour éviter le milieu)
+            i = rng.Next(0, validRing.Count / 2 - 1); // Indice dans la moitié gauche (-1 pour éviter le milieu)
             j = validRing.FindIndex(validRing.Count / 2, c => c.y == validRing[i].y);
         }
 
@@ -94,15 +97,15 @@ public class BugCloudSpawner : MonoBehaviour
         // Cloud A et B on le même total de bugs mais des quantités différentes de verts et de rouges.
         // Ici on tire les valeurs dans le range : 1 totalBugs et 2 ratio (un pour chaque cloud). et on initialize les particles
 
-        int trialTotalBugs = Random.Range(minTotalBugs, maxTotalBugs + 1);
+        int trialTotalBugs = rng.Next(minTotalBugs, maxTotalBugs + 1);
         var cloudA = goA.GetComponent<BugCloud>();
         var cloudB = goB.GetComponent<BugCloud>();
 
         cloudA.totalBugs = trialTotalBugs;
         cloudB.totalBugs = trialTotalBugs;
 
-        cloudA.greenRatio = Random.Range(minGreenBugsRatio, maxGreenBugsRatio);
-        cloudB.greenRatio = Random.Range(minGreenBugsRatio, maxGreenBugsRatio);
+        cloudA.greenRatio = Mathf.Lerp(minGreenBugsRatio, maxGreenBugsRatio, (float)rng.NextDouble());
+        cloudB.greenRatio = Mathf.Lerp(minGreenBugsRatio, maxGreenBugsRatio, (float)rng.NextDouble());
 
         cloudA.InitializeParticlesQty();
         cloudB.InitializeParticlesQty();
