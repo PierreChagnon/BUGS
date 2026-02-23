@@ -28,17 +28,14 @@ public class BugCloud : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        print("Collision détectée avec " + other.name);
-        if (other.CompareTag("Player"))
-        {
-            print("Collecte d'insectes !");
-            // On informe le GameManager
-            if (GameManager.Instance != null)
-                GameManager.Instance.OnCloudCollected(this);
+        if (!other.CompareTag("Player")) return;
 
-            // Destroy the bug cloud when the player collides with it
-            Destroy(gameObject);
-        }
+        Debug.Log("[BugCloud] Collecte déclenchée !");
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.OnCloudCollected(this);
+
+        Destroy(gameObject);
     }
 
     void OnDestroy()

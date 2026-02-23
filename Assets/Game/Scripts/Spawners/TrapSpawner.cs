@@ -9,8 +9,9 @@ public class TrapSpawner : MonoBehaviour
     public GameObject trapPrefab;     // Prefab du piège (avec Trap.cs + BoxCollider IsTrigger)
 
     [Header("Placement")]
-    public int trapCount = 10;        // nombre de pièges à poser
     public float trapYOffset = 0.5f; // moitié de la hauteur du cube si pivot au centre
+
+    int _trapCount;
 
     void Start()
     {
@@ -26,6 +27,9 @@ public class TrapSpawner : MonoBehaviour
             Debug.LogError("[TrapSpawner] LevelRegistry manquant dans la scène.");
             return;
         }
+
+        // Lire le trapCount depuis la source de vérité
+        _trapCount = registry.trapCount;
 
         var rng = registry.CreateRng(nameof(TrapSpawner));
 
@@ -53,7 +57,7 @@ public class TrapSpawner : MonoBehaviour
 
         // Poser jusqu'à trapCount pièges (enfants de ce spawner)
         int placed = 0;
-        for (int i = 0; i < candidates.Count && placed < trapCount; i++)
+        for (int i = 0; i < candidates.Count && placed < _trapCount; i++)
         {
 
             var cell = candidates[i];
@@ -64,6 +68,6 @@ public class TrapSpawner : MonoBehaviour
             placed++;
         }
 
-        Debug.Log($"[TrapSpawner] Pièges posés: {placed}/{trapCount}");
+        Debug.Log($"[TrapSpawner] Pièges posés: {placed}/{_trapCount}");
     }
 }

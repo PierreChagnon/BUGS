@@ -131,6 +131,44 @@ public class TrialManager : MonoBehaviour
         isSending = false;
     }
 
+    // ══════════════════════════════════════════════════════════════
+    //  CONFIG MAP — construction structurée du JSON
+    // ══════════════════════════════════════════════════════════════
+
+    [System.Serializable]
+    private struct CloudInfo
+    {
+        public int x;
+        public int y;
+        public int totalBugs;
+    }
+
+    [System.Serializable]
+    private struct MiniMapCfg
+    {
+        public int gridWidth;
+        public int gridHeight;
+        public CloudInfo leftCloud;
+        public CloudInfo rightCloud;
+    }
+
+    /// <summary>
+    /// Appelé par GameManager.RegisterClouds pour fournir la config de la map
+    /// sous forme structurée. Construit le JSON en interne.
+    /// </summary>
+    public void SetMapConfig(Vector2Int gridSize, Vector2Int leftCell, int leftBugs,
+                             Vector2Int rightCell, int rightBugs)
+    {
+        var cfg = new MiniMapCfg
+        {
+            gridWidth = gridSize.x,
+            gridHeight = gridSize.y,
+            leftCloud = new CloudInfo { x = leftCell.x, y = leftCell.y, totalBugs = leftBugs },
+            rightCloud = new CloudInfo { x = rightCell.x, y = rightCell.y, totalBugs = rightBugs }
+        };
+        SetMapConfigJson(JsonUtility.ToJson(cfg));
+    }
+
     // Permet de stocker la config de la map (JSON) dans la manche courante
     public void SetMapConfigJson(string json)
     {

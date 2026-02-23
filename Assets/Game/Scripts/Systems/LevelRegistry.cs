@@ -25,6 +25,9 @@ public class LevelRegistry : MonoBehaviour
     [HideInInspector]
     public int optimalPathLength;
 
+    [HideInInspector]
+    public int trapCount = 10;
+
     long _roundSeed;
     bool _hasRoundSeed;
 
