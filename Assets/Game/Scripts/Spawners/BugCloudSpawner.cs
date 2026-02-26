@@ -41,7 +41,7 @@ public class BugCloudSpawner : MonoBehaviour
     [SerializeField]
     private float gapMax = 0.3f;
 
-    // À l'Awake, on place les 2 nuages (permet d'acceder à leurs positions dans Start du TrapSpawner)
+    // Au Start, on place les 2 nuages (permet d'acceder à leurs positions dans Start du TrapSpawner)
     void Start()
     {
         if (bugCloudPrefab == null) { Debug.LogError("[BugCloudSpawner] bugCloudPrefab manquant."); return; }
