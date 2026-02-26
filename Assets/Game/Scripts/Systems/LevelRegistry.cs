@@ -55,9 +55,6 @@ public class LevelRegistry : MonoBehaviour
     Vector2Int _playerStartCell;
     Vector3 _playerStartWorld;
 
-    // Optionnel : HUD / debug peut s’abonner
-    public event Action<Vector2Int, CellFlags> OnCellChanged;
-
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
@@ -281,6 +278,5 @@ public class LevelRegistry : MonoBehaviour
     void SetFlags(Vector2Int c, CellFlags f)
     {
         _cells[c] = f;
-        OnCellChanged?.Invoke(c, f);
     }
 }
