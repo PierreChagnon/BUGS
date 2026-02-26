@@ -17,6 +17,10 @@ public class SessionManager : MonoBehaviour
     public long randomizationSeed = 0;
     public string buildVersion = "1.0.0";
 
+    [Header("Configuration de la map")]
+    [Tooltip("Nombre de pièges à placer. Peut être remplacé par le paramètre CLI trapCount=N.")]
+    [SerializeField] private int trapCount = 10;
+
     void Awake()
     {
         ApplySeedForThisRound();
@@ -24,6 +28,7 @@ public class SessionManager : MonoBehaviour
         // Injecter la config CLI dès Awake pour que les spawners
         // (qui tournent en Start) aient accès aux valeurs correctes.
         TryApplyTrapCountFromArgs();
+        ApplyTrapCountToRegistry();
         TryApplySessionIdFromArgs();
     }
 
@@ -95,18 +100,23 @@ public class SessionManager : MonoBehaviour
                 return;
             }
 
-            // Écrire dans le registre central (TrapSpawner le lira à son Start)
-            var reg = LevelRegistry.Instance;
-            if (reg != null)
-            {
-                reg.trapCount = parsed;
-                Debug.Log($"[SessionManager] trapCount reçu via args: {parsed} (écrit dans LevelRegistry)");
-            }
-            else
-            {
-                Debug.LogWarning("[SessionManager] LevelRegistry introuvable pour appliquer trapCount.");
-            }
+            trapCount = parsed;
+            Debug.Log($"[SessionManager] trapCount remplacé par args CLI: {parsed}");
             return;
+        }
+    }
+
+    void ApplyTrapCountToRegistry()
+    {
+        var reg = LevelRegistry.Instance;
+        if (reg != null)
+        {
+            reg.trapCount = trapCount;
+            Debug.Log($"[SessionManager] trapCount={trapCount} écrit dans LevelRegistry");
+        }
+        else
+        {
+            Debug.LogWarning("[SessionManager] LevelRegistry introuvable pour appliquer trapCount.");
         }
     }
 
