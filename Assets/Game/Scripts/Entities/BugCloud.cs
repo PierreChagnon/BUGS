@@ -17,13 +17,14 @@ public class BugCloud : MonoBehaviour
     public float greenRatio = 0.7f;
 
     [Header("Effets")]
-    public float rotationSpeed = 0.03f; // Vitesse de rotation du nuage
+    [Tooltip("Vitesse de rotation en degrés par seconde.")]
+    public float rotationSpeed = 30f;
 
-    // Update is called once per frame
     void Update()
     {
         // Faire tourner le nuage autour de son axe Y
-        transform.Rotate(0, rotationSpeed, 0);
+        // Règle de base en Unity: tout mouvement dans Update doit etre multiplié par Time.deltaTime pour être indépendant du framerate
+        transform.Rotate(0, rotationSpeed * Time.deltaTime, 0);
     }
 
     private void OnTriggerEnter(Collider other)
