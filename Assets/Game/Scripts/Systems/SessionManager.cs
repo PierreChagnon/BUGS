@@ -7,6 +7,8 @@ using UnityEngine;
 
 public class SessionManager : MonoBehaviour
 {
+    public static SessionManager Instance { get; private set; }
+
     [Header("Références")]
     public TrialManager trialManager;
     public GameManager gameManager;
@@ -17,50 +19,52 @@ public class SessionManager : MonoBehaviour
 
     [Header("Recherche : Map")]
     [Tooltip("Nombre de pièges à placer. CLI: trapCount=N.")]
-    [SerializeField] private int _trapCount = 10;
+    public int trapCount = 10;
 
     [Tooltip("Distance Manhattan minimale (en cases) entre le joueur et les nuages. CLI: minDistance=N.")]
-    [SerializeField] private int _minDistance = 3;
+    public int minDistance = 3;
 
     [Tooltip("Distance Manhattan maximale (en cases) entre le joueur et les nuages. Bornée par la taille de la map. CLI: maxDistance=N. 0 = pas de limite (fallback map).")]
-    [SerializeField] private int _maxDistance = 0;
+    public int maxDistance = 0;
 
     [Header("Recherche : Discrimination")]
     [Tooltip("Nombre minimal de bugs par nuage. CLI: minTotalBugs=N.")]
-    [SerializeField] private int _minTotalBugs = 20;
+    public int minTotalBugs = 20;
 
     [Tooltip("Nombre maximal de bugs par nuage. CLI: maxTotalBugs=N.")]
-    [SerializeField] private int _maxTotalBugs = 80;
+    public int maxTotalBugs = 80;
 
     [Tooltip("Borne minimale du ratio de bugs verts (0-1). CLI: minGreenRatio=F.")]
-    [SerializeField] private float _minGreenBugsRatio = 0.4f;
+    public float minGreenBugsRatio = 0.4f;
 
     [Tooltip("Borne maximale du ratio de bugs verts (0-1). CLI: maxGreenRatio=F.")]
-    [SerializeField] private float _maxGreenBugsRatio = 0.8f;
+    public float maxGreenBugsRatio = 0.8f;
 
     [Tooltip("Écart MINIMUM entre les ratios verts des deux nuages. CLI: gapMin=F.")]
-    [SerializeField] private float _gapMin = 0.1f;
+    public float gapMin = 0.1f;
 
     [Tooltip("Écart MAXIMUM entre les ratios verts des deux nuages. CLI: gapMax=F.")]
-    [SerializeField] private float _gapMax = 0.3f;
+    public float gapMax = 0.3f;
 
     [Header("Recherche : Advisor")]
     [Tooltip("Si true, le chemin optimal est affiché au joueur (condition advisor). CLI: pathVisible=0|1.")]
-    [SerializeField] private bool _pathVisible = true;
+    public bool pathVisible = true;
 
     [Header("Recherche : Protocole")]
     [Tooltip("Identifiant du bloc expérimental pour le pipeline de données. CLI: blockId=N.")]
-    [SerializeField] private int _blockId = 1;
+    public int blockId = 1;
 
     void Awake()
     {
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        Instance = this;
+
         ApplySeedForThisRound();
 
         // Injecter la config CLI dès Awake pour que les spawners
         // (qui tournent en Start) aient accès aux valeurs correctes.
         TryApplyTrapCountFromArgs();
         TryApplyBugCloudParamsFromArgs();
-        ApplyResearchParamsToRegistry();
         TryApplySessionIdFromArgs();
     }
 
@@ -132,7 +136,7 @@ public class SessionManager : MonoBehaviour
                 return;
             }
 
-            _trapCount = parsed;
+            trapCount = parsed;
             Debug.Log($"[SessionManager] trapCount remplacé par args CLI: {parsed}");
             return;
         }
@@ -143,47 +147,20 @@ public class SessionManager : MonoBehaviour
         var args = System.Environment.GetCommandLineArgs();
         foreach (var a in args)
         {
-            TryParseInt(a, "minDistance", ref _minDistance);
-            TryParseInt(a, "maxDistance", ref _maxDistance);
-            TryParseInt(a, "minTotalBugs", ref _minTotalBugs);
-            TryParseInt(a, "maxTotalBugs", ref _maxTotalBugs);
-            TryParseFloat(a, "minGreenRatio", ref _minGreenBugsRatio);
-            TryParseFloat(a, "maxGreenRatio", ref _maxGreenBugsRatio);
-            TryParseFloat(a, "gapMin", ref _gapMin);
-            TryParseFloat(a, "gapMax", ref _gapMax);
-            TryParseBool(a, "pathVisible", ref _pathVisible);
-            TryParseInt(a, "blockId", ref _blockId);
+            TryParseInt(a, "minDistance", ref minDistance);
+            TryParseInt(a, "maxDistance", ref maxDistance);
+            TryParseInt(a, "minTotalBugs", ref minTotalBugs);
+            TryParseInt(a, "maxTotalBugs", ref maxTotalBugs);
+            TryParseFloat(a, "minGreenRatio", ref minGreenBugsRatio);
+            TryParseFloat(a, "maxGreenRatio", ref maxGreenBugsRatio);
+            TryParseFloat(a, "gapMin", ref gapMin);
+            TryParseFloat(a, "gapMax", ref gapMax);
+            TryParseBool(a, "pathVisible", ref pathVisible);
+            TryParseInt(a, "blockId", ref blockId);
         }
     }
 
-    void ApplyResearchParamsToRegistry()
-    {
-        var reg = LevelRegistry.Instance;
-        if (reg != null)
-        {
-            reg.trapCount        = _trapCount;
-            reg.minDistance       = _minDistance;
-            reg.maxDistance       = _maxDistance;
-            reg.minTotalBugs      = _minTotalBugs;
-            reg.maxTotalBugs      = _maxTotalBugs;
-            reg.minGreenBugsRatio = _minGreenBugsRatio;
-            reg.maxGreenBugsRatio = _maxGreenBugsRatio;
-            reg.gapMin            = _gapMin;
-            reg.gapMax            = _gapMax;
-            reg.pathVisible       = _pathVisible;
-            reg.blockId           = _blockId;
-            Debug.Log($"[SessionManager] Paramètres recherche écrits dans LevelRegistry: " +
-                      $"trapCount={_trapCount}, distance=[{_minDistance},{_maxDistance}], " +
-                      $"totalBugs=[{_minTotalBugs},{_maxTotalBugs}], " +
-                      $"greenRatio=[{_minGreenBugsRatio:F2},{_maxGreenBugsRatio:F2}], " +
-                      $"gap=[{_gapMin:F2},{_gapMax:F2}], " +
-                      $"pathVisible={_pathVisible}, blockId={_blockId}");
-        }
-        else
-        {
-            Debug.LogWarning("[SessionManager] LevelRegistry introuvable pour appliquer les paramètres recherche.");
-        }
-    }
+
 
     // ── Helpers de parsing CLI ──
     static void TryParseBool(string arg, string key, ref bool target)

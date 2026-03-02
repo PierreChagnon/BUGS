@@ -17,8 +17,14 @@ public class PathSpawner : MonoBehaviour
             return;
         }
 
-        // Lecture du paramètre recherche depuis LevelRegistry (écrit par SessionManager)
-        bool visible = reg.pathVisible;
+        // Lecture du paramètre recherche depuis SessionManager (propriétaire de la config expérimentale)
+        var session = SessionManager.Instance;
+        if (session == null)
+        {
+            Debug.LogError("[PathSpawner] SessionManager manquant dans la scène.");
+            return;
+        }
+        bool visible = session.pathVisible;
 
         var rng = reg.CreateRng(nameof(PathSpawner));
 

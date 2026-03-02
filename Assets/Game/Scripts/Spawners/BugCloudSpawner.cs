@@ -36,19 +36,25 @@ public class BugCloudSpawner : MonoBehaviour
 
         var rng = registry.CreateRng(nameof(BugCloudSpawner));
 
-        // Lecture des paramètres recherche depuis LevelRegistry (écrits par SessionManager)
-        int minDistance        = Mathf.Max(1, registry.minDistance);
-        int minTotalBugs       = registry.minTotalBugs;
-        int maxTotalBugs       = registry.maxTotalBugs;
-        float minGreenBugsRatio = registry.minGreenBugsRatio;
-        float maxGreenBugsRatio = registry.maxGreenBugsRatio;
-        float gapMin           = registry.gapMin;
-        float gapMax           = registry.gapMax;
+        // Lecture des paramètres recherche depuis SessionManager (propriétaire de la config expérimentale)
+        var session = SessionManager.Instance;
+        if (session == null)
+        {
+            Debug.LogError("[BugCloudSpawner] SessionManager manquant dans la scène.");
+            return;
+        }
+        int minDistance        = Mathf.Max(1, session.minDistance);
+        int minTotalBugs       = session.minTotalBugs;
+        int maxTotalBugs       = session.maxTotalBugs;
+        float minGreenBugsRatio = session.minGreenBugsRatio;
+        float maxGreenBugsRatio = session.maxGreenBugsRatio;
+        float gapMin           = session.gapMin;
+        float gapMax           = session.gapMax;
 
         // Bornes pour la distance au joueur (D)
         int Dmin = minDistance;
         int gridMax = registry.gridSize.x + registry.gridSize.y; // borne absolue imposée par la map
-        int maxDistance = registry.maxDistance;
+        int maxDistance = session.maxDistance;
         // Si le chercheur a défini une maxDistance > 0, on l'utilise bornée par la taille de la map.
         // Sinon (0 = pas de limite), on utilise la taille de la map comme fallback.
         int Dmax = (maxDistance > 0) ? Mathf.Min(maxDistance, gridMax) : gridMax;

@@ -25,18 +25,6 @@ public class LevelRegistry : MonoBehaviour
     [HideInInspector]
     public int optimalPathLength;
 
-    // ── Paramètres recherche (écrits par SessionManager.Awake) ──
-    [HideInInspector] public int trapCount;
-    [HideInInspector] public int minDistance;
-    [HideInInspector] public int maxDistance;
-    [HideInInspector] public int minTotalBugs;
-    [HideInInspector] public int maxTotalBugs;
-    [HideInInspector] public float minGreenBugsRatio;
-    [HideInInspector] public float maxGreenBugsRatio;
-    [HideInInspector] public float gapMin;
-    [HideInInspector] public float gapMax;
-    [HideInInspector] public bool pathVisible;
-    [HideInInspector] public int blockId;
 
     long _roundSeed;
     bool _hasRoundSeed;

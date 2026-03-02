@@ -26,7 +26,6 @@ public class GameManager : MonoBehaviour
     public TrialManager trialManager;
 
     [Header("Session")]
-    // blockId lu depuis LevelRegistry (écrit par SessionManager)
     int _screenCounter = 0;
 
     [Header("Round / Score")]
@@ -87,7 +86,7 @@ public class GameManager : MonoBehaviour
         if (LevelRegistry.Instance != null && LevelRegistry.Instance.TryGetRoundSeed(out var s))
             seed = s;
 
-        trialManager.StartNewTrial(LevelRegistry.Instance != null ? LevelRegistry.Instance.blockId : 1, _screenCounter, screenType, seed);
+        trialManager.StartNewTrial(SessionManager.Instance != null ? SessionManager.Instance.blockId : 1, _screenCounter, screenType, seed);
     }
 
     /// <summary>Restart de la scène (appelé par le bouton UI).</summary>

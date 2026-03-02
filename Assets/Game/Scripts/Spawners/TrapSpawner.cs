@@ -28,8 +28,14 @@ public class TrapSpawner : MonoBehaviour
             return;
         }
 
-        // Lire le trapCount depuis la source de vérité
-        _trapCount = registry.trapCount;
+        // Lire le trapCount depuis SessionManager (propriétaire de la config expérimentale)
+        var session = SessionManager.Instance;
+        if (session == null)
+        {
+            Debug.LogError("[TrapSpawner] SessionManager manquant dans la scène.");
+            return;
+        }
+        _trapCount = session.trapCount;
 
         var rng = registry.CreateRng(nameof(TrapSpawner));
 
