@@ -840,12 +840,12 @@ public class GameManager : MonoBehaviour
 | RoundEndInfo                                | struct                  | Données transmises via OnRoundEnded (bugs, traps, steps, chemin, bugs L/R)        |
 | OnRoundEnded                                | event Action\<RoundEndInfo\> | Émis à la fin du round — RoundUI s'y abonne                                 |
 | BeginFirstRound()                           | void                    | Point d'entrée appelé par SessionManager — lance le premier round                 |
-| RegisterClouds(BugCloud, BugCloud)          | void                    | Enregistre les 2 nuages, transmet la config map à TrialManager via `SetMapConfig` |
+| RegisterClouds(BugCloud, BugCloud)          | void                    | Enregistre les 2 nuages, transmet la config map (positions, totalBugs, greenRatio) à TrialManager via `SetMapConfig` |
 | SetChosenPath(IEnumerable\<Vector2Int\>)    | void                    | Reçoit le chemin conseillé de PathSpawner pour détecter les déviations            |
 | OnPlayerStep(Vector2Int)                    | void                    | Appelé par GridMover — fog, visited, déviation, trial log                         |
 | OnTrapTriggered()                           | void                    | Appelé par Trap — trapsHit++, -1 bug sur chaque nuage                            |
-| OnCloudCollected(BugCloud)                  | void                    | Fin de round — calcule résultats, finalise trial, émet OnRoundEnded               |
-| GetBestCloud()                              | BugCloud                | Retourne le nuage avec le plus de bugs, `null` si égalité                         |
+| OnCloudCollected(BugCloud)                  | void                    | Fin de round — calcule bugs verts, détermine trueCloud, finalise trial (choice, correct, trueCloud, greenBugs, trapsHit, steps), émet OnRoundEnded |
+| GetBestCloud()                              | BugCloud                | Retourne le nuage avec le meilleur `greenRatio`, `null` si égalité                |
 | RestartRound()                              | void                    | Recharge la scène active (appelé par RoundUI)                                     |
 
 ### 4.2.3 Dépendances
@@ -865,7 +865,7 @@ graph TD
 
     subgraph "Phase Setup — appelé par les spawners"
         D[BugCloudSpawner] -->|RegisterClouds| E[Trie leftCloud / rightCloud par position X]
-        E --> F["TrialManager.SetMapConfig(gridSize, leftCell, leftBugs, rightCell, rightBugs)"]
+        E --> F["TrialManager.SetMapConfig(gridSize, leftCell, leftBugs, leftGreenRatio, rightCell, rightBugs, rightGreenRatio)"]
         G[PathSpawner] -->|SetChosenPath| H[Remplit _advisorPath HashSet]
     end
 
@@ -892,8 +892,9 @@ graph TD
 
     subgraph "Phase Fin de Round — OnCloudCollected via BugCloud"
         P[BugCloud.OnTrigger] -->|OnCloudCollected| Q["_roundOver = true, inputLocked = true"]
-        Q --> R["bugsCollected += max(0, cloud.totalBugs)"]
-        R --> S["TrialManager.EndCurrentTrial(choice, correct)"]
+        Q --> R["bugsCollected += max(0, RoundToInt(cloud.totalBugs × cloud.greenRatio))"]
+        R --> R1["trueCloud = best == leftCloud ? 'left' : best == rightCloud ? 'right' : 'none'"]
+        R1 --> S["TrialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps)"]
         S --> S1["TrialManager.SendTrials()"]
         S1 --> U["OnRoundEnded?.Invoke(RoundEndInfo)"]
     end
@@ -906,9 +907,10 @@ graph TD
 
 ```
 Pénalité piège    = -1 bug dans CHAQUE nuage (leftCloud + rightCloud) par piège déclenché
-Bugs collectés    = max(0, cloud.totalBugs) au moment de la collecte
-Meilleur nuage    = celui avec le plus de totalBugs ; null si égalité
-Choix correct     = le joueur a collecté le meilleur nuage (GetBestCloud)
+Bugs collectés    = max(0, RoundToInt(cloud.totalBugs × cloud.greenRatio)) au moment de la collecte
+Meilleur nuage    = celui avec le meilleur greenRatio ; null si égalité (greenRatio invariant même après pénalités)
+Choix correct     = le joueur a collecté le nuage avec le meilleur greenRatio initial (GetBestCloud)
+trueCloud         = "left" si best == leftCloud, "right" si best == rightCloud, "none" si égalité
 followedBestPath  = true tant que TOUS les pas du joueur sont dans _advisorPath
 Fog + Visited     = gérés par OnPlayerStep (pas par GridMover)
 ```
@@ -928,6 +930,7 @@ Fog + Visited     = gérés par OnPlayerStep (pas par GridMover)
 | 17/02/26 | @auteur     | Documentation initiale. GameManager stable — gestion complète du cycle de round avec intégration TrialManager. |
 | 27/02/26 | @pierre     | Refacto : suppression champs UI (scoreText, gameOverUI, gameOverStats), ajout event OnRoundEnded + RoundEndInfo, ajout OnTrapTriggered, fog+visited centralisés dans OnPlayerStep, SetMapConfig structuré (plus de JSON brut dans GameManager), StartNewTrial passe la seed, suppression DTOs MiniMapCfg/CloudInfo (déplacés dans TrialManager). |
 | 02/03/26 | @pierre     | Migration blockId : GameManager ne possède plus de champ blockId — lit désormais `SessionManager.Instance.blockId` en inline (fallback : 1 si Instance null). Suppression du commentaire blockId dans le code. |
+| 02/03/26 | @pierre     | Pipeline collecte enrichi : `OnCloudCollected` calcule désormais les bugs verts (totalBugs × greenRatio), détermine `trueCloud` (left/right/none), et transmet 6 params à `EndCurrentTrial` (choice, correct, trueCloud, greenBugsCollected, trapsHit, steps). `RegisterClouds` passe `greenRatio` à `SetMapConfig`. `GetBestCloud` compare `greenRatio` (pas totalBugs). |
 
 ## 4.3 SessionManager
 
@@ -1238,6 +1241,7 @@ public class TrialManager : MonoBehaviour
 private struct CloudInfo
 {
     public int x, y, totalBugs;
+    public float greenRatio;
 }
 
 [Serializable]
@@ -1259,9 +1263,9 @@ private struct MiniMapCfg
 | SetSessionId(string)                                  | void                      | Injecte l'ID de session (appelé par SessionManager)                                      |
 | StartNewTrial(int, int, string, **long trialSeed**)   | void                      | Crée un TrialData, stocke la seed, applique le tampon map_config si présent              |
 | RecordMove(Vector2Int)                                | void                      | Ajoute un PlayerStep (position + timestamp ISO) au trial courant                         |
-| EndCurrentTrial(string, bool)                         | void                      | Finalise le trial : choix du joueur, justesse, timestamp de fin                          |
+| EndCurrentTrial(string, bool, string, int, int, int) | void                      | Finalise le trial : choix, justesse, trueCloud, greenBugsCollected, trapsHit, steps, timestamp de fin |
 | SetOptimalPathLength(int)                             | void                      | Enregistre la longueur du chemin optimal dans le trial courant                           |
-| **SetMapConfig(gridSize, leftCell, leftBugs, rightCell, rightBugs)** | void       | API structurée — construit le JSON MiniMapCfg en interne                                 |
+| **SetMapConfig(gridSize, leftCell, leftBugs, leftGreenRatio, rightCell, rightBugs, rightGreenRatio)** | void       | API structurée — construit le JSON MiniMapCfg (avec greenRatio) en interne                    |
 | SetMapConfigJson(string)                              | void                      | Stocke le JSON brut dans le trial courant ou dans le tampon                              |
 | SendTrials()                                          | void                      | Lance l'envoi asynchrone des trials accumulés                                            |
 | SendTrialsCoroutine()                                 | IEnumerator (privé)       | POST JSON vers `apiBaseUrl/api/trials`, clear local si succès                            |
@@ -1287,7 +1291,7 @@ graph TD
     E -->|Non| G[Trial prêt]
     F --> G
 
-    H["GameManager.RegisterClouds"] -->|"SetMapConfig(gridSize, leftCell, leftBugs, rightCell, rightBugs)"| H1["Construire MiniMapCfg struct"]
+    H["GameManager.RegisterClouds"] -->|"SetMapConfig(gridSize, leftCell, leftBugs, leftGreenRatio, rightCell, rightBugs, rightGreenRatio)"| H1["Construire MiniMapCfg struct (avec greenRatio)"]
     H1 --> H2["JsonUtility.ToJson → SetMapConfigJson"]
     H2 --> I{currentTrial != null ?}
     I -->|Oui| J["currentTrial.map_config = json"]
@@ -1296,7 +1300,7 @@ graph TD
     L["GameManager.OnPlayerStep"] -->|"RecordMove(cell)"| M["currentTrial.player_path_log.Add(PlayerStep)"]
 
     N["GameManager.OnCloudCollected"] -->|"SetOptimalPathLength(n)"| O["currentTrial.optimal_path_length = n"]
-    N -->|"EndCurrentTrial(choice, correct)"| P["currentTrial.proximal_choice = choice"]
+    N -->|"EndCurrentTrial(choice, correct, trueCloud, greenBugs, trapsHit, steps)"| P["currentTrial.proximal_choice = choice"]
     P --> Q["currentTrial.end_timestamp = UTC ISO"]
 
     N -->|"SendTrials()"| R{isSending ?}
@@ -1330,7 +1334,7 @@ graph TD
 - **⚠️ Séquencement :** `SetMapConfig` peut être appelé avant `StartNewTrial` (BugCloudSpawner Start -200 vs GameManager Start 0). Le tampon `pendingMapConfigJson` gère ce cas
 - **⚠️ Concurrence :** `isSending` empêche les envois concurrents mais ne met pas en queue les demandes — si `SendTrials()` est appelé pendant un envoi, il est silencieusement ignoré
 - **⚠️ Sérialisation :** `JsonHelper` wrappe le tableau dans `{ "Items": [...] }` — le backend doit s'attendre à ce format, pas un tableau JSON pur
-- **⚠️ Noms de champs JSON :** Les DTOs utilisent `gridWidth`/`gridHeight` et `totalBugs` (pas `grid_w`/`grid_h` ni `bugs` comme avant)
+- **⚠️ Noms de champs JSON :** Les DTOs utilisent `gridWidth`/`gridHeight`, `totalBugs` et `greenRatio` (pas `grid_w`/`grid_h` ni `bugs` comme avant)
 - **🔧 À sécuriser :** `studyToken` est en clair dans l'Inspector — acceptable pour un prototype de recherche, à migrer vers un mécanisme plus sécurisé en production
 
 ### 4.5.7 Journal d'implémentation
@@ -1339,6 +1343,7 @@ graph TD
 | :------- | :---------- | :-------------------------------------------------------------------------------------------------------------- |
 | 17/02/26 | @auteur     | Documentation initiale. Pipeline de collecte trial complet avec tampon map_config et envoi batch par coroutine. |
 | 27/02/26 | @pierre     | Refacto : StartNewTrial prend 4 params (ajout trialSeed), nouveau SetMapConfig structuré (construit JSON en interne), DTOs MiniMapCfg/CloudInfo déplacés de GameManager vers TrialManager, noms de champs changés (gridWidth/gridHeight, totalBugs). |
+| 02/03/26 | @pierre     | Pipeline collecte enrichi : CloudInfo ajoute `greenRatio`. SetMapConfig prend 7 params (ajout leftGreenRatio, rightGreenRatio). EndCurrentTrial prend 6 params (ajout trueCloud, greenBugsCollected, trapsHit, steps). Noms de champs JSON : `greenRatio` dans map_config. |
 
 ## 4.6 TilesSpawner
 
@@ -1522,6 +1527,9 @@ public class TrialData
     public List<PlayerStep> player_path_log = new();
     public string proximal_choice;
     public bool choice_correct;
+    public int green_bugs_collected;
+    public int traps_hit;
+    public int steps;
     public string end_timestamp;
 }
 ```
@@ -1536,12 +1544,15 @@ public class TrialData
 | base_reward         | float              | _Non utilisé_                | Récompense de base (réservé pour le protocole de recherche)    |
 | advisor_type        | string             | _Non utilisé_                | Type de conseiller (réservé pour le protocole de recherche)    |
 | map_config          | string             | TrialManager.SetMapConfig    | JSON de la config carte (grille, positions/bugs des nuages)    |
-| true_cloud          | string             | _Non utilisé_                | Nuage correct (réservé)                                        |
+| true_cloud          | string             | GameManager.OnCloudCollected | Nuage objectivement meilleur (greenRatio) : "left", "right" ou "none" (si égalité) |
 | optimal_path_length | int                | GameManager.OnCloudCollected | Longueur du chemin optimal enregistré par PathSpawner          |
 | **trial_seed**      | **long**           | **TrialManager.StartNewTrial** | **Seed de randomisation du round — permet la reproductibilité** |
 | player_path_log     | List\<PlayerStep\> | TrialManager.RecordMove      | Séquence ordonnée des pas du joueur avec timestamps            |
 | proximal_choice     | string             | TrialManager.EndCurrentTrial | Choix du joueur : "left", "right" ou "unknown"                 |
 | choice_correct      | bool               | TrialManager.EndCurrentTrial | `true` si le joueur a collecté le nuage optimal                |
+| **green_bugs_collected** | **int**        | **TrialManager.EndCurrentTrial** | **Nombre de bugs verts collectés (totalBugs × greenRatio après pénalités)** |
+| **traps_hit**       | **int**            | **TrialManager.EndCurrentTrial** | **Nombre de pièges déclenchés pendant le round**                   |
+| **steps**           | **int**            | **TrialManager.EndCurrentTrial** | **Nombre de pas du joueur pendant le round**                    |
 | end_timestamp       | string             | TrialManager.EndCurrentTrial | Date ISO 8601 UTC de fin de manche                             |
 
 ### PlayerStep
@@ -1577,7 +1588,8 @@ public class PlayerStep
       "screen_id": 1,
       "screen_type": "forest",
       "timestamp": "2026-02-17T14:30:00.000Z",
-      "map_config": "{\"gridWidth\":10,\"gridHeight\":10,\"leftCloud\":{\"x\":2,\"y\":7,\"totalBugs\":45},\"rightCloud\":{\"x\":7,\"y\":7,\"totalBugs\":45}}",
+      "map_config": "{\"gridWidth\":10,\"gridHeight\":10,\"leftCloud\":{\"x\":2,\"y\":7,\"totalBugs\":45,\"greenRatio\":0.65},\"rightCloud\":{\"x\":7,\"y\":7,\"totalBugs\":45,\"greenRatio\":0.45}}",
+      "true_cloud": "left",
       "optimal_path_length": 12,
       "trial_seed": 8234567890123456789,
       "player_path_log": [
@@ -1586,6 +1598,9 @@ public class PlayerStep
       ],
       "proximal_choice": "left",
       "choice_correct": true,
+      "green_bugs_collected": 28,
+      "traps_hit": 2,
+      "steps": 14,
       "end_timestamp": "2026-02-17T14:30:15.000Z"
     }
   ]
@@ -1594,7 +1609,7 @@ public class PlayerStep
 
 ### Points d'attention sur les données
 
-- **⚠️ Champs réservés :** `base_reward`, `advisor_type`, `true_cloud` sont déclarés mais jamais remplis — prévus pour l'évolution du protocole de recherche
+- **⚠️ Champs réservés :** `base_reward`, `advisor_type` sont déclarés mais jamais remplis — prévus pour l'évolution du protocole de recherche
 - **⚠️ Format wrapper :** `JsonHelper.ToJson` produit `{ "Items": [...] }` et non un tableau JSON pur — le backend doit parser ce format
 - **⚠️ Timestamps :** Tous les timestamps utilisent `DateTime.UtcNow.ToString("o")` (ISO 8601 UTC) — pas de timezone locale, cohérent pour l'analyse
 
@@ -1752,3 +1767,4 @@ _Section à compléter._
 | 17/02/26 | 1.6     | Ajout sections 4.6 (TilesSpawner) et 4.7 (PlayerSpawner)                                |
 | 27/02/26 | 2.0     | Mise à jour post-refacto : sections 2.1 (Utils/Maze/), 2.3 (patterns concrets), 3.1-3.5 (renommages PathSpawner/GridMover, seeded RNG, TryGetPlayerStartCell, MazeGenerator DFS), 4.1-4.7 (LevelRegistry RNG+PlayerStart, GameManager OnRoundEnded+OnTrapTriggered, SessionManager seed+trapCount pipeline, TrialManager SetMapConfig structuré, PlayerSpawner RegisterPlayerStart), 5.1 (trial_seed + JSON), nouvelle section 6 (RoundUI). |
 | 02/03/26 | 2.1     | Migration paramètres recherche : nouveau pattern Research Parameter Pipeline (section 2.3). SessionManager centralise 10 params expérimentaux (trapCount, minDistance, totalBugs, greenRatio, gap, pathVisible, blockId) avec pipeline CLI → LevelRegistry → Spawners. MAJ sections 3.1, 3.2, 4.1, 4.2, 4.3. MAJ Script_Execution_Order.md. |
+| 02/03/26 | 2.2     | Pipeline collecte enrichi : GameManager calcule les bugs verts (totalBugs × greenRatio), détermine `trueCloud`, transmet 6 params à EndCurrentTrial. TrialData ajoute `green_bugs_collected`, `traps_hit`, `steps`. CloudInfo/SetMapConfig incluent `greenRatio`. GetBestCloud compare greenRatio (pas totalBugs). `true_cloud` n'est plus un champ réservé. MAJ sections 4.2, 4.5, 5.1. |
