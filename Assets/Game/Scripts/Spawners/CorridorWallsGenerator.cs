@@ -5,7 +5,7 @@ using UnityEngine;
 // -----------------------------
 // Génère des couloirs (zones praticables) et transforme le reste en murs.
 // Objectif: guider le joueur vers les BugClouds, limiter les cul-de-sac,
-// garantir au moins un chemin sans pièges (via BestPath + réservations).
+// garantir au moins un chemin sans pièges (via PathSpawner + réservations).
 // -----------------------------
 
 [DefaultExecutionOrder(-50)]
@@ -27,7 +27,7 @@ public class CorridorWallsGenerator : MonoBehaviour
     [Range(0, 100)]
     public int extraConnections = 16;
 
-    [Tooltip("Si aucun chemin n'est réservé (BestPath absent), on connecte quand même le joueur aux nuages.")]
+    [Tooltip("Si aucun chemin n'est réservé (PathSpawner absent), on connecte quand même le joueur aux nuages.")]
     public bool fallbackConnectToClouds = true;
 
     [Header("Visuel / Mur")]
@@ -81,7 +81,7 @@ public class CorridorWallsGenerator : MonoBehaviour
         if (walkable.Count == 0)
         {
             Debug.LogWarning("[CorridorWallsGenerator] Aucun couloir généré (walkable vide).\n" +
-                             "Vérifie que BestPath réserve des cases ou active fallbackConnectToClouds.");
+                             "Vérifie que PathSpawner réserve des cases ou active fallbackConnectToClouds.");
             return;
         }
 
@@ -139,7 +139,7 @@ public class CorridorWallsGenerator : MonoBehaviour
     {
         var baseCells = new HashSet<Vector2Int>();
 
-        // 1) Les chemins réservés (BestPath) définissent l'ossature des couloirs.
+        // 1) Les chemins réservés (PathSpawner) définissent l'ossature des couloirs.
         for (int y = 0; y < reg.gridSize.y; y++)
         {
             for (int x = 0; x < reg.gridSize.x; x++)

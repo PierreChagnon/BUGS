@@ -67,15 +67,6 @@ public class FogController : MonoBehaviour
     public void RevealCells(IEnumerable<Vector2Int> cells)
     {
         foreach (var c in cells) RevealCell(c);
-        // (Apply déjà appelé dans RevealCell)
-    }
-
-    public Vector2Int WorldToCell(Vector3 world)
-    {
-        if (registry != null)
-            return registry.WorldToCell(world);
-
-        return new Vector2Int(Mathf.RoundToInt(world.x), Mathf.RoundToInt(world.z));
     }
 
     // --- Internes ---

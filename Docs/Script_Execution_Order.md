@@ -1,14 +1,51 @@
 # Script Execution Order (Runtime)
 
-| Ordre | Script | Moment | Dependances requises | Ce qu'il initialise / fournit | Remarques |
-| :-- | :-- | :-- | :-- | :-- | :-- |
-| -300 | LevelRegistry | Awake | — | Source de verite (grille, flags, originWorld) | Singleton |
-| -250 | PlayerSpawner | Start | LevelRegistry | Instancie le player + enregistre playerStart | spawnTransform obligatoire |
-| -240 | TilesSpawner | Awake | LevelRegistry + root | Initialise originWorld, instancie la grille de tiles | root obligatoire |
-| -200 | BugCloudSpawner | Start | LevelRegistry (playerStart, grid) | Place 2 nuages + enregistre dans registry + informe GameManager | Dependance directe playerStart |
-| -100 | BestPath | Start | LevelRegistry + nuages | Reserve chemins, genere quads, publie chemin conseille | Besoin de BugCloudSpawner deja passe |
-| -50 | CorridorWallsGenerator | Start | LevelRegistry + BestPath | Genere couloirs, place murs | Utilise maze + reserved paths |
-| -10 | TrapSpawner | Start | LevelRegistry | Place les pieges sur cases libres | |
-| 0 | GameManager | Awake | — | Init score, UI, etat | Recoit nuages/chemin depuis spawners |
-| 0 | SessionManager | Start | GameManager + TrialManager | Parse args, demarre le round | |
-| 0 | GridMoverNewInput | Start/Update | LevelRegistry + GameManager | Mouvement, reveal fog, log steps | |
+> Convention : **Awake = initialiser les données**, **Start = construire le niveau**.
+> L'ordre est garanti par `[DefaultExecutionOrder(N)]`. Les scripts sans cet attribut s'exécutent à l'ordre 0.
+
+---
+
+## Phase 1 — Awake (infrastructure)
+
+| Ordre | Script | Ce qu'il fait | Écrit vers |
+|:------|:-------|:-------------|:-----------|
+| -300 | LevelRegistry | Singleton. Crée la grille vierge (CellFlags, RNG). | — |
+| -250 | FogController | Singleton. Lit `gridSize` depuis LevelRegistry, crée la texture masque RGBA32. | — |
+| -240 | TilesSpawner | Calcule `originWorld` depuis la position du root. | `LevelRegistry.originWorld` |
+| 0 | SessionManager | Parse args CLI (seed, trapCount, sessionId). Applique la seed et trapCount. | `LevelRegistry.roundSeed`, `LevelRegistry.trapCount`, `TrialManager.sessionId` |
+| 0 | GameManager | Singleton. | — |
+
+---
+
+## Phase 2 — Start (construction du niveau, séquentiel)
+
+| Ordre | Script | Ce qu'il fait | Dépendances requises | Écrit vers |
+|:------|:-------|:-------------|:---------------------|:-----------|
+| -250 | PlayerSpawner | Instancie le joueur à `spawnTransform`. | LevelRegistry (WorldToCell) | `LevelRegistry.RegisterPlayerStart(cell)` |
+| -240 | TilesSpawner | Instancie les tuiles visuelles sur toute la grille. | LevelRegistry (originWorld, gridSize, cellSize) | — (lecture seule) |
+| -200 | BugCloudSpawner | Place 2 nuages symétriques (L/R), configure totalBugs + greenRatio. | LevelRegistry (playerStart, gridSize, CreateRng) | `LevelRegistry.RegisterBugCloud(cell)`, `GameManager.RegisterClouds(left, right)` |
+| -100 | PathSpawner | Calcule 2 chemins Manhattan optimaux, spawne les quads, révèle le fog. | LevelRegistry (playerStart, paths), GameManager (GetBestCloud), FogController, tag "BugCloud" | `LevelRegistry.ReservePathLeft/Right(cells)`, `GameManager.SetChosenPath(cells)`, `FogController.RevealCells(cells)` |
+| -50 | CorridorWallsGenerator | Maze procédural, force les couloirs le long des chemins, mure le reste. | LevelRegistry (paths, gridSize, playerStart), tag "Tile" | `LevelRegistry.RegisterWall(cell)` |
+| -10 | TrapSpawner | Place N pièges sur les cases libres (Fisher-Yates shuffle). | LevelRegistry (trapCount, IsFreeForTrap, CreateRng) | `LevelRegistry.RegisterTrap(cell)` |
+| 0 | SessionManager | Coroutine : yield 1 frame puis lance la partie. | GameManager | `GameManager.BeginFirstRound()` |
+
+---
+
+## Phase 3 — Update (gameplay)
+
+| Script | Ordre | Ce qu'il fait | Signale vers |
+|:-------|:------|:-------------|:-------------|
+| GridMover | 0 | Lit les touches, valide via `IsWalkable`, interpole le déplacement. | `GameManager.OnPlayerStep(cell)` |
+| BugCloud | 0 | Rotation visuelle. `OnTriggerEnter` détecte la collecte. | `GameManager.OnCloudCollected(this)` |
+| Trap | 0 | `OnTriggerEnter` détecte le déclenchement (guard `_triggered`). | `GameManager.OnTrapTriggered()` |
+
+---
+
+## Scripts passifs (ni Awake ni Start)
+
+| Script | Rôle |
+|:-------|:-----|
+| TrialManager | Reçoit les appels de GameManager, accumule les TrialData, envoie à l'API. |
+| RoundUI | S'abonne à `GameManager.OnRoundEnded` dans son Start (ordre 0), affiche le panneau game over. |
+| TrialData | Conteneur sérialisable pour une manche (pas un MonoBehaviour). |
+| PlayerStep | Conteneur sérialisable pour un pas du joueur (pas un MonoBehaviour). |

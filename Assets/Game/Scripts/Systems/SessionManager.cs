@@ -10,7 +10,6 @@ public class SessionManager : MonoBehaviour
     [Header("Refs")]
     public TrialManager trialManager;
     public GameManager gameManager;
-    public TrapSpawner trapSpawner; // optionnel: assigner dans l'inspecteur
 
     // Plus de création de session côté Unity; sessions sont gérées par le dashboard
 
@@ -18,21 +17,25 @@ public class SessionManager : MonoBehaviour
     public long randomizationSeed = 0;
     public string buildVersion = "1.0.0";
 
+    [Header("Configuration de la map")]
+    [Tooltip("Nombre de pièges à placer. Peut être remplacé par le paramètre CLI trapCount=N.")]
+    [SerializeField] private int trapCount = 10;
+
     void Awake()
     {
         ApplySeedForThisRound();
+
+        // Injecter la config CLI dès Awake pour que les spawners
+        // (qui tournent en Start) aient accès aux valeurs correctes.
+        TryApplyTrapCountFromArgs();
+        ApplyTrapCountToRegistry();
+        TryApplySessionIdFromArgs();
     }
 
     IEnumerator Start()
     {
-        // 1) Lire les arguments passés au build Unity (WebGL/Desktop)
-        // Format attendu: "trapCount=<int>" (ex: trapCount=12)
-        TryApplyTrapCountFromArgs();
-
-        // 2) Lire sessionId et l'injecter dans TrialManager pour taguer les trials
-        TryApplySessionIdFromArgs();
-
-        // Démarrer directement le jeu (la session de recherche existe déjà côté dashboard)
+        // Tous les spawners ont tourné (Start, ordres négatifs).
+        // On lance la partie.
         yield return null;
         gameManager.BeginFirstRound();
     }
@@ -97,26 +100,23 @@ public class SessionManager : MonoBehaviour
                 return;
             }
 
-            // Priorité: si un TrapSpawner est référencé, on le met à jour
-            if (trapSpawner != null)
-            {
-                trapSpawner.trapCount = parsed;
-                Debug.Log($"[SessionManager] trapCount reçu via args: {parsed} (assigné au TrapSpawner référencé)");
-                return;
-            }
-
-            // Sinon, tenter d'en trouver un dans la scène
-            var spawner = Object.FindFirstObjectByType<TrapSpawner>();
-            if (spawner != null)
-            {
-                spawner.trapCount = parsed;
-                Debug.Log($"[SessionManager] trapCount reçu via args: {parsed} (assigné au TrapSpawner trouvé)");
-            }
-            else
-            {
-                Debug.LogWarning("[SessionManager] Aucun TrapSpawner trouvé pour appliquer trapCount.");
-            }
+            trapCount = parsed;
+            Debug.Log($"[SessionManager] trapCount remplacé par args CLI: {parsed}");
             return;
+        }
+    }
+
+    void ApplyTrapCountToRegistry()
+    {
+        var reg = LevelRegistry.Instance;
+        if (reg != null)
+        {
+            reg.trapCount = trapCount;
+            Debug.Log($"[SessionManager] trapCount={trapCount} écrit dans LevelRegistry");
+        }
+        else
+        {
+            Debug.LogWarning("[SessionManager] LevelRegistry introuvable pour appliquer trapCount.");
         }
     }
 

@@ -41,7 +41,7 @@ public class BugCloudSpawner : MonoBehaviour
     [SerializeField]
     private float gapMax = 0.3f;
 
-    // À l'Awake, on place les 2 nuages (permet d'acceder à leurs positions dans Start du TrapSpawner)
+    // Au Start, on place les 2 nuages (permet d'acceder à leurs positions dans Start du TrapSpawner)
     void Start()
     {
         if (bugCloudPrefab == null) { Debug.LogError("[BugCloudSpawner] bugCloudPrefab manquant."); return; }
@@ -70,7 +70,7 @@ public class BugCloudSpawner : MonoBehaviour
         for (int D = Dmin; D <= Dmax; D++)
         {
             var ring = GetRingCells(playerCell, D);                // On regarde une couronne pour un D donné
-            ring.RemoveAll(c => !InBounds(c) || c == playerCell);  // On enlève les cases hors-grille et la case du joueur
+            ring.RemoveAll(c => !registry.InBounds(c) || c == playerCell);  // On enlève les cases hors-grille et la case du joueur
             if (ring.Count >= 2) candidateDs.Add(D);               // Si au moins 2 cases valides, on garde ce D
         }
 
@@ -83,7 +83,7 @@ public class BugCloudSpawner : MonoBehaviour
         // Choisir une couronne au hasard
         int chosenD = candidateDs[rng.Next(0, candidateDs.Count)];
         var validRing = GetRingCells(playerCell, chosenD);
-        validRing.RemoveAll(c => !InBounds(c) || c == playerCell || c.y < minZ); // On enlève les cases hors-grille, la case du joueur et celles en dessous de minZ
+        validRing.RemoveAll(c => !registry.InBounds(c) || c == playerCell || c.y < minZ); // On enlève les cases hors-grille, la case du joueur et celles en dessous de minZ
         Debug.Log($"[BugCloudSpawner] Couronne D={chosenD} a {validRing.Count} cases valides après filtrage.");
 
         // Choisir 2 cases distinctes au hasard dans la couronne valide
@@ -231,11 +231,4 @@ public class BugCloudSpawner : MonoBehaviour
         return list;
     }
 
-    // Vérifie si une case est dans les limites de la grille
-    bool InBounds(Vector2Int c)
-    {
-        var reg = LevelRegistry.Instance;
-        if (reg == null) return false;
-        return c.x >= 0 && c.x < reg.gridSize.x && c.y >= 0 && c.y < reg.gridSize.y;
-    }
 }

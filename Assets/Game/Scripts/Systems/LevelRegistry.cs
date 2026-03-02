@@ -25,6 +25,9 @@ public class LevelRegistry : MonoBehaviour
     [HideInInspector]
     public int optimalPathLength;
 
+    [HideInInspector]
+    public int trapCount;
+
     long _roundSeed;
     bool _hasRoundSeed;
 
@@ -51,9 +54,6 @@ public class LevelRegistry : MonoBehaviour
     bool _hasPlayerStartWorld;
     Vector2Int _playerStartCell;
     Vector3 _playerStartWorld;
-
-    // Optionnel : HUD / debug peut s’abonner
-    public event Action<Vector2Int, CellFlags> OnCellChanged;
 
     void Awake()
     {
@@ -278,6 +278,5 @@ public class LevelRegistry : MonoBehaviour
     void SetFlags(Vector2Int c, CellFlags f)
     {
         _cells[c] = f;
-        OnCellChanged?.Invoke(c, f);
     }
 }

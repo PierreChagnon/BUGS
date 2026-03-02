@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[DefaultExecutionOrder(-250)] // s'assure de s'exécuter avant TilesSpawner (qui est à -240) pour enregistrer la position de départ du joueur dans le LevelRegistry
+[DefaultExecutionOrder(-250)] // Start(-250) : premier spawner à tourner en Start, après que TilesSpawner.Awake(-240) ait posé originWorld
 public class PlayerSpawner : MonoBehaviour
 {
     [Header("Références")]

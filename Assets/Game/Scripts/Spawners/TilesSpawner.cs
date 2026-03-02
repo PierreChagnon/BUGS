@@ -1,7 +1,8 @@
 using UnityEngine;
 
 // Runtime tiles spawner.
-// Spawns the grid at play time (scene can be empty), positioning it from the player's transform.
+// Awake : calcule originWorld (donnée) pour que les autres spawners puissent convertir monde/grille.
+// Start : instancie les tuiles visuelles (construction).
 // Constraint: player must end up on the first row (z=0) and centered on X.
 [DefaultExecutionOrder(-240)]
 public class TilesSpawner : MonoBehaviour
@@ -20,17 +21,20 @@ public class TilesSpawner : MonoBehaviour
 
     void Awake()
     {
-        Spawn();
+        // Awake = initialiser les données.
+        // On calcule originWorld ici pour qu'il soit disponible dès le Start des autres spawners.
+        InitOriginWorld();
     }
 
-    public void Spawn()
+    void Start()
     {
-        if (!tilePrefab)
-        {
-            Debug.LogError("[TilesSpawner] tilePrefab missing");
-            return;
-        }
+        // Start = construire le niveau.
+        SpawnTiles();
+    }
 
+    /// <summary>Calcule originWorld à partir de la position du root (données).</summary>
+    void InitOriginWorld()
+    {
         var registry = LevelRegistry.Instance;
         if (!registry)
             registry = FindFirstObjectByType<LevelRegistry>();
@@ -41,9 +45,6 @@ public class TilesSpawner : MonoBehaviour
             return;
         }
 
-        // Source de vérité (runtime): LevelRegistry.
-        // TilesSpawner ne définit PAS gridSize/cellSize : il ne fait qu'initialiser originWorld
-        // à partir de la position du player, afin d'aligner la grille sur le monde.
         if (registry.gridSize.x <= 0 || registry.gridSize.y <= 0)
         {
             Debug.LogError("[TilesSpawner] registry.gridSize invalide (doit être > 0). Configure-le dans LevelRegistry.");
@@ -56,15 +57,28 @@ public class TilesSpawner : MonoBehaviour
             return;
         }
 
-        Vector3 playerWorld = root.position;
+        registry.originWorld = ComputeOriginFromPlayer(registry, root.position);
+    }
 
-        // On positionne la grille de manière à ce que la cellule du milieu de la première ligne (z=0) soit sous le player.
-        registry.originWorld = ComputeOriginFromPlayer(registry, playerWorld);
+    /// <summary>Instancie les tuiles visuelles (construction).</summary>
+    void SpawnTiles()
+    {
+        if (!tilePrefab)
+        {
+            Debug.LogError("[TilesSpawner] tilePrefab missing");
+            return;
+        }
+
+        var registry = LevelRegistry.Instance;
+        if (!registry)
+        {
+            Debug.LogError("[TilesSpawner] LevelRegistry missing");
+            return;
+        }
 
         EnsureRoot();
         ClearRuntime();
 
-        // Pour garder une hiérarchie claire: root représente la case (0,0).
         tilesRoot.position = new Vector3(registry.originWorld.x, tilesY, registry.originWorld.z);
 
         for (int y = 0; y < registry.gridSize.y; y++)
@@ -77,9 +91,15 @@ public class TilesSpawner : MonoBehaviour
         }
     }
 
+    /// <summary>Méthode publique pour l'éditeur (MapGenerator) — fait les deux étapes.</summary>
+    public void Spawn()
+    {
+        InitOriginWorld();
+        SpawnTiles();
+    }
+
     void EnsureRoot()
     {
-        // En runtime, on crée un root temporaire pour organiser les tiles.
         var go = new GameObject("TilesRootRuntime");
         go.transform.SetParent(transform);
         go.transform.localPosition = Vector3.zero;
@@ -100,8 +120,6 @@ public class TilesSpawner : MonoBehaviour
         int midX = Mathf.Clamp(width / 2, 0, Mathf.Max(0, width - 1));
         float size = Mathf.Max(0.0001f, registry != null ? registry.cellSize : 1f);
 
-        // On veut que la cellule (midX, 0) soit sous le joueur.
-        // Donc origine (0,0) = player - (midX * cellSize, 0).
         return new Vector3(playerWorld.x - (midX * size), 0f, playerWorld.z);
     }
 }

@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 
 [DefaultExecutionOrder(-100)]
-public class BestPath : MonoBehaviour
+public class PathSpawner : MonoBehaviour
 {
     [Header("Références")]
     public GameObject quadPrefab;
@@ -17,15 +17,15 @@ public class BestPath : MonoBehaviour
         var reg = LevelRegistry.Instance;
         if (reg == null)
         {
-            Debug.LogError("[BestPath] LevelRegistry manquant dans la scène.");
+            Debug.LogError("[PathSpawner] LevelRegistry manquant dans la scène.");
             return;
         }
 
-        var rng = reg.CreateRng(nameof(BestPath));
+        var rng = reg.CreateRng(nameof(PathSpawner));
 
         if (quadPrefab == null)
         {
-            Debug.LogError("[BestPath] quadPrefab manquant (assigne le prefab de quad dans l'inspecteur).");
+            Debug.LogError("[PathSpawner] quadPrefab manquant (assigne le prefab de quad dans l'inspecteur).");
             return;
         }
 
@@ -33,13 +33,13 @@ public class BestPath : MonoBehaviour
         GameObject[] clouds = GameObject.FindGameObjectsWithTag("BugCloud");
         if (clouds.Length < 2)
         {
-            Debug.LogWarning($"[BestPath] Moins de 2 nuages trouvés (count={clouds.Length}). Vérifie BugCloudSpawner + tag 'BugCloud'.");
+            Debug.LogWarning($"[PathSpawner] Moins de 2 nuages trouvés (count={clouds.Length}). Vérifie BugCloudSpawner + tag 'BugCloud'.");
             return;
         }
 
         if (!reg.TryGetPlayerStartCell(out var playerCell))
         {
-            Debug.LogError("[BestPath] player start non enregistré (vérifie PlayerSpawner / LevelRegistry).");
+            Debug.LogError("[PathSpawner] player start non enregistré (vérifie PlayerSpawner / LevelRegistry).");
             return;
         }
 
@@ -128,7 +128,7 @@ public class BestPath : MonoBehaviour
         // Si visible est false, on ne fait rien
         if (!visible)
         {
-            Debug.Log("[BestPath] visible=false => instanciation des quads ignorée.");
+            Debug.Log("[PathSpawner] visible=false => instanciation des quads ignorée.");
             return;
         }
 
@@ -163,7 +163,7 @@ public class BestPath : MonoBehaviour
             var pos = reg.CellToWorld(cell, 0.11f);
 
             // Important: on instancie sans parent puis on parent en conservant la transform monde.
-            // Cela évite les surprises si le GO BestPath a une scale non-1.
+            // Cela évite les surprises si le GO PathSpawner a une scale non-1.
             var quad = Instantiate(quadPrefab, pos, quadPrefab.transform.rotation);
             quad.transform.SetParent(transform, true);
 
@@ -171,7 +171,7 @@ public class BestPath : MonoBehaviour
             spawned++;
         }
 
-        Debug.Log($"[BestPath] Quads instanciés: {spawned} (originWorld={reg.originWorld}, cellSize={reg.cellSize}).");
+        Debug.Log($"[PathSpawner] Quads instanciés: {spawned} (originWorld={reg.originWorld}, cellSize={reg.cellSize}).");
 
 
 

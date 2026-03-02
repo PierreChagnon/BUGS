@@ -17,28 +17,26 @@ public class BugCloud : MonoBehaviour
     public float greenRatio = 0.7f;
 
     [Header("Effets")]
-    public float rotationSpeed = 0.03f; // Vitesse de rotation du nuage
+    [Tooltip("Vitesse de rotation en degrés par seconde.")]
+    public float rotationSpeed = 30f;
 
-    // Update is called once per frame
     void Update()
     {
         // Faire tourner le nuage autour de son axe Y
-        transform.Rotate(0, rotationSpeed, 0);
+        // Règle de base en Unity: tout mouvement dans Update doit etre multiplié par Time.deltaTime pour être indépendant du framerate
+        transform.Rotate(0, rotationSpeed * Time.deltaTime, 0);
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        print("Collision détectée avec " + other.name);
-        if (other.CompareTag("Player"))
-        {
-            print("Collecte d'insectes !");
-            // On informe le GameManager
-            if (GameManager.Instance != null)
-                GameManager.Instance.OnCloudCollected(this);
+        if (!other.CompareTag("Player")) return;
 
-            // Destroy the bug cloud when the player collides with it
-            Destroy(gameObject);
-        }
+        Debug.Log("[BugCloud] Collecte déclenchée !");
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.OnCloudCollected(this);
+
+        Destroy(gameObject);
     }
 
     void OnDestroy()

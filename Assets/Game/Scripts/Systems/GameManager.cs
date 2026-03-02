@@ -1,23 +1,33 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using TMPro;
 
 // -----------------------------
-// Gère l’état global du jeu (score, fin de manche, UI…)
+// Orchestre l'état d'un round : score, cycle de vie, arbitrage.
+//
+// Responsabilités :
+//   - État du round (steps, trapsHit, bugsCollected, followedBestPath)
+//   - Références aux nuages L/R, détermination du "meilleur"
+//   - Cycle de vie (inputLocked, roundOver, restart)
+//   - Orchestration TrialManager (record moves, end trial, send)
+//
+// Ce qui n'est PAS ici :
+//   - UI -> RoundUI écoute OnRoundEnded
+//   - Détection piège -> Trap.OnTriggerEnter signale OnTrapTriggered
+//   - Construction JSON map config -> TrialManager.SetMapConfig
 // -----------------------------
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
+
+    [Header("Références")]
     public TrialManager trialManager;
+
+    [Header("Session")]
     public int blockId = 1;
-    int screenCounter = 0;
-
-
-    [Header("UI Score")]
-    public TMP_Text scoreText;
+    int _screenCounter = 0;
 
     [Header("Round / Score")]
     public int steps = 0;
@@ -25,33 +35,45 @@ public class GameManager : MonoBehaviour
     public int bugsCollected = 0;
     public bool followedBestPath = true;
 
-    [Header("Game Over UI")]
-    public GameObject gameOverUI;   // Panel à afficher/masquer
-    public TMP_Text gameOverStats;  // Texte pour le récap
-
-    // Etat de la manche
+    // État de la manche
     public bool inputLocked { get; private set; } = false;
-    bool roundOver = false;
+    bool _roundOver = false;
 
     // Les 2 nuages du round (références données par le spawner)
-    BugCloud leftCloud, rightCloud;
+    BugCloud _leftCloud, _rightCloud;
 
-    // Chemin conseillé (BestPath nous l’enverra)
-    readonly HashSet<Vector2Int> advisorPath = new();
+    // Chemin conseillé (PathSpawner nous l'enverra)
+    readonly HashSet<Vector2Int> _advisorPath = new();
+
+    // --- Événements pour l'UI et les systèmes externes ---
+
+    /// <summary>Données transmises à la fin d'un round.</summary>
+    [Serializable]
+    public struct RoundEndInfo
+    {
+        public int bugsCollected;
+        public int trapsHit;
+        public int steps;
+        public bool followedBestPath;
+        public int leftCloudBugs;
+        public int rightCloudBugs;
+    }
+
+    /// <summary>Émis quand le round se termine (nuage collecté). RoundUI s'y abonne.</summary>
+    public event Action<RoundEndInfo> OnRoundEnded;
 
     void Awake()
     {
-        Debug.Log("[GameManager] Awake");
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-        UpdateScoreUI();
-
-        if (gameOverUI != null) gameOverUI.SetActive(false);
+        Debug.Log("[GameManager] Awake");
     }
 
-    // --- APIs appelées par d’autres scripts ---
+    // ══════════════════════════════════════════════════════════════
+    //  CYCLE DE VIE DU ROUND
+    // ══════════════════════════════════════════════════════════════
 
-    // appelée par SessionManager quand la session est prête
+    /// <summary>Appelée par SessionManager quand la session est prête.</summary>
     public void BeginFirstRound()
     {
         StartNewRound("forest");
@@ -59,182 +81,144 @@ public class GameManager : MonoBehaviour
 
     public void StartNewRound(string screenType)
     {
-        screenCounter++;
+        _screenCounter++;
 
         long seed = 0;
         if (LevelRegistry.Instance != null && LevelRegistry.Instance.TryGetRoundSeed(out var s))
             seed = s;
 
-        trialManager.StartNewTrial(blockId, screenCounter, screenType, seed);
+        trialManager.StartNewTrial(blockId, _screenCounter, screenType, seed);
     }
 
-    // Spawner nous fournit les 2 nuages
-    public void RegisterClouds(BugCloud a, BugCloud b)
-    {
-        if (a == null || b == null) return;
-        if (a.transform.position.x <= b.transform.position.x) { leftCloud = a; rightCloud = b; }
-        else { leftCloud = b; rightCloud = a; }
-        UpdateScoreUI();
-
-        // Envoi de la config de la carte au TrialManager
-        if (trialManager != null)
-        {
-
-            // Construire une mini config JSON (positions + bugs initiaux)
-            var cfg = new MiniMapCfg
-            {
-                grid_w = LevelRegistry.Instance ? LevelRegistry.Instance.gridSize.x : 10,
-                grid_h = LevelRegistry.Instance ? LevelRegistry.Instance.gridSize.y : 10,
-                cloud_left = new CloudInfo
-                {
-                    x = LevelRegistry.Instance ? LevelRegistry.Instance.WorldToCell(leftCloud.transform.position).x : Mathf.RoundToInt(leftCloud.transform.position.x),
-                    y = LevelRegistry.Instance ? LevelRegistry.Instance.WorldToCell(leftCloud.transform.position).y : Mathf.RoundToInt(leftCloud.transform.position.z),
-                    bugs = leftCloud.totalBugs
-                },
-                cloud_right = new CloudInfo
-                {
-                    x = LevelRegistry.Instance ? LevelRegistry.Instance.WorldToCell(rightCloud.transform.position).x : Mathf.RoundToInt(rightCloud.transform.position.x),
-                    y = LevelRegistry.Instance ? LevelRegistry.Instance.WorldToCell(rightCloud.transform.position).y : Mathf.RoundToInt(rightCloud.transform.position.z),
-                    bugs = rightCloud.totalBugs
-                }
-            };
-
-            // Envoi de la configuration de la carte au TrialManager
-            trialManager.SetMapConfigJson(JsonUtility.ToJson(cfg));
-            Debug.Log($"[GameManager] Map config sent to TrialManager: {JsonUtility.ToJson(cfg)}");
-        }
-    }
-
-    // BestPath nous donne le chemin conseillé (pour détecter une déviation)
-    public void SetChosenPath(IEnumerable<Vector2Int> cells)
-    {
-        advisorPath.Clear();
-        if (cells == null) return;
-        foreach (var c in cells) advisorPath.Add(c);
-        followedBestPath = true; // reset pour ce round
-        UpdateScoreUI();
-    }
-
-    // Appelé par le joueur à chaque pas terminé
-    public void OnPlayerStep(Vector2Int cell)
-    {
-        steps++;
-        if (advisorPath.Count > 0 && !advisorPath.Contains(cell))
-            followedBestPath = false;
-
-        // Si on marche sur un piège -> -1 bug dans CHAQUE nuage
-        if (LevelRegistry.Instance != null && LevelRegistry.Instance.HasTrap(cell))
-        {
-            trapsHit++;
-            if (leftCloud != null) leftCloud.AddBugs(-1);
-            if (rightCloud != null) rightCloud.AddBugs(-1);
-        }
-
-        UpdateScoreUI();
-
-        // --- LOGGAGE DU CHEMIN DANS TrialManager ---
-        if (trialManager != null)
-            trialManager.RecordMove(cell);
-
-    }
-
-    // Appelé par BugCloud quand on collecte un nuage
-    public void OnCloudCollected(BugCloud cloud)
-    {
-        if (roundOver) return;
-        roundOver = true;
-
-        inputLocked = true; // plus d’input possible
-
-        if (cloud != null) bugsCollected += Mathf.Max(0, cloud.totalBugs);
-
-        // --- FIN DE MANCHE → informer TrialManager ---
-        if (trialManager != null)
-        {
-            // "left" / "right" selon le nuage collecté
-            string choice = (cloud == leftCloud) ? "left" : (cloud == rightCloud ? "right" : "unknown");
-
-            // correct si c'était le nuage "optimal"
-            var best = GetBestCloud(); // déjà fourni par ton GameManager
-            bool correct = (best != null) ? (cloud == best) : false;
-
-            // Fournir la longueur du chemin optimal au TrialManager
-            // on fait ca ici car c'est le moment de la fin de manche, et toutes les infos de gameplay sont figées
-            if (LevelRegistry.Instance != null)
-            {
-                trialManager.SetOptimalPathLength(LevelRegistry.Instance.optimalPathLength);
-            }
-
-            // Fin de la manche, on envoie les résultats a TrialData
-            trialManager.EndCurrentTrial(choice, correct);
-
-            // Envoi des manches accumulées à l’API (async)
-            trialManager.SendTrials();
-        }
-
-        ShowGameOver();
-        UpdateScoreUI();
-    }
-
-    // Affichage du récap de fin de round
-    void ShowGameOver()
-    {
-        if (gameOverUI != null) gameOverUI.SetActive(true);
-
-        if (gameOverStats != null)
-        {
-            int left = leftCloud ? leftCloud.totalBugs : 0;
-            int right = rightCloud ? rightCloud.totalBugs : 0;
-            gameOverStats.text =
-                $"Bugs récoltés : {bugsCollected}\n" +
-                $"Pièges déclenchés : {trapsHit}\n" +
-                $"Coups joués : {steps}\n" +
-                $"Chemin conseillé suivi : {(followedBestPath ? "Oui" : "Non")}\n" +
-                $"Bugs restants L/R : {left} / {right}";
-        }
-    }
-
-    // Restart de la scène (appelé par le bouton UI)
+    /// <summary>Restart de la scène (appelé par le bouton UI).</summary>
     public void RestartRound()
     {
-        Debug.Log("Redémarrage de la manche...");
-        // Débloquer les inputs
+        Debug.Log("[GameManager] Redémarrage de la manche...");
         inputLocked = false;
-        roundOver = false;
+        _roundOver = false;
 
-        // Recharger la scène => tout sera régénéré (nuages, chemins, pièges…)
         Scene current = SceneManager.GetActiveScene();
         SceneManager.LoadScene(current.buildIndex);
     }
 
-    // Utilitaire : qui est le “meilleur” nuage (pour BestPath)
+    // ══════════════════════════════════════════════════════════════
+    //  ÉVÉNEMENTS REÇUS DES ENTITÉS ET SPAWNERS
+    // ══════════════════════════════════════════════════════════════
+
+    /// <summary>BugCloudSpawner nous fournit les 2 nuages.</summary>
+    public void RegisterClouds(BugCloud a, BugCloud b)
+    {
+        if (a == null || b == null) return;
+        if (a.transform.position.x <= b.transform.position.x)
+        { _leftCloud = a; _rightCloud = b; }
+        else
+        { _leftCloud = b; _rightCloud = a; }
+
+        // Transmettre la config map au TrialManager (lui construit le JSON)
+        if (trialManager != null && LevelRegistry.Instance != null)
+        {
+            var reg = LevelRegistry.Instance;
+            trialManager.SetMapConfig(
+                reg.gridSize,
+                reg.WorldToCell(_leftCloud.transform.position), _leftCloud.totalBugs,
+                reg.WorldToCell(_rightCloud.transform.position), _rightCloud.totalBugs
+            );
+        }
+    }
+
+    /// <summary>PathSpawner nous donne le chemin conseillé (pour détecter une déviation).</summary>
+    public void SetChosenPath(IEnumerable<Vector2Int> cells)
+    {
+        _advisorPath.Clear();
+        if (cells == null) return;
+        foreach (var c in cells) _advisorPath.Add(c);
+        followedBestPath = true;
+    }
+
+    /// <summary>
+    /// Appelé par GridMover à chaque pas terminé.
+    /// Orchestre : fog, visited, score, trial log.
+    /// </summary>
+    public void OnPlayerStep(Vector2Int cell)
+    {
+        if (_roundOver) return;
+
+        steps++;
+
+        // Marquer la cellule dans le registre et révéler le brouillard
+        LevelRegistry.Instance?.MarkVisited(cell);
+        FogController.Instance?.RevealCell(cell);
+
+        // Vérifier l'adhérence au chemin conseillé
+        if (_advisorPath.Count > 0 && !_advisorPath.Contains(cell))
+            followedBestPath = false;
+
+        // Enregistrer le mouvement dans le pipeline de données
+        trialManager?.RecordMove(cell);
+    }
+
+    /// <summary>
+    /// Appelé par Trap.OnTriggerEnter quand le joueur marche sur un piège.
+    /// Applique la pénalité : -1 bug sur chaque nuage.
+    /// </summary>
+    public void OnTrapTriggered()
+    {
+        if (_roundOver) return;
+
+        trapsHit++;
+        if (_leftCloud != null) _leftCloud.AddBugs(-1);
+        if (_rightCloud != null) _rightCloud.AddBugs(-1);
+
+        Debug.Log($"[GameManager] Piège ! trapsHit={trapsHit}");
+    }
+
+    /// <summary>Appelé par BugCloud.OnTriggerEnter quand on collecte un nuage.</summary>
+    public void OnCloudCollected(BugCloud cloud)
+    {
+        if (_roundOver) return;
+        _roundOver = true;
+        inputLocked = true;
+
+        if (cloud != null) bugsCollected += Mathf.Max(0, cloud.totalBugs);
+
+        // --- Finaliser les données de trial ---
+        if (trialManager != null)
+        {
+            string choice = (cloud == _leftCloud) ? "left"
+                          : (cloud == _rightCloud) ? "right"
+                          : "unknown";
+
+            var best = GetBestCloud();
+            bool correct = best != null && cloud == best;
+
+            if (LevelRegistry.Instance != null)
+                trialManager.SetOptimalPathLength(LevelRegistry.Instance.optimalPathLength);
+
+            trialManager.EndCurrentTrial(choice, correct);
+            trialManager.SendTrials();
+        }
+
+        // --- Émettre l'événement pour l'UI ---
+        OnRoundEnded?.Invoke(new RoundEndInfo
+        {
+            bugsCollected = bugsCollected,
+            trapsHit = trapsHit,
+            steps = steps,
+            followedBestPath = followedBestPath,
+            leftCloudBugs = _leftCloud ? _leftCloud.totalBugs : 0,
+            rightCloudBugs = _rightCloud ? _rightCloud.totalBugs : 0,
+        });
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  UTILITAIRES
+    // ══════════════════════════════════════════════════════════════
+
+    /// <summary>Quel nuage a le plus de bugs ? null si égalité.</summary>
     public BugCloud GetBestCloud()
     {
-        if (leftCloud == null || rightCloud == null) return null;
-        if (leftCloud.totalBugs == rightCloud.totalBugs) return null; // égalité -> au choix
-        return (leftCloud.totalBugs > rightCloud.totalBugs) ? leftCloud : rightCloud;
+        if (_leftCloud == null || _rightCloud == null) return null;
+        if (_leftCloud.totalBugs == _rightCloud.totalBugs) return null;
+        return (_leftCloud.totalBugs > _rightCloud.totalBugs) ? _leftCloud : _rightCloud;
     }
-
-    // Met à jour l’UI du score
-    void UpdateScoreUI()
-    {
-        if (scoreText == null) return;
-        int left = leftCloud ? leftCloud.totalBugs : 0;
-        int right = rightCloud ? rightCloud.totalBugs : 0;
-        scoreText.text =
-            $"Bugs: {bugsCollected}\n" +
-            $"Traps: {trapsHit}\n" +
-            $"Steps: {steps}\n" +
-            $"Best path: {(followedBestPath ? "YES" : "NO")}\n" +
-            $"Clouds L/R: {left} / {right}";
-    }
-
-    // petits DTO internes à GameManager
-    [System.Serializable]
-    struct MiniMapCfg
-    {
-        public int grid_w, grid_h;
-        public CloudInfo cloud_left, cloud_right;
-    }
-    [System.Serializable] struct CloudInfo { public int x, y, bugs; }
 }
