@@ -52,7 +52,6 @@ public class BugCloud : MonoBehaviour
     public void AddBugs(int delta)
     {
         totalBugs = Mathf.Max(0, totalBugs + delta);
-        // (option: mettre à jour un label au-dessus du nuage si tu en as un)
     }
 
     //Méthode appelée par le spawner pour configuer les particules

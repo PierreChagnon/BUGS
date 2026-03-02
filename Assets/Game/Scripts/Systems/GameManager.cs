@@ -119,8 +119,8 @@ public class GameManager : MonoBehaviour
             var reg = LevelRegistry.Instance;
             trialManager.SetMapConfig(
                 reg.gridSize,
-                reg.WorldToCell(_leftCloud.transform.position), _leftCloud.totalBugs,
-                reg.WorldToCell(_rightCloud.transform.position), _rightCloud.totalBugs
+                reg.WorldToCell(_leftCloud.transform.position), _leftCloud.totalBugs, _leftCloud.greenRatio,
+                reg.WorldToCell(_rightCloud.transform.position), _rightCloud.totalBugs, _rightCloud.greenRatio
             );
         }
     }
@@ -178,7 +178,9 @@ public class GameManager : MonoBehaviour
         _roundOver = true;
         inputLocked = true;
 
-        if (cloud != null) bugsCollected += Mathf.Max(0, cloud.totalBugs);
+        // Calculer le score final (nombre de bugs verts collectés)
+        if (cloud != null) bugsCollected += Mathf.Max(0, Mathf.RoundToInt(cloud.totalBugs * cloud.greenRatio));
+        Debug.Log($"[GameManager] Nuage collecté ! bugsCollected={bugsCollected}");
 
         // --- Finaliser les données de trial ---
         if (trialManager != null)
@@ -190,10 +192,15 @@ public class GameManager : MonoBehaviour
             var best = GetBestCloud();
             bool correct = best != null && cloud == best;
 
+            // Déterminer quel côté était objectivement le meilleur (ratio initial)
+            string trueCloud = (best == _leftCloud) ? "left"
+                             : (best == _rightCloud) ? "right"
+                             : "none";
+
             if (LevelRegistry.Instance != null)
                 trialManager.SetOptimalPathLength(LevelRegistry.Instance.optimalPathLength);
 
-            trialManager.EndCurrentTrial(choice, correct);
+            trialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps);
             trialManager.SendTrials();
         }
 
@@ -213,11 +220,11 @@ public class GameManager : MonoBehaviour
     //  UTILITAIRES
     // ══════════════════════════════════════════════════════════════
 
-    /// <summary>Quel nuage a le plus de bugs ? null si égalité.</summary>
+    /// <summary>Quel nuage a le plus de bugs verts ? null si égalité.</summary>
     public BugCloud GetBestCloud()
     {
         if (_leftCloud == null || _rightCloud == null) return null;
-        if (_leftCloud.totalBugs == _rightCloud.totalBugs) return null;
-        return (_leftCloud.totalBugs > _rightCloud.totalBugs) ? _leftCloud : _rightCloud;
+        if (_leftCloud.greenRatio == _rightCloud.greenRatio) return null;
+        return (_leftCloud.greenRatio > _rightCloud.greenRatio) ? _leftCloud : _rightCloud;
     }
 }

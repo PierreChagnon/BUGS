@@ -63,16 +63,22 @@ public class TrialManager : MonoBehaviour
     }
 
     // Appelé quand le joueur attrape un nuage
-    public void EndCurrentTrial(string playerChoice, bool correct)
+    public void EndCurrentTrial(string playerChoice, bool correct, string trueCloud,
+                                int greenBugsCollected, int trapsHit, int steps)
     {
         if (currentTrial == null) return;
 
         currentTrial.proximal_choice = playerChoice;
         currentTrial.choice_correct = correct;
+        currentTrial.true_cloud = trueCloud;
+        currentTrial.green_bugs_collected = greenBugsCollected;
+        currentTrial.traps_hit = trapsHit;
+        currentTrial.steps = steps;
         // currentTrial.rt_ms = Mathf.RoundToInt(Time.timeSinceLevelLoad * 1000f);
         currentTrial.end_timestamp = System.DateTime.UtcNow.ToString("o");
 
-        Debug.Log("Manche terminée !");
+        Debug.Log($"Manche terminée ! choix={playerChoice}, correct={correct}, trueCloud={trueCloud}, " +
+                  $"greenBugs={greenBugsCollected}, pièges={trapsHit}, pas={steps}");
     }
 
     // Setter appelé par le Gameplay pour fournir la longueur de chemin optimal
@@ -141,6 +147,7 @@ public class TrialManager : MonoBehaviour
         public int x;
         public int y;
         public int totalBugs;
+        public float greenRatio;
     }
 
     [System.Serializable]
@@ -156,15 +163,16 @@ public class TrialManager : MonoBehaviour
     /// Appelé par GameManager.RegisterClouds pour fournir la config de la map
     /// sous forme structurée. Construit le JSON en interne.
     /// </summary>
-    public void SetMapConfig(Vector2Int gridSize, Vector2Int leftCell, int leftBugs,
-                             Vector2Int rightCell, int rightBugs)
+    public void SetMapConfig(Vector2Int gridSize,
+                             Vector2Int leftCell, int leftBugs, float leftGreenRatio,
+                             Vector2Int rightCell, int rightBugs, float rightGreenRatio)
     {
         var cfg = new MiniMapCfg
         {
             gridWidth = gridSize.x,
             gridHeight = gridSize.y,
-            leftCloud = new CloudInfo { x = leftCell.x, y = leftCell.y, totalBugs = leftBugs },
-            rightCloud = new CloudInfo { x = rightCell.x, y = rightCell.y, totalBugs = rightBugs }
+            leftCloud = new CloudInfo { x = leftCell.x, y = leftCell.y, totalBugs = leftBugs, greenRatio = leftGreenRatio },
+            rightCloud = new CloudInfo { x = rightCell.x, y = rightCell.y, totalBugs = rightBugs, greenRatio = rightGreenRatio }
         };
         SetMapConfigJson(JsonUtility.ToJson(cfg));
     }

@@ -35,6 +35,9 @@ public class TrialData
     // Résultats
     public string proximal_choice;
     public bool choice_correct;
+    public int green_bugs_collected;
+    public int traps_hit;
+    public int steps;
 
     // Temps de réaction
     // public int rt_ms;

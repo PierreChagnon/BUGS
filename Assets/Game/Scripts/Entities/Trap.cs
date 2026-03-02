@@ -10,14 +10,10 @@ using UnityEngine;
 
 public class Trap : MonoBehaviour
 {
-    bool _triggered = false;
-
     private void OnTriggerEnter(Collider other)
     {
-        if (_triggered) return;
         if (!other.CompareTag("Player")) return;
 
-        _triggered = true;
         Debug.Log("[Trap] Piège déclenché !");
 
         if (GameManager.Instance != null)
