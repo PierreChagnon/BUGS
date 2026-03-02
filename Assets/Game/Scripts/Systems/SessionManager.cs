@@ -22,6 +22,9 @@ public class SessionManager : MonoBehaviour
     [Tooltip("Distance Manhattan minimale (en cases) entre le joueur et les nuages. CLI: minDistance=N.")]
     [SerializeField] private int _minDistance = 3;
 
+    [Tooltip("Distance Manhattan maximale (en cases) entre le joueur et les nuages. Bornée par la taille de la map. CLI: maxDistance=N. 0 = pas de limite (fallback map).")]
+    [SerializeField] private int _maxDistance = 0;
+
     [Header("Recherche : Discrimination")]
     [Tooltip("Nombre minimal de bugs par nuage. CLI: minTotalBugs=N.")]
     [SerializeField] private int _minTotalBugs = 20;
@@ -141,6 +144,7 @@ public class SessionManager : MonoBehaviour
         foreach (var a in args)
         {
             TryParseInt(a, "minDistance", ref _minDistance);
+            TryParseInt(a, "maxDistance", ref _maxDistance);
             TryParseInt(a, "minTotalBugs", ref _minTotalBugs);
             TryParseInt(a, "maxTotalBugs", ref _maxTotalBugs);
             TryParseFloat(a, "minGreenRatio", ref _minGreenBugsRatio);
@@ -159,6 +163,7 @@ public class SessionManager : MonoBehaviour
         {
             reg.trapCount        = _trapCount;
             reg.minDistance       = _minDistance;
+            reg.maxDistance       = _maxDistance;
             reg.minTotalBugs      = _minTotalBugs;
             reg.maxTotalBugs      = _maxTotalBugs;
             reg.minGreenBugsRatio = _minGreenBugsRatio;
@@ -168,7 +173,7 @@ public class SessionManager : MonoBehaviour
             reg.pathVisible       = _pathVisible;
             reg.blockId           = _blockId;
             Debug.Log($"[SessionManager] Paramètres recherche écrits dans LevelRegistry: " +
-                      $"trapCount={_trapCount}, minDistance={_minDistance}, " +
+                      $"trapCount={_trapCount}, distance=[{_minDistance},{_maxDistance}], " +
                       $"totalBugs=[{_minTotalBugs},{_maxTotalBugs}], " +
                       $"greenRatio=[{_minGreenBugsRatio:F2},{_maxGreenBugsRatio:F2}], " +
                       $"gap=[{_gapMin:F2},{_gapMax:F2}], " +

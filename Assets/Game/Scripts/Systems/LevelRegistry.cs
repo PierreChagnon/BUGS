@@ -28,6 +28,7 @@ public class LevelRegistry : MonoBehaviour
     // ── Paramètres recherche (écrits par SessionManager.Awake) ──
     [HideInInspector] public int trapCount;
     [HideInInspector] public int minDistance;
+    [HideInInspector] public int maxDistance;
     [HideInInspector] public int minTotalBugs;
     [HideInInspector] public int maxTotalBugs;
     [HideInInspector] public float minGreenBugsRatio;

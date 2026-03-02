@@ -47,7 +47,11 @@ public class BugCloudSpawner : MonoBehaviour
 
         // Bornes pour la distance au joueur (D)
         int Dmin = minDistance;
-        int Dmax = registry.gridSize.x + registry.gridSize.y; // borne large, on filtrera par InBounds
+        int gridMax = registry.gridSize.x + registry.gridSize.y; // borne absolue imposée par la map
+        int maxDistance = registry.maxDistance;
+        // Si le chercheur a défini une maxDistance > 0, on l'utilise bornée par la taille de la map.
+        // Sinon (0 = pas de limite), on utilise la taille de la map comme fallback.
+        int Dmax = (maxDistance > 0) ? Mathf.Min(maxDistance, gridMax) : gridMax;
 
         // Liste des distances D qui ont ≥ 2 cases valides dans la grille
         List<int> candidateDs = new();
