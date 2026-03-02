@@ -2,8 +2,8 @@
 
 | Nom du projet :    | BUGS                          |
 | :----------------- | :---------------------------- |
-| **Version :**      | 1.6                           |
-| **Dernière MAJ :** | 17/02/26                      |
+| **Version :**      | 1.7                           |
+| **Dernière MAJ :** | 19/02/26                      |
 | **Auteur(s) :**    | @florian, @pierre             |
 | **Moteur :**       | Unity 6000.3.5f2              |
 | **Langage :**      | C#                            |
@@ -84,6 +84,40 @@ Assets/
 | Bitwise Flags       | `CellFlags` enum dans LevelRegistry             | Combinaison efficace de multiples états par cellule                    |
 | Execution Order     | `[DefaultExecutionOrder]` sur tous les spawners | Garantir l'ordre d'initialisation sans dépendances directes           |
 
+## 2.4 Flux macro (map + gameplay)
+
+### Génération de map (runtime)
+
+```mermaid
+graph TD
+    A[SessionManager Awake] --> B[LevelRegistry.SetRoundSeed]
+    B --> C[PlayerSpawner Start]
+    C --> D[LevelRegistry.RegisterPlayerStart]
+    D --> E[TilesSpawner Awake]
+    E --> F[LevelRegistry.originWorld calcule]
+    F --> G[BugCloudSpawner Start]
+    G --> H[BestPath Start]
+    H --> I[CorridorWallsGenerator Start]
+    I --> J[TrapSpawner Start]
+```
+
+### Boucle de gameplay (manche)
+
+```mermaid
+graph TD
+    A[SessionManager Start] --> B[GameManager.BeginFirstRound]
+    B --> C[TrialManager.StartNewTrial]
+    C --> D[GridMoverNewInput Update]
+    D --> E[GameManager.OnPlayerStep]
+    E --> F[TrialManager.RecordMove]
+    F --> G{BugCloud collecte ?}
+    G -->|Oui| H[GameManager.OnCloudCollected]
+    H --> I[TrialManager.EndCurrentTrial]
+    I --> J[TrialManager.SendTrials]
+    H --> K[GameOver UI]
+    K --> L[RestartRound -> reload scene]
+```
+
 # 3. Systèmes de gameplay
 
 ## 3.1 BugCloudSpawner
@@ -97,14 +131,13 @@ Assets/
 
 ### 3.1.2 Composants clés (Data Model)
 
-→ **BugCloudSpawner.cs** : MonoBehaviour, placement des 2 nuages à l'Awake. Ordre d'exécution : `-200`.
+→ **BugCloudSpawner.cs** : MonoBehaviour, placement des 2 nuages au Start. Ordre d'exécution : `-200`.
 
 ```csharp
 [DefaultExecutionOrder(-200)]
 public class BugCloudSpawner : MonoBehaviour
 {
     [Header("Références")]
-    public Transform player;
     public GameObject bugCloudPrefab;
 
     [Header("Placement")]
@@ -114,25 +147,30 @@ public class BugCloudSpawner : MonoBehaviour
     [Header("BugsCloud Parameters : Researchers Input")]
     [SerializeField] private int minTotalBugs = 20;
     [SerializeField] private int maxTotalBugs = 80;
+    [Header("Green Ratio Bounds")]
     [SerializeField] private float minGreenBugsRatio = 0.4f;
     [SerializeField] private float maxGreenBugsRatio = 0.8f;
+
+    [Header("Discrimination Difficulty Control")]
+    [SerializeField] private float gapMin = 0.1f;
+    [SerializeField] private float gapMax = 0.3f;
 }
 ```
 
 | Variable / Méthode                    | Type         | Description                                                                |
 | :------------------------------------ | :----------- | :------------------------------------------------------------------------- |
-| player                                | Transform    | Référence au joueur pour calculer les distances                            |
 | bugCloudPrefab                        | GameObject   | Prefab du nuage de bugs (doit avoir BugCloud.cs)                           |
 | minDistance                            | int          | Distance Manhattan minimale en cases depuis le joueur (défaut : 3)         |
 | minZ (readonly)                       | int          | Z minimale pour le placement (hardcodé à 5)                               |
 | spawnY                                | float        | Hauteur Y d'instanciation des nuages (défaut : 0.5)                       |
 | minTotalBugs / maxTotalBugs           | int          | Range pour le tirage aléatoire du nombre total de bugs (défaut : 20-80)    |
 | minGreenBugsRatio / maxGreenBugsRatio | float        | Range pour le ratio de bugs verts par nuage (défaut : 0.4-0.8)            |
+| gapMin / gapMax                       | float        | Ecart min/max entre ratios verts (contrôle difficulté)                    |
 | GetRingCells(Vector2Int, int)         | List (privé) | Retourne les cellules à distance Manhattan D (moitié supérieure seulement) |
 
 ### 3.1.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (gridSize, WorldToCell, CellToWorld, RegisterBugCloud), `GameManager.Instance` (RegisterClouds)
+- **Nécessite :** `LevelRegistry.Instance` (TryGetPlayerStartCell, gridSize, CellToWorld, CreateRng, RegisterBugCloud), `GameManager.Instance` (RegisterClouds)
 - **Communique avec :** `BugCloud` (configure totalBugs, greenRatio, InitializeParticlesQty)
 - **Déclenche :** Enregistrement des cellules nuage dans LevelRegistry + enregistrement des nuages dans GameManager
 
@@ -140,7 +178,7 @@ public class BugCloudSpawner : MonoBehaviour
 
 ```mermaid
 graph TD
-    A["Awake()"] --> B[Récupérer playerCell via LevelRegistry]
+    A["Start()"] --> B[Récupérer playerCell via LevelRegistry]
     B --> C["Lister les couronnes D valides (≥ 2 cases InBounds, y ≥ minZ)"]
     C --> D{candidateDs.Count > 0 ?}
     D -->|Non| E[Warning + return]
@@ -149,10 +187,13 @@ graph TD
     G --> H["Choisir cellA dans moitié gauche, cellB dans moitié droite (même Y)"]
     H --> I["Instantiate 2 prefabs BugCloud"]
     I --> J["Random totalBugs dans [minTotalBugs, maxTotalBugs]"]
-    J --> K["Random greenRatio pour chaque cloud dans [minGreenRatio, maxGreenRatio]"]
-    K --> L[InitializeParticlesQty sur chaque cloud]
-    L --> M[RegisterBugCloud dans LevelRegistry × 2]
-    M --> N["GameManager.RegisterClouds(left, right)"]
+    J --> K["Tirer ratio1 dans [minGreenBugsRatio, maxGreenBugsRatio]"]
+    K --> L["Tirer gap dans [gapMin, gapMax]"]
+    L --> M["ratio2 = clamp01(ratio1 ± gap)"]
+    M --> N["Assigner ratio1/ratio2 aux 2 nuages (50/50)"]
+    N --> O[InitializeParticlesQty sur chaque cloud]
+    O --> P[RegisterBugCloud dans LevelRegistry × 2]
+    P --> Q["GameManager.RegisterClouds(left, right)"]
 ```
 
 ### 3.1.5 Formules et règles métier
@@ -162,7 +203,10 @@ Distance Manhattan         = |dx| + |dy| entre joueur et nuage
 Couronne D                 = ensemble des cellules à distance exacte D du joueur
                              (seule la moitié supérieure y ≥ playerCell.y est parcourue)
 totalBugs par trial        = Random.Range(minTotalBugs, maxTotalBugs + 1) — partagé entre les 2 nuages
-greenRatio par nuage       = Random.Range(minGreenBugsRatio, maxGreenBugsRatio) — indépendant
+ratio1                     = Random.Range(minGreenBugsRatio, maxGreenBugsRatio)
+gap                        = Random.Range(gapMin, gapMax)
+ratio2                     = clamp01(ratio1 ± gap)
+greenRatio par nuage       = ratio1/ratio2 assigné aléatoirement (50/50)
 greenCount                 = RoundToInt(totalBugs × greenRatio)
 redCount                   = totalBugs - greenCount
 Contrainte placement       = cellA dans indices [0, count/2 - 1], cellB dans indices [count/2, count]
@@ -181,6 +225,7 @@ Contrainte placement       = cellA dans indices [0, count/2 - 1], cellB dans ind
 | Date     | Développeur | Note / Décision Technique                                                                         |
 | :------- | :---------- | :------------------------------------------------------------------------------------------------ |
 | 17/02/26 | @auteur     | Documentation initiale. Placement par couronne Manhattan avec contrainte gauche/droite et même Y. |
+| 19/02/26 | @pierre     | MAJ doc: ratios verts avec gapMin/gapMax et placement au Start.                                    |
 
 ## 3.2 BestPath
 
@@ -201,7 +246,6 @@ Contrainte placement       = cellA dans indices [0, count/2 - 1], cellB dans ind
 public class BestPath : MonoBehaviour
 {
     [Header("Références")]
-    public Transform player;
     public GameObject quadPrefab;
 
     [Header("Visibility")]
@@ -211,13 +255,12 @@ public class BestPath : MonoBehaviour
 
 | Variable / Méthode | Type       | Description                                                          |
 | :------------------ | :--------- | :------------------------------------------------------------------- |
-| player              | Transform  | Référence au joueur (point de départ des chemins)                    |
 | quadPrefab          | GameObject | Prefab quad pour la visualisation du chemin conseillé                 |
 | visible             | bool       | Si `false`, aucun quad n'est instancié (défaut : true)               |
 
 ### 3.2.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (WorldToCell, CellToWorld, ReservePathLeft, ReservePathRight, RegisterOptimalPath), `GameManager.Instance` (GetBestCloud, SetChosenPath), `FogController.Instance` (RevealCells)
+- **Nécessite :** `LevelRegistry.Instance` (TryGetPlayerStartCell, WorldToCell, CellToWorld, CreateRng, ReservePathLeft, ReservePathRight, RegisterOptimalPath), `GameManager.Instance` (GetBestCloud, SetChosenPath), `FogController.Instance` (RevealCells)
 - **Communique avec :** Nuages trouvés via `FindGameObjectsWithTag("BugCloud")`
 - **Déclenche :** Réservation de chemins dans LevelRegistry, publication du chemin conseillé dans GameManager, révélation du brouillard
 
@@ -272,6 +315,7 @@ Choix du chemin affiché    = vers GetBestCloud() si non null, sinon 50/50 aléa
 | Date     | Développeur | Note / Décision Technique                                                                          |
 | :------- | :---------- | :------------------------------------------------------------------------------------------------- |
 | 17/02/26 | @auteur     | Documentation initiale. Deux chemins Manhattan réservés, un seul affiché (vers le meilleur nuage). |
+| 19/02/26 | @pierre     | MAJ doc: référence player supprimée, seed via CreateRng, player start via LevelRegistry.           |
 
 ## 3.3 CorridorWallsGenerator
 
@@ -292,12 +336,14 @@ Choix du chemin affiché    = vers GetBestCloud() si non null, sinon 50/50 aléa
 public class CorridorWallsGenerator : MonoBehaviour
 {
     [Header("Références")]
-    public Transform player;
     public LevelRegistry registry;
 
     [Header("Couloirs")]
-    [Min(1)] public int corridorWidth = 2;
-    [Range(0, 100)] public int extraConnections = 10;
+    [Min(1)] public int corridorWidth = 1;
+
+    [Header("Maze")]
+    [Range(0, 200)] public int mazeExtraOpenings = 0;
+    [Range(0, 100)] public int extraConnections = 16;
     public bool fallbackConnectToClouds = true;
 
     [Header("Visuel / Mur")]
@@ -312,10 +358,10 @@ public class CorridorWallsGenerator : MonoBehaviour
 
 | Variable / Méthode                 | Type               | Description                                                            |
 | :--------------------------------- | :----------------- | :--------------------------------------------------------------------- |
-| player                             | Transform          | Position du joueur (toujours incluse dans les cellules walkable)       |
 | registry                           | LevelRegistry      | Référence optionnelle, sinon `LevelRegistry.Instance`                  |
-| corridorWidth                      | int                | Largeur des couloirs en cellules (défaut : 2, min : 1)                 |
-| extraConnections                   | int                | Nombre max de connexions supplémentaires anti-cul-de-sac (défaut : 10) |
+| corridorWidth                      | int                | Largeur des couloirs en cellules (défaut : 1, min : 1)                 |
+| mazeExtraOpenings                  | int                | Nombre d'ouvertures supplémentaires du maze (défaut : 0)               |
+| extraConnections                   | int                | Nombre max de connexions supplémentaires anti-cul-de-sac (défaut : 16) |
 | fallbackConnectToClouds            | bool               | Si aucun chemin réservé, connecte joueur→nuages en L (défaut : true)   |
 | wallPrefab                         | GameObject         | Prefab mur optionnel — si null, un Cube primitif est créé              |
 | wallMaterial                       | Material           | Material optionnel appliqué aux tiles et cubes de mur                  |
@@ -328,7 +374,7 @@ public class CorridorWallsGenerator : MonoBehaviour
 
 ### 3.3.3 Dépendances
 
-- **Nécessite :** `LevelRegistry` (IsOnAnyPath, HasBugCloud, InBounds, RegisterWall, UnregisterWall, IsWall, WorldToCell, CellToWorld), `BestPath` (doit avoir réservé les chemins avant — garanti par execution order -100 < -50)
+- **Nécessite :** `LevelRegistry` (IsOnAnyPath, HasBugCloud, InBounds, RegisterWall, UnregisterWall, IsWall, WorldToCell, CellToWorld), `BestPath` (doit avoir réservé les chemins avant — garanti par execution order -100 < -50), `MazeGenerator`
 - **Communique avec :** Tuiles trouvées via `FindGameObjectsWithTag("Tile")` (recoloration)
 - **Déclenche :** `RegisterWall()` dans LevelRegistry pour toutes les cellules non-walkable
 
@@ -359,6 +405,7 @@ graph TD
 ### 3.3.5 Formules et règles métier
 
 ```
+Maze                     = MazeGenerator.Generate(w, h, seed, mazeExtraOpenings)
 Inflate(cells, width)     = pour chaque cellule, ajouter un carré de côté `width` centré
                             width=2 → offsets [0,1], width=3 → offsets [-1,0,1]
                             left = (width-1)/2, right = (width-1) - left
@@ -380,6 +427,7 @@ Mur                       = toute cellule de la grille qui n'est PAS dans walkab
 | Date     | Développeur | Note / Décision Technique                                                                         |
 | :------- | :---------- | :------------------------------------------------------------------------------------------------ |
 | 17/02/26 | @auteur     | Documentation initiale. Couloirs par inflation des chemins réservés + connexions anti-cul-de-sac. |
+| 19/02/26 | @pierre     | MAJ doc: ajout MazeGenerator + nouveaux defaults.                                                  |
 
 ## 3.4 TrapSpawner
 
@@ -398,7 +446,6 @@ Mur                       = toute cellule de la grille qui n'est PAS dans walkab
 public class TrapSpawner : MonoBehaviour
 {
     [Header("Références")]
-    public Transform player;
     public GameObject trapPrefab;
 
     [Header("Placement")]
@@ -409,14 +456,13 @@ public class TrapSpawner : MonoBehaviour
 
 | Variable / Méthode | Type       | Description                                                   |
 | :------------------ | :--------- | :------------------------------------------------------------ |
-| player              | Transform  | Référence au joueur (sa cellule est exclue des candidates)    |
 | trapPrefab          | GameObject | Prefab du piège (doit avoir Trap.cs + BoxCollider IsTrigger)  |
 | trapCount           | int        | Nombre de pièges à placer (défaut : 10, configurable via CLI) |
 | trapYOffset         | float      | Hauteur Y d'instanciation (défaut : 0.5)                     |
 
 ### 3.4.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (gridSize, WorldToCell, CellToWorld, IsFreeForTrap, RegisterTrap)
+- **Nécessite :** `LevelRegistry.Instance` (gridSize, TryGetPlayerStartCell, CellToWorld, IsFreeForTrap, RegisterTrap, CreateRng)
 - **Est configuré par :** `SessionManager` (injecte trapCount depuis les arguments CLI)
 - **Déclenche :** `RegisterTrap()` dans LevelRegistry pour chaque piège placé
 
@@ -457,6 +503,7 @@ trapCount          = valeur Inspector par défaut (10), overridable via arg CLI 
 | Date     | Développeur | Note / Décision Technique                                                                  |
 | :------- | :---------- | :----------------------------------------------------------------------------------------- |
 | 17/02/26 | @auteur     | Documentation initiale. Placement par shuffle + filtre IsFreeForTrap, configurable via CLI. |
+| 19/02/26 | @pierre     | MAJ doc: RNG deterministe et utilisation de TryGetPlayerStartCell.                         |
 
 ## 3.5 GridMoverNewInput
 
@@ -591,6 +638,9 @@ public class LevelRegistry : MonoBehaviour
     public Vector3 originWorld = Vector3.zero;
     public int optimalPathLength;
 
+    long _roundSeed;
+    bool _hasRoundSeed;
+
     [Flags]
     public enum CellFlags
     {
@@ -602,6 +652,7 @@ public class LevelRegistry : MonoBehaviour
         Reserved  = 1 << 4,
         Visited   = 1 << 5,
         Wall      = 1 << 6,
+        PlayerStart = 1 << 7,
     }
 
     readonly Dictionary<Vector2Int, CellFlags> _cells = new();
@@ -617,9 +668,17 @@ public class LevelRegistry : MonoBehaviour
 | originWorld                               | Vector3                            | Position monde (X,Z) de la case (0,0)                                       |
 | optimalPathLength                         | int                                | Longueur du chemin optimal enregistré par BestPath                          |
 | OnCellChanged                             | Action\<Vector2Int, CellFlags\>    | Event déclenché à chaque modification de flags d'une cellule                |
+| SetRoundSeed(long)                        | void                               | Fixe la seed de manche pour la randomisation déterministe                   |
+| TryGetRoundSeed(out long)                 | bool                               | Retourne la seed si définie                                                 |
+| CreateRng(string)                         | System.Random                      | RNG dérivé de la seed + scope                                               |
+| DeriveSeed(string)                        | int                                | Dérive une seed stable par scope                                            |
 | InBounds(Vector2Int)                      | bool                               | Vérifie si une coordonnée est dans la grille                                |
 | GetFlags(Vector2Int)                      | CellFlags                          | Retourne les flags de la cellule (None si absente)                          |
 | MarkVisited(Vector2Int)                   | void                               | Ajoute le flag `Visited` à la cellule                                       |
+| RegisterPlayerStart(Vector2Int, Vector3)  | void                               | Enregistre la case de départ du joueur (Reserved)                           |
+| UnregisterPlayerStart(Vector2Int)         | void                               | Retire le flag PlayerStart                                                  |
+| TryGetPlayerStartCell(out Vector2Int)     | bool                               | Renvoie la case de départ si connue                                         |
+| TryGetPlayerStartWorld(out Vector3)       | bool                               | Renvoie la position monde de départ                                         |
 | RegisterBugCloud(Vector2Int)              | void                               | Ajoute `BugCloud + Reserved`                                                |
 | UnregisterBugCloud(Vector2Int)            | void                               | Retire `BugCloud`, retire `Reserved` si aucun chemin ne passe               |
 | RegisterTrap(Vector2Int)                  | bool                               | Ajoute `Trap` si la cellule est libre — retourne false sinon                |
@@ -637,7 +696,7 @@ public class LevelRegistry : MonoBehaviour
 
 ### 4.1.3 Dépendances
 
-- **Est utilisé par :** `TilesSpawner`, `BugCloudSpawner`, `BestPath`, `CorridorWallsGenerator`, `TrapSpawner`, `GameManager`, `GridMoverNewInput`, `FogController`, `BugCloud`, `MapGenerator`, `LevelRegistryHUD`
+- **Est utilisé par :** `PlayerSpawner`, `SessionManager`, `TilesSpawner`, `BugCloudSpawner`, `BestPath`, `CorridorWallsGenerator`, `TrapSpawner`, `GameManager`, `GridMoverNewInput`, `FogController`, `BugCloud`, `MapGenerator`, `LevelRegistryHUD`
 - **Ne dépend de :** Rien (système fondation sans dépendance entrante)
 - **Déclenche :** `OnCellChanged(Vector2Int, CellFlags)` — consommé par `LevelRegistryHUD`
 
@@ -692,6 +751,7 @@ graph TD
 | Date     | Développeur | Note / Décision Technique                                                                                   |
 | :------- | :---------- | :---------------------------------------------------------------------------------------------------------- |
 | 17/02/26 | @auteur     | Documentation initiale du système. LevelRegistry stable — source de vérité grille avec CellFlags bitwise.   |
+| 19/02/26 | @pierre     | MAJ doc: seed deterministe, PlayerStart, RNG par scope.                                                     |
 
 ## 4.2 GameManager
 
@@ -775,7 +835,7 @@ struct CloudInfo { public int x, y, bugs; }
 ```mermaid
 graph TD
     A[SessionManager.BeginFirstRound] --> B[StartNewRound]
-    B --> C["TrialManager.StartNewTrial(blockId, screenCounter, screenType)"]
+    B --> C["TrialManager.StartNewTrial(blockId, screenCounter, screenType, seed)"]
 
     subgraph "Phase Setup — appelé par les spawners"
         D[BugCloudSpawner] -->|RegisterClouds| E[Enregistre leftCloud / rightCloud]
@@ -835,6 +895,7 @@ followedBestPath  = true tant que TOUS les pas du joueur sont dans advisorPath
 - Parser les arguments de ligne de commande au démarrage (`trapCount=N`, `sessionId=X`)
 - Configurer le `TrapSpawner` avec le nombre de pièges reçu en paramètre
 - Injecter l'identifiant de session dans le `TrialManager`
+- Appliquer une seed de manche (arguments ou génération interne)
 - Déclencher le début du jeu via `GameManager.BeginFirstRound()`
 
 ### 4.3.2 Composants clés (Data Model)
@@ -860,11 +921,13 @@ public class SessionManager : MonoBehaviour
 | trialManager                | TrialManager | Référence pour injecter le sessionId                                       |
 | gameManager                 | GameManager  | Référence pour déclencher `BeginFirstRound()`                              |
 | trapSpawner                 | TrapSpawner  | Référence optionnelle pour configurer `trapCount` via args                 |
-| randomizationSeed           | long         | Seed de randomisation (réservé, non utilisé actuellement)                  |
+| randomizationSeed           | long         | Seed de randomisation (utilisée si fournie ou générée)                     |
 | buildVersion                | string       | Version du build (réservée, non utilisée actuellement — défaut : "1.0.0") |
 | Start()                     | IEnumerator  | Coroutine : parse args → `yield return null` → `BeginFirstRound()`        |
 | TryApplyTrapCountFromArgs() | void (privé) | Parse `trapCount=N` depuis les args et l'assigne au TrapSpawner            |
 | TryApplySessionIdFromArgs() | void (privé) | Parse `sessionId=X` depuis les args et l'injecte dans TrialManager         |
+| ApplySeedForThisRound()     | void (privé) | Applique la seed et la pousse dans LevelRegistry                           |
+| TryGetSeedFromArgs()        | bool (privé) | Parse `seed=<long>` depuis les args                                        |
 
 ### 4.3.3 Dépendances
 
@@ -876,25 +939,28 @@ public class SessionManager : MonoBehaviour
 
 ```mermaid
 graph TD
-    A["Start() — Coroutine"] --> B[TryApplyTrapCountFromArgs]
-    B --> C{Arg 'trapCount=N' trouvé ?}
-    C -->|Oui| D{TrapSpawner référencé ?}
-    C -->|Non| F[TryApplySessionIdFromArgs]
-    D -->|Oui| E["trapSpawner.trapCount = parsed"]
-    D -->|Non| D2["FindFirstObjectByType&lt;TrapSpawner&gt;()"]
-    D2 -->|Trouvé| E2["spawner.trapCount = parsed"]
-    D2 -->|Non trouvé| F
-    E --> F
-    E2 --> F
+    A["Awake()"] --> A1[ApplySeedForThisRound]
+    A1 --> A2["LevelRegistry.SetRoundSeed(seed)"]
+    A2 --> B["Start() — Coroutine"]
+    B --> C[TryApplyTrapCountFromArgs]
+    C --> D{Arg 'trapCount=N' trouvé ?}
+    D -->|Oui| E{TrapSpawner référencé ?}
+    D -->|Non| G[TryApplySessionIdFromArgs]
+    E -->|Oui| F["trapSpawner.trapCount = parsed"]
+    E -->|Non| E2["FindFirstObjectByType<TrapSpawner>()"]
+    E2 -->|Trouvé| F2["spawner.trapCount = parsed"]
+    E2 -->|Non trouvé| G
+    F --> G
+    F2 --> G
 
-    F --> G{Arg 'sessionId=X' trouvé ?}
-    G -->|Oui| H{TrialManager != null ?}
-    G -->|Non| I["yield return null"]
-    H -->|Oui| J["trialManager.SetSessionId(val)"]
-    H -->|Non| I
-    J --> I
+    G --> H{Arg 'sessionId=X' trouvé ?}
+    H -->|Oui| I{TrialManager != null ?}
+    H -->|Non| J["yield return null"]
+    I -->|Oui| K["trialManager.SetSessionId(val)"]
+    I -->|Non| J
+    K --> J
 
-    I --> K["gameManager.BeginFirstRound()"]
+    J --> L["gameManager.BeginFirstRound()"]
 ```
 
 ### 4.3.5 Approche retenue & alternatives évaluées
@@ -912,13 +978,14 @@ graph TD
 - **⚠️ Edge case :** Si `trapCount` n'est pas fourni en argument, le `TrapSpawner` garde sa valeur par défaut Inspector — comportement silencieux par design
 - **⚠️ Edge case :** Si `sessionId` n'est pas fourni, `TrialManager.StartNewTrial()` logguera une erreur et ignorera la manche — les données de recherche seront perdues
 - **⚠️ WebGL :** `System.Environment.GetCommandLineArgs()` fonctionne en WebGL uniquement si les arguments sont passés via le template HTML Unity — à vérifier avec le dashboard
-- **🔧 À utiliser :** `randomizationSeed` et `buildVersion` sont déclarés mais non exploités — prévus pour le protocole de recherche
+- **🔧 À utiliser :** `buildVersion` est déclaré mais non exploité — prévu pour le protocole de recherche
 
 ### 4.3.7 Journal d'implémentation
 
 | Date     | Développeur | Note / Décision Technique                                                                                           |
 | :------- | :---------- | :------------------------------------------------------------------------------------------------------------------ |
 | 17/02/26 | @auteur     | Documentation initiale. SessionManager stable — bootstrap par args CLI avec injection dans TrapSpawner/TrialManager. |
+| 19/02/26 | @pierre     | MAJ doc: application de seed et argument `seed=`.                                                                    |
 
 ## 4.4 FogController
 
@@ -1066,7 +1133,7 @@ public class TrialManager : MonoBehaviour
 | isSending                               | bool (privé)              | Verrou empêchant les envois concurrents                                                  |
 | pendingMapConfigJson                    | string (privé)            | Tampon pour la config map reçue avant que le trial ne soit créé                          |
 | SetSessionId(string)                    | void                      | Injecte l'ID de session (appelé par SessionManager)                                      |
-| StartNewTrial(int, int, string)         | void                      | Crée un nouveau TrialData et l'ajoute à la liste — applique le tampon map_config si présent |
+| StartNewTrial(int, int, string, long)   | void                      | Crée un nouveau TrialData et l'ajoute à la liste — applique le tampon map_config si présent |
 | RecordMove(Vector2Int)                  | void                      | Ajoute un PlayerStep (position + timestamp ISO) au trial courant                         |
 | EndCurrentTrial(string, bool)           | void                      | Finalise le trial : choix du joueur, justesse, timestamp de fin                          |
 | SetOptimalPathLength(int)               | void                      | Enregistre la longueur du chemin optimal dans le trial courant                           |
@@ -1095,7 +1162,7 @@ public static class JsonHelper
 graph TD
     A["SessionManager.SetSessionId(id)"] --> B["gameSessionId = id"]
 
-    C["GameManager.StartNewRound"] -->|"StartNewTrial(blockId, screenId, screenType)"| D["Créer TrialData"]
+    C["GameManager.StartNewRound"] -->|"StartNewTrial(blockId, screenId, screenType, seed)"| D["Créer TrialData"]
     D --> E{pendingMapConfigJson ?}
     E -->|Oui| F["currentTrial.map_config = pending"]
     E -->|Non| G[Trial prêt]
@@ -1144,6 +1211,7 @@ graph TD
 | Date     | Développeur | Note / Décision Technique                                                                                       |
 | :------- | :---------- | :-------------------------------------------------------------------------------------------------------------- |
 | 17/02/26 | @auteur     | Documentation initiale. Pipeline de collecte trial complet avec tampon map_config et envoi batch par coroutine. |
+| 19/02/26 | @pierre     | MAJ doc: trial_seed stockee par TrialManager.                                                                   |
 
 ## 4.6 TilesSpawner
 
@@ -1166,19 +1234,19 @@ public class TilesSpawner : MonoBehaviour
     public GameObject tilePrefab;
 
     [Header("Placement")]
-    public Transform playerPosition;
+    public Transform root;
     public float tilesY = 0f;
 
-    private Transform root;
+    private Transform tilesRoot;
 }
 ```
 
 | Variable / Méthode                          | Type              | Description                                                              |
 | :------------------------------------------ | :---------------- | :----------------------------------------------------------------------- |
 | tilePrefab                                  | GameObject        | Prefab de tuile à instancier pour chaque cellule de la grille            |
-| playerPosition                              | Transform         | Transform de référence pour le calcul de l'origine (position du joueur)  |
+| root                                        | Transform         | Transform de référence pour le calcul de l'origine (position joueur)     |
 | tilesY                                      | float             | Hauteur Y de génération de la grille (défaut : 0)                        |
-| root                                        | Transform (privé) | GameObject parent regroupant toutes les tuiles instanciées               |
+| tilesRoot                                   | Transform (privé) | GameObject parent regroupant toutes les tuiles instanciées               |
 | Spawn()                                     | void (public)     | Méthode principale : calcule l'origine, crée le root, instancie les tuiles |
 | ComputeOriginFromPlayer(registry, worldPos) | Vector3 (statique)| Calcule l'origine grille pour centrer le joueur sur la cellule médiane   |
 | EnsureRoot()                                | void (privé)      | Crée le GameObject "TilesRootRuntime" comme enfant du TilesSpawner       |
@@ -1197,14 +1265,14 @@ graph TD
     A["Awake()"] --> B["Spawn()"]
     B --> C{tilePrefab assigné ?}
     C -->|Non| D["LogError + return"]
-    C -->|Oui| E{playerPosition assigné ?}
+    C -->|Oui| E{root assigné ?}
     E -->|Non| D
     E -->|Oui| F["Récupérer LevelRegistry.Instance"]
     F --> G{registry trouvé ?}
     G -->|Non| D
     G -->|Oui| H{gridSize valide > 0 ?}
     H -->|Non| D
-    H -->|Oui| I["ComputeOriginFromPlayer(registry, playerPosition)"]
+    H -->|Oui| I["ComputeOriginFromPlayer(registry, root.position)"]
     I --> J["registry.originWorld = origin calculée"]
     J --> K["EnsureRoot() — créer TilesRootRuntime"]
     K --> L["ClearRuntime() — nettoyer enfants existants"]
@@ -1217,8 +1285,8 @@ graph TD
 
 ```
 midX                = gridSize.x / 2 (division entière)
-originWorld.x       = playerPosition.x - (midX × cellSize)
-originWorld.z       = playerPosition.z
+originWorld.x       = root.position.x - (midX × cellSize)
+originWorld.z       = root.position.z
 originWorld.y       = 0
 
 Tile localPosition  = (x × cellSize, 0, y × cellSize)  pour x ∈ [0, gridSize.x), y ∈ [0, gridSize.y)
@@ -1238,6 +1306,7 @@ Contrainte joueur   = le joueur doit se retrouver sur la cellule (midX, 0) aprè
 | Date     | Développeur | Note / Décision Technique                                                                                          |
 | :------- | :---------- | :----------------------------------------------------------------------------------------------------------------- |
 | 17/02/26 | @auteur     | Documentation initiale. Génération runtime de la grille avec calcul d'origine centré sur le joueur.                |
+| 19/02/26 | @pierre     | MAJ doc: champ root en entree et parent runtime tilesRoot.                                                         |
 
 ## 4.7 PlayerSpawner
 
@@ -1248,9 +1317,10 @@ Contrainte joueur   = le joueur doit se retrouver sur la cellule (midX, 0) aprè
 
 ### 4.7.2 Composants clés (Data Model)
 
-→ **PlayerSpawner.cs** : MonoBehaviour, instanciation du joueur au Start. Pas d'ordre d'exécution explicite (défaut : `0`).
+→ **PlayerSpawner.cs** : MonoBehaviour, instanciation du joueur au Start. Ordre d'exécution : `-250`.
 
 ```csharp
+[DefaultExecutionOrder(-250)]
 public class PlayerSpawner : MonoBehaviour
 {
     [Header("Références")]
@@ -1266,7 +1336,7 @@ public class PlayerSpawner : MonoBehaviour
 
 ### 4.7.3 Dépendances
 
-- **Nécessite :** Aucune dépendance système — utilise uniquement `Instantiate`
+- **Nécessite :** `LevelRegistry.Instance` (RegisterPlayerStart, WorldToCell)
 - **Est utilisé par :** Aucun système directement — instancie le GameObject joueur qui est ensuite référencé par les spawners via l'Inspector ou les tags
 - **Déclenche :** Rien (pas d'event, pas d'enregistrement dans LevelRegistry)
 
@@ -1283,15 +1353,15 @@ graph TD
 
 ### 4.7.5 Points d'attention
 
-- **⚠️ Ordre d'exécution :** PlayerSpawner n'a pas de `[DefaultExecutionOrder]` — il s'exécute à l'ordre par défaut (0) dans `Start()`. Tous les spawners qui référencent le joueur via l'Inspector (BugCloudSpawner, BestPath, etc.) utilisent un Transform assigné en scène, pas le joueur instancié — donc pas de conflit d'ordre
-- **⚠️ Code mort :** La méthode `Update()` est vide — vestige du template MonoBehaviour, peut être supprimée
-- **⚠️ Pas d'enregistrement :** Le joueur instancié n'est pas enregistré dans LevelRegistry ni GameManager — les autres systèmes doivent référencer le Transform de spawn ou utiliser `FindWithTag("Player")`
+- **⚠️ Ordre d'exécution :** PlayerSpawner (-250) s’exécute avant TilesSpawner (-240) et enregistre la case de départ dans LevelRegistry
+- **⚠️ Pas d'enregistrement GameManager :** Le joueur instancié n'est pas enregistré dans GameManager — les autres systèmes utilisent la case de départ via LevelRegistry
 
 ### 4.7.6 Journal d'implémentation
 
 | Date     | Développeur | Note / Décision Technique                                                                           |
 | :------- | :---------- | :-------------------------------------------------------------------------------------------------- |
 | 17/02/26 | @auteur     | Documentation initiale. Spawner simple — instanciation du joueur à un point de spawn configurable. |
+| 19/02/26 | @pierre     | MAJ doc: ordre d'execution et enregistrement PlayerStart.                                           |
 
 # 5. Gestion des données
 
@@ -1315,6 +1385,7 @@ public class TrialData
     public string map_config;
     public string true_cloud;
     public int optimal_path_length;
+    public long trial_seed;
     public List<PlayerStep> player_path_log = new();
     public string proximal_choice;
     public bool choice_correct;
@@ -1334,6 +1405,7 @@ public class TrialData
 | map_config          | string             | GameManager.RegisterClouds   | JSON de la config carte (grille, positions/bugs des nuages)    |
 | true_cloud          | string             | _Non utilisé_                | Nuage correct (réservé)                                        |
 | optimal_path_length | int                | GameManager.OnCloudCollected | Longueur du chemin optimal enregistré par BestPath             |
+| trial_seed          | long               | GameManager.StartNewRound     | Seed de manche utilisée pour la randomisation                  |
 | player_path_log     | List\<PlayerStep\> | TrialManager.RecordMove      | Séquence ordonnée des pas du joueur avec timestamps            |
 | proximal_choice     | string             | TrialManager.EndCurrentTrial | Choix du joueur : "left", "right" ou "unknown"                 |
 | choice_correct      | bool               | TrialManager.EndCurrentTrial | `true` si le joueur a collecté le nuage optimal                |
@@ -1374,6 +1446,7 @@ public class PlayerStep
       "timestamp": "2026-02-17T14:30:00.000Z",
       "map_config": "{\"grid_w\":10,\"grid_h\":10,\"cloud_left\":{\"x\":2,\"y\":7,\"bugs\":45},\"cloud_right\":{\"x\":7,\"y\":7,\"bugs\":45}}",
       "optimal_path_length": 12,
+    "trial_seed": 123456789,
       "player_path_log": [
         {"x": 5, "y": 0, "t": "2026-02-17T14:30:01.000Z"},
         {"x": 5, "y": 1, "t": "2026-02-17T14:30:01.500Z"}
@@ -1477,3 +1550,4 @@ _Section à compléter._
 | 17/02/26 | 1.4     | Ajout section 4.5 (TrialManager) et section 5.1 (TrialData, PlayerStep, format JSON)    |
 | 17/02/26 | 1.5     | MAJ section 3.5 (GridMoverNewInput) — suppression support ZQSD, flèches uniquement      |
 | 17/02/26 | 1.6     | Ajout sections 4.6 (TilesSpawner) et 4.7 (PlayerSpawner)                                |
+| 19/02/26 | 1.7     | MAJ macro flux, seeds, player start, maze, et data trial                                 |
