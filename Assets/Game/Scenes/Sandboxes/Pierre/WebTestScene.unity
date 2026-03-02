@@ -5085,7 +5085,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BestPath
   quadPrefab: {fileID: 124041359568741063, guid: 1b2558a29e783d54d97c50a655f50a06, type: 3}
-  visible: 1
 --- !u!4 &918383696
 Transform:
   m_ObjectHideFlags: 0
@@ -5518,6 +5517,17 @@ MonoBehaviour:
   gameManager: {fileID: 1716181368}
   randomizationSeed: 0
   buildVersion: 1.0.0
+  trapCount: 10
+  minDistance: 7
+  maxDistance: 0
+  minTotalBugs: 20
+  maxTotalBugs: 80
+  minGreenBugsRatio: 0.4
+  maxGreenBugsRatio: 0.8
+  gapMin: 0.1
+  gapMax: 0.3
+  pathVisible: 1
+  blockId: 1
 --- !u!4 &1043942869 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1310028211529153949, guid: c8ca65ecdf242ce43bbcc052a0064679, type: 3}
@@ -5717,7 +5727,7 @@ MonoBehaviour:
   cellSize: 1
   originWorld: {x: 0, y: 0, z: 0}
   optimalPathLength: 21
-  trapCount: 10
+  stepBudget: 0
 --- !u!1001 &1068364789
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6465,14 +6475,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BugCloudSpawner
   bugCloudPrefab: {fileID: 1829720265693855184, guid: 99ffeb67015994a0787351c8dc68d858, type: 3}
-  minDistance: 8
   spawnY: 0.5
-  minTotalBugs: 20
-  maxTotalBugs: 80
-  minGreenBugsRatio: 0.4
-  maxGreenBugsRatio: 0.8
-  gapMin: 0.1
-  gapMax: 0.3
 --- !u!4 &1175264287
 Transform:
   m_ObjectHideFlags: 0
@@ -9714,9 +9717,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   trialManager: {fileID: 1504752461}
-  blockId: 1
   steps: 0
   trapsHit: 0
+  overtimeSteps: 0
   bugsCollected: 0
   followedBestPath: 1
 --- !u!4 &1716181369
@@ -9766,12 +9769,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 68acbce441701164aa2ecb21c754c108, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelRegistryHUD
-  player: {fileID: 0}
-  output: {fileID: 0}
-  scanGridEachFrame: 0
-  showVisitedPath: 1
-  maxVisitedShown: 200
-  maxLogLines: 40
 --- !u!114 &1716901185
 MonoBehaviour:
   m_ObjectHideFlags: 0

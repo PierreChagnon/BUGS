@@ -31,6 +31,7 @@ public class GameManager : MonoBehaviour
     [Header("Round / Score")]
     public int steps = 0;
     public int trapsHit = 0;
+    public int overtimeSteps = 0;
     public int bugsCollected = 0;
     public bool followedBestPath = true;
 
@@ -52,10 +53,11 @@ public class GameManager : MonoBehaviour
     {
         public int bugsCollected;
         public int trapsHit;
+        public int overtimeSteps;
         public int steps;
         public bool followedBestPath;
-        public int leftCloudBugs;
-        public int rightCloudBugs;
+        public int leftCloudGreenBugs;
+        public int rightCloudGreenBugs;
     }
 
     /// <summary>Émis quand le round se termine (nuage collecté). RoundUI s'y abonne.</summary>
@@ -152,8 +154,31 @@ public class GameManager : MonoBehaviour
         if (_advisorPath.Count > 0 && !_advisorPath.Contains(cell))
             followedBestPath = false;
 
+        // Pénalité de dépassement : si le joueur a fait plus de mouvements
+        // que la distance de Manhattan (budget de pas), chaque pas supplémentaire
+        // retire 1 bug de chaque nuage.
+        int movesMade = steps - 1; // steps inclut la position de départ
+        var reg = LevelRegistry.Instance;
+        if (reg != null && reg.stepBudget > 0 && movesMade > reg.stepBudget)
+            OnStepBudgetExceeded();
+
         // Enregistrer le mouvement dans le pipeline de données
         trialManager?.RecordMove(cell);
+    }
+
+    /// <summary>
+    /// Appelé quand le joueur dépasse le budget de pas (distance de Manhattan optimale).
+    /// Applique la pénalité : -1 bug sur chaque nuage (même logique que les pièges).
+    /// </summary>
+    void OnStepBudgetExceeded()
+    {
+        if (_roundOver) return;
+
+        overtimeSteps++;
+        if (_leftCloud != null) _leftCloud.AddBugs(-1);
+        if (_rightCloud != null) _rightCloud.AddBugs(-1);
+
+        Debug.Log($"[GameManager] Dépassement du budget de pas ! overtimeSteps={overtimeSteps}, moves={steps - 1}, budget={LevelRegistry.Instance.stepBudget}");
     }
 
     /// <summary>
@@ -198,7 +223,10 @@ public class GameManager : MonoBehaviour
                              : "none";
 
             if (LevelRegistry.Instance != null)
+            {
                 trialManager.SetOptimalPathLength(LevelRegistry.Instance.optimalPathLength);
+                trialManager.SetCloudDistance(LevelRegistry.Instance.stepBudget);
+            }
 
             trialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps);
             trialManager.SendTrials();
@@ -209,10 +237,11 @@ public class GameManager : MonoBehaviour
         {
             bugsCollected = bugsCollected,
             trapsHit = trapsHit,
+            overtimeSteps = overtimeSteps,
             steps = steps,
             followedBestPath = followedBestPath,
-            leftCloudBugs = _leftCloud ? _leftCloud.totalBugs : 0,
-            rightCloudBugs = _rightCloud ? _rightCloud.totalBugs : 0,
+            leftCloudGreenBugs = _leftCloud ? Mathf.RoundToInt(_leftCloud.totalBugs * _leftCloud.greenRatio) : 0,
+            rightCloudGreenBugs = _rightCloud ? Mathf.RoundToInt(_rightCloud.totalBugs * _rightCloud.greenRatio) : 0,
         });
     }
 

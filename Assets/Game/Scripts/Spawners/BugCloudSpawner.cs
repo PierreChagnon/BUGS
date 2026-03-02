@@ -199,6 +199,10 @@ public class BugCloudSpawner : MonoBehaviour
         registry.RegisterBugCloud(cellA);
         registry.RegisterBugCloud(cellB);
 
+        // Enregistrer le budget de pas (distance Manhattan joueur → nuages)
+        // Les deux nuages sont sur le même anneau, donc chosenD est la distance pour les deux.
+        registry.RegisterStepBudget(chosenD);
+
         // On informe le GameManager
         if (GameManager.Instance != null)
         {

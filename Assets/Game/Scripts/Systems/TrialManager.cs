@@ -93,6 +93,21 @@ public class TrialManager : MonoBehaviour
         currentTrial.optimal_path_length = value;
     }
 
+    /// <summary>
+    /// Enregistre la distance de Manhattan entre le joueur et les nuages (chosenD).
+    /// Les chercheurs utilisent cette valeur + steps pour calculer le dépassement.
+    /// </summary>
+    public void SetCloudDistance(int value)
+    {
+        if (currentTrial == null)
+        {
+            Debug.LogWarning("[TrialManager] SetCloudDistance() ignoré: currentTrial est null");
+            return;
+        }
+
+        currentTrial.cloud_distance = value;
+    }
+
     // Envoi de toutes les manches accumulées vers ton API
     public void SendTrials()
     {

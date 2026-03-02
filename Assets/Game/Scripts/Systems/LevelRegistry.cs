@@ -25,6 +25,8 @@ public class LevelRegistry : MonoBehaviour
     [HideInInspector]
     public int optimalPathLength;
 
+    [HideInInspector]
+    public int stepBudget;
 
     long _roundSeed;
     bool _hasRoundSeed;
@@ -191,6 +193,16 @@ public class LevelRegistry : MonoBehaviour
     {
         optimalPathLength = path != null ? path.Count : 0;
         Debug.Log($"[LevelRegistry] Chemin optimal enregistré ({optimalPathLength} cases).");
+    }
+
+    /// <summary>
+    /// Enregistre le budget de pas (distance de Manhattan joueur → nuages).
+    /// Au-delà de ce nombre de mouvements, une pénalité s'applique.
+    /// </summary>
+    public void RegisterStepBudget(int manhattanDistance)
+    {
+        stepBudget = manhattanDistance;
+        Debug.Log($"[LevelRegistry] Budget de pas enregistré : {stepBudget} (distance Manhattan).");
     }
 
     public void UnregisterTrap(Vector2Int c) => RemoveFlags(c, CellFlags.Trap);

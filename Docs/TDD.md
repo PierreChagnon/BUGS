@@ -96,6 +96,7 @@ Assets/
 | **Seeded deterministic RNG** | `LevelRegistry.CreateRng(scope)` — hash FNV-1a 64-bit sur `(roundSeed + scopeName)` | Chaque spawner obtient un `System.Random` dérivé d'une seed globale + nom de scope → même seed = même map, même si l'ordre d'appel varie |
 | **PlayerStart registration** | `PlayerSpawner` → `LevelRegistry.RegisterPlayerStart(cell, world)` → spawners lisent `TryGetPlayerStartCell()` | Les spawners n'ont plus de `Transform player` en Inspector — ils interrogent LevelRegistry. Découple le placement du joueur de la construction de la map |
 | **Research Parameter Pipeline** | `SessionManager.Instance` (Singleton, propriétaire unique) → Spawners `.Start()` (lecture directe) | Distinction claire entre **paramètre de protocole expérimental** (contrôlé par le chercheur, injectable via args CLI `key=value`, possédé par `SessionManager`) et **paramètre de game design** (fixé par le designer, reste sur le script qui l'utilise). Les spawners lisent directement `SessionManager.Instance.paramName` — les paramètres recherche ne transitent plus par LevelRegistry. Voir section 4.3 pour le détail du pipeline CLI |
+| **Step Budget Penalty** | `GameManager.OnPlayerStep` → `OnStepBudgetExceeded`, `LevelRegistry.stepBudget`, `BugCloudSpawner.RegisterStepBudget` | Même pattern que `OnTrapTriggered` : quand le joueur dépasse la distance Manhattan (budget de pas enregistré par BugCloudSpawner), chaque pas supplémentaire retire 1 bug de chaque nuage. La donnée brute `cloud_distance` est transmise aux chercheurs via TrialData |
 
 # 3. Systèmes de gameplay
 
@@ -107,6 +108,7 @@ Assets/
 - Garantir un nuage dans la moitié gauche et un dans la moitié droite (même Y)
 - Tirer un nombre total de bugs partagé, puis deux ratios verts avec un écart contrôlé (difficulté de discrimination)
 - Enregistrer les nuages dans LevelRegistry et GameManager
+- Enregistrer le budget de pas (distance Manhattan = chosenD) dans LevelRegistry pour la mécanique de pénalité de dépassement
 
 ### 3.1.2 Composants clés (Data Model)
 
@@ -140,10 +142,10 @@ public class BugCloudSpawner : MonoBehaviour
 
 ### 3.1.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (gridSize, InBounds, CellToWorld, RegisterBugCloud, TryGetPlayerStartCell, CreateRng), `SessionManager.Instance` (**paramètres recherche** : minDistance, maxDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax), `GameManager.Instance` (RegisterClouds)
+- **Nécessite :** `LevelRegistry.Instance` (gridSize, InBounds, CellToWorld, RegisterBugCloud, RegisterStepBudget, TryGetPlayerStartCell, CreateRng), `SessionManager.Instance` (**paramètres recherche** : minDistance, maxDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax), `GameManager.Instance` (RegisterClouds)
 - **Est configuré par :** `SessionManager.Instance` (lecture directe des paramètres recherche — voir section 2.3)
 - **Communique avec :** `BugCloud` (configure totalBugs, greenRatio, InitializeParticlesQty)
-- **Déclenche :** Enregistrement des cellules nuage dans LevelRegistry + enregistrement des nuages dans GameManager
+- **Déclenche :** Enregistrement des cellules nuage dans LevelRegistry + enregistrement des nuages dans GameManager + enregistrement du budget de pas (stepBudget) dans LevelRegistry
 
 ### 3.1.4 Diagramme de flux
 
@@ -166,7 +168,8 @@ graph TD
     N --> O["Assigner ratio1/ratio2 aléatoirement aux 2 nuages"]
     O --> P["InitializeParticlesQty × 2"]
     P --> Q["RegisterBugCloud × 2"]
-    Q --> R["GameManager.RegisterClouds(left, right)"]
+    Q --> Q2["RegisterStepBudget(chosenD)"]
+    Q2 --> R["GameManager.RegisterClouds(left, right)"]
 ```
 
 ### 3.1.5 Formules et règles métier
@@ -201,6 +204,7 @@ Contrainte placement       = cellA dans indices [0, count/2 - 1], cellB dans ind
 | 27/02/26 | @pierre     | Refacto : phase Awake→Start, suppression champ player (TryGetPlayerStartCell), seeded RNG, algorithme green ratio gap-based avec gapMin/gapMax pour contrôle de discrimination. |
 | 02/03/26 | @pierre     | Migration paramètres recherche (minDistance, totalBugs, greenRatio, gap) vers SessionManager → LevelRegistry. BugCloudSpawner ne possède plus que les paramètres game design (bugCloudPrefab, minZ, spawnY). |
 | 02/03/26 | @pierre     | Refacto SRP : les paramètres recherche ne transitent plus par LevelRegistry. BugCloudSpawner lit directement `SessionManager.Instance` (nouveau Singleton). LevelRegistry recentré sur l'état spatial de la grille uniquement. |
+| 02/03/26 | @pierre     | Ajout enregistrement du budget de pas (chosenD) via `RegisterStepBudget` dans LevelRegistry. La distance Manhattan joueur→nuages sert de seuil pour la pénalité de dépassement. |
 
 ## 3.2 PathSpawner
 
@@ -612,7 +616,7 @@ Signalisation      = OnPlayerStep(cell) → GameManager gère fog, visited, tria
 - Valider la disponibilité des cellules pour le spawn de pièges (`IsFreeForTrap`)
 - Enregistrer et désenregistrer les entités spatiales (nuages, pièges, murs, chemins, position de départ joueur)
 - Gérer le système de seed reproductible (RNG déterministe par scope via FNV-1a 64-bit)
-- Stocker les données globales de round (`optimalPathLength`) accessibles par tous les systèmes
+- Stocker les données globales de round (`optimalPathLength`, `stepBudget`) accessibles par tous les systèmes
 
 ### 4.1.2 Composants clés (Data Model)
 
@@ -629,6 +633,7 @@ public class LevelRegistry : MonoBehaviour
     public Vector3 originWorld = Vector3.zero;
 
     [HideInInspector] public int optimalPathLength;
+    [HideInInspector] public int stepBudget;
 
     long _roundSeed;
     bool _hasRoundSeed;
@@ -663,6 +668,7 @@ public class LevelRegistry : MonoBehaviour
 | cellSize                                    | float                              | Taille d'une case en unités monde (défaut : 1, min : 0.0001) — **game design** |
 | originWorld                                 | Vector3                            | Position monde (X,Z) de la case (0,0) — initialisée par TilesSpawner       |
 | optimalPathLength                           | int [HideInInspector]              | Longueur du chemin optimal enregistré par PathSpawner                       |
+| stepBudget                                  | int [HideInInspector]              | Distance Manhattan joueur→nuages (budget de pas) — enregistré par BugCloudSpawner |
 | **Système RNG**                             |                                    |                                                                             |
 | SetRoundSeed(long)                          | void                               | Définit la seed du round (appelé par SessionManager)                        |
 | TryGetRoundSeed(out long)                   | bool                               | Récupère la seed du round si elle a été définie                             |
@@ -679,6 +685,7 @@ public class LevelRegistry : MonoBehaviour
 | UnregisterBugCloud(Vector2Int)              | void                               | Retire `BugCloud`, retire `Reserved` si ni chemin ni PlayerStart            |
 | RegisterTrap(Vector2Int)                    | bool                               | Ajoute `Trap` si !Reserved && !PlayerStart && !HasTrap — retourne false sinon |
 | RegisterOptimalPath(List\<Vector2Int\>)     | void                               | Enregistre la longueur du chemin optimal                                    |
+| RegisterStepBudget(int)                     | void                               | Enregistre la distance Manhattan comme budget de pas pour la pénalité de dépassement |
 | UnregisterTrap(Vector2Int)                  | void                               | Retire le flag `Trap`                                                       |
 | ReservePathLeft(IEnumerable\<Vector2Int\>)  | void                               | Marque les cellules comme `PathLeft + Reserved`                             |
 | ReservePathRight(IEnumerable\<Vector2Int\>) | void                               | Marque les cellules comme `PathRight + Reserved`                            |
@@ -696,7 +703,7 @@ public class LevelRegistry : MonoBehaviour
 
 ### 4.1.3 Dépendances
 
-- **Est utilisé par :** `PlayerSpawner` (RegisterPlayerStart), `TilesSpawner` (originWorld), `BugCloudSpawner` (RegisterBugCloud, CreateRng, TryGetPlayerStartCell), `PathSpawner` (ReservePathLeft/Right, RegisterOptimalPath, TryGetPlayerStartCell, CreateRng), `CorridorWallsGenerator` (RegisterWall, IsOnAnyPath, HasBugCloud, TryGetPlayerStartCell, CreateRng), `TrapSpawner` (RegisterTrap, IsFreeForTrap, TryGetPlayerStartCell, CreateRng), `GameManager` (MarkVisited, optimalPathLength, TryGetRoundSeed), `GridMover` (WorldToCell, CellToWorld, InBounds, IsWalkable), `FogController` (gridSize, WorldToCell), `SessionManager` (SetRoundSeed), `MapGenerator` (prévisualisation éditeur)
+- **Est utilisé par :** `PlayerSpawner` (RegisterPlayerStart), `TilesSpawner` (originWorld), `BugCloudSpawner` (RegisterBugCloud, RegisterStepBudget, CreateRng, TryGetPlayerStartCell), `PathSpawner` (ReservePathLeft/Right, RegisterOptimalPath, TryGetPlayerStartCell, CreateRng), `CorridorWallsGenerator` (RegisterWall, IsOnAnyPath, HasBugCloud, TryGetPlayerStartCell, CreateRng), `TrapSpawner` (RegisterTrap, IsFreeForTrap, TryGetPlayerStartCell, CreateRng), `GameManager` (MarkVisited, optimalPathLength, stepBudget, TryGetRoundSeed), `GridMover` (WorldToCell, CellToWorld, InBounds, IsWalkable), `FogController` (gridSize, WorldToCell), `SessionManager` (SetRoundSeed), `MapGenerator` (prévisualisation éditeur)
 - **Ne dépend de :** Rien (système fondation sans dépendance entrante)
 - **Ne déclenche :** Aucun event (`OnCellChanged` a été supprimé — les flags sont écrits silencieusement)
 
@@ -726,6 +733,7 @@ graph TD
         C5[MarkVisited] -->|AddFlags| D
         C6[UnregisterBugCloud] -->|"Retire Reserved si ni chemin ni PlayerStart"| D
         C7[ClearPathReservations] --> D
+        C8[RegisterStepBudget] -->|"stepBudget = manhattanDistance"| C9["Stocke le budget de pas"]
     end
 
     D --> E["_cells[c] = flags"]
@@ -770,6 +778,7 @@ graph TD
 | 27/02/26 | @pierre     | Refacto : ajout CellFlag PlayerStart, système RNG (FNV-1a + CreateRng/DeriveSeed), système PlayerStart (RegisterPlayerStart/TryGetPlayerStartCell), suppression OnCellChanged, ajout trapCount [HideInInspector]. |
 | 02/03/26 | @pierre     | Ajout de 9 champs [HideInInspector] pour les paramètres recherche (minDistance, totalBugs, greenRatio, gap, pathVisible, blockId). Pipeline Research Parameter complété. |
 | 02/03/26 | @pierre     | Refacto SRP : suppression des 11 champs [HideInInspector] de paramètres recherche. LevelRegistry ne sert plus de relais — les spawners lisent directement `SessionManager.Instance`. LevelRegistry recentré sur son rôle unique : état spatial de la grille + RNG. |
+| 02/03/26 | @pierre     | Ajout champ `stepBudget` [HideInInspector] et méthode `RegisterStepBudget(int)`. Stocke la distance Manhattan joueur→nuages comme budget de pas pour la mécanique de pénalité de dépassement. |
 
 ## 4.2 GameManager
 
@@ -779,10 +788,11 @@ graph TD
 - Gérer le cycle de vie des rounds (démarrage, fin de manche sur collecte de nuage, restart)
 - Enregistrer les deux nuages du round et déterminer le nuage optimal
 - Orchestrer les callbacks d'entités : `OnPlayerStep` (GridMover), `OnTrapTriggered` (Trap), `OnCloudCollected` (BugCloud)
-- À chaque pas joueur : révéler le brouillard, marquer la cellule visitée, vérifier l'adhérence au chemin conseillé, enregistrer dans le trial
+- À chaque pas joueur : révéler le brouillard, marquer la cellule visitée, vérifier l'adhérence au chemin conseillé, vérifier le dépassement du budget de pas, enregistrer dans le trial
 - Appliquer les pénalités de pièges sur les nuages (-1 bug par nuage par piège)
+- Appliquer la pénalité de dépassement du budget de pas (-1 bug par nuage par pas en trop)
 - Émettre `OnRoundEnded` pour l'UI (RoundUI) — **pas de référence UI directe**
-- Coordonner avec TrialManager pour la collecte de données de recherche
+- Coordonner avec TrialManager pour la collecte de données de recherche (transmettre `cloud_distance` via `SetCloudDistance`)
 
 ### 4.2.2 Composants clés (Data Model)
 
@@ -803,6 +813,7 @@ public class GameManager : MonoBehaviour
     public int steps = 0;
     public int trapsHit = 0;
     public int bugsCollected = 0;
+    public int overtimeSteps = 0;
     public bool followedBestPath = true;
 
     public bool inputLocked { get; private set; } = false;
@@ -820,6 +831,7 @@ public class GameManager : MonoBehaviour
         public bool followedBestPath;
         public int leftCloudBugs;
         public int rightCloudBugs;
+        public int overtimeSteps;
     }
 
     public event Action<RoundEndInfo> OnRoundEnded;
@@ -833,24 +845,26 @@ public class GameManager : MonoBehaviour
 | _blockId (lecture)_                          | _via SessionManager_    | Lu en inline depuis `SessionManager.Instance.blockId` dans `StartNewRound` — **paramètre recherche** (fallback : 1 si Instance null) |
 | _screenCounter                              | int (privé)             | Compteur séquentiel de manches dans la session                                    |
 | steps / trapsHit / bugsCollected            | int                     | Compteurs du round courant                                                        |
+| overtimeSteps                               | int                     | Compteur de pas au-delà du budget (distance Manhattan)                           |
 | followedBestPath                            | bool                    | `true` tant que le joueur reste sur le chemin conseillé                           |
 | inputLocked                                 | bool (get)              | Verrouille les inputs joueur quand `true` (fin de round)                          |
 | _roundOver                                  | bool (privé)            | Empêche les callbacks d'entités après fin de round                                |
 | _advisorPath                                | HashSet (privé)         | Cellules du chemin conseillé (reçu de PathSpawner)                                |
-| RoundEndInfo                                | struct                  | Données transmises via OnRoundEnded (bugs, traps, steps, chemin, bugs L/R)        |
+| RoundEndInfo                                | struct                  | Données transmises via OnRoundEnded (bugs, traps, steps, chemin, bugs L/R, overtimeSteps) |
 | OnRoundEnded                                | event Action\<RoundEndInfo\> | Émis à la fin du round — RoundUI s'y abonne                                 |
 | BeginFirstRound()                           | void                    | Point d'entrée appelé par SessionManager — lance le premier round                 |
 | RegisterClouds(BugCloud, BugCloud)          | void                    | Enregistre les 2 nuages, transmet la config map (positions, totalBugs, greenRatio) à TrialManager via `SetMapConfig` |
 | SetChosenPath(IEnumerable\<Vector2Int\>)    | void                    | Reçoit le chemin conseillé de PathSpawner pour détecter les déviations            |
-| OnPlayerStep(Vector2Int)                    | void                    | Appelé par GridMover — fog, visited, déviation, trial log                         |
+| OnPlayerStep(Vector2Int)                    | void                    | Appelé par GridMover — fog, visited, déviation, budget de pas, trial log           |
 | OnTrapTriggered()                           | void                    | Appelé par Trap — trapsHit++, -1 bug sur chaque nuage                            |
-| OnCloudCollected(BugCloud)                  | void                    | Fin de round — calcule bugs verts, détermine trueCloud, finalise trial (choice, correct, trueCloud, greenBugs, trapsHit, steps), émet OnRoundEnded |
+| OnStepBudgetExceeded()                      | void (privé)            | Appelé quand le joueur dépasse le budget de pas — overtimeSteps++, -1 bug sur chaque nuage |
+| OnCloudCollected(BugCloud)                  | void                    | Fin de round — calcule bugs verts, détermine trueCloud, transmet cloud_distance via SetCloudDistance, finalise trial (choice, correct, trueCloud, greenBugs, trapsHit, steps), émet OnRoundEnded |
 | GetBestCloud()                              | BugCloud                | Retourne le nuage avec le meilleur `greenRatio`, `null` si égalité                |
 | RestartRound()                              | void                    | Recharge la scène active (appelé par RoundUI)                                     |
 
 ### 4.2.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (MarkVisited, optimalPathLength, TryGetRoundSeed), `SessionManager.Instance` (blockId — lecture directe), `FogController.Instance` (RevealCell), `TrialManager` (StartNewTrial, RecordMove, SetMapConfig, SetOptimalPathLength, EndCurrentTrial, SendTrials), `BugCloud` (nuages du round), `PathSpawner` (chemin conseillé)
+- **Nécessite :** `LevelRegistry.Instance` (MarkVisited, optimalPathLength, stepBudget, TryGetRoundSeed), `SessionManager.Instance` (blockId — lecture directe), `FogController.Instance` (RevealCell), `TrialManager` (StartNewTrial, RecordMove, SetMapConfig, SetOptimalPathLength, SetCloudDistance, EndCurrentTrial, SendTrials), `BugCloud` (nuages du round), `PathSpawner` (chemin conseillé)
 - **Est utilisé par :** `SessionManager` (lance `BeginFirstRound()`), `GridMover` (appelle `OnPlayerStep()`), `BugCloud` (appelle `OnCloudCollected()`), `Trap` (appelle `OnTrapTriggered()`), `PathSpawner` (appelle `SetChosenPath()`)
 - **Communique avec l'UI via :** `event OnRoundEnded` → `RoundUI` (pas de références UI directes)
 
@@ -880,6 +894,14 @@ graph TD
         J2 -->|Oui| L[Continue]
         K --> M["TrialManager.RecordMove(cell)"]
         L --> M
+        M --> M1{"movesMade > stepBudget ?"}
+        M1 -->|Oui| M2["OnStepBudgetExceeded()"]
+        M1 -->|Non| M3[Continue]
+    end
+
+    subgraph "OnStepBudgetExceeded — pénalité de dépassement"
+        SB1["overtimeSteps++"] --> SB2["leftCloud.AddBugs(-1)"]
+        SB2 --> SB3["rightCloud.AddBugs(-1)"]
     end
 
     subgraph "OnTrapTriggered — via Trap.OnTriggerEnter"
@@ -894,7 +916,8 @@ graph TD
         P[BugCloud.OnTrigger] -->|OnCloudCollected| Q["_roundOver = true, inputLocked = true"]
         Q --> R["bugsCollected += max(0, RoundToInt(cloud.totalBugs × cloud.greenRatio))"]
         R --> R1["trueCloud = best == leftCloud ? 'left' : best == rightCloud ? 'right' : 'none'"]
-        R1 --> S["TrialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps)"]
+        R1 --> R1b["TrialManager.SetCloudDistance(LevelRegistry.stepBudget)"]
+        R1b --> S["TrialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps)"]
         S --> S1["TrialManager.SendTrials()"]
         S1 --> U["OnRoundEnded?.Invoke(RoundEndInfo)"]
     end
@@ -907,6 +930,10 @@ graph TD
 
 ```
 Pénalité piège    = -1 bug dans CHAQUE nuage (leftCloud + rightCloud) par piège déclenché
+Pénalité budget   = -1 bug dans CHAQUE nuage (leftCloud + rightCloud) par pas au-delà du budget
+Budget de pas     = LevelRegistry.stepBudget (= distance Manhattan joueur→nuages, enregistré par BugCloudSpawner)
+movesMade         = steps - 1 (le premier step est le déplacement initial, pas un dépassement)
+overtimeSteps     = nombre de pas où movesMade > stepBudget
 Bugs collectés    = max(0, RoundToInt(cloud.totalBugs × cloud.greenRatio)) au moment de la collecte
 Meilleur nuage    = celui avec le meilleur greenRatio ; null si égalité (greenRatio invariant même après pénalités)
 Choix correct     = le joueur a collecté le nuage avec le meilleur greenRatio initial (GetBestCloud)
@@ -920,6 +947,7 @@ Fog + Visited     = gérés par OnPlayerStep (pas par GridMover)
 - **⚠️ Séparation UI :** GameManager n'a AUCUNE référence UI directe — il émet `OnRoundEnded` et RoundUI s'y abonne. C'est un design « manager émet, UI écoute »
 - **⚠️ Edge case :** Si `leftCloud.totalBugs == rightCloud.totalBugs`, `GetBestCloud()` retourne `null` et `choice_correct` sera toujours `false` — à valider si c'est le comportement souhaité pour l'étude
 - **⚠️ Fog centralisé :** La révélation du brouillard et le marquage visited sont faits dans `OnPlayerStep()`, pas dans GridMover — un seul point de vérité pour ce qui se passe quand le joueur bouge
+- **⚠️ Budget de pas :** La vérification du dépassement utilise `steps - 1` car le premier step est l'arrivée sur la première case. Si `stepBudget == 0` (non initialisé), la pénalité ne s'applique pas
 - **⚠️ Séquencement :** `RegisterClouds` peut être appelé avant `StartNewRound` (BugCloudSpawner Start -200 vs GameManager Start 0). Le tampon `pendingMapConfigJson` dans TrialManager gère ce cas
 - **🔧 À clarifier :** `screenType` toujours "forest" — à paramétriser quand le protocole de recherche intègrera plusieurs types d'écran
 
@@ -931,6 +959,7 @@ Fog + Visited     = gérés par OnPlayerStep (pas par GridMover)
 | 27/02/26 | @pierre     | Refacto : suppression champs UI (scoreText, gameOverUI, gameOverStats), ajout event OnRoundEnded + RoundEndInfo, ajout OnTrapTriggered, fog+visited centralisés dans OnPlayerStep, SetMapConfig structuré (plus de JSON brut dans GameManager), StartNewTrial passe la seed, suppression DTOs MiniMapCfg/CloudInfo (déplacés dans TrialManager). |
 | 02/03/26 | @pierre     | Migration blockId : GameManager ne possède plus de champ blockId — lit désormais `SessionManager.Instance.blockId` en inline (fallback : 1 si Instance null). Suppression du commentaire blockId dans le code. |
 | 02/03/26 | @pierre     | Pipeline collecte enrichi : `OnCloudCollected` calcule désormais les bugs verts (totalBugs × greenRatio), détermine `trueCloud` (left/right/none), et transmet 6 params à `EndCurrentTrial` (choice, correct, trueCloud, greenBugsCollected, trapsHit, steps). `RegisterClouds` passe `greenRatio` à `SetMapConfig`. `GetBestCloud` compare `greenRatio` (pas totalBugs). |
+| 02/03/26 | @pierre     | Mécanique Step Budget Penalty : ajout `overtimeSteps`, `OnStepBudgetExceeded()`, vérification budget dans `OnPlayerStep`. `OnCloudCollected` transmet `cloud_distance` via `TrialManager.SetCloudDistance`. `RoundEndInfo` inclut `overtimeSteps`. |
 
 ## 4.3 SessionManager
 
@@ -1265,6 +1294,7 @@ private struct MiniMapCfg
 | RecordMove(Vector2Int)                                | void                      | Ajoute un PlayerStep (position + timestamp ISO) au trial courant                         |
 | EndCurrentTrial(string, bool, string, int, int, int) | void                      | Finalise le trial : choix, justesse, trueCloud, greenBugsCollected, trapsHit, steps, timestamp de fin |
 | SetOptimalPathLength(int)                             | void                      | Enregistre la longueur du chemin optimal dans le trial courant                           |
+| SetCloudDistance(int)                                 | void                      | Enregistre la distance Manhattan joueur→nuages (`cloud_distance`) dans le trial courant  |
 | **SetMapConfig(gridSize, leftCell, leftBugs, leftGreenRatio, rightCell, rightBugs, rightGreenRatio)** | void       | API structurée — construit le JSON MiniMapCfg (avec greenRatio) en interne                    |
 | SetMapConfigJson(string)                              | void                      | Stocke le JSON brut dans le trial courant ou dans le tampon                              |
 | SendTrials()                                          | void                      | Lance l'envoi asynchrone des trials accumulés                                            |
@@ -1300,6 +1330,7 @@ graph TD
     L["GameManager.OnPlayerStep"] -->|"RecordMove(cell)"| M["currentTrial.player_path_log.Add(PlayerStep)"]
 
     N["GameManager.OnCloudCollected"] -->|"SetOptimalPathLength(n)"| O["currentTrial.optimal_path_length = n"]
+    N -->|"SetCloudDistance(d)"| O2["currentTrial.cloud_distance = d"]
     N -->|"EndCurrentTrial(choice, correct, trueCloud, greenBugs, trapsHit, steps)"| P["currentTrial.proximal_choice = choice"]
     P --> Q["currentTrial.end_timestamp = UTC ISO"]
 
@@ -1344,6 +1375,7 @@ graph TD
 | 17/02/26 | @auteur     | Documentation initiale. Pipeline de collecte trial complet avec tampon map_config et envoi batch par coroutine. |
 | 27/02/26 | @pierre     | Refacto : StartNewTrial prend 4 params (ajout trialSeed), nouveau SetMapConfig structuré (construit JSON en interne), DTOs MiniMapCfg/CloudInfo déplacés de GameManager vers TrialManager, noms de champs changés (gridWidth/gridHeight, totalBugs). |
 | 02/03/26 | @pierre     | Pipeline collecte enrichi : CloudInfo ajoute `greenRatio`. SetMapConfig prend 7 params (ajout leftGreenRatio, rightGreenRatio). EndCurrentTrial prend 6 params (ajout trueCloud, greenBugsCollected, trapsHit, steps). Noms de champs JSON : `greenRatio` dans map_config. |
+| 02/03/26 | @pierre     | Ajout méthode `SetCloudDistance(int)` — même pattern que `SetOptimalPathLength`. Reçoit `cloud_distance` depuis GameManager pour que les chercheurs puissent dériver le dépassement (steps - cloud_distance). |
 
 ## 4.6 TilesSpawner
 
@@ -1529,6 +1561,7 @@ public class TrialData
     public bool choice_correct;
     public int green_bugs_collected;
     public int traps_hit;
+    public int cloud_distance;
     public int steps;
     public string end_timestamp;
 }
@@ -1552,6 +1585,7 @@ public class TrialData
 | choice_correct      | bool               | TrialManager.EndCurrentTrial | `true` si le joueur a collecté le nuage optimal                |
 | **green_bugs_collected** | **int**        | **TrialManager.EndCurrentTrial** | **Nombre de bugs verts collectés (totalBugs × greenRatio après pénalités)** |
 | **traps_hit**       | **int**            | **TrialManager.EndCurrentTrial** | **Nombre de pièges déclenchés pendant le round**                   |
+| **cloud_distance**  | **int**            | **TrialManager.SetCloudDistance** | **Distance Manhattan joueur→nuages (budget de pas) — permet de calculer le dépassement : steps - cloud_distance** |
 | **steps**           | **int**            | **TrialManager.EndCurrentTrial** | **Nombre de pas du joueur pendant le round**                    |
 | end_timestamp       | string             | TrialManager.EndCurrentTrial | Date ISO 8601 UTC de fin de manche                             |
 
@@ -1600,6 +1634,7 @@ public class PlayerStep
       "choice_correct": true,
       "green_bugs_collected": 28,
       "traps_hit": 2,
+      "cloud_distance": 12,
       "steps": 14,
       "end_timestamp": "2026-02-17T14:30:15.000Z"
     }
@@ -1620,7 +1655,7 @@ public class PlayerStep
 ### 6.1.1 Responsabilités
 
 - Afficher le panneau de fin de round (game over) quand `GameManager.OnRoundEnded` est émis
-- Formater et présenter les statistiques de la manche (bugs collectés, pièges, pas, chemin optimal)
+- Formater et présenter les statistiques de la manche (bugs collectés, pièges, pas, chemin optimal, pas en trop)
 - Fournir le bouton de restart qui appelle `GameManager.RestartRound()`
 - Masquer le panneau au démarrage
 
@@ -1640,7 +1675,7 @@ public class RoundUI : MonoBehaviour
 | Variable / Méthode           | Type          | Description                                                          |
 | :--------------------------- | :------------ | :------------------------------------------------------------------- |
 | _gameOverPanel               | GameObject    | Panel UI masqué au Start, activé à la fin du round                   |
-| _gameOverStats               | TMP_Text      | Texte affichant les stats de la manche (bugs, traps, steps, chemin)  |
+| _gameOverStats               | TMP_Text      | Texte affichant les stats de la manche (bugs, traps, steps, chemin, overtimeSteps) |
 | HandleRoundEnded(RoundEndInfo) | void (privé) | Callback de l'event OnRoundEnded — active le panel et formate les stats |
 | OnRestartClicked()           | void (public) | Appelé par le bouton UI — délègue à `GameManager.RestartRound()`     |
 
@@ -1660,7 +1695,7 @@ graph TD
     D["GameManager émet OnRoundEnded(info)"] --> E["HandleRoundEnded(info)"]
     E --> F["_gameOverPanel.SetActive(true)"]
     F --> G["Formater _gameOverStats.text"]
-    G --> H["Affiche : bugs, pièges, pas, chemin, bugs L/R"]
+    G --> H["Affiche : bugs, pièges, pas, chemin, bugs L/R, pas en trop"]
 
     I["Bouton Restart cliqué"] --> J["OnRestartClicked()"]
     J --> K["GameManager.Instance.RestartRound()"]
@@ -1672,13 +1707,14 @@ graph TD
 
 - **⚠️ Pattern Observer :** RoundUI s'abonne à `OnRoundEnded` dans `Start()` et se désabonne dans `OnDestroy()` — pas de référence UI dans GameManager, découplage propre
 - **⚠️ Null-safe :** Tous les accès à `_gameOverPanel` et `_gameOverStats` sont protégés par des null-checks
-- **⚠️ Format texte :** Le texte affiché inclut `followedBestPath` (Oui/Non) et les bugs restants dans chaque nuage — utile pour le debriefing joueur
+- **⚠️ Format texte :** Le texte affiché inclut `followedBestPath` (Oui/Non), les bugs restants dans chaque nuage et `overtimeSteps` (pas en trop) — utile pour le debriefing joueur
 
 ### 6.1.6 Journal d'implémentation
 
 | Date     | Développeur | Note / Décision Technique                                                                         |
 | :------- | :---------- | :------------------------------------------------------------------------------------------------ |
 | 27/02/26 | @pierre     | Création. UI extraite de GameManager vers un composant dédié. S'abonne à OnRoundEnded. |
+| 02/03/26 | @pierre     | Ajout affichage `overtimeSteps` (pas en trop) dans les stats de fin de round. RoundEndInfo inclut désormais `overtimeSteps`. |
 
 # 7. Optimisations et performance
 
@@ -1768,3 +1804,4 @@ _Section à compléter._
 | 27/02/26 | 2.0     | Mise à jour post-refacto : sections 2.1 (Utils/Maze/), 2.3 (patterns concrets), 3.1-3.5 (renommages PathSpawner/GridMover, seeded RNG, TryGetPlayerStartCell, MazeGenerator DFS), 4.1-4.7 (LevelRegistry RNG+PlayerStart, GameManager OnRoundEnded+OnTrapTriggered, SessionManager seed+trapCount pipeline, TrialManager SetMapConfig structuré, PlayerSpawner RegisterPlayerStart), 5.1 (trial_seed + JSON), nouvelle section 6 (RoundUI). |
 | 02/03/26 | 2.1     | Migration paramètres recherche : nouveau pattern Research Parameter Pipeline (section 2.3). SessionManager centralise 10 params expérimentaux (trapCount, minDistance, totalBugs, greenRatio, gap, pathVisible, blockId) avec pipeline CLI → LevelRegistry → Spawners. MAJ sections 3.1, 3.2, 4.1, 4.2, 4.3. MAJ Script_Execution_Order.md. |
 | 02/03/26 | 2.2     | Pipeline collecte enrichi : GameManager calcule les bugs verts (totalBugs × greenRatio), détermine `trueCloud`, transmet 6 params à EndCurrentTrial. TrialData ajoute `green_bugs_collected`, `traps_hit`, `steps`. CloudInfo/SetMapConfig incluent `greenRatio`. GetBestCloud compare greenRatio (pas totalBugs). `true_cloud` n'est plus un champ réservé. MAJ sections 4.2, 4.5, 5.1. |
+| 02/03/26 | 2.3     | Mécanique Step Budget Penalty : distance Manhattan joueur→nuages = budget de pas. Chaque pas au-delà retire 1 bug par nuage (même pattern que piège). Nouveau pattern (section 2.3), `LevelRegistry.stepBudget` + `RegisterStepBudget` (4.1), `GameManager.overtimeSteps` + `OnStepBudgetExceeded` (4.2), `TrialManager.SetCloudDistance` (4.5), `TrialData.cloud_distance` (5.1), `RoundUI` affiche overtimeSteps (6.1). MAJ sections 2.3, 3.1, 4.1, 4.2, 4.5, 5.1, 6.1. |

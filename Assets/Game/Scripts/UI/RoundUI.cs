@@ -42,9 +42,10 @@ public class RoundUI : MonoBehaviour
             _gameOverStats.text =
                 $"Bugs collectés : {info.bugsCollected}\n" +
                 $"Pièges touchés : {info.trapsHit}\n" +
+                $"Pas en trop : {info.overtimeSteps}\n" +
                 $"Pas : {info.steps}\n" +
                 $"Chemin optimal suivi : {(info.followedBestPath ? "Oui" : "Non")}\n" +
-                $"Bugs nuage G : {info.leftCloudBugs}  |  D : {info.rightCloudBugs}";
+                $"Bugs nuage G : {info.leftCloudGreenBugs}  |  D : {info.rightCloudGreenBugs}";
         }
     }
 

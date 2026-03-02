@@ -37,6 +37,7 @@ public class TrialData
     public bool choice_correct;
     public int green_bugs_collected;
     public int traps_hit;
+    public int cloud_distance;
     public int steps;
 
     // Temps de réaction
