@@ -7,10 +7,6 @@ public class PathSpawner : MonoBehaviour
     [Header("Références")]
     public GameObject quadPrefab;
 
-    [Header("Visibility")]
-    public bool visible = true;
-
-
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -20,6 +16,9 @@ public class PathSpawner : MonoBehaviour
             Debug.LogError("[PathSpawner] LevelRegistry manquant dans la scène.");
             return;
         }
+
+        // Lecture du paramètre recherche depuis LevelRegistry (écrit par SessionManager)
+        bool visible = reg.pathVisible;
 
         var rng = reg.CreateRng(nameof(PathSpawner));
 

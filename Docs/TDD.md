@@ -2,8 +2,8 @@
 
 | Nom du projet :    | BUGS                          |
 | :----------------- | :---------------------------- |
-| **Version :**      | 2.0                           |
-| **Dernière MAJ :** | 27/02/26                      |
+| **Version :**      | 2.1                           |
+| **Dernière MAJ :** | 02/03/26                      |
 | **Auteur(s) :**    | @florian, @pierre             |
 | **Moteur :**       | Unity 6000.3.5f2              |
 | **Langage :**      | C#                            |
@@ -95,6 +95,7 @@ Assets/
 | **Event-driven UI** | `GameManager.OnRoundEnded` (event `Action<RoundEndInfo>`) → `RoundUI.HandleRoundEnded` | L'UI s'abonne à un événement typé — le GameManager ne référence aucun objet UI, RoundUI est autonome |
 | **Seeded deterministic RNG** | `LevelRegistry.CreateRng(scope)` — hash FNV-1a 64-bit sur `(roundSeed + scopeName)` | Chaque spawner obtient un `System.Random` dérivé d'une seed globale + nom de scope → même seed = même map, même si l'ordre d'appel varie |
 | **PlayerStart registration** | `PlayerSpawner` → `LevelRegistry.RegisterPlayerStart(cell, world)` → spawners lisent `TryGetPlayerStartCell()` | Les spawners n'ont plus de `Transform player` en Inspector — ils interrogent LevelRegistry. Découple le placement du joueur de la construction de la map |
+| **Research Parameter Pipeline** | `SessionManager.Awake` → `LevelRegistry` (`[HideInInspector]`) → Spawners `.Start()` (lecture locale) | Distinction claire entre **paramètre de protocole expérimental** (contrôlé par le chercheur, injectable via args CLI `key=value`) et **paramètre de game design** (fixé par le designer, reste en `[SerializeField]` sur le script). Les paramètres recherche transitent par un point de vérité unique (LevelRegistry) — les spawners ne possèdent jamais la config du protocole. Voir section 4.3 pour le détail du pipeline CLI |
 
 # 3. Systèmes de gameplay
 
@@ -111,6 +112,8 @@ Assets/
 
 → **BugCloudSpawner.cs** : MonoBehaviour, placement des 2 nuages au Start. Ordre d'exécution : `-200`.
 
+> **Note architecture :** Les paramètres de protocole expérimental (minDistance, totalBugs, greenRatio, gap) ont été migrés vers `SessionManager` → `LevelRegistry`. Ce script ne possède plus que les paramètres de game design. Voir pattern **Research Parameter Pipeline** (section 2.3).
+
 ```csharp
 [DefaultExecutionOrder(-200)]
 public class BugCloudSpawner : MonoBehaviour
@@ -118,39 +121,26 @@ public class BugCloudSpawner : MonoBehaviour
     [Header("Références")]
     public GameObject bugCloudPrefab;
 
-    [Header("Placement")]
-    public int minDistance = 3;
+    // Source de vérité: LevelRegistry (gridSize/cellSize/originWorld + paramètres recherche)
+
+    [Header("Placement (visuel)")]
     readonly int minZ = 5;
     public float spawnY = 0.5f;
-
-    [Header("BugsCloud Parameters : Researchers Input")]
-    [SerializeField] private int minTotalBugs = 20;
-    [SerializeField] private int maxTotalBugs = 80;
-
-    [Header("Green Ratio Bounds")]
-    [SerializeField] private float minGreenBugsRatio = 0.4f;
-    [SerializeField] private float maxGreenBugsRatio = 0.8f;
-
-    [Header("Discrimination Difficulty Control")]
-    [SerializeField] private float gapMin = 0.1f;
-    [SerializeField] private float gapMax = 0.3f;
 }
 ```
 
 | Variable / Méthode                    | Type         | Description                                                                |
 | :------------------------------------ | :----------- | :------------------------------------------------------------------------- |
 | bugCloudPrefab                        | GameObject   | Prefab du nuage de bugs (doit avoir BugCloud.cs)                           |
-| minDistance                            | int          | Distance Manhattan minimale en cases depuis le joueur (défaut : 3)         |
-| minZ (readonly)                       | int          | Z minimale pour le placement (hardcodé à 5)                               |
-| spawnY                                | float        | Hauteur Y d'instanciation des nuages (défaut : 0.5)                       |
-| minTotalBugs / maxTotalBugs           | int          | Range pour le tirage aléatoire du nombre total de bugs (défaut : 20-80)    |
-| minGreenBugsRatio / maxGreenBugsRatio | float        | Bornes pour le premier tirage de ratio vert (défaut : 0.4-0.8)            |
-| gapMin / gapMax                       | float        | Écart min/max entre les ratios verts des 2 nuages (défaut : 0.1-0.3). Plus petit = discrimination difficile |
+| minZ (readonly)                       | int          | Z minimale pour le placement (hardcodé à 5) — **game design**             |
+| spawnY                                | float        | Hauteur Y d'instanciation des nuages (défaut : 0.5) — **game design**     |
+| _Lecture depuis LevelRegistry :_      |              | `minDistance`, `minTotalBugs`, `maxTotalBugs`, `minGreenBugsRatio`, `maxGreenBugsRatio`, `gapMin`, `gapMax` — **paramètres recherche** (écrits par SessionManager) |
 | GetRingCells(Vector2Int, int)         | List (privé) | Retourne les cellules à distance Manhattan D (moitié supérieure seulement) |
 
 ### 3.1.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (gridSize, InBounds, CellToWorld, RegisterBugCloud, TryGetPlayerStartCell, CreateRng), `GameManager.Instance` (RegisterClouds)
+- **Nécessite :** `LevelRegistry.Instance` (gridSize, InBounds, CellToWorld, RegisterBugCloud, TryGetPlayerStartCell, CreateRng, **paramètres recherche** : minDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax), `GameManager.Instance` (RegisterClouds)
+- **Est configuré par :** `SessionManager` → `LevelRegistry` (pipeline Research Parameter — voir section 2.3)
 - **Communique avec :** `BugCloud` (configure totalBugs, greenRatio, InitializeParticlesQty)
 - **Déclenche :** Enregistrement des cellules nuage dans LevelRegistry + enregistrement des nuages dans GameManager
 
@@ -160,7 +150,8 @@ public class BugCloudSpawner : MonoBehaviour
 graph TD
     A["Start()"] --> B["TryGetPlayerStartCell → playerCell"]
     B --> C["CreateRng(BugCloudSpawner) → rng déterministe"]
-    C --> D["Lister les couronnes D valides (≥ 2 cases InBounds, y ≥ minZ)"]
+    C --> C2["Lire paramètres recherche depuis LevelRegistry<br/>(minDistance, totalBugs, greenRatio, gap)"]
+    C2 --> D["Lister les couronnes D valides (≥ 2 cases InBounds, y ≥ minZ)"]
     D --> E{candidateDs.Count > 0 ?}
     E -->|Non| F[Warning + return]
     E -->|Oui| G["Choisir D au hasard (rng)"]
@@ -207,6 +198,7 @@ Contrainte placement       = cellA dans indices [0, count/2 - 1], cellB dans ind
 | :------- | :---------- | :------------------------------------------------------------------------------------------------ |
 | 17/02/26 | @auteur     | Documentation initiale. Placement par couronne Manhattan avec contrainte gauche/droite et même Y. |
 | 27/02/26 | @pierre     | Refacto : phase Awake→Start, suppression champ player (TryGetPlayerStartCell), seeded RNG, algorithme green ratio gap-based avec gapMin/gapMax pour contrôle de discrimination. |
+| 02/03/26 | @pierre     | Migration paramètres recherche (minDistance, totalBugs, greenRatio, gap) vers SessionManager → LevelRegistry. BugCloudSpawner ne possède plus que les paramètres game design (bugCloudPrefab, minZ, spawnY). |
 
 ## 3.2 PathSpawner
 
@@ -222,6 +214,8 @@ Contrainte placement       = cellA dans indices [0, count/2 - 1], cellB dans ind
 
 → **PathSpawner.cs** : MonoBehaviour, calcul et réservation des chemins au Start. Ordre d'exécution : `-100`.
 
+> **Note architecture :** Le paramètre `visible` (condition advisor) a été migré vers `SessionManager` → `LevelRegistry.pathVisible`. Ce script ne possède plus que `quadPrefab` (game design). Voir pattern **Research Parameter Pipeline** (section 2.3).
+
 ```csharp
 [DefaultExecutionOrder(-100)]
 public class PathSpawner : MonoBehaviour
@@ -229,19 +223,20 @@ public class PathSpawner : MonoBehaviour
     [Header("Références")]
     public GameObject quadPrefab;
 
-    [Header("Visibility")]
-    public bool visible = true;
+    // Lecture du paramètre recherche depuis LevelRegistry (écrit par SessionManager)
+    // bool visible = reg.pathVisible;
 }
 ```
 
 | Variable / Méthode | Type       | Description                                                          |
 | :------------------ | :--------- | :------------------------------------------------------------------- |
-| quadPrefab          | GameObject | Prefab quad pour la visualisation du chemin conseillé                 |
-| visible             | bool       | Si `false`, aucun quad n'est instancié et le fog n'est pas révélé (défaut : true) |
+| quadPrefab          | GameObject | Prefab quad pour la visualisation du chemin conseillé — **game design** |
+| _Lecture depuis LevelRegistry :_ | | `pathVisible` (bool) — si `false`, aucun quad instancié et fog non révélé. **Paramètre recherche** (écrit par SessionManager) |
 
 ### 3.2.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (TryGetPlayerStartCell, WorldToCell, CellToWorld, ReservePathLeft, ReservePathRight, RegisterOptimalPath, CreateRng), `GameManager.Instance` (GetBestCloud, SetChosenPath), `FogController.Instance` (RevealCells)
+- **Nécessite :** `LevelRegistry.Instance` (TryGetPlayerStartCell, WorldToCell, CellToWorld, ReservePathLeft, ReservePathRight, RegisterOptimalPath, CreateRng, **paramètre recherche** : pathVisible), `GameManager.Instance` (GetBestCloud, SetChosenPath), `FogController.Instance` (RevealCells)
+- **Est configuré par :** `SessionManager` → `LevelRegistry` (pipeline Research Parameter — voir section 2.3)
 - **Communique avec :** Nuages trouvés via `FindGameObjectsWithTag("BugCloud")`
 - **Déclenche :** Réservation de chemins dans LevelRegistry, publication du chemin conseillé dans GameManager, révélation du brouillard
 
@@ -251,7 +246,8 @@ public class PathSpawner : MonoBehaviour
 graph TD
     A["Start()"] --> A2["TryGetPlayerStartCell → playerCell"]
     A2 --> A3["CreateRng(PathSpawner) → rng déterministe"]
-    A3 --> B["FindGameObjectsWithTag('BugCloud')"]
+    A3 --> A4["Lire pathVisible depuis LevelRegistry"]
+    A4 --> B["FindGameObjectsWithTag('BugCloud')"]
     B --> C{clouds.Length ≥ 2 ?}
     C -->|Non| D[Warning + return]
     C -->|Oui| E[Déterminer leftCloud / rightCloud par position X]
@@ -291,7 +287,7 @@ Choix du chemin affiché    = vers GetBestCloud() si non null, sinon 50/50 aléa
 - **⚠️ Edge case :** Si les deux nuages ont le même totalBugs, `GetBestCloud()` retourne `null` et le chemin affiché est choisi au hasard (50/50) — cohérent avec le design
 - **⚠️ Performance :** `FindGameObjectsWithTag("BugCloud")` est utilisé plutôt qu'une référence directe — fonctionne car il n'y a que 2 nuages, mais fragile si d'autres objets portent le même tag
 - **⚠️ Séquencement :** Les deux chemins sont TOUJOURS réservés dans LevelRegistry (gauche + droite), même si un seul est affiché — c'est voulu pour que CorridorWallsGenerator protège les deux
-- **⚠️ Fog :** Les cellules du chemin ne sont révélées que si `visible == true`
+- **⚠️ Fog :** Les cellules du chemin ne sont révélées que si `pathVisible == true` (lu depuis LevelRegistry)
 
 ### 3.2.7 Journal d'implémentation
 
@@ -299,6 +295,7 @@ Choix du chemin affiché    = vers GetBestCloud() si non null, sinon 50/50 aléa
 | :------- | :---------- | :------------------------------------------------------------------------------------------------- |
 | 17/02/26 | @auteur     | Documentation initiale. Deux chemins Manhattan réservés, un seul affiché (vers le meilleur nuage). |
 | 27/02/26 | @pierre     | Refacto : renommé BestPath→PathSpawner, suppression champ player (TryGetPlayerStartCell), seeded RNG. |
+| 02/03/26 | @pierre     | Migration paramètre `visible` vers SessionManager → LevelRegistry.pathVisible. PathSpawner ne possède plus que quadPrefab (game design). |
 
 ## 3.3 CorridorWallsGenerator
 
@@ -614,6 +611,7 @@ Signalisation      = OnPlayerStep(cell) → GameManager gère fog, visited, tria
 - Enregistrer et désenregistrer les entités spatiales (nuages, pièges, murs, chemins, position de départ joueur)
 - Gérer le système de seed reproductible (RNG déterministe par scope via FNV-1a 64-bit)
 - Stocker les données globales de round (`trapCount`, `optimalPathLength`) accessibles par tous les systèmes
+- **Relayer les paramètres de protocole expérimental** écrits par SessionManager et lus par les spawners (pattern Research Parameter Pipeline)
 
 ### 4.1.2 Composants clés (Data Model)
 
@@ -630,7 +628,18 @@ public class LevelRegistry : MonoBehaviour
     public Vector3 originWorld = Vector3.zero;
 
     [HideInInspector] public int optimalPathLength;
+
+    // ── Paramètres recherche (écrits par SessionManager.Awake) ──
     [HideInInspector] public int trapCount;
+    [HideInInspector] public int minDistance;
+    [HideInInspector] public int minTotalBugs;
+    [HideInInspector] public int maxTotalBugs;
+    [HideInInspector] public float minGreenBugsRatio;
+    [HideInInspector] public float maxGreenBugsRatio;
+    [HideInInspector] public float gapMin;
+    [HideInInspector] public float gapMax;
+    [HideInInspector] public bool pathVisible;
+    [HideInInspector] public int blockId;
 
     long _roundSeed;
     bool _hasRoundSeed;
@@ -661,11 +670,18 @@ public class LevelRegistry : MonoBehaviour
 | Variable / Méthode                          | Type                               | Description                                                                 |
 | :------------------------------------------ | :--------------------------------- | :-------------------------------------------------------------------------- |
 | Instance                                    | LevelRegistry                      | Référence statique globale (Singleton)                                      |
-| gridSize                                    | Vector2Int                         | Dimensions de la grille (défaut : 10×10)                                    |
-| cellSize                                    | float                              | Taille d'une case en unités monde (défaut : 1, min : 0.0001)               |
+| gridSize                                    | Vector2Int                         | Dimensions de la grille (défaut : 10×10) — **game design**                  |
+| cellSize                                    | float                              | Taille d'une case en unités monde (défaut : 1, min : 0.0001) — **game design** |
 | originWorld                                 | Vector3                            | Position monde (X,Z) de la case (0,0) — initialisée par TilesSpawner       |
 | optimalPathLength                           | int [HideInInspector]              | Longueur du chemin optimal enregistré par PathSpawner                       |
-| trapCount                                   | int [HideInInspector]              | Nombre de pièges — écrit par SessionManager, lu par TrapSpawner             |
+| **Paramètres recherche** _(écrits par SessionManager.Awake, lus par les spawners en Start)_ | | |
+| trapCount                                   | int [HideInInspector]              | Nombre de pièges — lu par TrapSpawner. CLI: `trapCount=N`                   |
+| minDistance                                  | int [HideInInspector]              | Distance Manhattan min joueur↔nuages — lu par BugCloudSpawner. CLI: `minDistance=N` |
+| minTotalBugs / maxTotalBugs                 | int [HideInInspector]              | Range du nombre total de bugs par nuage. CLI: `minTotalBugs=N`, `maxTotalBugs=N` |
+| minGreenBugsRatio / maxGreenBugsRatio       | float [HideInInspector]            | Bornes du ratio vert (0-1). CLI: `minGreenRatio=F`, `maxGreenRatio=F`       |
+| gapMin / gapMax                             | float [HideInInspector]            | Écart min/max entre ratios verts des 2 nuages. CLI: `gapMin=F`, `gapMax=F`  |
+| pathVisible                                 | bool [HideInInspector]             | Affichage du chemin conseillé (condition advisor). CLI: `pathVisible=0\|1`   |
+| blockId                                     | int [HideInInspector]              | Identifiant du bloc expérimental pour TrialData. CLI: `blockId=N`            |
 | **Système RNG**                             |                                    |                                                                             |
 | SetRoundSeed(long)                          | void                               | Définit la seed du round (appelé par SessionManager)                        |
 | TryGetRoundSeed(out long)                   | bool                               | Récupère la seed du round si elle a été définie                             |
@@ -699,7 +715,7 @@ public class LevelRegistry : MonoBehaviour
 
 ### 4.1.3 Dépendances
 
-- **Est utilisé par :** `PlayerSpawner` (RegisterPlayerStart), `TilesSpawner` (originWorld), `BugCloudSpawner` (RegisterBugCloud, CreateRng, TryGetPlayerStartCell), `PathSpawner` (ReservePathLeft/Right, RegisterOptimalPath, TryGetPlayerStartCell, CreateRng), `CorridorWallsGenerator` (RegisterWall, IsOnAnyPath, HasBugCloud, TryGetPlayerStartCell, CreateRng), `TrapSpawner` (trapCount, RegisterTrap, IsFreeForTrap, TryGetPlayerStartCell, CreateRng), `GameManager` (MarkVisited, optimalPathLength, TryGetRoundSeed), `GridMover` (WorldToCell, CellToWorld, InBounds, IsWalkable), `FogController` (gridSize, WorldToCell), `SessionManager` (SetRoundSeed, trapCount), `MapGenerator` (prévisualisation éditeur)
+- **Est utilisé par :** `PlayerSpawner` (RegisterPlayerStart), `TilesSpawner` (originWorld), `BugCloudSpawner` (RegisterBugCloud, CreateRng, TryGetPlayerStartCell, **params recherche**), `PathSpawner` (ReservePathLeft/Right, RegisterOptimalPath, TryGetPlayerStartCell, CreateRng, **pathVisible**), `CorridorWallsGenerator` (RegisterWall, IsOnAnyPath, HasBugCloud, TryGetPlayerStartCell, CreateRng), `TrapSpawner` (trapCount, RegisterTrap, IsFreeForTrap, TryGetPlayerStartCell, CreateRng), `GameManager` (MarkVisited, optimalPathLength, TryGetRoundSeed, **blockId**), `GridMover` (WorldToCell, CellToWorld, InBounds, IsWalkable), `FogController` (gridSize, WorldToCell), `SessionManager` (SetRoundSeed, **écriture de tous les paramètres recherche**), `MapGenerator` (prévisualisation éditeur)
 - **Ne dépend de :** Rien (système fondation sans dépendance entrante)
 - **Ne déclenche :** Aucun event (`OnCellChanged` a été supprimé — les flags sont écrits silencieusement)
 
@@ -764,7 +780,7 @@ graph TD
 - **⚠️ Ordre d'exécution :** `LevelRegistry` doit s'initialiser avant tous les autres systèmes (`-300`). Si un spawner appelle `Instance` dans son `Awake` avec un ordre ≤ -300, NullRef possible
 - **⚠️ RNG auto-seed :** Si `CreateRng()` est appelé sans `SetRoundSeed()` préalable, une seed est générée automatiquement (DateTime + Guid) — le run ne sera pas reproductible
 - **⚠️ Thread safety :** `_cells` Dictionary non thread-safe — pas de problème en single-threaded Unity, mais à surveiller si des Jobs sont introduits
-- **🔧 trapCount / optimalPathLength :** Ces champs sont `[HideInInspector]` — ils servent de canal de communication entre SessionManager/PathSpawner et TrapSpawner, pas de valeurs Inspector
+- **🔧 Paramètres recherche :** Les 10 champs `[HideInInspector]` (trapCount, minDistance, totalBugs, greenRatio, gap, pathVisible, blockId) servent de canal de communication entre SessionManager.Awake et les Spawners.Start — ils ne sont jamais visibles dans l'Inspector
 
 ### 4.1.7 Journal d'implémentation
 
@@ -772,6 +788,7 @@ graph TD
 | :------- | :---------- | :---------------------------------------------------------------------------------------------------------- |
 | 17/02/26 | @auteur     | Documentation initiale du système. LevelRegistry stable — source de vérité grille avec CellFlags bitwise.   |
 | 27/02/26 | @pierre     | Refacto : ajout CellFlag PlayerStart, système RNG (FNV-1a + CreateRng/DeriveSeed), système PlayerStart (RegisterPlayerStart/TryGetPlayerStartCell), suppression OnCellChanged, ajout trapCount [HideInInspector]. |
+| 02/03/26 | @pierre     | Ajout de 9 champs [HideInInspector] pour les paramètres recherche (minDistance, totalBugs, greenRatio, gap, pathVisible, blockId). Pipeline Research Parameter complété. |
 
 ## 4.2 GameManager
 
@@ -799,7 +816,7 @@ public class GameManager : MonoBehaviour
     public TrialManager trialManager;
 
     [Header("Session")]
-    public int blockId = 1;
+    // blockId lu depuis LevelRegistry (écrit par SessionManager)
     int _screenCounter = 0;
 
     [Header("Round / Score")]
@@ -833,7 +850,7 @@ public class GameManager : MonoBehaviour
 | :------------------------------------------ | :---------------------- | :-------------------------------------------------------------------------------- |
 | Instance                                    | GameManager             | Référence statique globale (Singleton)                                            |
 | trialManager                                | TrialManager            | Référence au TrialManager pour l'envoi des données de recherche                   |
-| blockId                                     | int                     | Identifiant du bloc de trials en cours (défaut : 1)                               |
+| _blockId (lecture)_                          | _via LevelRegistry_     | Lu en inline depuis `LevelRegistry.Instance.blockId` dans `StartNewRound` — **paramètre recherche** (écrit par SessionManager, fallback : 1) |
 | _screenCounter                              | int (privé)             | Compteur séquentiel de manches dans la session                                    |
 | steps / trapsHit / bugsCollected            | int                     | Compteurs du round courant                                                        |
 | followedBestPath                            | bool                    | `true` tant que le joueur reste sur le chemin conseillé                           |
@@ -853,7 +870,8 @@ public class GameManager : MonoBehaviour
 
 ### 4.2.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (MarkVisited, optimalPathLength, TryGetRoundSeed), `FogController.Instance` (RevealCell), `TrialManager` (StartNewTrial, RecordMove, SetMapConfig, SetOptimalPathLength, EndCurrentTrial, SendTrials), `BugCloud` (nuages du round), `PathSpawner` (chemin conseillé)
+- **Nécessite :** `LevelRegistry.Instance` (MarkVisited, optimalPathLength, TryGetRoundSeed, **blockId**), `FogController.Instance` (RevealCell), `TrialManager` (StartNewTrial, RecordMove, SetMapConfig, SetOptimalPathLength, EndCurrentTrial, SendTrials), `BugCloud` (nuages du round), `PathSpawner` (chemin conseillé)
+- **Est configuré par :** `SessionManager` → `LevelRegistry` (blockId — pipeline Research Parameter)
 - **Est utilisé par :** `SessionManager` (lance `BeginFirstRound()`), `GridMover` (appelle `OnPlayerStep()`), `BugCloud` (appelle `OnCloudCollected()`), `Trap` (appelle `OnTrapTriggered()`), `PathSpawner` (appelle `SetChosenPath()`)
 - **Communique avec l'UI via :** `event OnRoundEnded` → `RoundUI` (pas de références UI directes)
 
@@ -864,7 +882,7 @@ graph TD
     A[SessionManager.BeginFirstRound] --> B["StartNewRound('forest')"]
     B --> B1["_screenCounter++"]
     B1 --> B2["Récupérer roundSeed depuis LevelRegistry"]
-    B2 --> C["TrialManager.StartNewTrial(blockId, screenCounter, screenType, seed)"]
+    B2 --> C["TrialManager.StartNewTrial(LevelRegistry.blockId, screenCounter, screenType, seed)"]
 
     subgraph "Phase Setup — appelé par les spawners"
         D[BugCloudSpawner] -->|RegisterClouds| E[Trie leftCloud / rightCloud par position X]
@@ -922,7 +940,7 @@ Fog + Visited     = gérés par OnPlayerStep (pas par GridMover)
 - **⚠️ Edge case :** Si `leftCloud.totalBugs == rightCloud.totalBugs`, `GetBestCloud()` retourne `null` et `choice_correct` sera toujours `false` — à valider si c'est le comportement souhaité pour l'étude
 - **⚠️ Fog centralisé :** La révélation du brouillard et le marquage visited sont faits dans `OnPlayerStep()`, pas dans GridMover — un seul point de vérité pour ce qui se passe quand le joueur bouge
 - **⚠️ Séquencement :** `RegisterClouds` peut être appelé avant `StartNewRound` (BugCloudSpawner Start -200 vs GameManager Start 0). Le tampon `pendingMapConfigJson` dans TrialManager gère ce cas
-- **🔧 À clarifier :** `blockId` est hardcodé à 1 et `screenType` toujours "forest" — à paramétriser quand le protocole de recherche intègrera plusieurs blocs
+- **🔧 À clarifier :** `screenType` toujours "forest" — à paramétriser quand le protocole de recherche intègrera plusieurs types d'écran
 
 ### 4.2.7 Journal d'implémentation
 
@@ -930,6 +948,7 @@ Fog + Visited     = gérés par OnPlayerStep (pas par GridMover)
 | :------- | :---------- | :------------------------------------------------------------------------------------------------------------ |
 | 17/02/26 | @auteur     | Documentation initiale. GameManager stable — gestion complète du cycle de round avec intégration TrialManager. |
 | 27/02/26 | @pierre     | Refacto : suppression champs UI (scoreText, gameOverUI, gameOverStats), ajout event OnRoundEnded + RoundEndInfo, ajout OnTrapTriggered, fog+visited centralisés dans OnPlayerStep, SetMapConfig structuré (plus de JSON brut dans GameManager), StartNewTrial passe la seed, suppression DTOs MiniMapCfg/CloudInfo (déplacés dans TrialManager). |
+| 02/03/26 | @pierre     | Migration blockId vers SessionManager → LevelRegistry. GameManager ne possède plus de champ blockId — lit `LevelRegistry.Instance.blockId` en inline (fallback : 1). |
 
 ## 4.3 SessionManager
 
@@ -937,13 +956,18 @@ Fog + Visited     = gérés par OnPlayerStep (pas par GridMover)
 
 - Gérer la seed de randomisation pour le round (génération ou parsing CLI)
 - Écrire la seed dans `LevelRegistry.SetRoundSeed()` pour que tous les spawners l'utilisent
-- Parser `trapCount=N` depuis les arguments CLI et l'écrire dans `LevelRegistry.trapCount`
+- **Centraliser tous les paramètres de protocole expérimental** et les écrire dans LevelRegistry.Awake (voir pattern Research Parameter Pipeline — section 2.3)
+- Parser les arguments CLI (`key=value`) pour permettre au dashboard de recherche de configurer chaque trial
 - Parser `sessionId=X` depuis les arguments CLI et l'injecter dans TrialManager
 - Déclencher le début du jeu via `GameManager.BeginFirstRound()` après un frame de délai
 
 ### 4.3.2 Composants clés (Data Model)
 
-→ **SessionManager.cs** : MonoBehaviour de configuration au démarrage. Ordre d'exécution : `0` (défaut). Awake configure seed + trapCount + sessionId. Start est une coroutine qui lance le jeu après un frame.
+→ **SessionManager.cs** : MonoBehaviour de configuration au démarrage. Ordre d'exécution : `0` (défaut). Awake configure seed + paramètres recherche + sessionId. Start est une coroutine qui lance le jeu après un frame.
+
+> **Note architecture :** SessionManager est le **propriétaire unique** des paramètres de protocole expérimental. Chaque paramètre est exposé en `[SerializeField]` (valeur par défaut Inspector) et peut être surchargé via CLI. La distinction fondamentale :
+> - **Paramètre de protocole expérimental** → possédé par SessionManager, injectable via CLI, écrit dans LevelRegistry
+> - **Paramètre de game design** → reste en `[SerializeField]` sur le script qui l'utilise (ex: `corridorWidth` sur CorridorWallsGenerator, `minZ` sur BugCloudSpawner)
 
 ```csharp
 public class SessionManager : MonoBehaviour
@@ -958,29 +982,57 @@ public class SessionManager : MonoBehaviour
 
     [Header("Configuration de la map")]
     [SerializeField] private int trapCount = 10;
+
+    [Header("BugCloud : Paramètres recherche")]
+    [SerializeField] private int minDistance = 3;
+    [SerializeField] private int minTotalBugs = 20;
+    [SerializeField] private int maxTotalBugs = 80;
+    [SerializeField] private float minGreenBugsRatio = 0.4f;
+    [SerializeField] private float maxGreenBugsRatio = 0.8f;
+    [SerializeField] private float gapMin = 0.1f;
+    [SerializeField] private float gapMax = 0.3f;
+
+    [Header("PathSpawner : Paramètres recherche")]
+    [SerializeField] private bool pathVisible = true;
+
+    [Header("Session : Paramètres recherche")]
+    [SerializeField] private int blockId = 1;
 }
 ```
 
-| Variable / Méthode          | Type         | Description                                                                       |
-| :-------------------------- | :----------- | :-------------------------------------------------------------------------------- |
-| trialManager                | TrialManager | Référence pour injecter le sessionId                                              |
-| gameManager                 | GameManager  | Référence pour déclencher `BeginFirstRound()`                                     |
-| randomizationSeed           | long         | Seed de randomisation — 0 = auto-généré, sinon utilisé tel quel                   |
-| buildVersion                | string       | Version du build (réservée, non utilisée actuellement — défaut : "1.0.0")         |
-| trapCount                   | int [SerializeField] | Nombre de pièges (défaut : 10) — overridable via CLI `trapCount=N`        |
-| Awake()                     | void         | Pipeline séquentiel : seed → trapCount CLI → trapCount registry → sessionId       |
-| Start()                     | IEnumerator  | Coroutine : `yield return null` → `BeginFirstRound()`                             |
-| ApplySeedForThisRound()     | void (privé) | Parse `seed=` CLI, sinon génère depuis DateTime+Guid, écrit dans LevelRegistry    |
-| TryApplyTrapCountFromArgs() | void (privé) | Parse `trapCount=N` depuis les args CLI                                           |
-| ApplyTrapCountToRegistry()  | void (privé) | Écrit `trapCount` dans `LevelRegistry.trapCount`                                  |
-| TryApplySessionIdFromArgs() | void (privé) | Parse `sessionId=X` depuis les args et l'injecte dans TrialManager                |
+| Variable / Méthode                | Type              | Description                                                                       |
+| :-------------------------------- | :---------------- | :-------------------------------------------------------------------------------- |
+| trialManager                      | TrialManager      | Référence pour injecter le sessionId                                              |
+| gameManager                       | GameManager       | Référence pour déclencher `BeginFirstRound()`                                     |
+| randomizationSeed                 | long              | Seed de randomisation — 0 = auto-généré, sinon utilisé tel quel                   |
+| buildVersion                      | string            | Version du build (réservée, non utilisée — défaut : "1.0.0")                      |
+| **Paramètres recherche** _(écrits dans LevelRegistry par `ApplyResearchParamsToRegistry`)_ | | |
+| trapCount                         | int [SerializeField]  | Nombre de pièges (défaut : 10). CLI: `trapCount=N`                            |
+| minDistance                        | int [SerializeField]  | Distance Manhattan min joueur↔nuages (défaut : 3). CLI: `minDistance=N`       |
+| minTotalBugs / maxTotalBugs       | int [SerializeField]  | Range du nombre total de bugs (défaut : 20-80). CLI: `minTotalBugs=N`, `maxTotalBugs=N` |
+| minGreenBugsRatio / maxGreenBugsRatio | float [SerializeField] | Bornes ratio vert (défaut : 0.4-0.8). CLI: `minGreenRatio=F`, `maxGreenRatio=F` |
+| gapMin / gapMax                   | float [SerializeField] | Écart min/max entre ratios verts (défaut : 0.1-0.3). CLI: `gapMin=F`, `gapMax=F` |
+| pathVisible                       | bool [SerializeField]  | Affichage chemin conseillé (défaut : true). CLI: `pathVisible=0\|1\|true\|false` |
+| blockId                           | int [SerializeField]  | Bloc expérimental pour TrialData (défaut : 1). CLI: `blockId=N`               |
+| **Méthodes**                      |                   |                                                                                   |
+| Awake()                           | void              | Pipeline séquentiel : seed → CLI parsing → params registry → sessionId            |
+| Start()                           | IEnumerator       | Coroutine : `yield return null` → `BeginFirstRound()`                             |
+| ApplySeedForThisRound()           | void (privé)      | Parse `seed=` CLI, sinon génère depuis DateTime+Guid, écrit dans LevelRegistry    |
+| TryApplyTrapCountFromArgs()       | void (privé)      | Parse `trapCount=N` depuis les args CLI (legacy — à refactorer avec TryParseInt)  |
+| TryApplyBugCloudParamsFromArgs()  | void (privé)      | Parse les 9 paramètres recherche restants (minDistance, totalBugs, greenRatio, gap, pathVisible, blockId) |
+| ApplyResearchParamsToRegistry()   | void (privé)      | Écrit **tous** les paramètres recherche (10) dans LevelRegistry d'un coup         |
+| TryApplySessionIdFromArgs()       | void (privé)      | Parse `sessionId=X` depuis les args et l'injecte dans TrialManager                |
+| **Helpers CLI (static)**          |                   |                                                                                   |
+| TryParseInt(arg, key, ref target) | void              | Parse un arg `key=N` (int), log si trouvé ou invalide                             |
+| TryParseFloat(arg, key, ref target) | void            | Parse un arg `key=F` (float, InvariantCulture), log si trouvé ou invalide         |
+| TryParseBool(arg, key, ref target) | void             | Parse un arg `key=0\|1\|true\|false` (bool, case-insensitive), log si trouvé ou invalide |
 
 ### 4.3.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (SetRoundSeed, trapCount), `GameManager` (appelle `BeginFirstRound()`), `TrialManager` (injecte sessionId)
+- **Nécessite :** `LevelRegistry.Instance` (SetRoundSeed, **écriture de tous les paramètres recherche** : trapCount, minDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax, pathVisible, blockId), `GameManager` (appelle `BeginFirstRound()`), `TrialManager` (injecte sessionId)
 - **Est utilisé par :** Aucun — point d'entrée du flux de jeu
 - **Source de données :** Arguments de ligne de commande (`System.Environment.GetCommandLineArgs()`)
-- **Ne référence plus :** `TrapSpawner` (le trapCount transite par LevelRegistry)
+- **Ne référence plus :** `TrapSpawner`, `BugCloudSpawner`, `PathSpawner`, `GameManager.blockId` — tous les paramètres transitent par LevelRegistry (découplage total)
 
 ### 4.3.4 Diagramme de flux
 
@@ -1000,11 +1052,15 @@ graph TD
     C --> C1{Arg 'trapCount=N' trouvé ?}
     C1 -->|Oui| C2["trapCount = parsed"]
     C1 -->|Non| C3["trapCount reste à sa valeur Inspector (10)"]
-    C2 --> D["ApplyTrapCountToRegistry()"]
-    C3 --> D
-    D --> D1["LevelRegistry.trapCount = trapCount"]
 
-    D1 --> E["TryApplySessionIdFromArgs()"]
+    C2 --> D0["TryApplyBugCloudParamsFromArgs()"]
+    C3 --> D0
+    D0 --> D1["Boucle sur args CLI : TryParseInt/Float/Bool pour<br/>minDistance, totalBugs, greenRatio, gap, pathVisible, blockId"]
+
+    D1 --> D["ApplyResearchParamsToRegistry()"]
+    D --> D2["LevelRegistry ← tous les 10 paramètres recherche"]
+
+    D2 --> E["TryApplySessionIdFromArgs()"]
     E --> E1{Arg 'sessionId=X' trouvé ?}
     E1 -->|Oui| E2["trialManager.SetSessionId(val)"]
     E1 -->|Non| F["Fin Awake"]
@@ -1016,22 +1072,25 @@ graph TD
 
 ### 4.3.5 Approche retenue & alternatives évaluées
 
-**Approche retenue :** Arguments de ligne de commande + écriture dans LevelRegistry (pas d'injection directe dans les spawners)
+**Approche retenue :** Arguments de ligne de commande + écriture centralisée dans LevelRegistry (pas d'injection directe dans les spawners)
 
 | Approche                                 | Avantages                                                           | Inconvénients                                       |
 | :--------------------------------------- | :------------------------------------------------------------------ | :-------------------------------------------------- |
 | ✅ **Args CLI → LevelRegistry**          | Découplé des spawners, un seul point de vérité, compatible WebGL    | Parsing manuel, pas de validation de schéma          |
-| Injection directe dans TrapSpawner       | Simple et explicite                                                 | Couplage SessionManager↔TrapSpawner, fragile si le spawner change |
+| Injection directe dans chaque spawner    | Simple et explicite                                                 | Couplage SessionManager↔chaque spawner, fragile si le spawner change |
 | URL query parameters (WebGL)             | Plus standard pour le web                                           | Pas compatible Desktop, nécessite un bridge JS→Unity |
+| ScriptableObject partagé                 | Type-safe, asset-based                                              | Pas injectable via CLI, nécessite un asset dans le projet |
 
 ### 4.3.6 Points d'attention
 
-- **⚠️ Awake, pas Start :** Toute la configuration (seed, trapCount, sessionId) est faite en Awake pour garantir que les spawners (qui tournent en Start avec des ordres négatifs) aient accès aux bonnes valeurs
+- **⚠️ Awake, pas Start :** Toute la configuration (seed, params recherche, sessionId) est faite en Awake pour garantir que les spawners (qui tournent en Start avec des ordres négatifs) aient accès aux bonnes valeurs
 - **⚠️ Seed reproductible :** Si `seed=` est fourni en CLI ou si `randomizationSeed` est défini dans l'Inspector (≠ 0), le run est entièrement reproductible. Si = 0, une seed unique est générée à chaque lancement
-- **⚠️ Edge case :** Si `trapCount` n'est pas fourni en argument, la valeur par défaut Inspector (10) est utilisée — comportement silencieux par design
+- **⚠️ Fallback Inspector :** Tous les paramètres recherche ont une valeur par défaut visible dans l'Inspector. Si un arg CLI n'est pas fourni, la valeur Inspector est utilisée — comportement silencieux par design
 - **⚠️ Edge case :** Si `sessionId` n'est pas fourni, `TrialManager.StartNewTrial()` logguera une erreur et ignorera la manche — les données de recherche seront perdues
 - **⚠️ WebGL :** `System.Environment.GetCommandLineArgs()` fonctionne en WebGL uniquement si les arguments sont passés via le template HTML Unity — à vérifier avec le dashboard
+- **⚠️ TryParseBool :** Accepte `0`, `1`, `true`, `false` (case-insensitive) — toute autre valeur est ignorée avec un warning
 - **🔧 buildVersion :** Déclaré mais non exploité — prévu pour le protocole de recherche
+- **🔧 TryApplyTrapCountFromArgs :** Parser legacy dédié — à refactorer pour utiliser le helper `TryParseInt` générique (cohérence avec les autres params)
 
 ### 4.3.7 Journal d'implémentation
 
@@ -1039,6 +1098,7 @@ graph TD
 | :------- | :---------- | :------------------------------------------------------------------------------------------------------------------ |
 | 17/02/26 | @auteur     | Documentation initiale. SessionManager stable — bootstrap par args CLI avec injection dans TrapSpawner/TrialManager. |
 | 27/02/26 | @pierre     | Refacto : suppression référence TrapSpawner, SessionManager possède trapCount (SerializeField), pipeline seed (ApplySeedForThisRound → LevelRegistry.SetRoundSeed), trapCount écrit dans LevelRegistry.trapCount, ajout parsing CLI seed=N. |
+| 02/03/26 | @pierre     | Migration centralisée : SessionManager possède désormais TOUS les paramètres de protocole expérimental (10 params : trapCount, minDistance, totalBugs, greenRatio, gap, pathVisible, blockId). Ajout TryApplyBugCloudParamsFromArgs + ApplyResearchParamsToRegistry (remplace ApplyTrapCountToRegistry). Helpers CLI génériques : TryParseInt, TryParseFloat, TryParseBool. BugCloudSpawner, PathSpawner et GameManager ne possèdent plus de paramètres recherche. |
 
 ## 4.4 FogController
 
@@ -1697,3 +1757,4 @@ _Section à compléter._
 | 17/02/26 | 1.5     | MAJ section 3.5 (GridMoverNewInput) — suppression support ZQSD, flèches uniquement      |
 | 17/02/26 | 1.6     | Ajout sections 4.6 (TilesSpawner) et 4.7 (PlayerSpawner)                                |
 | 27/02/26 | 2.0     | Mise à jour post-refacto : sections 2.1 (Utils/Maze/), 2.3 (patterns concrets), 3.1-3.5 (renommages PathSpawner/GridMover, seeded RNG, TryGetPlayerStartCell, MazeGenerator DFS), 4.1-4.7 (LevelRegistry RNG+PlayerStart, GameManager OnRoundEnded+OnTrapTriggered, SessionManager seed+trapCount pipeline, TrialManager SetMapConfig structuré, PlayerSpawner RegisterPlayerStart), 5.1 (trial_seed + JSON), nouvelle section 6 (RoundUI). |
+| 02/03/26 | 2.1     | Migration paramètres recherche : nouveau pattern Research Parameter Pipeline (section 2.3). SessionManager centralise 10 params expérimentaux (trapCount, minDistance, totalBugs, greenRatio, gap, pathVisible, blockId) avec pipeline CLI → LevelRegistry → Spawners. MAJ sections 3.1, 3.2, 4.1, 4.2, 4.3. MAJ Script_Execution_Order.md. |

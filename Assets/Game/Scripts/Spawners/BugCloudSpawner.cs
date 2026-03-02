@@ -9,37 +9,12 @@ public class BugCloudSpawner : MonoBehaviour
 
     public GameObject bugCloudPrefab;
 
-    // Source de vérité: LevelRegistry (gridSize/cellSize/originWorld)
+    // Source de vérité: LevelRegistry (gridSize/cellSize/originWorld + paramètres recherche)
 
-    [Header("Placement")]
-    [Tooltip("Distance Manhattan minimale (en cases) depuis le joueur.")]
-    public int minDistance = 3;
+    [Header("Placement (visuel)")]
     readonly int minZ = 5; // Z minimale pour placer un nuage (évite les nuages trop proches du joueur en Y)
     [Tooltip("Hauteur Y pour instancier les nuages (pivot au centre du prefab).")]
     public float spawnY = 0.5f;
-
-    //Parameters to set number of bugs in clouds
-    [Header("BugsCloud Parameters : Researchers Input")]
-    [SerializeField]
-    private int minTotalBugs = 20;
-    [SerializeField]
-    private int maxTotalBugs = 80;
-
-    [Header("Green Ratio Bounds")]
-    [Tooltip("Borne minimale pour le tirage du premier ratio de bugs verts (ex: 0.4 = 40% de verts).")]
-    [SerializeField]
-    private float minGreenBugsRatio = 0.4f;
-    [Tooltip("Borne maximale pour le tirage du premier ratio de bugs verts (ex: 0.8 = 80% de verts).")]
-    [SerializeField]
-    private float maxGreenBugsRatio = 0.8f;
-
-    [Header("Discrimination Difficulty Control")]
-    [Tooltip("Écart MINIMUM entre les ratios verts des deux nuages (ex: 0.05 = 5% d'écart minimum). Plus petit = discrimination difficile.")]
-    [SerializeField]
-    private float gapMin = 0.1f;
-    [Tooltip("Écart MAXIMUM entre les ratios verts des deux nuages (ex: 0.3 = 30% d'écart maximum). Plus grand = discrimination facile.")]
-    [SerializeField]
-    private float gapMax = 0.3f;
 
     // Au Start, on place les 2 nuages (permet d'acceder à leurs positions dans Start du TrapSpawner)
     void Start()
@@ -61,8 +36,17 @@ public class BugCloudSpawner : MonoBehaviour
 
         var rng = registry.CreateRng(nameof(BugCloudSpawner));
 
+        // Lecture des paramètres recherche depuis LevelRegistry (écrits par SessionManager)
+        int minDistance        = Mathf.Max(1, registry.minDistance);
+        int minTotalBugs       = registry.minTotalBugs;
+        int maxTotalBugs       = registry.maxTotalBugs;
+        float minGreenBugsRatio = registry.minGreenBugsRatio;
+        float maxGreenBugsRatio = registry.maxGreenBugsRatio;
+        float gapMin           = registry.gapMin;
+        float gapMax           = registry.gapMax;
+
         // Bornes pour la distance au joueur (D)
-        int Dmin = Mathf.Max(1, minDistance);
+        int Dmin = minDistance;
         int Dmax = registry.gridSize.x + registry.gridSize.y; // borne large, on filtrera par InBounds
 
         // Liste des distances D qui ont ≥ 2 cases valides dans la grille
