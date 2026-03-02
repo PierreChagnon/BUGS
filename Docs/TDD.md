@@ -2,7 +2,7 @@
 
 | Nom du projet :    | BUGS                          |
 | :----------------- | :---------------------------- |
-| **Version :**      | 2.2                           |
+| **Version :**      | 2.4                           |
 | **Dernière MAJ :** | 02/03/26                      |
 | **Auteur(s) :**    | @florian, @pierre             |
 | **Moteur :**       | Unity 6000.3.5f2              |
@@ -230,14 +230,14 @@ public class PathSpawner : MonoBehaviour
     public GameObject quadPrefab;
 
     // Lecture du paramètre recherche depuis SessionManager.Instance
-    // bool visible = SessionManager.Instance.pathVisible;
+    // bool visible = rng.NextDouble() < SessionManager.Instance.pathVisible;
 }
 ```
 
 | Variable / Méthode | Type       | Description                                                          |
 | :------------------ | :--------- | :------------------------------------------------------------------- |
 | quadPrefab          | GameObject | Prefab quad pour la visualisation du chemin conseillé — **game design** |
-| _Lecture depuis SessionManager.Instance :_ | | `pathVisible` (bool) — si `false`, aucun quad instancié et fog non révélé. **Paramètre recherche** (Singleton, lecture directe) |
+| _Lecture depuis SessionManager.Instance :_ | | `pathVisible` (float, 0-1) — probabilité que le chemin soit visible. Tirage `rng.NextDouble() < pathVisible` (seeded RNG). Si invisible, aucun quad instancié et fog non révélé. **Paramètre recherche** (Singleton, lecture directe) |
 
 ### 3.2.3 Dépendances
 
@@ -252,7 +252,7 @@ public class PathSpawner : MonoBehaviour
 graph TD
     A["Start()"] --> A2["TryGetPlayerStartCell → playerCell"]
     A2 --> A3["CreateRng(PathSpawner) → rng déterministe"]
-    A3 --> A4["Lire pathVisible depuis SessionManager.Instance"]
+    A3 --> A4["Lire pathVisible (float) depuis SessionManager.Instance"]
     A4 --> B["FindGameObjectsWithTag('BugCloud')"]
     B --> C{clouds.Length ≥ 2 ?}
     C -->|Non| D[Warning + return]
@@ -264,9 +264,9 @@ graph TD
     F --> H["reg.ReservePathLeft(leftCells)"]
     G --> I["reg.ReservePathRight(rightCells)"]
 
-    H --> J{visible ?}
+    H --> J{"rng.NextDouble() < pathVisible ?"}
     I --> J
-    J -->|Non| K[return]
+    J -->|Non| K[return — chemin invisible]
     J -->|Oui| L{GameManager.GetBestCloud() != null ?}
     L -->|Oui| M[chosenPath = chemin vers le meilleur nuage]
     L -->|Non| N["chosenPath = Random 50/50 (rng)"]
@@ -293,7 +293,7 @@ Choix du chemin affiché    = vers GetBestCloud() si non null, sinon 50/50 aléa
 - **⚠️ Edge case :** Si les deux nuages ont le même totalBugs, `GetBestCloud()` retourne `null` et le chemin affiché est choisi au hasard (50/50) — cohérent avec le design
 - **⚠️ Performance :** `FindGameObjectsWithTag("BugCloud")` est utilisé plutôt qu'une référence directe — fonctionne car il n'y a que 2 nuages, mais fragile si d'autres objets portent le même tag
 - **⚠️ Séquencement :** Les deux chemins sont TOUJOURS réservés dans LevelRegistry (gauche + droite), même si un seul est affiché — c'est voulu pour que CorridorWallsGenerator protège les deux
-- **⚠️ Fog :** Les cellules du chemin ne sont révélées que si `pathVisible == true` (lu depuis `SessionManager.Instance`)
+- **⚠️ Fog :** Les cellules du chemin ne sont révélées que si le tirage probabiliste `rng.NextDouble() < pathVisible` est positif (`pathVisible` est un float 0-1 lu depuis `SessionManager.Instance`)
 
 ### 3.2.7 Journal d'implémentation
 
@@ -303,6 +303,7 @@ Choix du chemin affiché    = vers GetBestCloud() si non null, sinon 50/50 aléa
 | 27/02/26 | @pierre     | Refacto : renommé BestPath→PathSpawner, suppression champ player (TryGetPlayerStartCell), seeded RNG. |
 | 02/03/26 | @pierre     | Migration paramètre `visible` vers SessionManager → LevelRegistry.pathVisible. PathSpawner ne possède plus que quadPrefab (game design). |
 | 02/03/26 | @pierre     | Refacto SRP : PathSpawner lit `pathVisible` directement depuis `SessionManager.Instance` (nouveau Singleton). Plus de transit par LevelRegistry pour les paramètres recherche. |
+| 02/03/26 | @auteur     | `pathVisible` passe de bool à float (probabilité 0-1). La visibilité est désormais déterminée par `rng.NextDouble() < pathVisible` (seeded RNG). Permet un contrôle probabiliste de la condition advisor. |
 
 ## 3.3 CorridorWallsGenerator
 
@@ -829,9 +830,10 @@ public class GameManager : MonoBehaviour
         public int trapsHit;
         public int steps;
         public bool followedBestPath;
-        public int leftCloudBugs;
-        public int rightCloudBugs;
+        public int leftCloudGreenBugs;
+        public int rightCloudGreenBugs;
         public int overtimeSteps;
+        public bool optimalPathVisible;
     }
 
     public event Action<RoundEndInfo> OnRoundEnded;
@@ -850,7 +852,7 @@ public class GameManager : MonoBehaviour
 | inputLocked                                 | bool (get)              | Verrouille les inputs joueur quand `true` (fin de round)                          |
 | _roundOver                                  | bool (privé)            | Empêche les callbacks d'entités après fin de round                                |
 | _advisorPath                                | HashSet (privé)         | Cellules du chemin conseillé (reçu de PathSpawner)                                |
-| RoundEndInfo                                | struct                  | Données transmises via OnRoundEnded (bugs, traps, steps, chemin, bugs L/R, overtimeSteps) |
+| RoundEndInfo                                | struct                  | Données transmises via OnRoundEnded (bugs, traps, steps, chemin, bugs L/R, overtimeSteps, optimalPathVisible) |
 | OnRoundEnded                                | event Action\<RoundEndInfo\> | Émis à la fin du round — RoundUI s'y abonne                                 |
 | BeginFirstRound()                           | void                    | Point d'entrée appelé par SessionManager — lance le premier round                 |
 | RegisterClouds(BugCloud, BugCloud)          | void                    | Enregistre les 2 nuages, transmet la config map (positions, totalBugs, greenRatio) à TrialManager via `SetMapConfig` |
@@ -858,7 +860,7 @@ public class GameManager : MonoBehaviour
 | OnPlayerStep(Vector2Int)                    | void                    | Appelé par GridMover — fog, visited, déviation, budget de pas, trial log           |
 | OnTrapTriggered()                           | void                    | Appelé par Trap — trapsHit++, -1 bug sur chaque nuage                            |
 | OnStepBudgetExceeded()                      | void (privé)            | Appelé quand le joueur dépasse le budget de pas — overtimeSteps++, -1 bug sur chaque nuage |
-| OnCloudCollected(BugCloud)                  | void                    | Fin de round — calcule bugs verts, détermine trueCloud, transmet cloud_distance via SetCloudDistance, finalise trial (choice, correct, trueCloud, greenBugs, trapsHit, steps), émet OnRoundEnded |
+| OnCloudCollected(BugCloud)                  | void                    | Fin de round — calcule bugs verts, détermine trueCloud, transmet cloud_distance via SetCloudDistance, détermine optimalPathVisible par tirage probabiliste (`rng.NextDouble() < pathVisible`), finalise trial (choice, correct, trueCloud, greenBugs, trapsHit, steps, optimalPathVisible), émet OnRoundEnded |
 | GetBestCloud()                              | BugCloud                | Retourne le nuage avec le meilleur `greenRatio`, `null` si égalité                |
 | RestartRound()                              | void                    | Recharge la scène active (appelé par RoundUI)                                     |
 
@@ -917,7 +919,8 @@ graph TD
         Q --> R["bugsCollected += max(0, RoundToInt(cloud.totalBugs × cloud.greenRatio))"]
         R --> R1["trueCloud = best == leftCloud ? 'left' : best == rightCloud ? 'right' : 'none'"]
         R1 --> R1b["TrialManager.SetCloudDistance(LevelRegistry.stepBudget)"]
-        R1b --> S["TrialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps)"]
+        R1b --> R2["optimalPathVisible = rng.NextDouble() < SessionManager.Instance.pathVisible"]
+        R2 --> S["TrialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps, optimalPathVisible)"]
         S --> S1["TrialManager.SendTrials()"]
         S1 --> U["OnRoundEnded?.Invoke(RoundEndInfo)"]
     end
@@ -960,6 +963,7 @@ Fog + Visited     = gérés par OnPlayerStep (pas par GridMover)
 | 02/03/26 | @pierre     | Migration blockId : GameManager ne possède plus de champ blockId — lit désormais `SessionManager.Instance.blockId` en inline (fallback : 1 si Instance null). Suppression du commentaire blockId dans le code. |
 | 02/03/26 | @pierre     | Pipeline collecte enrichi : `OnCloudCollected` calcule désormais les bugs verts (totalBugs × greenRatio), détermine `trueCloud` (left/right/none), et transmet 6 params à `EndCurrentTrial` (choice, correct, trueCloud, greenBugsCollected, trapsHit, steps). `RegisterClouds` passe `greenRatio` à `SetMapConfig`. `GetBestCloud` compare `greenRatio` (pas totalBugs). |
 | 02/03/26 | @pierre     | Mécanique Step Budget Penalty : ajout `overtimeSteps`, `OnStepBudgetExceeded()`, vérification budget dans `OnPlayerStep`. `OnCloudCollected` transmet `cloud_distance` via `TrialManager.SetCloudDistance`. `RoundEndInfo` inclut `overtimeSteps`. |
+| 02/03/26 | @auteur     | `pathVisible` passe de bool à float (probabilité). `OnCloudCollected` détermine `optimalPathVisible` par tirage `rng.NextDouble() < pathVisible` et le transmet à `EndCurrentTrial` (7 params). `RoundEndInfo` ajoute `optimalPathVisible`. |
 
 ## 4.3 SessionManager
 
@@ -1008,7 +1012,7 @@ public class SessionManager : MonoBehaviour
     public float gapMax = 0.3f;
 
     [Header("Recherche : Advisor")]
-    public bool pathVisible = true;
+    public float pathVisible = 1f;
 
     [Header("Recherche : Protocole")]
     public int blockId = 1;
@@ -1029,7 +1033,7 @@ public class SessionManager : MonoBehaviour
 | minTotalBugs / maxTotalBugs       | int (public)          | Range du nombre total de bugs (défaut : 20-80). CLI: `minTotalBugs=N`, `maxTotalBugs=N` |
 | minGreenBugsRatio / maxGreenBugsRatio | float (public) | Bornes ratio vert (défaut : 0.4-0.8). CLI: `minGreenRatio=F`, `maxGreenRatio=F` |
 | gapMin / gapMax                   | float (public)     | Écart min/max entre ratios verts (défaut : 0.1-0.3). CLI: `gapMin=F`, `gapMax=F` |
-| pathVisible                       | bool (public)      | Affichage chemin conseillé (défaut : true). CLI: `pathVisible=0\|1\|true\|false` |
+| pathVisible                       | float (public)     | Probabilité d'affichage du chemin conseillé (défaut : 1.0 = toujours visible, 0.0 = jamais). CLI: `pathVisible=F` (ex: `pathVisible=0.5`). Le tirage est fait par `rng.NextDouble() < pathVisible` dans PathSpawner et GameManager |
 | blockId                           | int (public)       | Bloc expérimental pour TrialData (défaut : 1). CLI: `blockId=N`               |
 | **Méthodes**                      |                   |                                                                                   |
 | Awake()                           | void              | Pipeline séquentiel : Singleton init → seed → CLI parsing → sessionId            |
@@ -1041,7 +1045,7 @@ public class SessionManager : MonoBehaviour
 | **Helpers CLI (static)**          |                   |                                                                                   |
 | TryParseInt(arg, key, ref target) | void              | Parse un arg `key=N` (int), log si trouvé ou invalide                             |
 | TryParseFloat(arg, key, ref target) | void            | Parse un arg `key=F` (float, InvariantCulture), log si trouvé ou invalide         |
-| TryParseBool(arg, key, ref target) | void             | Parse un arg `key=0\|1\|true\|false` (bool, case-insensitive), log si trouvé ou invalide |
+| TryParseBool(arg, key, ref target) | void             | Parse un arg `key=0\|1\|true\|false` (bool, case-insensitive), log si trouvé ou invalide — **n'est plus utilisé pour pathVisible** (devenu float) |
 
 ### 4.3.3 Dépendances
 
@@ -1074,7 +1078,7 @@ graph TD
 
     C2 --> D0["TryApplyBugCloudParamsFromArgs()"]
     C3 --> D0
-    D0 --> D1["Boucle sur args CLI : TryParseInt/Float/Bool pour<br/>minDistance, maxDistance, totalBugs, greenRatio, gap, pathVisible, blockId"]
+    D0 --> D1["Boucle sur args CLI : TryParseInt/Float pour<br/>minDistance, maxDistance, totalBugs, greenRatio, gap, pathVisible (float), blockId"]
 
     D1 --> E["TryApplySessionIdFromArgs()"]
     E --> E1{Arg 'sessionId=X' trouvé ?}
@@ -1113,7 +1117,7 @@ graph TD
 - **⚠️ Fallback Inspector :** Tous les paramètres recherche ont une valeur par défaut visible dans l'Inspector. Si un arg CLI n'est pas fourni, la valeur Inspector est utilisée — comportement silencieux par design
 - **⚠️ Edge case :** Si `sessionId` n'est pas fourni, `TrialManager.StartNewTrial()` logguera une erreur et ignorera la manche — les données de recherche seront perdues
 - **⚠️ WebGL :** `System.Environment.GetCommandLineArgs()` fonctionne en WebGL uniquement si les arguments sont passés via le template HTML Unity — à vérifier avec le dashboard
-- **⚠️ TryParseBool :** Accepte `0`, `1`, `true`, `false` (case-insensitive) — toute autre valeur est ignorée avec un warning
+- **⚠️ TryParseBool :** Accepte `0`, `1`, `true`, `false` (case-insensitive) — toute autre valeur est ignorée avec un warning. **Note :** `pathVisible` utilise désormais `TryParseFloat` (probabilité 0-1), plus `TryParseBool`
 - **🔧 buildVersion :** Déclaré mais non exploité — prévu pour le protocole de recherche
 - **🔧 TryApplyTrapCountFromArgs :** Parser legacy dédié — à refactorer pour utiliser le helper `TryParseInt` générique (cohérence avec les autres params)
 
@@ -1125,6 +1129,7 @@ graph TD
 | 27/02/26 | @pierre     | Refacto : suppression référence TrapSpawner, SessionManager possède trapCount (SerializeField), pipeline seed (ApplySeedForThisRound → LevelRegistry.SetRoundSeed), trapCount écrit dans LevelRegistry.trapCount, ajout parsing CLI seed=N. |
 | 02/03/26 | @pierre     | Migration centralisée : SessionManager possède désormais TOUS les paramètres de protocole expérimental (10 params : trapCount, minDistance, totalBugs, greenRatio, gap, pathVisible, blockId). Ajout TryApplyBugCloudParamsFromArgs + ApplyResearchParamsToRegistry (remplace ApplyTrapCountToRegistry). Helpers CLI génériques : TryParseInt, TryParseFloat, TryParseBool. BugCloudSpawner, PathSpawner et GameManager ne possèdent plus de paramètres recherche. |
 | 02/03/26 | @pierre     | Refacto Singleton SRP : SessionManager devient Singleton (`Instance`). Champs `[SerializeField] private` → `public`. Suppression de `ApplyResearchParamsToRegistry()` — les spawners lisent directement `SessionManager.Instance.paramName`. LevelRegistry déchargé de son rôle de relais. Ajout maxDistance (0 = pas de limite). |
+| 02/03/26 | @auteur     | `pathVisible` passe de `bool` (true/false) à `float` (probabilité 0-1, défaut 1.0). CLI `pathVisible=F` utilise désormais `TryParseFloat` au lieu de `TryParseBool`. Permet un contrôle probabiliste fin de la condition advisor par le protocole de recherche. |
 
 ## 4.4 FogController
 
@@ -1292,7 +1297,7 @@ private struct MiniMapCfg
 | SetSessionId(string)                                  | void                      | Injecte l'ID de session (appelé par SessionManager)                                      |
 | StartNewTrial(int, int, string, **long trialSeed**)   | void                      | Crée un TrialData, stocke la seed, applique le tampon map_config si présent              |
 | RecordMove(Vector2Int)                                | void                      | Ajoute un PlayerStep (position + timestamp ISO) au trial courant                         |
-| EndCurrentTrial(string, bool, string, int, int, int) | void                      | Finalise le trial : choix, justesse, trueCloud, greenBugsCollected, trapsHit, steps, timestamp de fin |
+| EndCurrentTrial(string, bool, string, int, int, int, bool) | void                | Finalise le trial : choix, justesse, trueCloud, greenBugsCollected, trapsHit, steps, optimalPathVisible, timestamp de fin |
 | SetOptimalPathLength(int)                             | void                      | Enregistre la longueur du chemin optimal dans le trial courant                           |
 | SetCloudDistance(int)                                 | void                      | Enregistre la distance Manhattan joueur→nuages (`cloud_distance`) dans le trial courant  |
 | **SetMapConfig(gridSize, leftCell, leftBugs, leftGreenRatio, rightCell, rightBugs, rightGreenRatio)** | void       | API structurée — construit le JSON MiniMapCfg (avec greenRatio) en interne                    |
@@ -1331,7 +1336,7 @@ graph TD
 
     N["GameManager.OnCloudCollected"] -->|"SetOptimalPathLength(n)"| O["currentTrial.optimal_path_length = n"]
     N -->|"SetCloudDistance(d)"| O2["currentTrial.cloud_distance = d"]
-    N -->|"EndCurrentTrial(choice, correct, trueCloud, greenBugs, trapsHit, steps)"| P["currentTrial.proximal_choice = choice"]
+    N -->|"EndCurrentTrial(choice, correct, trueCloud, greenBugs, trapsHit, steps, optimalPathVisible)"| P["currentTrial.proximal_choice = choice"]
     P --> Q["currentTrial.end_timestamp = UTC ISO"]
 
     N -->|"SendTrials()"| R{isSending ?}
@@ -1376,6 +1381,7 @@ graph TD
 | 27/02/26 | @pierre     | Refacto : StartNewTrial prend 4 params (ajout trialSeed), nouveau SetMapConfig structuré (construit JSON en interne), DTOs MiniMapCfg/CloudInfo déplacés de GameManager vers TrialManager, noms de champs changés (gridWidth/gridHeight, totalBugs). |
 | 02/03/26 | @pierre     | Pipeline collecte enrichi : CloudInfo ajoute `greenRatio`. SetMapConfig prend 7 params (ajout leftGreenRatio, rightGreenRatio). EndCurrentTrial prend 6 params (ajout trueCloud, greenBugsCollected, trapsHit, steps). Noms de champs JSON : `greenRatio` dans map_config. |
 | 02/03/26 | @pierre     | Ajout méthode `SetCloudDistance(int)` — même pattern que `SetOptimalPathLength`. Reçoit `cloud_distance` depuis GameManager pour que les chercheurs puissent dériver le dépassement (steps - cloud_distance). |
+| 02/03/26 | @auteur     | `EndCurrentTrial` prend désormais 7 params (ajout `optimalPathVisible` bool). Enregistre si le chemin optimal était visible pour le joueur dans cette manche. |
 
 ## 4.6 TilesSpawner
 
@@ -1555,6 +1561,7 @@ public class TrialData
     public string map_config;
     public string true_cloud;
     public int optimal_path_length;
+    public bool optimal_path_visible;
     public long trial_seed;
     public List<PlayerStep> player_path_log = new();
     public string proximal_choice;
@@ -1579,6 +1586,7 @@ public class TrialData
 | map_config          | string             | TrialManager.SetMapConfig    | JSON de la config carte (grille, positions/bugs des nuages)    |
 | true_cloud          | string             | GameManager.OnCloudCollected | Nuage objectivement meilleur (greenRatio) : "left", "right" ou "none" (si égalité) |
 | optimal_path_length | int                | GameManager.OnCloudCollected | Longueur du chemin optimal enregistré par PathSpawner          |
+| **optimal_path_visible** | **bool**      | **TrialManager.EndCurrentTrial** | **Indique si le chemin optimal était visible pour le joueur dans cette manche (déterminé par tirage `rng.NextDouble() < pathVisible`)** |
 | **trial_seed**      | **long**           | **TrialManager.StartNewTrial** | **Seed de randomisation du round — permet la reproductibilité** |
 | player_path_log     | List\<PlayerStep\> | TrialManager.RecordMove      | Séquence ordonnée des pas du joueur avec timestamps            |
 | proximal_choice     | string             | TrialManager.EndCurrentTrial | Choix du joueur : "left", "right" ou "unknown"                 |
@@ -1625,6 +1633,7 @@ public class PlayerStep
       "map_config": "{\"gridWidth\":10,\"gridHeight\":10,\"leftCloud\":{\"x\":2,\"y\":7,\"totalBugs\":45,\"greenRatio\":0.65},\"rightCloud\":{\"x\":7,\"y\":7,\"totalBugs\":45,\"greenRatio\":0.45}}",
       "true_cloud": "left",
       "optimal_path_length": 12,
+      "optimal_path_visible": true,
       "trial_seed": 8234567890123456789,
       "player_path_log": [
         {"x": 5, "y": 0, "t": "2026-02-17T14:30:01.000Z"},
@@ -1805,3 +1814,4 @@ _Section à compléter._
 | 02/03/26 | 2.1     | Migration paramètres recherche : nouveau pattern Research Parameter Pipeline (section 2.3). SessionManager centralise 10 params expérimentaux (trapCount, minDistance, totalBugs, greenRatio, gap, pathVisible, blockId) avec pipeline CLI → LevelRegistry → Spawners. MAJ sections 3.1, 3.2, 4.1, 4.2, 4.3. MAJ Script_Execution_Order.md. |
 | 02/03/26 | 2.2     | Pipeline collecte enrichi : GameManager calcule les bugs verts (totalBugs × greenRatio), détermine `trueCloud`, transmet 6 params à EndCurrentTrial. TrialData ajoute `green_bugs_collected`, `traps_hit`, `steps`. CloudInfo/SetMapConfig incluent `greenRatio`. GetBestCloud compare greenRatio (pas totalBugs). `true_cloud` n'est plus un champ réservé. MAJ sections 4.2, 4.5, 5.1. |
 | 02/03/26 | 2.3     | Mécanique Step Budget Penalty : distance Manhattan joueur→nuages = budget de pas. Chaque pas au-delà retire 1 bug par nuage (même pattern que piège). Nouveau pattern (section 2.3), `LevelRegistry.stepBudget` + `RegisterStepBudget` (4.1), `GameManager.overtimeSteps` + `OnStepBudgetExceeded` (4.2), `TrialManager.SetCloudDistance` (4.5), `TrialData.cloud_distance` (5.1), `RoundUI` affiche overtimeSteps (6.1). MAJ sections 2.3, 3.1, 4.1, 4.2, 4.5, 5.1, 6.1. |
+| 02/03/26 | 2.4     | `pathVisible` passe de bool à float (probabilité 0-1). SessionManager expose `float pathVisible = 1f` (CLI: `pathVisible=F`). PathSpawner et GameManager utilisent `rng.NextDouble() < pathVisible` (seeded RNG). `TrialData` ajoute `optimal_path_visible`. `EndCurrentTrial` prend 7 params (ajout `optimalPathVisible`). `RoundEndInfo` ajoute `optimalPathVisible`. MAJ sections 3.2, 4.2, 4.3, 4.5, 5.1. |

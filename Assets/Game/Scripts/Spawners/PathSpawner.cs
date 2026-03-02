@@ -24,9 +24,9 @@ public class PathSpawner : MonoBehaviour
             Debug.LogError("[PathSpawner] SessionManager manquant dans la scène.");
             return;
         }
-        bool visible = session.pathVisible;
 
         var rng = reg.CreateRng(nameof(PathSpawner));
+
 
         if (quadPrefab == null)
         {
@@ -130,13 +130,6 @@ public class PathSpawner : MonoBehaviour
 
         // ------ INSTANTIATION DES QUADS LE LONG DES CHEMINS ------
 
-        // Si visible est false, on ne fait rien
-        if (!visible)
-        {
-            Debug.Log("[PathSpawner] visible=false => instanciation des quads ignorée.");
-            return;
-        }
-
         // On tire au sort quel chemin on affiche, par défaut
         Vector2Int[] chosenPath = (rng.NextDouble() < 0.5) ? pathToLeftCloud : pathToRightCloud;
         // Si GameManager connaît un nuage "meilleur", on force le chemin correspondant
@@ -161,6 +154,17 @@ public class PathSpawner : MonoBehaviour
         }
 
 
+
+        bool visible = rng.NextDouble() < session.pathVisible;
+        // Si visible est false n'instancie aucun quad et ne révèle rien dans le fog of war (le chemin existe "en vrai" mais est invisible pour le joueur)
+        if (!visible)
+        {
+            Debug.Log("[PathSpawner] visible=false => instanciation des quads ignorée.");
+            return;
+        }
+
+
+
         // Instancier les quads le long des chemins
         int spawned = 0;
         foreach (var cell in chosenPath)
@@ -177,10 +181,6 @@ public class PathSpawner : MonoBehaviour
         }
 
         Debug.Log($"[PathSpawner] Quads instanciés: {spawned} (originWorld={reg.originWorld}, cellSize={reg.cellSize}).");
-
-
-
-
 
 
 

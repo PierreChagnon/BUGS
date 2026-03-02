@@ -64,7 +64,7 @@ public class TrialManager : MonoBehaviour
 
     // Appelé quand le joueur attrape un nuage
     public void EndCurrentTrial(string playerChoice, bool correct, string trueCloud,
-                                int greenBugsCollected, int trapsHit, int steps)
+                                int greenBugsCollected, int trapsHit, int steps, bool optimalPathVisible)
     {
         if (currentTrial == null) return;
 
@@ -74,11 +74,12 @@ public class TrialManager : MonoBehaviour
         currentTrial.green_bugs_collected = greenBugsCollected;
         currentTrial.traps_hit = trapsHit;
         currentTrial.steps = steps;
+        currentTrial.optimal_path_visible = optimalPathVisible;
         // currentTrial.rt_ms = Mathf.RoundToInt(Time.timeSinceLevelLoad * 1000f);
         currentTrial.end_timestamp = System.DateTime.UtcNow.ToString("o");
 
         Debug.Log($"Manche terminée ! choix={playerChoice}, correct={correct}, trueCloud={trueCloud}, " +
-                  $"greenBugs={greenBugsCollected}, pièges={trapsHit}, pas={steps}");
+                  $"greenBugs={greenBugsCollected}, pièges={trapsHit}, pas={steps}, optimalPathVisible={optimalPathVisible}");
     }
 
     // Setter appelé par le Gameplay pour fournir la longueur de chemin optimal

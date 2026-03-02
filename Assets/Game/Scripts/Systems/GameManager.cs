@@ -58,7 +58,9 @@ public class GameManager : MonoBehaviour
         public bool followedBestPath;
         public int leftCloudGreenBugs;
         public int rightCloudGreenBugs;
+        public bool optimalPathVisible;
     }
+    
 
     /// <summary>Émis quand le round se termine (nuage collecté). RoundUI s'y abonne.</summary>
     public event Action<RoundEndInfo> OnRoundEnded;
@@ -228,7 +230,14 @@ public class GameManager : MonoBehaviour
                 trialManager.SetCloudDistance(LevelRegistry.Instance.stepBudget);
             }
 
-            trialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps);
+            bool optimalPathVisible = true;
+            var rng = LevelRegistry.Instance.CreateRng(nameof(GameManager));
+            if (SessionManager.Instance != null)
+            {
+                optimalPathVisible = rng.NextDouble() < SessionManager.Instance.pathVisible;
+            }
+
+            trialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps, optimalPathVisible);
             trialManager.SendTrials();
         }
 

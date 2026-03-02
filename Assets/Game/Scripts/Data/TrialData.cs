@@ -24,6 +24,7 @@ public class TrialData
     public string map_config;        // tu pourras la convertir en JSON
     public string true_cloud;
     public int optimal_path_length;
+    public bool optimal_path_visible; // ajouté pour indiquer si le chemin optimal était visible ou non
 
     // Randomisation
     public long trial_seed;

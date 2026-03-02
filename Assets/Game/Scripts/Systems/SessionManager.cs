@@ -47,8 +47,8 @@ public class SessionManager : MonoBehaviour
     public float gapMax = 0.3f;
 
     [Header("Recherche : Advisor")]
-    [Tooltip("Si true, le chemin optimal est affiché au joueur (condition advisor). CLI: pathVisible=0|1.")]
-    public bool pathVisible = true;
+    [Tooltip("Probabilité que le chemin conseillé soit visible (1) ou caché (0). CLI: pathVisible=0|1.")]
+    public float pathVisible = 1f;
 
     [Header("Recherche : Protocole")]
     [Tooltip("Identifiant du bloc expérimental pour le pipeline de données. CLI: blockId=N.")]
@@ -155,7 +155,7 @@ public class SessionManager : MonoBehaviour
             TryParseFloat(a, "maxGreenRatio", ref maxGreenBugsRatio);
             TryParseFloat(a, "gapMin", ref gapMin);
             TryParseFloat(a, "gapMax", ref gapMax);
-            TryParseBool(a, "pathVisible", ref pathVisible);
+            TryParseFloat(a, "pathVisible", ref pathVisible);
             TryParseInt(a, "blockId", ref blockId);
         }
     }
