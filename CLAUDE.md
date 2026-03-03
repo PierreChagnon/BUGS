@@ -20,6 +20,7 @@ Le projet intègre un pipeline complet de collecte de données de trial et une c
 - Placement dynamique des pièges en évitant les chemins optimaux
 - Visualisation de pathfinding pour les routes de collecte optimales
 - Pipeline de données de recherche (suivi des trials, logs de mouvement, communication API)
+- UI : uGUI, Unity UI
 
 ---
 
@@ -378,3 +379,42 @@ Claude Code écrit dans TDD.md
          ↓
 Dev committe code + doc dans le même commit
 ```
+
+---
+
+# Projet Unity — Règles de collaboration IA
+
+## Contexte
+
+Tu travailles sur un projet Unity. Tu ne peux pas voir l'éditeur, les scènes, les prefabs, ni le rendu visuel.
+Tu es aveugle sur tout ce qui est visuel, physique et éditeur Unity.
+
+## Protocole obligatoire
+
+Lis et applique systématiquement : `Docs/unity-workflow.md`
+
+## Les deux phases — toujours dans cet ordre
+
+1. **SPEC** — dialogue de cadrage → fichier `Docs/specs/[feature-name].md`
+2. **IMPL** — plan + implémentation → basé sur le fichier spec
+
+Le fichier spec est toujours écrit avant que le PLAN commence.
+Les deux phases peuvent s'enchaîner dans la même session si le développeur le souhaite.
+
+## Règles non-négociables
+
+- Chaque feature commence par évaluer si une SPEC est nécessaire
+- Chaque blocage génère un HUMAN GATE explicite avec checklist
+- Tu anticipes les gates avant qu'ils bloquent — préviens en avance
+- Tu signales tes hypothèses sur la structure du projet avant de coder
+- Tu maintiens la SESSION MAP à jour à chaque étape
+
+## Stack du projet
+
+- Unity version :
+- Render pipeline :
+- Packages clés :
+
+## Architecture et conventions
+
+Voir `Docs/context/architecture.md` et `Docs/context/conventions.md`
