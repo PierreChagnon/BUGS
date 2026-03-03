@@ -133,35 +133,101 @@ Assets/
 
 ### 2.2 Diagramme d'architecture système
 
-**Rôle :** Représenter visuellement les dépendances entre les systèmes principaux. Permet de comprendre l'architecture en 30 secondes.
+**Rôle :** Représenter visuellement l'architecture sous plusieurs angles complémentaires.
+Un seul diagramme ne suffit pas à répondre à toutes les questions — chaque vue répond
+à une question précise et s'adresse à un lecteur dans un contexte différent.
 
-**Format :**
+**Format :** Plusieurs blocs Mermaid organisés par vue, chacun précédé d'une ligne
+`> Répond à :` qui explicite sa question d'orientation.
 
-1. Un lien vers le diagramme Figma (source de vérité visuelle)
-2. Une version texte de backup (pour la lisibilité Git et la recherche)
+**Règles :**
 
-**Règle :** Le diagramme doit rester à un niveau macro — uniquement les systèmes principaux, pas les classes individuelles.
+- Les vues A et B sont obligatoires dès que l'architecture comporte plus de 3 systèmes
+- La vue C est optionnelle — l'ajouter si le projet a des domaines fonctionnels clairement séparés
+- Un diagramme qui dépasse 15 nœuds doit être découpé (voir règle de lisibilité ci-dessous)
+- Ces diagrammes restent à un niveau macro — pas de classes individuelles, pas de méthodes
+- Claude Code régénère ces vues à chaque mise à jour qui impacte l'architecture globale
 
-**Exemple :**
+---
 
-**🔗 Lien Figma :** [Architecture Diagram v1.2](https://figma.com/...)
+**Vue A — Ordre d'initialisation**
 
-**Backup texte :**
+> Répond à : _dans quel ordre les systèmes démarrent-ils ?_
 
-```
-┌──────────────────┐
-│   Game Manager   │ ← Singleton, orchestre les états globaux
-└────────┬─────────┘
-         │ notifie via Events
-    ┌────┴────┬──────────┐
-    │         │          │
-┌───▼───┐ ┌───▼───┐ ┌────▼────┐
-│Combat │ │  UI   │ │Inventory│
-│System │ │Manager│ │ System  │
-└───────┘ └───────┘ └─────────┘
+Destinataire : un dev qui rejoint le projet ou qui debug un problème d'initialisation.
+Doit montrer : tous les systèmes avec leur `[DefaultExecutionOrder]`, les dépendances
+d'initialisation (A doit exister avant B pour que B puisse fonctionner).
+
+```mermaid
+graph TD
+    A["SystemeA (-300)"] --> B["SystemeB (-200)"]
+    B --> C["SystemeC (-100)"]
+    C --> D["SystemeD (0)"]
 ```
 
 ---
+
+**Vue B — Data Flow**
+
+> Répond à : _qui communique avec qui, et via quoi ?_
+
+Destinataire : un dev qui veut comprendre où transige une donnée ou quel système
+appeler pour déclencher un comportement.
+Doit montrer : le hub central du projet mis en évidence, les arêtes labelisées avec
+le nom de la méthode ou de l'event, la direction du flux.
+
+```mermaid
+graph LR
+    HUB(["⬡ HubCentral"])
+    SysA["SystemeA"] -->|"RegisterData()"| HUB
+    SysB["SystemeB"] -->|"QueryState()"| HUB
+    HUB -->|"OnStateChanged"| UI["HUD / UI"]
+```
+
+---
+
+**Vue C — Ownership / Domaines** _(optionnelle)_
+
+> Répond à : _qui est responsable de quoi ?_
+
+Destinataire : un dev ou un lead qui veut comprendre la découpe fonctionnelle
+du projet sans entrer dans les détails d'implémentation.
+Doit montrer : des `subgraph` par domaine fonctionnel, chaque système rangé
+dans son domaine.
+
+```mermaid
+graph TD
+    subgraph GENERATION ["Génération"]
+        S1["SpawnerA"]
+        S2["SpawnerB"]
+    end
+    subgraph GAMEPLAY ["Gameplay"]
+        S3["PlayerController"]
+        S4["GameManager"]
+    end
+    subgraph DATA ["Data / Research"]
+        S5["TrialManager"]
+        S6["SessionManager"]
+    end
+```
+
+---
+
+**Règle de lisibilité**
+
+Un diagramme qui dépasse 15 nœuds devient illisible. Stratégie de découpage
+par ordre de préférence :
+
+1. Extraire un sous-système dans un diagramme séparé avec une référence
+   `→ voir section X.X`
+2. Utiliser des `subgraph` pour regrouper visuellement sans multiplier les fichiers
+3. Simplifier en ne montrant que les relations directes — pas les relations transitives
+
+**Exemple :**
+
+```
+→ voir section 3.1 — BugCloudSpawner pour le détail du flux interne du spawn
+```
 
 ### 2.3 Patterns utilisés
 

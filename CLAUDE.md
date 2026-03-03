@@ -234,17 +234,88 @@ Vérifier si d'autres systèmes déjà documentés dans `TDD.md` ont leur sectio
 Lire les fichiers identifiés. Ne pas décrire ce que le dev a dit que le système fait — décrire ce que le code fait réellement.
 
 **4. Générer le diagramme de flux en Mermaid**
-Pour chaque système documenté, produire un diagramme `mermaid` représentant le data flow ou les transitions d'état principales. Ce diagramme va dans la section `X.X.4 Diagramme de flux` du TDD.
+Pour chaque système documenté, produire un diagramme `mermaid` représentant le data flow ou les transitions d'état principales.
 
-```mermaid
-graph TD
-    A[Point de départ] --> B[Étape 1]
-    B --> C{Condition ?}
-    C -->|Oui| D[Résultat A]
-    C -->|Non| E[Résultat B]
-```
+### Règle des diagrammes — Niveaux et orientations
 
-Utiliser `graph TD` pour les flux de données, `stateDiagram-v2` pour les machines à états.
+Les diagrammes sont organisés en 3 niveaux de granularité.
+Claude Code génère automatiquement les diagrammes du niveau
+correspondant à la section concernée.
+
+---
+
+#### Niveau 1 — Macro (section 2.2 du TDD)
+
+Généré à chaque mise à jour qui impacte l'architecture globale.
+Toujours 2 vues obligatoires :
+
+**Vue A — Initialisation**
+Répond à : "Dans quel ordre les systèmes démarrent-ils ?"
+
+- Type : `graph TD`
+- Contient : tous les systèmes avec leur [DefaultExecutionOrder]
+- Arêtes : dépendances d'initialisation (A doit exister avant B)
+
+**Vue B — Data Flow**
+Répond à : "Qui communique avec qui et comment ?"
+
+- Type : `graph LR`
+- Contient : LevelRegistry comme hub central, flux de données nommés
+- Arêtes : labelisées avec le nom de la méthode ou de l'event
+
+Vues optionnelles si le projet le justifie :
+
+**Vue C — Ownership / Domaines**
+Répond à : "Qui est responsable de quoi ?"
+
+- Type : `graph TD` avec `subgraph` par domaine fonctionnel
+- Domaines : Génération / Gameplay / Data / Rendu
+
+---
+
+#### Niveau 2 — Meso (section dédiée si le système est complexe)
+
+Généré uniquement si le système a des états ou une séquence
+temporelle non triviale.
+
+**Vue D — Cycle de vie / Séquence**
+Répond à : "Que se passe-t-il dans le temps ?"
+
+- Type : `sequenceDiagram`
+- Cas d'usage : déroulement d'un round, flux réseau API
+
+**Vue E — Machine à états**
+Répond à : "Quels sont les états et leurs transitions ?"
+
+- Type : `stateDiagram-v2`
+- Cas d'usage : GameManager (Idle/Playing/GameOver),
+  GridMoverNewInput (Free/Moving/Locked)
+
+---
+
+#### Niveau 3 — Micro (section X.X.4 de chaque système)
+
+Généré pour chaque système documenté. Toujours 1 vue :
+
+**Vue F — Flux interne**
+Répond à : "Que fait ce composant pas à pas ?"
+
+- Type : `graph TD`
+- Contient : Awake/Start/Update → branchements → effets de bord
+- Déjà en place dans le protocole actuel
+
+---
+
+### Règle de lisibilité
+
+Un diagramme qui dépasse 15 nœuds doit être découpé.
+Stratégie de découpage par ordre de préférence :
+
+1. Extraire un sous-système dans un diagramme séparé
+   avec une référence `→ voir diagramme [NomSystème]`
+2. Utiliser des `subgraph` pour regrouper visuellement
+3. Simplifier en ne montrant que les relations directes
+   (pas les relations transitives)
 
 **5. Produire le diff complet**
 Générer le texte exact à insérer ou modifier dans `TDD.md`, en respectant la structure de `TDD_Template_MockUp.md` et les informations de `TDD_Notice_Utilisation.md`. Présenter le diff clairement avant toute écriture.

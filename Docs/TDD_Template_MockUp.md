@@ -71,29 +71,29 @@ Assets/
 
 ## **2.2 Diagramme d'architecture système**
 
-**🔗 Lien vers Figma :** \[Insérer URL de ton diagramme\]
+### Vue A — Ordre d'initialisation
 
-**Description textuelle (pour backup) :**
+> Répond à : dans quel ordre les systèmes démarrent-ils ?
 
-┌─────────────────┐
+```mermaid
+...
+```
 
-│ Game Manager │ ← Singleton, gère états du jeu
+### Vue B — Data Flow
 
-└────────┬────────┘
+> Répond à : qui communique avec qui et comment ?
 
-         │
+```mermaid
+...
+```
 
-    ┌────┴────┬─────────┬──────────┐
+### Vue C — Ownership _(optionnel)_
 
-    │         │         │          │
+> Répond à : qui est responsable de quoi ?
 
-┌───▼───┐ ┌──▼──┐ ┌───▼────┐ ┌───▼────┐
-
-│Combat │ │ UI │ │Inventory│ │ Audio │
-
-│System │ │Mgr │ │ System │ │Manager │
-
-└───────┘ └─────┘ └─────────┘ └────────┘
+```mermaid
+...
+```
 
 ## **2.3 Patterns utilisés**
 
