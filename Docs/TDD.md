@@ -62,26 +62,66 @@ Assets/
 
 **🔗 Lien Figma :** https://www.figma.com/design/DKXzCclcecu74D0y3dsoEi/BUGS?node-id=78-2&p=f&t=jedqtLr14p5CTG6u-0
 
-**Backup texte :**
+### Vue A — Pipeline d'initialisation
 
+Répond à : "Dans quel ordre les systèmes démarrent-ils ?"
+
+```mermaid
+graph TD
+    LR["LevelRegistry\nAwake −300"]
+    FC["FogController\nAwake −250"]
+    TS["TilesSpawner\nAwake −240"]
+    GM["GameManager\nAwake 0"]
+    PS["PlayerSpawner\nStart −250"]
+    BCS["BugCloudSpawner\nStart −200"]
+    PaS["PathSpawner\nStart −100"]
+    CWG["CorridorWallsGenerator\nStart −50"]
+    TrS["TrapSpawner\nStart −10"]
+    SM["SessionManager\nStart 0 → BeginFirstRound"]
+
+    LR --> FC --> TS
+    TS -->|originWorld| PS
+    PS -->|joueur enregistré| BCS
+    BCS -->|nuages + stepBudget| PaS
+    PaS -->|chemins réservés| CWG
+    CWG -->|murs générés| TrS
+    TrS -.->|spawn terminé| SM
+    SM -->|BeginFirstRound| GM
 ```
-                         ┌──────────────────┐
-                         │  LevelRegistry   │ ← Singleton, source de verite grille
-                         └────────┬─────────┘
-                                  │ consulte par
-  ┌────────┬──────────┬───────────┼───────────┬──────────┬──────────┬──────────┐
-  │        │          │           │           │          │          │          │
-┌─▼──────┐┌▼────────┐┌▼─────────┐┌▼─────────┐┌▼────────┐┌▼────────┐┌▼────────┐
-│Player  ││BugCloud ││Path      ││Corridor  ││Trap     ││Fog      ││Game     │
-│Spawner ││Spawner  ││Spawner   ││WallsGen  ││Spawner  ││Ctrl     ││Manager  │
-└────────┘└─────────┘└──────────┘└──────────┘└─────────┘└─────────┘└─────────┘
 
-          Entites (signalent au GameManager) :
-          GridMover ─┐
-          BugCloud  ─┼──► GameManager ──► TrialManager ──► API REST
-          Trap      ─┘         │
-                               ▼
-                            RoundUI
+### Vue B — Data Flow
+
+Répond à : "Qui communique avec qui et comment ?"
+
+```mermaid
+graph LR
+    CLI["Args CLI"]
+    SM["SessionManager"]
+    LR[("LevelRegistry\nSource de vérité")]
+    FC["FogController"]
+    GEN["Spawners\nPS · BCS · CWG · TrS"]
+    PaS["PathSpawner"]
+    GM["GameManager"]
+    GR["GridMover"]
+    ENT["BugCloud · Trap"]
+    TM["TrialManager"]
+    UI["RoundUI"]
+    API["API REST"]
+
+    CLI -->|parse| SM
+    SM -->|params expérimentaux| GEN
+    SM -->|pathVisible| PaS
+    SM -->|BeginFirstRound| GM
+    GEN <-->|état spatial| LR
+    PaS <-->|chemins + optimalPath| LR
+    PaS -->|RevealCells| FC
+    PaS -->|SetChosenPath| GM
+    GR -->|RevealCell| FC
+    GR -->|OnPlayerStep| GM
+    ENT -->|signaux| GM
+    GM -->|trial data| TM
+    TM -->|POST /api/trials| API
+    GM -->|OnRoundEnded| UI
 ```
 
 ## 2.3 Patterns utilisés
@@ -1815,3 +1855,4 @@ _Section à compléter._
 | 02/03/26 | 2.2     | Pipeline collecte enrichi : GameManager calcule les bugs verts (totalBugs × greenRatio), détermine `trueCloud`, transmet 6 params à EndCurrentTrial. TrialData ajoute `green_bugs_collected`, `traps_hit`, `steps`. CloudInfo/SetMapConfig incluent `greenRatio`. GetBestCloud compare greenRatio (pas totalBugs). `true_cloud` n'est plus un champ réservé. MAJ sections 4.2, 4.5, 5.1. |
 | 02/03/26 | 2.3     | Mécanique Step Budget Penalty : distance Manhattan joueur→nuages = budget de pas. Chaque pas au-delà retire 1 bug par nuage (même pattern que piège). Nouveau pattern (section 2.3), `LevelRegistry.stepBudget` + `RegisterStepBudget` (4.1), `GameManager.overtimeSteps` + `OnStepBudgetExceeded` (4.2), `TrialManager.SetCloudDistance` (4.5), `TrialData.cloud_distance` (5.1), `RoundUI` affiche overtimeSteps (6.1). MAJ sections 2.3, 3.1, 4.1, 4.2, 4.5, 5.1, 6.1. |
 | 02/03/26 | 2.4     | `pathVisible` passe de bool à float (probabilité 0-1). SessionManager expose `float pathVisible = 1f` (CLI: `pathVisible=F`). PathSpawner et GameManager utilisent `rng.NextDouble() < pathVisible` (seeded RNG). `TrialData` ajoute `optimal_path_visible`. `EndCurrentTrial` prend 7 params (ajout `optimalPathVisible`). `RoundEndInfo` ajoute `optimalPathVisible`. MAJ sections 3.2, 4.2, 4.3, 4.5, 5.1. |
+| 03/03/26 | 2.5     | Section 2.2 : remplacement du diagramme ASCII backup par deux diagrammes Mermaid (Vue A initialisation + Vue B data flow). Ajout de SessionManager, PlayerSpawner, TilesSpawner absents de l'ancien diagramme. Flux FogController (RevealCells/RevealCell) et pathVisible maintenant représentés. |
