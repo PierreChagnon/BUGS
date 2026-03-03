@@ -24,6 +24,54 @@ Le projet intègre un pipeline complet de collecte de données de trial et une c
 
 ---
 
+## Système de rôles
+
+Le projet utilise 5 rôles spécialisés pour couvrir tout le cycle de vie : pilotage, analyse fonctionnelle, architecture technique, planification, et support développement.
+
+**Chaque rôle a ses propres instructions dans `Docs/roles/`. Ne pas lire tous les fichiers de rôle à chaque session — lire uniquement celui qui correspond à la demande.**
+
+### Table d'aiguillage
+
+| Si la demande ressemble à…                                                 | Rôle                       | Fichier                                |
+| :------------------------------------------------------------------------- | :------------------------- | :------------------------------------- |
+| "Où en est-on ?", "Priorise les chantiers", "Prépare les questions client" | **Pilotage**               | `Docs/roles/pilotage.md`               |
+| "Spec fonctionnelle de…", "Quel comportement pour…", "Quelles données CSV" | **Analyse fonctionnelle**  | `Docs/roles/analyse-fonctionnelle.md`  |
+| "Comment architecturer…", "Quel pattern pour…", "Spec technique de…"       | **Architecture technique** | `Docs/roles/architecture-technique.md` |
+| "Découpe en tickets", "Estime le chantier", "Planning réaliste ?"          | **Planification**          | `Docs/roles/planification.md`          |
+| "Comment je code X ?", "J'ai un bug", "Est-ce conforme à la spec ?"        | **Support dev**            | `Docs/roles/support-dev.md`            |
+
+### Gestion du contexte
+
+La fenêtre de contexte est une ressource limitée. Chaque fichier de rôle contient un **budget de contexte** qui liste exactement quels fichiers lire. Respecter ce budget.
+
+**Fichiers de synchronisation partagés** (mis à jour par tous les rôles, consultés par tous) :
+
+- `Docs/project-state/decisions.md` — registre des décisions (append-only)
+- `Docs/project-state/avancement.md` — état condensé du projet
+- `Docs/project-state/questions-client.md` — questions en attente pour le chercheur
+
+**Règle de fin de session :** si la session a produit une décision, un changement d'état, ou une question client → mettre à jour les fichiers project-state correspondants AVANT de terminer.
+
+### Identification du rôle
+
+Au début de chaque session impliquant un rôle, annoncer :
+
+```
+📌 Rôle actif : [Nom]
+📂 Fichiers chargés : [liste]
+```
+
+Si la demande est ambiguë entre plusieurs rôles → demander une clarification.
+Si la demande change de rôle en cours de session → annoncer le changement.
+
+Si l'interlocuteur n'est pas clair → demander : "Tu me parles en tant que chef de projet ou développeur ?"
+
+### Quand PAS de rôle
+
+Les demandes purement techniques sans dimension projet (commit, `!doc`, refacto de code) n'activent aucun rôle. Le CLAUDE.md de base suffit.
+
+---
+
 ## Architecture des composants clés
 
 ### Ordre d'exécution
@@ -104,6 +152,38 @@ Assets/
 │   └── Materials/, Animations/Mixamo/
 ├── Settings/             # Config pipeline URP
 └── TextMesh Pro/         # Assets TMP
+```
+
+### Structure documentation
+
+```
+Docs/
+├── roles/                         # Instructions des 5 rôles
+│   ├── pilotage.md
+│   ├── analyse-fonctionnelle.md
+│   ├── architecture-technique.md
+│   ├── planification.md
+│   └── support-dev.md
+├── project-state/                 # État partagé inter-rôles
+│   ├── decisions.md               # Registre des décisions (append-only)
+│   ├── avancement.md              # Résumé condensé de l'avancement
+│   └── questions-client.md        # Questions pour le chercheur
+├── specs/                         # Specs par chantier
+│   ├── _spec-fonc-template.md
+│   ├── _spec-tech-template.md
+│   ├── _spec-template.md          # Ancien template (conservé)
+│   └── [chantier]/
+│       ├── spec-fonc.md           # Spec fonctionnelle (Rôle 2)
+│       ├── spec-tech.md           # Spec technique (Rôle 3)
+│       └── tickets.md             # Tickets (Rôle 4)
+├── planning/
+│   ├── plan-global.md             # Séquencement des chantiers
+│   └── risques.md                 # Matrice de risques
+├── TDD.md                         # Documentation technique vivante
+├── TDD_Template_MockUp.md
+├── TDD_Notice_Utilisation.md
+├── session-map.md                 # Suivi de session IMPL
+└── unity-workflow.md              # Conservé comme référence (absorbé par support-dev.md)
 ```
 
 ---
@@ -391,12 +471,13 @@ Tu es aveugle sur tout ce qui est visuel, physique et éditeur Unity.
 
 ## Protocole obligatoire
 
-Lis et applique systématiquement : `Docs/unity-workflow.md`
+Pour les sessions de **support développement** (Rôle 5), lis et applique : `Docs/roles/support-dev.md`
+Ce fichier remplace et absorbe l'ancien `Docs/unity-workflow.md` (conservé comme référence historique).
 
 ## Les deux phases — toujours dans cet ordre
 
-1. **SPEC** — dialogue de cadrage → fichier `Docs/specs/[feature-name].md`
-2. **IMPL** — plan + implémentation → basé sur le fichier spec
+1. **SPEC** — dialogue de cadrage → fichier spec dans `Docs/specs/[chantier]/`
+2. **IMPL** — plan + implémentation → basé sur les fichiers specs
 
 Le fichier spec est toujours écrit avant que le PLAN commence.
 Les deux phases peuvent s'enchaîner dans la même session si le développeur le souhaite.
@@ -407,14 +488,14 @@ Les deux phases peuvent s'enchaîner dans la même session si le développeur le
 - Chaque blocage génère un HUMAN GATE explicite avec checklist
 - Tu anticipes les gates avant qu'ils bloquent — préviens en avance
 - Tu signales tes hypothèses sur la structure du projet avant de coder
-- Tu maintiens la SESSION MAP à jour à chaque étape
+- Tu maintiens la SESSION MAP à jour à chaque étape (`Docs/session-map.md`)
 
 ## Stack du projet
 
-- Unity version :
-- Render pipeline :
-- Packages clés :
+- Unity version : 6000.3.5f2
+- Render pipeline : URP 17.3.0
+- Packages clés : Input System 1.17.0, AI Navigation 2.0.9, Timeline 1.8.10
 
 ## Architecture et conventions
 
-Voir `Docs/context/architecture.md` et `Docs/context/conventions.md`
+Documentées dans les sections ci-dessus et détaillées dans `Docs/TDD.md`.
