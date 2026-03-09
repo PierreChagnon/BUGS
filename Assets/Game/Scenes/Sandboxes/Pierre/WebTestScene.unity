@@ -5085,6 +5085,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BestPath
   quadPrefab: {fileID: 124041359568741063, guid: 1b2558a29e783d54d97c50a655f50a06, type: 3}
+  detourMin: 2
+  detourMax: 3
 --- !u!4 &918383696
 Transform:
   m_ObjectHideFlags: 0
@@ -5527,6 +5529,8 @@ MonoBehaviour:
   gapMin: 0.1
   gapMax: 0.3
   pathVisible: 1
+  suboptimalPathProbability: 1
+  detourProbability: 1
   blockId: 1
 --- !u!4 &1043942869 stripped
 Transform:
@@ -9721,7 +9725,7 @@ MonoBehaviour:
   trapsHit: 0
   overtimeSteps: 0
   bugsCollected: 0
-  followedBestPath: 1
+  followedAdvisorPath: 1
 --- !u!4 &1716181369
 Transform:
   m_ObjectHideFlags: 0
@@ -10271,10 +10275,10 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 1041898535}
   - {fileID: 1716181369}
   - {fileID: 1066850206}
   - {fileID: 1504752462}
-  - {fileID: 1041898535}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &1832732404 stripped

@@ -2,8 +2,8 @@
 
 | Nom du projet :    | BUGS                          |
 | :----------------- | :---------------------------- |
-| **Version :**      | 2.4                           |
-| **Dernière MAJ :** | 02/03/26                      |
+| **Version :**      | 2.7                           |
+| **Dernière MAJ :** | 09/03/26                      |
 | **Auteur(s) :**    | @florian, @pierre             |
 | **Moteur :**       | Unity 6000.3.5f2              |
 | **Langage :**      | C#                            |
@@ -110,7 +110,7 @@ graph LR
 
     CLI -->|parse| SM
     SM -->|params expérimentaux| GEN
-    SM -->|pathVisible| PaS
+    SM -->|"pathVisible, suboptimalPath,\ndetourProb"| PaS
     SM -->|BeginFirstRound| GM
     GEN <-->|état spatial| LR
     PaS <-->|chemins + optimalPath| LR
@@ -252,9 +252,12 @@ Contrainte placement       = cellA dans indices [0, count/2 - 1], cellB dans ind
 
 - Calculer deux chemins Manhattan les plus courts (joueur → nuage gauche, joueur → nuage droite)
 - Réserver les deux chemins dans LevelRegistry (PathLeft, PathRight)
-- Visualiser le chemin conseillé (celui vers le meilleur nuage) avec des quads
-- Communiquer le chemin conseillé au GameManager pour le suivi de déviation
-- Révéler les cellules du chemin conseillé dans le brouillard de guerre
+- **Déterminer si le chemin affiché est suboptimal** (tirage `rng.NextDouble() < suboptimalPathProbability`)
+- **Si suboptimal sans détour** : tracer un chemin Manhattan alternatif (même longueur, tracé différent — pièges possibles)
+- **Si suboptimal avec détour** : construire un chemin en « Z » avec crochet horizontal, retour en sens inverse et séparations verticales — garantit un surplus réel de steps
+- Visualiser le chemin conseillé (optimal ou suboptimal) avec des quads
+- Communiquer le chemin affiché et son statut (optimal/suboptimal) au GameManager
+- Révéler les cellules du chemin affiché dans le brouillard de guerre
 
 ### 3.2.2 Composants clés (Data Model)
 
@@ -269,22 +272,25 @@ public class PathSpawner : MonoBehaviour
     [Header("Références")]
     public GameObject quadPrefab;
 
-    // Lecture du paramètre recherche depuis SessionManager.Instance
-    // bool visible = rng.NextDouble() < SessionManager.Instance.pathVisible;
+    [Header("Chemin suboptimal (debug)")]
+    [Min(1)] public int detourMin = 2;
+    [Min(2)] public int detourMax = 5;
 }
 ```
 
 | Variable / Méthode | Type       | Description                                                          |
 | :------------------ | :--------- | :------------------------------------------------------------------- |
 | quadPrefab          | GameObject | Prefab quad pour la visualisation du chemin conseillé — **game design** |
-| _Lecture depuis SessionManager.Instance :_ | | `pathVisible` (float, 0-1) — probabilité que le chemin soit visible. Tirage `rng.NextDouble() < pathVisible` (seeded RNG). Si invisible, aucun quad instancié et fog non révélé. **Paramètre recherche** (Singleton, lecture directe) |
+| detourMin           | int        | Taille min du crochet/retour en cases (défaut : 2, min : 1) — **game design** |
+| detourMax           | int        | Taille max du crochet/retour en cases, exclusif (défaut : 5, min : 2) — **game design** |
+| _Lecture depuis SessionManager.Instance :_ | | `pathVisible` (float, 0-1) — probabilité que le chemin soit visible. `suboptimalPathProbability` (float, 0-1) — probabilité que le chemin affiché soit suboptimal. `detourProbability` (float, 0-1) — probabilité que le chemin suboptimal inclue un détour en « Z ». Tirages seeded RNG. **Paramètres recherche** (Singleton, lecture directe) |
 
 ### 3.2.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (TryGetPlayerStartCell, WorldToCell, CellToWorld, ReservePathLeft, ReservePathRight, RegisterOptimalPath, CreateRng), `SessionManager.Instance` (**paramètre recherche** : pathVisible), `GameManager.Instance` (GetBestCloud, SetChosenPath), `FogController.Instance` (RevealCells)
-- **Est configuré par :** `SessionManager.Instance` (lecture directe de pathVisible — voir section 2.3)
+- **Nécessite :** `LevelRegistry.Instance` (TryGetPlayerStartCell, WorldToCell, CellToWorld, InBounds, ReservePathLeft, ReservePathRight, RegisterOptimalPath, RegisterSuboptimalPath, CreateRng), `SessionManager.Instance` (**paramètres recherche** : pathVisible, suboptimalPathProbability, detourProbability), `GameManager.Instance` (GetBestCloud, SetChosenPath, SetPathIsSuboptimal), `FogController.Instance` (RevealCells)
+- **Est configuré par :** `SessionManager.Instance` (lecture directe de pathVisible, suboptimalPathProbability, detourProbability — voir section 2.3)
 - **Communique avec :** Nuages trouvés via `FindGameObjectsWithTag("BugCloud")`
-- **Déclenche :** Réservation de chemins dans LevelRegistry, publication du chemin conseillé dans GameManager, révélation du brouillard
+- **Déclenche :** Réservation de chemins dans LevelRegistry (PathLeft, PathRight + optionnel SuboptimalPath), publication du chemin affiché et de son statut dans GameManager, révélation du brouillard
 
 ### 3.2.4 Diagramme de flux
 
@@ -292,7 +298,7 @@ public class PathSpawner : MonoBehaviour
 graph TD
     A["Start()"] --> A2["TryGetPlayerStartCell → playerCell"]
     A2 --> A3["CreateRng(PathSpawner) → rng déterministe"]
-    A3 --> A4["Lire pathVisible (float) depuis SessionManager.Instance"]
+    A3 --> A4["Lire params SessionManager.Instance<br/>(pathVisible, suboptimalPathProbability, detourProbability)"]
     A4 --> B["FindGameObjectsWithTag('BugCloud')"]
     B --> C{clouds.Length ≥ 2 ?}
     C -->|Non| D[Warning + return]
@@ -304,17 +310,38 @@ graph TD
     F --> H["reg.ReservePathLeft(leftCells)"]
     G --> I["reg.ReservePathRight(rightCells)"]
 
-    H --> J{"rng.NextDouble() < pathVisible ?"}
+    H --> J["Déterminer optimalPath vers GetBestCloud()"]
     I --> J
-    J -->|Non| K[return — chemin invisible]
-    J -->|Oui| L{GameManager.GetBestCloud() != null ?}
-    L -->|Oui| M[chosenPath = chemin vers le meilleur nuage]
-    L -->|Non| N["chosenPath = Random 50/50 (rng)"]
-    M --> O["GameManager.SetChosenPath(advisorCells)"]
-    N --> O
-    O --> P["reg.RegisterOptimalPath(advisorCells)"]
-    P --> Q["Instantiate quads le long du chosenPath"]
-    Q --> R["FogController.RevealCells(chosenPath + playerCell)"]
+    J --> K["reg.RegisterOptimalPath(optimalCells)"]
+
+    K --> L{"rng < suboptimalPathProbability ?"}
+    L -->|Non| M["displayPath = optimalCells"]
+    L -->|Oui| N{"rng < detourProbability ?"}
+    N -->|Non| O["BuildRandomManhattanPath<br/>(même longueur, tracé différent)"]
+    N -->|Oui| P["BuildSuboptimalDetour<br/>(chemin en Z, surplus garanti)"]
+    O --> Q["reg.RegisterSuboptimalPath"]
+    P --> Q
+    Q --> R["displayPath = suboptimalPath"]
+
+    M --> S["GameManager.SetChosenPath + SetPathIsSuboptimal"]
+    R --> S
+    S --> T{"rng < pathVisible ?"}
+    T -->|Non| U[return — chemin invisible]
+    T -->|Oui| V["Instantiate quads le long du displayPath"]
+    V --> W["FogController.RevealCells(displayPath + playerCell)"]
+```
+
+#### Diagramme détaillé — BuildSuboptimalDetour (Vue F micro)
+
+```mermaid
+graph TD
+    D1["Tirages : detourSize, returnSize ∈ [detourMin, detourMax)<br/>hookDx = ±1 aléatoire, GAP = 2"] --> D2["Phase 1 : normalSteps pas Manhattan vers le nuage"]
+    D2 --> D3["TryVertical(GAP) — séparer du chemin initial"]
+    D3 --> D4["Phase 2 : TryHorizontal(hookDx, detourSize) — crochet"]
+    D4 --> D5["Phase 3 : TryVertical(GAP) — séparer les 2 segments horiz."]
+    D5 --> D6["Phase 4 : TryHorizontal(-hookDx, returnSize) — retour"]
+    D6 --> D7["Phase 5 : TryVertical(GAP) — séparer du chemin de rejoint"]
+    D7 --> D8["Phase 6 : TryStep en boucle → rejoint le nuage"]
 ```
 
 ### 3.2.5 Formules et règles métier
@@ -325,15 +352,47 @@ Direction gauche           = currentPos.x-- (décrémente X vers la gauche)
 Direction droite           = currentPos.x++ (incrémente X vers la droite)
 Direction verticale        = currentPos.y++ (toujours vers le haut)
 Randomisation du tracé     = à chaque step, si X != cible.X et Y != cible.Y → 50% chance horizontal/vertical (rng)
-Choix du chemin affiché    = vers GetBestCloud() si non null, sinon 50/50 aléatoire (rng)
+Choix du chemin optimal    = vers GetBestCloud() si non null, sinon 50/50 aléatoire (rng)
+
+--- Chemin suboptimal ---
+Tirage suboptimal          = rng.NextDouble() < SessionManager.Instance.suboptimalPathProbability
+Tirage détour              = rng.NextDouble() < SessionManager.Instance.detourProbability
+
+Sans détour (BuildRandomManhattanPath) :
+  Longueur                 = identique à l'optimal (Manhattan)
+  Tracé                    = aléatoire indépendant → non réservé → pièges possibles
+  Suboptimalité            = les murs NE protègent PAS ce chemin → pièges peuvent spawn dessus
+
+Avec détour (BuildSuboptimalDetour — chemin en « Z ») :
+  detourSize               = rng.Next(detourMin, detourMax)      // crochet horizontal
+  returnSize               = rng.Next(detourMin, detourMax)      // retour horizontal (tirage INDÉPENDANT)
+  hookDx                   = ±1 (direction aléatoire)
+  GAP                      = 2 (constante — 1 rangée d'écart entre segments horizontaux)
+
+  Phase 1 : normalSteps (2-3) pas Manhattan vers le nuage
+  Phase 2 : TryVertical(GAP) + TryHorizontal(hookDx, detourSize)
+  Phase 3 : TryVertical(GAP) — sépare crochet et retour
+  Phase 4 : TryHorizontal(-hookDx, returnSize) — retour en sens inverse
+  Phase 5 : TryVertical(GAP) — sépare retour et chemin final
+  Phase 6 : TryStep boucle → rejoint le nuage
+
+  Garanties :
+  - Le retour (phase 4) crée un surplus de steps réel vs l'optimal
+  - GAP = 2 entre chaque segment horizontal → portions jamais limitrophes
+  - detourSize et returnSize indépendants → formes asymétriques possibles
+  - visited HashSet → jamais de retour sur une case déjà traversée
 ```
 
 ### 3.2.6 Points d'attention
 
 - **⚠️ Edge case :** Si les deux nuages ont le même totalBugs, `GetBestCloud()` retourne `null` et le chemin affiché est choisi au hasard (50/50) — cohérent avec le design
 - **⚠️ Performance :** `FindGameObjectsWithTag("BugCloud")` est utilisé plutôt qu'une référence directe — fonctionne car il n'y a que 2 nuages, mais fragile si d'autres objets portent le même tag
-- **⚠️ Séquencement :** Les deux chemins sont TOUJOURS réservés dans LevelRegistry (gauche + droite), même si un seul est affiché — c'est voulu pour que CorridorWallsGenerator protège les deux
+- **⚠️ Séquencement :** Les deux chemins optimaux sont TOUJOURS réservés dans LevelRegistry (gauche + droite), même si le chemin affiché est suboptimal — c'est voulu pour que CorridorWallsGenerator protège les deux. Le chemin suboptimal est enregistré séparément via `RegisterSuboptimalPath`
 - **⚠️ Fog :** Les cellules du chemin ne sont révélées que si le tirage probabiliste `rng.NextDouble() < pathVisible` est positif (`pathVisible` est un float 0-1 lu depuis `SessionManager.Instance`)
+- **⚠️ Détour en Z :** Le `returnSize` est tiré indépendamment de `detourSize` dans les mêmes bornes `[detourMin, detourMax)` — configurations asymétriques possibles (ex : 3 pas aller, 2 retour ou 2 aller, 4 retour = détour de l'autre côté)
+- **⚠️ GAP constant :** `GAP = 2` est hardcodé — garantit qu'aucune portion horizontale du détour n'est limitrophe avec une autre. Deux pas verticaux = 1 rangée d'écart visuel
+- **⚠️ Bounds safety :** `TryHorizontal` inverse la direction si le bord de grille est atteint. `TryVertical` s'arrête si `y > goal.y` — le détour ne dépasse jamais le nuage cible en Y
+- **⚠️ Suboptimal sans détour :** `BuildRandomManhattanPath` produit un chemin de même longueur Manhattan que l'optimal. La suboptimalité vient du fait qu'il n'est PAS réservé → les pièges et murs peuvent s'y trouver
 
 ### 3.2.7 Journal d'implémentation
 
@@ -344,6 +403,7 @@ Choix du chemin affiché    = vers GetBestCloud() si non null, sinon 50/50 aléa
 | 02/03/26 | @pierre     | Migration paramètre `visible` vers SessionManager → LevelRegistry.pathVisible. PathSpawner ne possède plus que quadPrefab (game design). |
 | 02/03/26 | @pierre     | Refacto SRP : PathSpawner lit `pathVisible` directement depuis `SessionManager.Instance` (nouveau Singleton). Plus de transit par LevelRegistry pour les paramètres recherche. |
 | 02/03/26 | @auteur     | `pathVisible` passe de bool à float (probabilité 0-1). La visibilité est désormais déterminée par `rng.NextDouble() < pathVisible` (seeded RNG). Permet un contrôle probabiliste de la condition advisor. |
+| 05/03/26 | @auteur     | Feature suboptimal path : ajout branchement suboptimal (`suboptimalPathProbability`) + détour (`detourProbability`) lus depuis SessionManager. `BuildRandomManhattanPath` (même longueur, tracé alternatif) et `BuildSuboptimalDetour` (chemin en « Z » : crochet + retour + GAP). Helpers `TryHorizontal`/`TryVertical` extraits. Champs `detourMin`/`detourMax` (game design) pour borner les tirages. Le retour est tiré indépendamment du crochet (asymétrie possible). GAP=2 entre segments horizontaux (jamais limitrophes). |
 
 ## 3.3 CorridorWallsGenerator
 
@@ -403,7 +463,7 @@ public class CorridorWallsGenerator : MonoBehaviour
 
 ### 3.3.3 Dépendances
 
-- **Nécessite :** `LevelRegistry` (IsOnAnyPath, HasBugCloud, InBounds, RegisterWall, UnregisterWall, IsWall, CellToWorld, TryGetPlayerStartCell, CreateRng, DeriveSeed), `MazeGenerator` + `MazeGrid` (DFS backtracker), `PathSpawner` (doit avoir réservé les chemins avant — garanti par execution order -100 < -50)
+- **Nécessite :** `LevelRegistry` (IsOnAnyPath, IsOnSuboptimalPath, HasBugCloud, InBounds, RegisterWall, UnregisterWall, IsWall, CellToWorld, TryGetPlayerStartCell, CreateRng, DeriveSeed), `MazeGenerator` + `MazeGrid` (DFS backtracker), `PathSpawner` (doit avoir réservé les chemins avant — garanti par execution order -100 < -50)
 - **Communique avec :** Tuiles trouvées via `FindGameObjectsWithTag("Tile")` (recoloration)
 - **Déclenche :** `RegisterWall()` dans LevelRegistry pour toutes les cellules non-walkable
 
@@ -416,7 +476,7 @@ graph TD
     C --> D[BuildWalkableCells]
     D --> D1["MazeGenerator.Generate(gridSize, seed, extraOpenings) → MazeGrid"]
     D1 --> D2["Collecter cellules walkable du maze"]
-    D2 --> D3["Forcer ouverture : IsOnAnyPath + HasBugCloud + playerCell"]
+    D2 --> D3["Forcer ouverture : IsOnAnyPath + IsOnSuboptimalPath + HasBugCloud + playerCell"]
     D3 --> E["Inflate(walkable, corridorWidth)"]
     E --> F{walkable.Count > 0 ?}
     F -->|Non| G{fallbackConnectToClouds ?}
@@ -439,7 +499,7 @@ graph TD
 ```
 Maze base              = MazeGenerator.Generate(width, height, seed, extraOpenings)
                          DFS backtracker classique, seed déterministe
-Force paths            = union(maze walkable, chemins réservés, nuages, joueur)
+Force paths            = union(maze walkable, chemins réservés, chemin suboptimal, nuages, joueur)
 Inflate(cells, width)  = pour chaque cellule, ajouter un carré de côté `width` centré
                          width=1 → pas d'élargissement, width=2 → offsets [0,1]
 Cul-de-sac             = cellule walkable avec ≤ 1 voisin walkable (Neighbors4)
@@ -461,6 +521,7 @@ Mur                    = toute cellule de la grille qui n'est PAS dans walkable
 | :------- | :---------- | :------------------------------------------------------------------------------------------------ |
 | 17/02/26 | @auteur     | Documentation initiale. Couloirs par inflation des chemins réservés + connexions anti-cul-de-sac. |
 | 27/02/26 | @pierre     | Refacto : suppression champ player (TryGetPlayerStartCell), seeded RNG, intégration MazeGenerator DFS backtracker, corridorWidth default 2→1, ajout mazeExtraOpenings. |
+| 09/03/26 | @auteur     | Feature suboptimal path : `BuildWalkableCells` inclut désormais `reg.IsOnSuboptimalPath(c)` dans baseCells — les cellules du chemin suboptimal sont traitées comme walkable (couloirs forcés) mais sans Reserved (pièges possibles). |
 
 ## 3.4 TrapSpawner
 
@@ -682,15 +743,16 @@ public class LevelRegistry : MonoBehaviour
     [Flags]
     public enum CellFlags
     {
-        None        = 0,
-        BugCloud    = 1 << 0,
-        Trap        = 1 << 1,
-        PathLeft    = 1 << 2,
-        PathRight   = 1 << 3,
-        Reserved    = 1 << 4,
-        Visited     = 1 << 5,
-        Wall        = 1 << 6,
-        PlayerStart = 1 << 7,
+        None           = 0,
+        BugCloud       = 1 << 0,
+        Trap           = 1 << 1,
+        PathLeft       = 1 << 2,
+        PathRight      = 1 << 3,
+        Reserved       = 1 << 4,
+        Visited        = 1 << 5,
+        Wall           = 1 << 6,
+        PlayerStart    = 1 << 7,
+        SuboptimalPath = 1 << 8,  // walkable mais PAS réservé → pièges possibles
     }
 
     readonly Dictionary<Vector2Int, CellFlags> _cells = new();
@@ -731,6 +793,7 @@ public class LevelRegistry : MonoBehaviour
 | ReservePathLeft(IEnumerable\<Vector2Int\>)  | void                               | Marque les cellules comme `PathLeft + Reserved`                             |
 | ReservePathRight(IEnumerable\<Vector2Int\>) | void                               | Marque les cellules comme `PathRight + Reserved`                            |
 | ClearPathReservations()                     | void                               | Retire `PathLeft`, `PathRight` et `Reserved` de toutes les cellules         |
+| RegisterSuboptimalPath(IEnumerable\<Vector2Int\>) | void                          | Marque les cellules comme `SuboptimalPath` **sans** `Reserved` — les pièges peuvent y spawner |
 | RegisterWall(Vector2Int)                    | void                               | Ajoute le flag `Wall` (bloque déplacement et spawn)                         |
 | **API de lecture**                          |                                    |                                                                             |
 | InBounds(Vector2Int)                        | bool                               | Vérifie si une coordonnée est dans la grille                                |
@@ -738,13 +801,14 @@ public class LevelRegistry : MonoBehaviour
 | IsWalkable(Vector2Int)                      | bool                               | `InBounds && !IsWall` — utilisé par GridMover                               |
 | IsFreeForTrap(Vector2Int)                   | bool                               | `InBounds && !IsReserved && !IsWall && !HasTrap`                            |
 | HasBugCloud / HasTrap / IsWall / etc.       | bool                               | Helpers de lecture par flag individuel                                       |
+| IsOnSuboptimalPath(Vector2Int)              | bool                               | `true` si la cellule a le flag `SuboptimalPath`                             |
 | WorldToCell(Vector3)                        | Vector2Int                         | Conversion position monde → coordonnée grille (RoundToInt)                  |
 | CellToWorld(Vector2Int, float)              | Vector3                            | Conversion coordonnée grille → position monde                               |
 | SnapWorldToCellCenter(Vector3)              | Vector3                            | Snap une position monde au centre de la cellule la plus proche              |
 
 ### 4.1.3 Dépendances
 
-- **Est utilisé par :** `PlayerSpawner` (RegisterPlayerStart), `TilesSpawner` (originWorld), `BugCloudSpawner` (RegisterBugCloud, RegisterStepBudget, CreateRng, TryGetPlayerStartCell), `PathSpawner` (ReservePathLeft/Right, RegisterOptimalPath, TryGetPlayerStartCell, CreateRng), `CorridorWallsGenerator` (RegisterWall, IsOnAnyPath, HasBugCloud, TryGetPlayerStartCell, CreateRng), `TrapSpawner` (RegisterTrap, IsFreeForTrap, TryGetPlayerStartCell, CreateRng), `GameManager` (MarkVisited, optimalPathLength, stepBudget, TryGetRoundSeed), `GridMover` (WorldToCell, CellToWorld, InBounds, IsWalkable), `FogController` (gridSize, WorldToCell), `SessionManager` (SetRoundSeed), `MapGenerator` (prévisualisation éditeur)
+- **Est utilisé par :** `PlayerSpawner` (RegisterPlayerStart), `TilesSpawner` (originWorld), `BugCloudSpawner` (RegisterBugCloud, RegisterStepBudget, CreateRng, TryGetPlayerStartCell), `PathSpawner` (ReservePathLeft/Right, RegisterOptimalPath, RegisterSuboptimalPath, InBounds, TryGetPlayerStartCell, CreateRng), `CorridorWallsGenerator` (RegisterWall, IsOnAnyPath, IsOnSuboptimalPath, HasBugCloud, TryGetPlayerStartCell, CreateRng), `TrapSpawner` (RegisterTrap, IsFreeForTrap, TryGetPlayerStartCell, CreateRng), `GameManager` (MarkVisited, optimalPathLength, stepBudget, TryGetRoundSeed), `GridMover` (WorldToCell, CellToWorld, InBounds, IsWalkable), `FogController` (gridSize, WorldToCell), `SessionManager` (SetRoundSeed), `MapGenerator` (prévisualisation éditeur)
 - **Ne dépend de :** Rien (système fondation sans dépendance entrante)
 - **Ne déclenche :** Aucun event (`OnCellChanged` a été supprimé — les flags sont écrits silencieusement)
 
@@ -775,6 +839,7 @@ graph TD
         C6[UnregisterBugCloud] -->|"Retire Reserved si ni chemin ni PlayerStart"| D
         C7[ClearPathReservations] --> D
         C8[RegisterStepBudget] -->|"stepBudget = manhattanDistance"| C9["Stocke le budget de pas"]
+        C10[RegisterSuboptimalPath] -->|"AddFlags SuboptimalPath (sans Reserved)"| D
     end
 
     D --> E["_cells[c] = flags"]
@@ -783,6 +848,7 @@ graph TD
         L1[IsWalkable] --> L0[GetFlags]
         L2[IsFreeForTrap] --> L0
         L3[HasBugCloud / HasTrap / IsWall...] --> L0
+        L3b[IsOnSuboptimalPath] --> L0
         L4[WorldToCell / CellToWorld] -.->|Conversion| L5[Retourne coordonnée]
     end
 ```
@@ -820,12 +886,13 @@ graph TD
 | 02/03/26 | @pierre     | Ajout de 9 champs [HideInInspector] pour les paramètres recherche (minDistance, totalBugs, greenRatio, gap, pathVisible, blockId). Pipeline Research Parameter complété. |
 | 02/03/26 | @pierre     | Refacto SRP : suppression des 11 champs [HideInInspector] de paramètres recherche. LevelRegistry ne sert plus de relais — les spawners lisent directement `SessionManager.Instance`. LevelRegistry recentré sur son rôle unique : état spatial de la grille + RNG. |
 | 02/03/26 | @pierre     | Ajout champ `stepBudget` [HideInInspector] et méthode `RegisterStepBudget(int)`. Stocke la distance Manhattan joueur→nuages comme budget de pas pour la mécanique de pénalité de dépassement. |
+| 09/03/26 | @auteur     | Feature suboptimal path : ajout `CellFlags.SuboptimalPath` (1 << 8), `RegisterSuboptimalPath(IEnumerable<Vector2Int>)` marque les cellules **sans** Reserved (pièges possibles), `IsOnSuboptimalPath(Vector2Int)` helper de lecture. Utilisé par PathSpawner (écriture) et CorridorWallsGenerator (lecture pour walkable). |
 
 ## 4.2 GameManager
 
 ### 4.2.1 Responsabilités
 
-- Suivre l'état du round en cours (steps, trapsHit, bugsCollected, followedBestPath)
+- Suivre l'état du round en cours (steps, trapsHit, bugsCollected, followedAdvisorPath)
 - Gérer le cycle de vie des rounds (démarrage, fin de manche sur collecte de nuage, restart)
 - Enregistrer les deux nuages du round et déterminer le nuage optimal
 - Orchestrer les callbacks d'entités : `OnPlayerStep` (GridMover), `OnTrapTriggered` (Trap), `OnCloudCollected` (BugCloud)
@@ -855,7 +922,9 @@ public class GameManager : MonoBehaviour
     public int trapsHit = 0;
     public int bugsCollected = 0;
     public int overtimeSteps = 0;
-    public bool followedBestPath = true;
+    public bool followedAdvisorPath = true;
+
+    bool _pathIsSuboptimal = false;
 
     public bool inputLocked { get; private set; } = false;
     bool _roundOver = false;
@@ -868,11 +937,11 @@ public class GameManager : MonoBehaviour
     {
         public int bugsCollected;
         public int trapsHit;
+        public int overtimeSteps;
         public int steps;
-        public bool followedBestPath;
+        public bool followedAdvisorPath;
         public int leftCloudGreenBugs;
         public int rightCloudGreenBugs;
-        public int overtimeSteps;
         public bool optimalPathVisible;
     }
 
@@ -888,11 +957,12 @@ public class GameManager : MonoBehaviour
 | _screenCounter                              | int (privé)             | Compteur séquentiel de manches dans la session                                    |
 | steps / trapsHit / bugsCollected            | int                     | Compteurs du round courant                                                        |
 | overtimeSteps                               | int                     | Compteur de pas au-delà du budget (distance Manhattan)                           |
-| followedBestPath                            | bool                    | `true` tant que le joueur reste sur le chemin conseillé                           |
+| followedAdvisorPath                         | bool                    | `true` tant que le joueur reste sur le chemin conseillé                           |
+| _pathIsSuboptimal                           | bool (privé)            | `true` si le chemin affiché est suboptimal (reçu de PathSpawner via `SetPathIsSuboptimal`) |
 | inputLocked                                 | bool (get)              | Verrouille les inputs joueur quand `true` (fin de round)                          |
 | _roundOver                                  | bool (privé)            | Empêche les callbacks d'entités après fin de round                                |
 | _advisorPath                                | HashSet (privé)         | Cellules du chemin conseillé (reçu de PathSpawner)                                |
-| RoundEndInfo                                | struct                  | Données transmises via OnRoundEnded (bugs, traps, steps, chemin, bugs L/R, overtimeSteps, optimalPathVisible) |
+| RoundEndInfo                                | struct                  | Données transmises via OnRoundEnded (bugs, traps, overtimeSteps, steps, chemin conseillé, bugs L/R, optimalPathVisible) |
 | OnRoundEnded                                | event Action\<RoundEndInfo\> | Émis à la fin du round — RoundUI s'y abonne                                 |
 | BeginFirstRound()                           | void                    | Point d'entrée appelé par SessionManager — lance le premier round                 |
 | RegisterClouds(BugCloud, BugCloud)          | void                    | Enregistre les 2 nuages, transmet la config map (positions, totalBugs, greenRatio) à TrialManager via `SetMapConfig` |
@@ -900,14 +970,15 @@ public class GameManager : MonoBehaviour
 | OnPlayerStep(Vector2Int)                    | void                    | Appelé par GridMover — fog, visited, déviation, budget de pas, trial log           |
 | OnTrapTriggered()                           | void                    | Appelé par Trap — trapsHit++, -1 bug sur chaque nuage                            |
 | OnStepBudgetExceeded()                      | void (privé)            | Appelé quand le joueur dépasse le budget de pas — overtimeSteps++, -1 bug sur chaque nuage |
-| OnCloudCollected(BugCloud)                  | void                    | Fin de round — calcule bugs verts, détermine trueCloud, transmet cloud_distance via SetCloudDistance, détermine optimalPathVisible par tirage probabiliste (`rng.NextDouble() < pathVisible`), finalise trial (choice, correct, trueCloud, greenBugs, trapsHit, steps, optimalPathVisible), émet OnRoundEnded |
+| OnCloudCollected(BugCloud)                  | void                    | Fin de round — calcule bugs verts, détermine trueCloud, transmet cloud_distance via SetCloudDistance, détermine optimalPathVisible par tirage probabiliste (`rng.NextDouble() < pathVisible`), finalise trial (choice, correct, trueCloud, greenBugs, trapsHit, steps, optimalPathVisible, pathIsSuboptimal), émet OnRoundEnded |
+| SetPathIsSuboptimal(bool)                   | void                    | Reçoit de PathSpawner si le chemin affiché est suboptimal — stocke dans `_pathIsSuboptimal` |
 | GetBestCloud()                              | BugCloud                | Retourne le nuage avec le meilleur `greenRatio`, `null` si égalité                |
 | RestartRound()                              | void                    | Recharge la scène active (appelé par RoundUI)                                     |
 
 ### 4.2.3 Dépendances
 
 - **Nécessite :** `LevelRegistry.Instance` (MarkVisited, optimalPathLength, stepBudget, TryGetRoundSeed), `SessionManager.Instance` (blockId — lecture directe), `FogController.Instance` (RevealCell), `TrialManager` (StartNewTrial, RecordMove, SetMapConfig, SetOptimalPathLength, SetCloudDistance, EndCurrentTrial, SendTrials), `BugCloud` (nuages du round), `PathSpawner` (chemin conseillé)
-- **Est utilisé par :** `SessionManager` (lance `BeginFirstRound()`), `GridMover` (appelle `OnPlayerStep()`), `BugCloud` (appelle `OnCloudCollected()`), `Trap` (appelle `OnTrapTriggered()`), `PathSpawner` (appelle `SetChosenPath()`)
+- **Est utilisé par :** `SessionManager` (lance `BeginFirstRound()`), `GridMover` (appelle `OnPlayerStep()`), `BugCloud` (appelle `OnCloudCollected()`), `Trap` (appelle `OnTrapTriggered()`), `PathSpawner` (appelle `SetChosenPath()`, `SetPathIsSuboptimal()`)
 - **Communique avec l'UI via :** `event OnRoundEnded` → `RoundUI` (pas de références UI directes)
 
 ### 4.2.4 Diagramme de flux
@@ -932,7 +1003,7 @@ graph TD
         J --> J0["LevelRegistry.MarkVisited(cell)"]
         J0 --> J1["FogController.RevealCell(cell)"]
         J1 --> J2{Cell dans _advisorPath ?}
-        J2 -->|Non| K[followedBestPath = false]
+        J2 -->|Non| K[followedAdvisorPath = false]
         J2 -->|Oui| L[Continue]
         K --> M["TrialManager.RecordMove(cell)"]
         L --> M
@@ -960,7 +1031,7 @@ graph TD
         R --> R1["trueCloud = best == leftCloud ? 'left' : best == rightCloud ? 'right' : 'none'"]
         R1 --> R1b["TrialManager.SetCloudDistance(LevelRegistry.stepBudget)"]
         R1b --> R2["optimalPathVisible = rng.NextDouble() < SessionManager.Instance.pathVisible"]
-        R2 --> S["TrialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps, optimalPathVisible)"]
+        R2 --> S["TrialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps, optimalPathVisible, _pathIsSuboptimal)"]
         S --> S1["TrialManager.SendTrials()"]
         S1 --> U["OnRoundEnded?.Invoke(RoundEndInfo)"]
     end
@@ -981,7 +1052,7 @@ Bugs collectés    = max(0, RoundToInt(cloud.totalBugs × cloud.greenRatio)) au 
 Meilleur nuage    = celui avec le meilleur greenRatio ; null si égalité (greenRatio invariant même après pénalités)
 Choix correct     = le joueur a collecté le nuage avec le meilleur greenRatio initial (GetBestCloud)
 trueCloud         = "left" si best == leftCloud, "right" si best == rightCloud, "none" si égalité
-followedBestPath  = true tant que TOUS les pas du joueur sont dans _advisorPath
+followedAdvisorPath = true tant que TOUS les pas du joueur sont dans _advisorPath
 Fog + Visited     = gérés par OnPlayerStep (pas par GridMover)
 ```
 
@@ -1004,6 +1075,7 @@ Fog + Visited     = gérés par OnPlayerStep (pas par GridMover)
 | 02/03/26 | @pierre     | Pipeline collecte enrichi : `OnCloudCollected` calcule désormais les bugs verts (totalBugs × greenRatio), détermine `trueCloud` (left/right/none), et transmet 6 params à `EndCurrentTrial` (choice, correct, trueCloud, greenBugsCollected, trapsHit, steps). `RegisterClouds` passe `greenRatio` à `SetMapConfig`. `GetBestCloud` compare `greenRatio` (pas totalBugs). |
 | 02/03/26 | @pierre     | Mécanique Step Budget Penalty : ajout `overtimeSteps`, `OnStepBudgetExceeded()`, vérification budget dans `OnPlayerStep`. `OnCloudCollected` transmet `cloud_distance` via `TrialManager.SetCloudDistance`. `RoundEndInfo` inclut `overtimeSteps`. |
 | 02/03/26 | @auteur     | `pathVisible` passe de bool à float (probabilité). `OnCloudCollected` détermine `optimalPathVisible` par tirage `rng.NextDouble() < pathVisible` et le transmet à `EndCurrentTrial` (7 params). `RoundEndInfo` ajoute `optimalPathVisible`. |
+| 09/03/26 | @auteur     | Feature suboptimal path : renommage `followedBestPath` → `followedAdvisorPath` partout. Ajout `_pathIsSuboptimal` (bool privé) + `SetPathIsSuboptimal(bool)` (appelé par PathSpawner). `RoundEndInfo` utilise `followedAdvisorPath`. `EndCurrentTrial` passe désormais 8 params (ajout `_pathIsSuboptimal`). |
 
 ## 4.3 SessionManager
 
@@ -1052,7 +1124,16 @@ public class SessionManager : MonoBehaviour
     public float gapMax = 0.3f;
 
     [Header("Recherche : Advisor")]
+    [Tooltip("Probabilité que le chemin conseillé soit visible (1) ou caché (0). CLI: pathVisible=F.")]
     public float pathVisible = 1f;
+
+    [Tooltip("Probabilité que le chemin affiché soit suboptimal. CLI: suboptimalPath=F.")]
+    [Range(0f, 1f)]
+    public float suboptimalPathProbability = 0f;
+
+    [Tooltip("Probabilité que le chemin suboptimal inclue un détour. CLI: detourProb=F.")]
+    [Range(0f, 1f)]
+    public float detourProbability = 0f;
 
     [Header("Recherche : Protocole")]
     public int blockId = 1;
@@ -1074,6 +1155,8 @@ public class SessionManager : MonoBehaviour
 | minGreenBugsRatio / maxGreenBugsRatio | float (public) | Bornes ratio vert (défaut : 0.4-0.8). CLI: `minGreenRatio=F`, `maxGreenRatio=F` |
 | gapMin / gapMax                   | float (public)     | Écart min/max entre ratios verts (défaut : 0.1-0.3). CLI: `gapMin=F`, `gapMax=F` |
 | pathVisible                       | float (public)     | Probabilité d'affichage du chemin conseillé (défaut : 1.0 = toujours visible, 0.0 = jamais). CLI: `pathVisible=F` (ex: `pathVisible=0.5`). Le tirage est fait par `rng.NextDouble() < pathVisible` dans PathSpawner et GameManager |
+| **suboptimalPathProbability**     | **float (public)** | **Probabilité que le chemin affiché soit suboptimal (défaut : 0.0 = toujours optimal, 1.0 = toujours suboptimal). CLI: `suboptimalPath=F`. Tirage `rng.NextDouble() < suboptimalPathProbability` dans PathSpawner** |
+| **detourProbability**             | **float (public)** | **Probabilité que le chemin suboptimal inclue un détour en « Z » (défaut : 0.0 = Manhattan alternatif, 1.0 = toujours détour). CLI: `detourProb=F`. Tirage conditionnel : uniquement si suboptimal est déjà tiré** |
 | blockId                           | int (public)       | Bloc expérimental pour TrialData (défaut : 1). CLI: `blockId=N`               |
 | **Méthodes**                      |                   |                                                                                   |
 | Awake()                           | void              | Pipeline séquentiel : Singleton init → seed → CLI parsing → sessionId            |
@@ -1090,7 +1173,7 @@ public class SessionManager : MonoBehaviour
 ### 4.3.3 Dépendances
 
 - **Nécessite :** `LevelRegistry.Instance` (SetRoundSeed), `GameManager` (appelle `BeginFirstRound()`), `TrialManager` (injecte sessionId)
-- **Est utilisé par :** `BugCloudSpawner` (lecture directe : minDistance, maxDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax), `TrapSpawner` (lecture directe : trapCount), `PathSpawner` (lecture directe : pathVisible), `GameManager` (lecture directe : blockId)
+- **Est utilisé par :** `BugCloudSpawner` (lecture directe : minDistance, maxDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax), `TrapSpawner` (lecture directe : trapCount), `PathSpawner` (lecture directe : pathVisible, suboptimalPathProbability, detourProbability), `GameManager` (lecture directe : blockId)
 - **Source de données :** Arguments de ligne de commande (`System.Environment.GetCommandLineArgs()`)
 - **Pattern :** Research Parameter Pipeline — SessionManager.Instance → Spawners `.Start()` (lecture directe des champs `public`)
 
@@ -1131,7 +1214,7 @@ graph TD
 
     subgraph "Lecture par les spawners (Start, ordres négatifs)"
         S1["BugCloudSpawner.Start(-200)"] -.->|"lit Instance.minDistance, etc."| A2
-        S2["PathSpawner.Start(-100)"] -.->|"lit Instance.pathVisible"| A2
+        S2["PathSpawner.Start(-100)"] -.->|"lit Instance.pathVisible,\nsuboptimalPathProbability,\ndetourProbability"| A2
         S3["TrapSpawner.Start(-10)"] -.->|"lit Instance.trapCount"| A2
         S4["GameManager.StartNewRound(0)"] -.->|"lit Instance.blockId"| A2
     end
@@ -1170,6 +1253,7 @@ graph TD
 | 02/03/26 | @pierre     | Migration centralisée : SessionManager possède désormais TOUS les paramètres de protocole expérimental (10 params : trapCount, minDistance, totalBugs, greenRatio, gap, pathVisible, blockId). Ajout TryApplyBugCloudParamsFromArgs + ApplyResearchParamsToRegistry (remplace ApplyTrapCountToRegistry). Helpers CLI génériques : TryParseInt, TryParseFloat, TryParseBool. BugCloudSpawner, PathSpawner et GameManager ne possèdent plus de paramètres recherche. |
 | 02/03/26 | @pierre     | Refacto Singleton SRP : SessionManager devient Singleton (`Instance`). Champs `[SerializeField] private` → `public`. Suppression de `ApplyResearchParamsToRegistry()` — les spawners lisent directement `SessionManager.Instance.paramName`. LevelRegistry déchargé de son rôle de relais. Ajout maxDistance (0 = pas de limite). |
 | 02/03/26 | @auteur     | `pathVisible` passe de `bool` (true/false) à `float` (probabilité 0-1, défaut 1.0). CLI `pathVisible=F` utilise désormais `TryParseFloat` au lieu de `TryParseBool`. Permet un contrôle probabiliste fin de la condition advisor par le protocole de recherche. |
+| 05/03/26 | @auteur     | Ajout 2 paramètres recherche Advisor : `suboptimalPathProbability` (float, CLI: `suboptimalPath=F`, défaut 0) et `detourProbability` (float, CLI: `detourProb=F`, défaut 0). Parsing CLI via `TryParseFloat`. Lus par PathSpawner pour le tirage chemin suboptimal + détour en « Z ». |
 
 ## 4.4 FogController
 
@@ -1337,7 +1421,7 @@ private struct MiniMapCfg
 | SetSessionId(string)                                  | void                      | Injecte l'ID de session (appelé par SessionManager)                                      |
 | StartNewTrial(int, int, string, **long trialSeed**)   | void                      | Crée un TrialData, stocke la seed, applique le tampon map_config si présent              |
 | RecordMove(Vector2Int)                                | void                      | Ajoute un PlayerStep (position + timestamp ISO) au trial courant                         |
-| EndCurrentTrial(string, bool, string, int, int, int, bool) | void                | Finalise le trial : choix, justesse, trueCloud, greenBugsCollected, trapsHit, steps, optimalPathVisible, timestamp de fin |
+| EndCurrentTrial(string, bool, string, int, int, int, bool, bool) | void          | Finalise le trial : choix, justesse, trueCloud, greenBugsCollected, trapsHit, steps, optimalPathVisible, pathIsSuboptimal, timestamp de fin |
 | SetOptimalPathLength(int)                             | void                      | Enregistre la longueur du chemin optimal dans le trial courant                           |
 | SetCloudDistance(int)                                 | void                      | Enregistre la distance Manhattan joueur→nuages (`cloud_distance`) dans le trial courant  |
 | **SetMapConfig(gridSize, leftCell, leftBugs, leftGreenRatio, rightCell, rightBugs, rightGreenRatio)** | void       | API structurée — construit le JSON MiniMapCfg (avec greenRatio) en interne                    |
@@ -1376,7 +1460,7 @@ graph TD
 
     N["GameManager.OnCloudCollected"] -->|"SetOptimalPathLength(n)"| O["currentTrial.optimal_path_length = n"]
     N -->|"SetCloudDistance(d)"| O2["currentTrial.cloud_distance = d"]
-    N -->|"EndCurrentTrial(choice, correct, trueCloud, greenBugs, trapsHit, steps, optimalPathVisible)"| P["currentTrial.proximal_choice = choice"]
+    N -->|"EndCurrentTrial(choice, correct, trueCloud, greenBugs, trapsHit, steps, optimalPathVisible, pathIsSuboptimal)"| P["currentTrial.proximal_choice = choice"]
     P --> Q["currentTrial.end_timestamp = UTC ISO"]
 
     N -->|"SendTrials()"| R{isSending ?}
@@ -1422,6 +1506,7 @@ graph TD
 | 02/03/26 | @pierre     | Pipeline collecte enrichi : CloudInfo ajoute `greenRatio`. SetMapConfig prend 7 params (ajout leftGreenRatio, rightGreenRatio). EndCurrentTrial prend 6 params (ajout trueCloud, greenBugsCollected, trapsHit, steps). Noms de champs JSON : `greenRatio` dans map_config. |
 | 02/03/26 | @pierre     | Ajout méthode `SetCloudDistance(int)` — même pattern que `SetOptimalPathLength`. Reçoit `cloud_distance` depuis GameManager pour que les chercheurs puissent dériver le dépassement (steps - cloud_distance). |
 | 02/03/26 | @auteur     | `EndCurrentTrial` prend désormais 7 params (ajout `optimalPathVisible` bool). Enregistre si le chemin optimal était visible pour le joueur dans cette manche. |
+| 09/03/26 | @auteur     | Feature suboptimal path : `EndCurrentTrial` passe de 7 à 8 params (ajout `pathIsSuboptimal` bool). Écrit `currentTrial.path_is_suboptimal`. |
 
 ## 4.6 TilesSpawner
 
@@ -1602,6 +1687,7 @@ public class TrialData
     public string true_cloud;
     public int optimal_path_length;
     public bool optimal_path_visible;
+    public bool path_is_suboptimal;   // true si le chemin affiché était suboptimal
     public long trial_seed;
     public List<PlayerStep> player_path_log = new();
     public string proximal_choice;
@@ -1627,6 +1713,7 @@ public class TrialData
 | true_cloud          | string             | GameManager.OnCloudCollected | Nuage objectivement meilleur (greenRatio) : "left", "right" ou "none" (si égalité) |
 | optimal_path_length | int                | GameManager.OnCloudCollected | Longueur du chemin optimal enregistré par PathSpawner          |
 | **optimal_path_visible** | **bool**      | **TrialManager.EndCurrentTrial** | **Indique si le chemin optimal était visible pour le joueur dans cette manche (déterminé par tirage `rng.NextDouble() < pathVisible`)** |
+| **path_is_suboptimal** | **bool**        | **TrialManager.EndCurrentTrial** | **`true` si le chemin affiché au joueur était suboptimal (non réservé, pièges possibles). Tirage `rng.NextDouble() < suboptimalPathProbability` dans PathSpawner** |
 | **trial_seed**      | **long**           | **TrialManager.StartNewTrial** | **Seed de randomisation du round — permet la reproductibilité** |
 | player_path_log     | List\<PlayerStep\> | TrialManager.RecordMove      | Séquence ordonnée des pas du joueur avec timestamps            |
 | proximal_choice     | string             | TrialManager.EndCurrentTrial | Choix du joueur : "left", "right" ou "unknown"                 |
@@ -1674,6 +1761,7 @@ public class PlayerStep
       "true_cloud": "left",
       "optimal_path_length": 12,
       "optimal_path_visible": true,
+      "path_is_suboptimal": false,
       "trial_seed": 8234567890123456789,
       "player_path_log": [
         {"x": 5, "y": 0, "t": "2026-02-17T14:30:01.000Z"},
@@ -1704,7 +1792,7 @@ public class PlayerStep
 ### 6.1.1 Responsabilités
 
 - Afficher le panneau de fin de round (game over) quand `GameManager.OnRoundEnded` est émis
-- Formater et présenter les statistiques de la manche (bugs collectés, pièges, pas, chemin optimal, pas en trop)
+- Formater et présenter les statistiques de la manche (bugs collectés, pièges, pas, chemin conseillé, pas en trop)
 - Fournir le bouton de restart qui appelle `GameManager.RestartRound()`
 - Masquer le panneau au démarrage
 
@@ -1756,7 +1844,7 @@ graph TD
 
 - **⚠️ Pattern Observer :** RoundUI s'abonne à `OnRoundEnded` dans `Start()` et se désabonne dans `OnDestroy()` — pas de référence UI dans GameManager, découplage propre
 - **⚠️ Null-safe :** Tous les accès à `_gameOverPanel` et `_gameOverStats` sont protégés par des null-checks
-- **⚠️ Format texte :** Le texte affiché inclut `followedBestPath` (Oui/Non), les bugs restants dans chaque nuage et `overtimeSteps` (pas en trop) — utile pour le debriefing joueur
+- **⚠️ Format texte :** Le texte affiché inclut `followedAdvisorPath` (« Chemin conseillé suivi : Oui/Non »), les bugs restants dans chaque nuage et `overtimeSteps` (pas en trop) — utile pour le debriefing joueur
 
 ### 6.1.6 Journal d'implémentation
 
@@ -1764,6 +1852,7 @@ graph TD
 | :------- | :---------- | :------------------------------------------------------------------------------------------------ |
 | 27/02/26 | @pierre     | Création. UI extraite de GameManager vers un composant dédié. S'abonne à OnRoundEnded. |
 | 02/03/26 | @pierre     | Ajout affichage `overtimeSteps` (pas en trop) dans les stats de fin de round. RoundEndInfo inclut désormais `overtimeSteps`. |
+| 09/03/26 | @auteur     | Feature suboptimal path : label « Chemin optimal suivi » renommé en « Chemin conseillé suivi ». `info.followedBestPath` → `info.followedAdvisorPath`. |
 
 # 7. Optimisations et performance
 
@@ -1856,3 +1945,5 @@ _Section à compléter._
 | 02/03/26 | 2.3     | Mécanique Step Budget Penalty : distance Manhattan joueur→nuages = budget de pas. Chaque pas au-delà retire 1 bug par nuage (même pattern que piège). Nouveau pattern (section 2.3), `LevelRegistry.stepBudget` + `RegisterStepBudget` (4.1), `GameManager.overtimeSteps` + `OnStepBudgetExceeded` (4.2), `TrialManager.SetCloudDistance` (4.5), `TrialData.cloud_distance` (5.1), `RoundUI` affiche overtimeSteps (6.1). MAJ sections 2.3, 3.1, 4.1, 4.2, 4.5, 5.1, 6.1. |
 | 02/03/26 | 2.4     | `pathVisible` passe de bool à float (probabilité 0-1). SessionManager expose `float pathVisible = 1f` (CLI: `pathVisible=F`). PathSpawner et GameManager utilisent `rng.NextDouble() < pathVisible` (seeded RNG). `TrialData` ajoute `optimal_path_visible`. `EndCurrentTrial` prend 7 params (ajout `optimalPathVisible`). `RoundEndInfo` ajoute `optimalPathVisible`. MAJ sections 3.2, 4.2, 4.3, 4.5, 5.1. |
 | 03/03/26 | 2.5     | Section 2.2 : remplacement du diagramme ASCII backup par deux diagrammes Mermaid (Vue A initialisation + Vue B data flow). Ajout de SessionManager, PlayerSpawner, TilesSpawner absents de l'ancien diagramme. Flux FogController (RevealCells/RevealCell) et pathVisible maintenant représentés. |
+| 05/03/26 | 2.6     | Feature suboptimal path + détour en « Z ». MAJ section 3.2 (PathSpawner) : nouvelles responsabilités, Data Model (detourMin/detourMax), diagramme de flux avec branchement suboptimal + Vue F micro BuildSuboptimalDetour, formules du détour 6 phases, points d'attention GAP/asymétrie/bounds. MAJ section 4.3 (SessionManager) : ajout suboptimalPathProbability + detourProbability (Data Model, Dépendances, Journal). MAJ section 2.2 Vue B data flow (3 params SessionManager→PathSpawner). |
+| 09/03/26 | 2.7     | Propagation feature suboptimal path aux sections impactées. MAJ section 4.1 (LevelRegistry) : CellFlags.SuboptimalPath (1<<8), RegisterSuboptimalPath, IsOnSuboptimalPath. MAJ section 4.2 (GameManager) : renommage followedBestPath→followedAdvisorPath, ajout _pathIsSuboptimal + SetPathIsSuboptimal, EndCurrentTrial 8 params. MAJ section 3.3 (CorridorWallsGenerator) : IsOnSuboptimalPath dans baseCells. MAJ section 4.5 (TrialManager) : EndCurrentTrial 8 params. MAJ section 5.1 (TrialData) : champ path_is_suboptimal + JSON. MAJ section 6.1 (RoundUI) : label « Chemin conseillé suivi ». |

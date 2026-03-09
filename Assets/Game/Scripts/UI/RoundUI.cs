@@ -44,7 +44,7 @@ public class RoundUI : MonoBehaviour
                 $"Pièges touchés : {info.trapsHit}\n" +
                 $"Pas en trop : {info.overtimeSteps}\n" +
                 $"Pas : {info.steps}\n" +
-                $"Chemin optimal suivi : {(info.followedBestPath ? "Oui" : "Non")}\n" +
+                $"Chemin conseillé suivi : {(info.followedAdvisorPath ? "Oui" : "Non")}\n" +
                 $"Bugs nuage G : {info.leftCloudGreenBugs}  |  D : {info.rightCloudGreenBugs}";
         }
     }
