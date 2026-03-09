@@ -202,14 +202,29 @@ public class PathSpawner : MonoBehaviour
 
 
         bool visible = rng.NextDouble() < session.pathVisible;
-        // Si visible est false n'instancie aucun quad et ne révèle rien dans le fog of war
+
+        // ------ REVELER LES CASES DANS LE FOG OF WAR ------
+        // Toujours révéler la case joueur et les deux nuages (même si le chemin est caché).
+        // Le chemin lui-même n'est révélé que si visible.
+        if (FogController.Instance != null)
+        {
+            var reveal = new List<Vector2Int> { playerCell, leftCloudCell, rightCloudCell };
+
+            if (visible)
+            {
+                foreach (var c in displayPath)
+                    reveal.Add(c);
+            }
+
+            FogController.Instance.RevealCells(reveal);
+        }
+
+        // Si le chemin n'est pas visible, pas de quads
         if (!visible)
         {
             Debug.Log("[PathSpawner] visible=false => instanciation des quads ignorée.");
             return;
         }
-
-
 
         // Instancier les quads le long du chemin affiché
         int spawned = 0;
@@ -225,20 +240,6 @@ public class PathSpawner : MonoBehaviour
         }
 
         Debug.Log($"[PathSpawner] Quads instanciés: {spawned} (suboptimal={isSuboptimal}, originWorld={reg.originWorld}, cellSize={reg.cellSize}).");
-
-
-
-        // ------ REVELER LES CASES DU CHEMIN DANS LE FOG OF WAR ------
-        if (FogController.Instance != null)
-        {
-            var cells = new List<Vector2Int>(displayPath.Count + 1);
-            foreach (var c in displayPath)
-                cells.Add(c);
-
-            cells.Add(playerCell);
-
-            FogController.Instance.RevealCells(cells);
-        }
     }
 
     // ══════════════════════════════════════════════════════════════

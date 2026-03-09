@@ -58,6 +58,11 @@ public class SessionManager : MonoBehaviour
     [Range(0f, 1f)]
     public float detourProbability = 0f;
 
+    [Header("Recherche : Fog of War")]
+    [Tooltip("Probabilité que le brouillard de guerre soit actif (0=jamais, 1=toujours). CLI: fogProbability=F.")]
+    [Range(0f, 1f)]
+    public float fogProbability = 0f;
+
     [Header("Recherche : Protocole")]
     [Tooltip("Identifiant du bloc expérimental pour le pipeline de données. CLI: blockId=N.")]
     public int blockId = 1;
@@ -166,6 +171,7 @@ public class SessionManager : MonoBehaviour
             TryParseFloat(a, "pathVisible", ref pathVisible);
             TryParseFloat(a, "suboptimalPath", ref suboptimalPathProbability);
             TryParseFloat(a, "detourProb", ref detourProbability);
+            TryParseFloat(a, "fogProbability", ref fogProbability);
             TryParseInt(a, "blockId", ref blockId);
         }
     }

@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 6935374283268517530}
   - component: {fileID: 4290076745784801433}
   - component: {fileID: 1206826095127810243}
+  - component: {fileID: 5283663146902700156}
   m_Layer: 0
   m_Name: FogSurface
   m_TagString: Untagged
@@ -89,6 +90,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!64 &1206826095127810243
 MeshCollider:
@@ -112,3 +114,16 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &5283663146902700156
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 449489812925837503}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc8e3197a4d790a4d91bbbdb2bb29f45, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FogController
+  pixelsPerCell: 1

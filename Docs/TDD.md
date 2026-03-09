@@ -2,7 +2,7 @@
 
 | Nom du projet :    | BUGS                          |
 | :----------------- | :---------------------------- |
-| **Version :**      | 2.7                           |
+| **Version :**      | 2.8                           |
 | **Dernière MAJ :** | 09/03/26                      |
 | **Auteur(s) :**    | @florian, @pierre             |
 | **Moteur :**       | Unity 6000.3.5f2              |
@@ -69,19 +69,20 @@ Répond à : "Dans quel ordre les systèmes démarrent-ils ?"
 ```mermaid
 graph TD
     LR["LevelRegistry\nAwake −300"]
-    FC["FogController\nAwake −250"]
     TS["TilesSpawner\nAwake −240"]
     GM["GameManager\nAwake 0"]
     PS["PlayerSpawner\nStart −250"]
+    FS["FogSpawner\nStart −245"]
     BCS["BugCloudSpawner\nStart −200"]
     PaS["PathSpawner\nStart −100"]
     CWG["CorridorWallsGenerator\nStart −50"]
     TrS["TrapSpawner\nStart −10"]
     SM["SessionManager\nStart 0 → BeginFirstRound"]
 
-    LR --> FC --> TS
+    LR --> TS
     TS -->|originWorld| PS
-    PS -->|joueur enregistré| BCS
+    PS -->|joueur enregistré| FS
+    FS -->|"fog conditionnel\n(instancie FogController)"| BCS
     BCS -->|nuages + stepBudget| PaS
     PaS -->|chemins réservés| CWG
     CWG -->|murs générés| TrS
@@ -98,6 +99,7 @@ graph LR
     CLI["Args CLI"]
     SM["SessionManager"]
     LR[("LevelRegistry\nSource de vérité")]
+    FS["FogSpawner"]
     FC["FogController"]
     GEN["Spawners\nPS · BCS · CWG · TrS"]
     PaS["PathSpawner"]
@@ -111,7 +113,9 @@ graph LR
     CLI -->|parse| SM
     SM -->|params expérimentaux| GEN
     SM -->|"pathVisible, suboptimalPath,\ndetourProb"| PaS
+    SM -->|fogProbability| FS
     SM -->|BeginFirstRound| GM
+    FS -->|"Instantiate conditionnel"| FC
     GEN <-->|état spatial| LR
     PaS <-->|chemins + optimalPath| LR
     PaS -->|RevealCells| FC
@@ -128,9 +132,9 @@ graph LR
 
 | Pattern | Où dans le code | Pourquoi ce choix |
 | :--- | :--- | :--- |
-| **Singleton** | `LevelRegistry.Instance`, `GameManager.Instance`, `FogController.Instance`, `SessionManager.Instance` | Permet aux spawners d'accéder à l'état global sans injection — chaque singleton a un rôle unique et non-substituable. `SessionManager` ajouté comme Singleton pour exposer les paramètres de protocole expérimental directement aux spawners |
+| **Singleton** | `LevelRegistry.Instance`, `GameManager.Instance`, `FogController.Instance` (dynamique), `SessionManager.Instance` | Permet aux spawners d'accéder à l'état global sans injection — chaque singleton a un rôle unique et non-substituable. `SessionManager` ajouté comme Singleton pour exposer les paramètres de protocole expérimental directement aux spawners. `FogController.Instance` est instancié dynamiquement par `FogSpawner` — peut être `null` si le brouillard est désactivé ce round |
 | **CellFlags bitwise** | `LevelRegistry.CellFlags` (8 flags : `BugCloud`, `Trap`, `PathLeft`, `PathRight`, `Reserved`, `Visited`, `Wall`, `PlayerStart`) | Chaque cellule cumule plusieurs états en un seul int, testé par masque `&` — ex: une case peut être `PathLeft \| Reserved` |
-| **Execution Order pipeline** | `[DefaultExecutionOrder(N)]` sur 9 scripts (de -300 à 0) | Garantit Awake(-300→-240) puis Start(-250→-10→0) sans couplage direct entre spawners — chaque script lit l'état posé par le précédent via LevelRegistry |
+| **Execution Order pipeline** | `[DefaultExecutionOrder(N)]` sur 9 scripts (de -300 à 0) | Garantit Awake(-300→-240) puis Start(-250→-10→0) sans couplage direct entre spawners — chaque script lit l'état posé par le précédent via LevelRegistry. `FogController` n'a plus de `DefaultExecutionOrder` — il est instancié dynamiquement par `FogSpawner` (Start -245) et son `Awake` se déclenche immédiatement à l'`Instantiate` |
 | **Entity → Manager signaling** | `GridMover` → `GameManager.OnPlayerStep`, `BugCloud` → `OnCloudCollected`, `Trap` → `OnTrapTriggered` | Les entités savent ce qu'elles sont et signalent ce qui leur arrive. Le GameManager interprète ces signaux (fog, score, trial). Aucune entité ne connaît les règles du jeu |
 | **Event-driven UI** | `GameManager.OnRoundEnded` (event `Action<RoundEndInfo>`) → `RoundUI.HandleRoundEnded` | L'UI s'abonne à un événement typé — le GameManager ne référence aucun objet UI, RoundUI est autonome |
 | **Seeded deterministic RNG** | `LevelRegistry.CreateRng(scope)` — hash FNV-1a 64-bit sur `(roundSeed + scopeName)` | Chaque spawner obtient un `System.Random` dérivé d'une seed globale + nom de scope → même seed = même map, même si l'ordre d'appel varie |
@@ -257,7 +261,7 @@ Contrainte placement       = cellA dans indices [0, count/2 - 1], cellB dans ind
 - **Si suboptimal avec détour** : construire un chemin en « Z » avec crochet horizontal, retour en sens inverse et séparations verticales — garantit un surplus réel de steps
 - Visualiser le chemin conseillé (optimal ou suboptimal) avec des quads
 - Communiquer le chemin affiché et son statut (optimal/suboptimal) au GameManager
-- Révéler les cellules du chemin affiché dans le brouillard de guerre
+- Révéler les cellules joueur + les deux nuages dans le brouillard de guerre (toujours, même si le chemin est caché), et les cellules du chemin affiché si visible
 
 ### 3.2.2 Composants clés (Data Model)
 
@@ -290,7 +294,7 @@ public class PathSpawner : MonoBehaviour
 - **Nécessite :** `LevelRegistry.Instance` (TryGetPlayerStartCell, WorldToCell, CellToWorld, InBounds, ReservePathLeft, ReservePathRight, RegisterOptimalPath, RegisterSuboptimalPath, CreateRng), `SessionManager.Instance` (**paramètres recherche** : pathVisible, suboptimalPathProbability, detourProbability), `GameManager.Instance` (GetBestCloud, SetChosenPath, SetPathIsSuboptimal), `FogController.Instance` (RevealCells)
 - **Est configuré par :** `SessionManager.Instance` (lecture directe de pathVisible, suboptimalPathProbability, detourProbability — voir section 2.3)
 - **Communique avec :** Nuages trouvés via `FindGameObjectsWithTag("BugCloud")`
-- **Déclenche :** Réservation de chemins dans LevelRegistry (PathLeft, PathRight + optionnel SuboptimalPath), publication du chemin affiché et de son statut dans GameManager, révélation du brouillard
+- **Déclenche :** Réservation de chemins dans LevelRegistry (PathLeft, PathRight + optionnel SuboptimalPath), publication du chemin affiché et de son statut dans GameManager, révélation du brouillard (playerCell + 2 nuages toujours, chemin si visible)
 
 ### 3.2.4 Diagramme de flux
 
@@ -326,9 +330,12 @@ graph TD
     M --> S["GameManager.SetChosenPath + SetPathIsSuboptimal"]
     R --> S
     S --> T{"rng < pathVisible ?"}
-    T -->|Non| U[return — chemin invisible]
-    T -->|Oui| V["Instantiate quads le long du displayPath"]
-    V --> W["FogController.RevealCells(displayPath + playerCell)"]
+    T -->|Non| U["visible = false"]
+    T -->|Oui| U2["visible = true"]
+    U --> V1["FogController.RevealCells(playerCell + 2 nuages)"]
+    U2 --> V2["FogController.RevealCells(playerCell + 2 nuages + displayPath)"]
+    V2 --> W["Instantiate quads le long du displayPath"]
+    V1 --> X["return — chemin invisible, pas de quads"]
 ```
 
 #### Diagramme détaillé — BuildSuboptimalDetour (Vue F micro)
@@ -388,7 +395,7 @@ Avec détour (BuildSuboptimalDetour — chemin en « Z ») :
 - **⚠️ Edge case :** Si les deux nuages ont le même totalBugs, `GetBestCloud()` retourne `null` et le chemin affiché est choisi au hasard (50/50) — cohérent avec le design
 - **⚠️ Performance :** `FindGameObjectsWithTag("BugCloud")` est utilisé plutôt qu'une référence directe — fonctionne car il n'y a que 2 nuages, mais fragile si d'autres objets portent le même tag
 - **⚠️ Séquencement :** Les deux chemins optimaux sont TOUJOURS réservés dans LevelRegistry (gauche + droite), même si le chemin affiché est suboptimal — c'est voulu pour que CorridorWallsGenerator protège les deux. Le chemin suboptimal est enregistré séparément via `RegisterSuboptimalPath`
-- **⚠️ Fog :** Les cellules du chemin ne sont révélées que si le tirage probabiliste `rng.NextDouble() < pathVisible` est positif (`pathVisible` est un float 0-1 lu depuis `SessionManager.Instance`)
+- **⚠️ Fog :** Les cellules joueur et des deux nuages sont **toujours** révélées dans le brouillard (même si le chemin est invisible). Les cellules du chemin ne sont révélées que si le tirage `rng.NextDouble() < pathVisible` est positif. `FogController.Instance` peut être `null` (brouillard désactivé par `FogSpawner`) — les null-checks existants gèrent ce cas
 - **⚠️ Détour en Z :** Le `returnSize` est tiré indépendamment de `detourSize` dans les mêmes bornes `[detourMin, detourMax)` — configurations asymétriques possibles (ex : 3 pas aller, 2 retour ou 2 aller, 4 retour = détour de l'autre côté)
 - **⚠️ GAP constant :** `GAP = 2` est hardcodé — garantit qu'aucune portion horizontale du détour n'est limitrophe avec une autre. Deux pas verticaux = 1 rangée d'écart visuel
 - **⚠️ Bounds safety :** `TryHorizontal` inverse la direction si le bord de grille est atteint. `TryVertical` s'arrête si `y > goal.y` — le détour ne dépasse jamais le nuage cible en Y
@@ -404,6 +411,7 @@ Avec détour (BuildSuboptimalDetour — chemin en « Z ») :
 | 02/03/26 | @pierre     | Refacto SRP : PathSpawner lit `pathVisible` directement depuis `SessionManager.Instance` (nouveau Singleton). Plus de transit par LevelRegistry pour les paramètres recherche. |
 | 02/03/26 | @auteur     | `pathVisible` passe de bool à float (probabilité 0-1). La visibilité est désormais déterminée par `rng.NextDouble() < pathVisible` (seeded RNG). Permet un contrôle probabiliste de la condition advisor. |
 | 05/03/26 | @auteur     | Feature suboptimal path : ajout branchement suboptimal (`suboptimalPathProbability`) + détour (`detourProbability`) lus depuis SessionManager. `BuildRandomManhattanPath` (même longueur, tracé alternatif) et `BuildSuboptimalDetour` (chemin en « Z » : crochet + retour + GAP). Helpers `TryHorizontal`/`TryVertical` extraits. Champs `detourMin`/`detourMax` (game design) pour borner les tirages. Le retour est tiré indépendamment du crochet (asymétrie possible). GAP=2 entre segments horizontaux (jamais limitrophes). |
+| 09/03/26 | @auteur     | Refacto fog of war : la révélation du brouillard révèle **toujours** playerCell + les 2 cellules nuages (même si le chemin est caché). Les cellules du chemin ne sont ajoutées à la liste de révélation que si `visible == true`. `FogController.Instance` peut être `null` si le fog est désactivé (géré par null-check). |
 
 ## 3.3 CorridorWallsGenerator
 
@@ -808,7 +816,7 @@ public class LevelRegistry : MonoBehaviour
 
 ### 4.1.3 Dépendances
 
-- **Est utilisé par :** `PlayerSpawner` (RegisterPlayerStart), `TilesSpawner` (originWorld), `BugCloudSpawner` (RegisterBugCloud, RegisterStepBudget, CreateRng, TryGetPlayerStartCell), `PathSpawner` (ReservePathLeft/Right, RegisterOptimalPath, RegisterSuboptimalPath, InBounds, TryGetPlayerStartCell, CreateRng), `CorridorWallsGenerator` (RegisterWall, IsOnAnyPath, IsOnSuboptimalPath, HasBugCloud, TryGetPlayerStartCell, CreateRng), `TrapSpawner` (RegisterTrap, IsFreeForTrap, TryGetPlayerStartCell, CreateRng), `GameManager` (MarkVisited, optimalPathLength, stepBudget, TryGetRoundSeed), `GridMover` (WorldToCell, CellToWorld, InBounds, IsWalkable), `FogController` (gridSize, WorldToCell), `SessionManager` (SetRoundSeed), `MapGenerator` (prévisualisation éditeur)
+- **Est utilisé par :** `PlayerSpawner` (RegisterPlayerStart), `TilesSpawner` (originWorld), `BugCloudSpawner` (RegisterBugCloud, RegisterStepBudget, CreateRng, TryGetPlayerStartCell), `PathSpawner` (ReservePathLeft/Right, RegisterOptimalPath, RegisterSuboptimalPath, InBounds, TryGetPlayerStartCell, CreateRng), `CorridorWallsGenerator` (RegisterWall, IsOnAnyPath, IsOnSuboptimalPath, HasBugCloud, TryGetPlayerStartCell, CreateRng), `TrapSpawner` (RegisterTrap, IsFreeForTrap, TryGetPlayerStartCell, CreateRng), `GameManager` (MarkVisited, optimalPathLength, stepBudget, TryGetRoundSeed), `GridMover` (WorldToCell, CellToWorld, InBounds, IsWalkable), `FogSpawner` (gridSize, cellSize, originWorld, CreateRng), `FogController` (gridSize — lu à l'Awake dynamique), `SessionManager` (SetRoundSeed), `MapGenerator` (prévisualisation éditeur)
 - **Ne dépend de :** Rien (système fondation sans dépendance entrante)
 - **Ne déclenche :** Aucun event (`OnCellChanged` a été supprimé — les flags sont écrits silencieusement)
 
@@ -1135,6 +1143,11 @@ public class SessionManager : MonoBehaviour
     [Range(0f, 1f)]
     public float detourProbability = 0f;
 
+    [Header("Recherche : Fog of War")]
+    [Tooltip("Probabilité que le brouillard de guerre soit actif (0=jamais, 1=toujours). CLI: fogProbability=F.")]
+    [Range(0f, 1f)]
+    public float fogProbability = 1f;
+
     [Header("Recherche : Protocole")]
     public int blockId = 1;
 }
@@ -1157,13 +1170,14 @@ public class SessionManager : MonoBehaviour
 | pathVisible                       | float (public)     | Probabilité d'affichage du chemin conseillé (défaut : 1.0 = toujours visible, 0.0 = jamais). CLI: `pathVisible=F` (ex: `pathVisible=0.5`). Le tirage est fait par `rng.NextDouble() < pathVisible` dans PathSpawner et GameManager |
 | **suboptimalPathProbability**     | **float (public)** | **Probabilité que le chemin affiché soit suboptimal (défaut : 0.0 = toujours optimal, 1.0 = toujours suboptimal). CLI: `suboptimalPath=F`. Tirage `rng.NextDouble() < suboptimalPathProbability` dans PathSpawner** |
 | **detourProbability**             | **float (public)** | **Probabilité que le chemin suboptimal inclue un détour en « Z » (défaut : 0.0 = Manhattan alternatif, 1.0 = toujours détour). CLI: `detourProb=F`. Tirage conditionnel : uniquement si suboptimal est déjà tiré** |
+| **fogProbability**                | **float (public)** | **Probabilité que le brouillard de guerre soit actif ce round (défaut : 1.0 = toujours, 0.0 = jamais). CLI: `fogProbability=F`. Tirage `rng.NextDouble() >= fogProbability` dans FogSpawner** |
 | blockId                           | int (public)       | Bloc expérimental pour TrialData (défaut : 1). CLI: `blockId=N`               |
 | **Méthodes**                      |                   |                                                                                   |
 | Awake()                           | void              | Pipeline séquentiel : Singleton init → seed → CLI parsing → sessionId            |
 | Start()                           | IEnumerator       | Coroutine : `yield return null` → `BeginFirstRound()`                             |
 | ApplySeedForThisRound()           | void (privé)      | Parse `seed=` CLI, sinon génère depuis DateTime+Guid, écrit dans LevelRegistry    |
 | TryApplyTrapCountFromArgs()       | void (privé)      | Parse `trapCount=N` depuis les args CLI (legacy — à refactorer avec TryParseInt)  |
-| TryApplyBugCloudParamsFromArgs()  | void (privé)      | Parse les 10 paramètres recherche restants (minDistance, maxDistance, totalBugs, greenRatio, gap, pathVisible, blockId) |
+| TryApplyBugCloudParamsFromArgs()  | void (privé)      | Parse les 11 paramètres recherche restants (minDistance, maxDistance, totalBugs, greenRatio, gap, pathVisible, fogProbability, blockId) |
 | TryApplySessionIdFromArgs()       | void (privé)      | Parse `sessionId=X` depuis les args et l'injecte dans TrialManager                |
 | **Helpers CLI (static)**          |                   |                                                                                   |
 | TryParseInt(arg, key, ref target) | void              | Parse un arg `key=N` (int), log si trouvé ou invalide                             |
@@ -1173,7 +1187,7 @@ public class SessionManager : MonoBehaviour
 ### 4.3.3 Dépendances
 
 - **Nécessite :** `LevelRegistry.Instance` (SetRoundSeed), `GameManager` (appelle `BeginFirstRound()`), `TrialManager` (injecte sessionId)
-- **Est utilisé par :** `BugCloudSpawner` (lecture directe : minDistance, maxDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax), `TrapSpawner` (lecture directe : trapCount), `PathSpawner` (lecture directe : pathVisible, suboptimalPathProbability, detourProbability), `GameManager` (lecture directe : blockId)
+- **Est utilisé par :** `BugCloudSpawner` (lecture directe : minDistance, maxDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax), `TrapSpawner` (lecture directe : trapCount), `PathSpawner` (lecture directe : pathVisible, suboptimalPathProbability, detourProbability), `FogSpawner` (lecture directe : fogProbability), `GameManager` (lecture directe : blockId)
 - **Source de données :** Arguments de ligne de commande (`System.Environment.GetCommandLineArgs()`)
 - **Pattern :** Research Parameter Pipeline — SessionManager.Instance → Spawners `.Start()` (lecture directe des champs `public`)
 
@@ -1201,7 +1215,7 @@ graph TD
 
     C2 --> D0["TryApplyBugCloudParamsFromArgs()"]
     C3 --> D0
-    D0 --> D1["Boucle sur args CLI : TryParseInt/Float pour<br/>minDistance, maxDistance, totalBugs, greenRatio, gap, pathVisible (float), blockId"]
+    D0 --> D1["Boucle sur args CLI : TryParseInt/Float pour<br/>minDistance, maxDistance, totalBugs, greenRatio,<br/>gap, pathVisible (float), fogProbability (float), blockId"]
 
     D1 --> E["TryApplySessionIdFromArgs()"]
     E --> E1{Arg 'sessionId=X' trouvé ?}
@@ -1217,6 +1231,7 @@ graph TD
         S2["PathSpawner.Start(-100)"] -.->|"lit Instance.pathVisible,\nsuboptimalPathProbability,\ndetourProbability"| A2
         S3["TrapSpawner.Start(-10)"] -.->|"lit Instance.trapCount"| A2
         S4["GameManager.StartNewRound(0)"] -.->|"lit Instance.blockId"| A2
+        S5["FogSpawner.Start(-245)"] -.->|"lit Instance.fogProbability"| A2
     end
 ```
 
@@ -1254,111 +1269,116 @@ graph TD
 | 02/03/26 | @pierre     | Refacto Singleton SRP : SessionManager devient Singleton (`Instance`). Champs `[SerializeField] private` → `public`. Suppression de `ApplyResearchParamsToRegistry()` — les spawners lisent directement `SessionManager.Instance.paramName`. LevelRegistry déchargé de son rôle de relais. Ajout maxDistance (0 = pas de limite). |
 | 02/03/26 | @auteur     | `pathVisible` passe de `bool` (true/false) à `float` (probabilité 0-1, défaut 1.0). CLI `pathVisible=F` utilise désormais `TryParseFloat` au lieu de `TryParseBool`. Permet un contrôle probabiliste fin de la condition advisor par le protocole de recherche. |
 | 05/03/26 | @auteur     | Ajout 2 paramètres recherche Advisor : `suboptimalPathProbability` (float, CLI: `suboptimalPath=F`, défaut 0) et `detourProbability` (float, CLI: `detourProb=F`, défaut 0). Parsing CLI via `TryParseFloat`. Lus par PathSpawner pour le tirage chemin suboptimal + détour en « Z ». |
+| 09/03/26 | @auteur     | Ajout paramètre recherche Fog of War : `fogProbability` (float, CLI: `fogProbability=F`, défaut 1.0 = toujours actif). Parsing CLI via `TryParseFloat` dans `TryApplyBugCloudParamsFromArgs`. Lu par `FogSpawner` pour le tirage conditionnel du brouillard. |
 
 ## 4.4 FogController
 
 ### 4.4.1 Responsabilités
 
 - Générer et maintenir une texture masque RGBA32 pour le brouillard de guerre
-- Fournir une API de révélation par cellule avec brush circulaire et feathering
+- Fournir une API de révélation par cellule avec des carrés nets (1 cellule = 1 bloc de pixels)
 - Alimenter le shader custom (`FogUnlitMask.shadergraph`) via la property `_Mask`
+- **Ne gère pas** le spawn de la surface fog (→ `FogSpawner`), ni la décision de quoi révéler (→ `GameManager`, `PathSpawner`)
 
 ### 4.4.2 Composants clés (Data Model)
 
-→ **FogController.cs** : Singleton MonoBehaviour, `[RequireComponent(typeof(Renderer))]`. Ordre d'exécution : `-250`.
+→ **FogController.cs** : Singleton MonoBehaviour, `[RequireComponent(typeof(Renderer))]`. **Pas de `DefaultExecutionOrder`** — instancié dynamiquement par `FogSpawner`, son `Awake` se déclenche immédiatement à l'`Instantiate`.
 
 ```csharp
 [RequireComponent(typeof(Renderer))]
-[DefaultExecutionOrder(-250)]
 public class FogController : MonoBehaviour
 {
     public static FogController Instance { get; private set; }
 
-    [Header("Grille")]
-    public Vector2Int gridSize = new(10, 10);
-
     [Header("Masque")]
-    public int pixelsPerCell = 32;
-    public int brushRadiusPx = 14;
-    public int brushFeatherPx = 6;
+    [Tooltip("Résolution du masque en pixels par case (1 = carré net, >1 = résolution plus fine).")]
+    public int pixelsPerCell = 1;
 
-    Renderer fogRenderer;
-    Texture2D mask;
-    Color32[] buffer;
-    int texW, texH;
+    Renderer _renderer;
+    Texture2D _mask;
+    Color32[] _buffer;
+    int _texW, _texH, _ppc;
 }
 ```
 
 | Variable / Méthode                     | Type          | Description                                                          |
 | :------------------------------------- | :------------ | :------------------------------------------------------------------- |
-| Instance                               | FogController | Référence statique globale (Singleton)                               |
-| gridSize                               | Vector2Int    | Dimensions de la grille — synchronisé depuis LevelRegistry à l'Awake |
-| pixelsPerCell                          | int           | Résolution du masque par case (défaut : 32 — doux ; 1 — net)        |
-| brushRadiusPx                          | int           | Rayon extérieur du pinceau de révélation en pixels (défaut : 14)     |
-| brushFeatherPx                         | int           | Largeur du dégradé doux au bord du pinceau en pixels (défaut : 6)   |
-| mask                                   | Texture2D     | Texture RGBA32 générée au runtime (canal R utilisé par le shader)    |
-| buffer                                 | Color32[]     | Buffer RAM modifié puis poussé vers la texture GPU                   |
-| RevealCell(Vector2Int)                 | void          | Révèle une cellule en peignant un disque dans le masque              |
-| RevealCells(IEnumerable\<Vector2Int\>) | void          | Révèle plusieurs cellules (appelle RevealCell en boucle)             |
-| WorldToCell(Vector3)                   | Vector2Int    | Délègue à LevelRegistry si disponible, sinon RoundToInt fallback    |
-| PaintDisc(center, rOut, feather)       | void (privé)  | Peint un disque avec dégradé SmoothStep dans le buffer — révèle uniquement |
+| Instance                               | FogController | Référence statique globale (Singleton) — `null` si fog désactivé ce round |
+| pixelsPerCell                          | int           | Résolution du masque par case (défaut : 1 — carré net, sans feathering) |
+| _mask                                  | Texture2D     | Texture RGBA32 générée au runtime (canal R utilisé par le shader)    |
+| _buffer                                | Color32[]     | Buffer RAM modifié puis poussé vers la texture GPU                   |
+| _texW / _texH                          | int (privé)   | Dimensions de la texture (gridSize × pixelsPerCell)                  |
+| _ppc                                   | int (privé)   | Cache de `pixelsPerCell` (min 1)                                     |
+| RevealCell(Vector2Int)                 | void          | Révèle une cellule entière (carré net) + Apply immédiat              |
+| RevealCells(IEnumerable\<Vector2Int\>) | void          | Révèle plusieurs cellules en un seul Apply (batch optimisé)          |
+| PaintCellSquare(Vector2Int)            | void (privé)  | Peint un carré de `_ppc × _ppc` pixels à (0,0,0,0) dans le buffer   |
+| OnDestroy()                            | void          | Nettoie `Instance = null` si c'est l'instance courante               |
 
 ### 4.4.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (gridSize à l'Awake, WorldToCell pour la conversion), `Renderer` sur le même GameObject (pour assigner `_Mask`), Shader `FogUnlitMask.shadergraph` (property reference `_Mask`)
-- **Est utilisé par :** `GameManager.OnPlayerStep` (RevealCell à chaque pas joueur), `PathSpawner` (RevealCells pour le chemin conseillé)
+- **Nécessite :** `LevelRegistry.Instance` (gridSize à l'Awake pour calculer la taille de la texture), `Renderer` sur le même GameObject (pour assigner `_Mask`), Shader `FogUnlitMask.shadergraph` (property reference `_Mask`)
+- **Est instancié par :** `FogSpawner` (Instantiate du prefab FogSurface qui porte ce composant)
+- **Est utilisé par :** `GameManager.OnPlayerStep` (RevealCell à chaque pas joueur), `PathSpawner` (RevealCells pour le chemin conseillé + cellules nuages + cellule joueur)
 - **Ne déclenche :** Aucun event
 
 ### 4.4.4 Diagramme de flux
 
 ```mermaid
 graph TD
-    A["Awake()"] --> B[Singleton Init]
-    B --> C["Synchroniser gridSize depuis LevelRegistry"]
-    C --> D["Calculer texW = gridSize.x × pixelsPerCell"]
-    D --> E["Créer Texture2D RGBA32 (texW × texH)"]
-    E --> F["Remplir buffer avec 255 (opaque = brouillard)"]
-    F --> G["mask.SetPixels32 + Apply"]
-    G --> H["fogRenderer.material.SetTexture('_Mask', mask)"]
+    A["Awake() — déclenché par Instantiate dans FogSpawner"] --> B["Singleton Init (Instance = this)"]
+    B --> C["Lire gridSize depuis LevelRegistry.Instance"]
+    C --> D["_ppc = max(1, pixelsPerCell)"]
+    D --> E["_texW = gridSize.x × _ppc, _texH = gridSize.y × _ppc"]
+    E --> F["Créer Texture2D RGBA32 (_texW × _texH)"]
+    F --> G["FilterMode.Point, WrapMode.Clamp"]
+    G --> H["Remplir buffer avec (255,255,255,255) = brouillard"]
+    H --> I["mask.SetPixels32 + Apply"]
+    I --> J["_renderer.material.SetTexture('_Mask', mask)"]
 
     subgraph "API de révélation"
-        I["RevealCell(cell)"] --> J["CellToPixelCenter(cell)"]
-        J --> K["PaintDisc(center, brushRadiusPx, brushFeatherPx)"]
-        K --> L["Boucle sur carré [center ± rOut]"]
-        L --> M["Calcul distance d au centre"]
-        M --> N{d ≤ rIn ?}
-        N -->|Oui| O["a = 0 (transparent = révélé)"]
-        N -->|Non| P{d ≥ rOut ?}
-        P -->|Oui| Q["a = 1 (opaque = brouillard)"]
-        P -->|Non| R["a = SmoothStep (dégradé)"]
-        O --> S["buffer[idx].r = min(ancien, nouveau)"]
-        R --> S
-        S --> T["mask.SetPixels32 + Apply"]
+        K["RevealCell(cell)"] --> L["PaintCellSquare(cell)"]
+        L --> L2["mask.SetPixels32 + Apply"]
+
+        M["RevealCells(cells)"] --> N["foreach cell → PaintCellSquare(cell)"]
+        N --> O["mask.SetPixels32 + Apply (1 seul Apply)"]
     end
+
+    subgraph "PaintCellSquare — révélation carrée"
+        P["PaintCellSquare(cell)"] --> Q["x0 = cell.x × _ppc, y0 = cell.y × _ppc"]
+        Q --> R["Boucle [y0..y0+_ppc) × [x0..x0+_ppc)"]
+        R --> S["buffer[y × _texW + x] = (0,0,0,0) = révélé"]
+    end
+
+    T["OnDestroy()"] --> U{"Instance == this ?"}
+    U -->|Oui| V["Instance = null"]
 ```
 
 ### 4.4.5 Approche retenue & alternatives évaluées
 
-**Approche retenue :** Texture masque RGBA32 modifiée en RAM + Shader Graph custom
+**Approche retenue :** Texture masque RGBA32 modifiée en RAM + Shader Graph custom + révélation carrée
 
 | Approche                             | Avantages                                                                        | Inconvénients                                                     |
 | :----------------------------------- | :------------------------------------------------------------------------------- | :---------------------------------------------------------------- |
-| ✅ **Texture masque + Shader Graph** | Contrôle pixel-perfect, feathering doux, pas de GameObjects supplémentaires      | Coût mémoire texture (320×320 px pour grille 10×10 à 32 ppx)     |
-| Tiles individuelles avec alpha       | Simple, pas de shader custom                                                     | Pas de dégradé doux, 100+ GameObjects pour une grille 10×10      |
+| ✅ **Texture masque + carrés nets**  | Contrôle pixel-perfect, batch optimisé (1 Apply), pas de GameObjects supplémentaires, pixelsPerCell=1 minimal en mémoire | Pas de dégradé doux aux bords (design choice — carré net voulu)   |
+| Texture masque + brush circulaire    | Dégradé doux au bord, esthétique douce                                          | SmoothStep coûteux par pixel, N Apply par frame si N cellules, résolution 32ppx = grosse texture |
+| Tiles individuelles avec alpha       | Simple, pas de shader custom                                                     | Pas de dégradé, 100+ GameObjects pour une grille 10×10            |
 | Render Texture + caméra secondaire   | Rendu dynamique, effet volumétrique possible                                     | Coût GPU, complexité de setup, overkill pour une grille 2D       |
 
 ### 4.4.6 Points d'attention
 
-- **⚠️ Performance :** `mask.Apply()` est appelé à chaque `RevealCell` — un seul apply par frame serait plus efficace si plusieurs cellules sont révélées dans le même frame (ex: `RevealCells` appelle `RevealCell` en boucle → N apply au lieu de 1)
-- **⚠️ Mono-directionnelle :** Le `PaintDisc` ne fait que révéler (`min` entre ancien et nouveau) — impossible de "re-brouiller" une cellule déjà révélée
-- **⚠️ Résolution :** `pixelsPerCell = 32` donne une texture 320×320 pour une grille 10×10 — si la grille grandit à 50×50, la texture atteint 1600×1600 (mémoire à surveiller en WebGL)
-- **⚠️ Shader :** Le shader `FogUnlitMask.shadergraph` doit exposer une property `_Mask` de type Texture2D — si le shader change, la liaison se casse silencieusement
+- **⚠️ Instanciation dynamique :** FogController est instancié par `FogSpawner` — pas de `DefaultExecutionOrder`. Son `Awake` se déclenche immédiatement lors de l'`Instantiate`. Si `LevelRegistry.Instance` est null à ce moment, le masque ne sera pas créé (erreur loggée)
+- **⚠️ Singleton nullable :** `FogController.Instance` peut être `null` si le fog n'est pas actif ce round (tirage dans FogSpawner). Tous les appelants (GameManager, PathSpawner, GridMover) utilisent `FogController.Instance?.RevealCell()` — null-safe
+- **⚠️ OnDestroy :** Nettoie `Instance = null` pour éviter les références stale après rechargement de scène
+- **⚠️ Batch optimisé :** `RevealCells` appelle `PaintCellSquare` en boucle puis un seul `Apply` — contrairement à l'ancienne implémentation qui faisait N Apply pour N cellules
+- **⚠️ Mono-directionnelle :** La révélation ne fait qu'effacer (buffer = 0,0,0,0) — impossible de "re-brouiller" une cellule déjà révélée
+- **⚠️ Résolution :** `pixelsPerCell = 1` donne une texture minuscule (10×10 pour grille 10×10) — optimal en mémoire WebGL. Si une résolution plus fine est nécessaire, augmenter pixelsPerCell (la texture grandit quadratiquement)
 
 ### 4.4.7 Journal d'implémentation
 
 | Date     | Développeur | Note / Décision Technique                                                                      |
 | :------- | :---------- | :--------------------------------------------------------------------------------------------- |
 | 17/02/26 | @auteur     | Documentation initiale. Texture masque RGBA32 avec révélation par brush circulaire SmoothStep. |
+| 09/03/26 | @auteur     | Réécriture complète. Suppression `DefaultExecutionOrder(-250)` (instancié dynamiquement par FogSpawner). Suppression `gridSize` (lit LevelRegistry). Suppression `brushRadiusPx`, `brushFeatherPx`, `PaintDisc`, `CellToPixelCenter` (révélation circulaire). Remplacement par `PaintCellSquare` (carrés nets). `pixelsPerCell` passe de 32 à 1 (défaut). `RevealCells` batch optimisé (1 seul Apply). Ajout `OnDestroy` (nettoyage Singleton). `FilterMode.Point` forcé. |
 
 ## 4.5 TrialManager
 
@@ -1664,6 +1684,100 @@ graph TD
 | 17/02/26 | @auteur     | Documentation initiale. Spawner simple — instanciation du joueur à un point de spawn configurable. |
 | 27/02/26 | @pierre     | Refacto : ajout [DefaultExecutionOrder(-250)], appel RegisterPlayerStart(cell, worldPos) après Instantiate, suppression Update() vide. Les spawners accèdent au joueur via TryGetPlayerStartCell au lieu de Transform Inspector. |
 
+## 4.8 FogSpawner
+
+### 4.8.1 Responsabilités
+
+- Décider si le brouillard de guerre est actif ce round (tirage `rng.NextDouble() >= fogProbability`)
+- Instancier le prefab `FogSurface` (qui porte `FogController`) et le positionner/dimensionner sur la grille
+- **Ne gère pas** la logique de révélation (→ `FogController`), ni la décision de quoi révéler (→ `GameManager`, `PathSpawner`)
+
+### 4.8.2 Composants clés (Data Model)
+
+→ **FogSpawner.cs** : MonoBehaviour, spawn conditionnel du brouillard au Start. Ordre d'exécution : **`-245`** (après `TilesSpawner.Awake(-240)` qui pose `originWorld`, avant `BugCloudSpawner.Start(-200)`).
+
+> **Note architecture :** Le paramètre `fogProbability` est lu directement depuis `SessionManager.Instance` (Singleton). Ce script ne possède que les paramètres de game design (`fogSurfacePrefab`, `fogY`). Voir pattern **Research Parameter Pipeline** (section 2.3).
+
+```csharp
+[DefaultExecutionOrder(-245)]
+public class FogSpawner : MonoBehaviour
+{
+    [Header("Références")]
+    [Tooltip("Prefab FogSurface (Quad + Renderer + FogController).")]
+    public GameObject fogSurfacePrefab;
+
+    [Header("Placement")]
+    [Tooltip("Hauteur Y du plan de brouillard au-dessus de la grille.")]
+    public float fogY = 0.3f;
+}
+```
+
+| Variable / Méthode | Type       | Description                                                                |
+| :------------------ | :--------- | :------------------------------------------------------------------------- |
+| fogSurfacePrefab    | GameObject | Prefab FogSurface (Quad + Renderer + FogController) — **game design**      |
+| fogY                | float      | Hauteur Y du plan de brouillard (défaut : 0.3) — **game design**          |
+| _Lecture depuis SessionManager.Instance :_ | | `fogProbability` (float, 0-1) — probabilité que le fog soit actif. **Paramètre recherche** (Singleton, lecture directe) |
+
+### 4.8.3 Dépendances
+
+- **Nécessite :** `LevelRegistry.Instance` (gridSize, cellSize, originWorld, CreateRng), `SessionManager.Instance` (**paramètre recherche** : fogProbability)
+- **Est configuré par :** `SessionManager.Instance` (lecture directe de fogProbability — voir section 2.3)
+- **Déclenche :** Instanciation conditionnelle du prefab FogSurface → `FogController.Awake()` se déclenche immédiatement, `FogController.Instance` devient disponible pour les spawners suivants
+
+### 4.8.4 Diagramme de flux
+
+```mermaid
+graph TD
+    A["Start() — ExecutionOrder -245"] --> B["LevelRegistry.Instance → reg"]
+    B --> C["SessionManager.Instance → session"]
+    C --> D{reg == null ?}
+    D -->|Oui| E["LogError + return"]
+    D -->|Non| F{session == null ?}
+    F -->|Oui| E
+    F -->|Non| G{fogSurfacePrefab == null ?}
+    G -->|Oui| E
+    G -->|Non| H["CreateRng(FogSpawner) → rng déterministe"]
+    H --> I{"rng.NextDouble() >= session.fogProbability ?"}
+    I -->|Oui| J["Log 'Pas de brouillard' + return"]
+    I -->|Non| K["Instantiate(fogSurfacePrefab)"]
+    K --> K1["→ FogController.Awake() se déclenche immédiatement"]
+    K1 --> L["Calculer centre grille en monde"]
+    L --> M["fog.transform.position = (centerX, fogY, centerZ)"]
+    M --> N["fog.transform.rotation = 90° X (face vers le bas)"]
+    N --> O["fog.transform.localScale = (gridW, gridH, 1)"]
+    O --> P["fog.SetActive(true)"]
+```
+
+### 4.8.5 Formules et règles métier
+
+```
+Tirage fog          = rng.NextDouble() < session.fogProbability → fog actif
+                      rng.NextDouble() >= session.fogProbability → pas de fog
+
+gridW               = reg.gridSize.x × reg.cellSize
+gridH               = reg.gridSize.y × reg.cellSize
+centerX             = reg.originWorld.x + (reg.gridSize.x - 1) × reg.cellSize / 2
+centerZ             = reg.originWorld.z + (reg.gridSize.y - 1) × reg.cellSize / 2
+
+Position fog        = (centerX, fogY, centerZ)
+Rotation fog        = Quaternion.Euler(90, 0, 0)  — Quad face vers le bas
+Scale fog           = (gridW, gridH, 1)            — couvre toute la grille
+```
+
+### 4.8.6 Points d'attention
+
+- **⚠️ Séquencement :** `-245` garantit que FogSpawner tourne après `TilesSpawner.Awake(-240)` (qui pose `originWorld`) et `PlayerSpawner.Start(-250)` (qui enregistre le joueur). Si `originWorld` n'est pas défini, le fog sera mal positionné
+- **⚠️ Singleton nullable :** Si le tirage est négatif, aucun FogSurface n'est instancié → `FogController.Instance` reste `null` pour tout le round. Tous les appelants doivent utiliser le null-conditional operator (`?.`)
+- **⚠️ RNG seedé :** Le tirage utilise `CreateRng(nameof(FogSpawner))` — même seed = même décision fog/pas fog. Reproductible
+- **⚠️ Prefab :** Le prefab FogSurface doit contenir un `Renderer` (Quad) + `FogController` déjà configurés. `FogController.Awake()` crée la texture masque et l'assigne au shader immédiatement à l'Instantiate
+- **⚠️ fogY :** La hauteur par défaut est 0.3 (au-dessus des tuiles, en-dessous des murs et entités). Ajuster si le design évolue
+
+### 4.8.7 Journal d'implémentation
+
+| Date     | Développeur | Note / Décision Technique                                                                           |
+| :------- | :---------- | :-------------------------------------------------------------------------------------------------- |
+| 09/03/26 | @auteur     | Création. Spawn conditionnel du brouillard de guerre basé sur `fogProbability` lu depuis SessionManager. Architecture spawner-based : FogSpawner décide et instancie, FogController gère le masque. RNG seedé via `CreateRng("FogSpawner")`. Positionnement et dimensionnement automatiques sur la grille via LevelRegistry. |
+
 # 5. Gestion des données
 
 ## 5.1 Structures de données de recherche
@@ -1947,3 +2061,4 @@ _Section à compléter._
 | 03/03/26 | 2.5     | Section 2.2 : remplacement du diagramme ASCII backup par deux diagrammes Mermaid (Vue A initialisation + Vue B data flow). Ajout de SessionManager, PlayerSpawner, TilesSpawner absents de l'ancien diagramme. Flux FogController (RevealCells/RevealCell) et pathVisible maintenant représentés. |
 | 05/03/26 | 2.6     | Feature suboptimal path + détour en « Z ». MAJ section 3.2 (PathSpawner) : nouvelles responsabilités, Data Model (detourMin/detourMax), diagramme de flux avec branchement suboptimal + Vue F micro BuildSuboptimalDetour, formules du détour 6 phases, points d'attention GAP/asymétrie/bounds. MAJ section 4.3 (SessionManager) : ajout suboptimalPathProbability + detourProbability (Data Model, Dépendances, Journal). MAJ section 2.2 Vue B data flow (3 params SessionManager→PathSpawner). |
 | 09/03/26 | 2.7     | Propagation feature suboptimal path aux sections impactées. MAJ section 4.1 (LevelRegistry) : CellFlags.SuboptimalPath (1<<8), RegisterSuboptimalPath, IsOnSuboptimalPath. MAJ section 4.2 (GameManager) : renommage followedBestPath→followedAdvisorPath, ajout _pathIsSuboptimal + SetPathIsSuboptimal, EndCurrentTrial 8 params. MAJ section 3.3 (CorridorWallsGenerator) : IsOnSuboptimalPath dans baseCells. MAJ section 4.5 (TrialManager) : EndCurrentTrial 8 params. MAJ section 5.1 (TrialData) : champ path_is_suboptimal + JSON. MAJ section 6.1 (RoundUI) : label « Chemin conseillé suivi ». |
+| 09/03/26 | 2.8     | Refacto complète du fog of war. Nouvelle architecture spawner-based : `FogSpawner` (section 4.8, Start -245) décide conditionnellement de l'activation du fog via `fogProbability` (tirage seedé) et instancie dynamiquement `FogController`. `FogController` (section 4.4) réécrit : suppression DefaultExecutionOrder, gridSize, brush circulaire (PaintDisc, SmoothStep), pixelsPerCell 32→1. Remplacement par `PaintCellSquare` (carrés nets), `RevealCells` batch optimisé (1 Apply), ajout `OnDestroy`. `SessionManager` (section 4.3) : ajout `fogProbability` (float, CLI: `fogProbability=F`, défaut 1.0). `PathSpawner` (section 3.2) : révèle toujours playerCell + 2 cellules nuages dans le fog (même si chemin caché). MAJ sections 2.2 (Vue A/B), 2.3 (patterns Singleton/ExecutionOrder), 4.1 (LevelRegistry dépendances). |
