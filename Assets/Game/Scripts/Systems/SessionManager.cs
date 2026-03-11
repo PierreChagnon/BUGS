@@ -58,6 +58,18 @@ public class SessionManager : MonoBehaviour
     [Range(0f, 1f)]
     public float detourProbability = 0f;
 
+    [Tooltip("Probabilité que des pièges apparaissent SUR le chemin suboptimal (0=jamais, 1=toujours). CLI: subTrapProb=F.")]
+    [Range(0f, 1f)]
+    public float suboptimalTrapProbability = 0f;
+
+    [Tooltip("Nombre minimal de pièges sur le chemin suboptimal. CLI: minSubTraps=N.")]
+    [Min(0)]
+    public int minSuboptimalTraps = 1;
+
+    [Tooltip("Nombre maximal de pièges sur le chemin suboptimal. CLI: maxSubTraps=N.")]
+    [Min(0)]
+    public int maxSuboptimalTraps = 3;
+
     [Header("Recherche : Fog of War")]
     [Tooltip("Probabilité que le brouillard de guerre soit actif (0=jamais, 1=toujours). CLI: fogProbability=F.")]
     [Range(0f, 1f)]
@@ -171,6 +183,9 @@ public class SessionManager : MonoBehaviour
             TryParseFloat(a, "pathVisible", ref pathVisible);
             TryParseFloat(a, "suboptimalPath", ref suboptimalPathProbability);
             TryParseFloat(a, "detourProb", ref detourProbability);
+            TryParseFloat(a, "subTrapProb", ref suboptimalTrapProbability);
+            TryParseInt(a, "minSubTraps", ref minSuboptimalTraps);
+            TryParseInt(a, "maxSubTraps", ref maxSuboptimalTraps);
             TryParseFloat(a, "fogProbability", ref fogProbability);
             TryParseInt(a, "blockId", ref blockId);
         }
