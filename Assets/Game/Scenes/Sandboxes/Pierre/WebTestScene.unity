@@ -5445,8 +5445,11 @@ MonoBehaviour:
   gapMin: 0.1
   gapMax: 0.3
   pathVisible: 1
-  suboptimalPathProbability: 0
-  detourProbability: 0
+  suboptimalPathProbability: 1
+  detourProbability: 1
+  suboptimalTrapProbability: 1
+  minSuboptimalTraps: 1
+  maxSuboptimalTraps: 3
   fogProbability: 0
   blockId: 1
 --- !u!4 &1043942869 stripped
@@ -5644,7 +5647,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4af15a75988a38f43a41628f08d3403a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelRegistry
-  gridSize: {x: 13, y: 13}
+  gridSize: {x: 11, y: 11}
   cellSize: 1
   originWorld: {x: 0, y: 0, z: 0}
   optimalPathLength: 21
