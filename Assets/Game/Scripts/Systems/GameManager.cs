@@ -212,6 +212,9 @@ public class GameManager : MonoBehaviour
         _roundOver = true;
         inputLocked = true;
 
+        // Révéler toute la carte (désactiver le brouillard de guerre)
+        FogController.Instance?.RevealAll();
+
         // Calculer le score final (nombre de bugs verts collectés)
         if (cloud != null) bugsCollected += Mathf.Max(0, Mathf.RoundToInt(cloud.totalBugs * cloud.greenRatio));
         Debug.Log($"[GameManager] Nuage collecté ! bugsCollected={bugsCollected}");

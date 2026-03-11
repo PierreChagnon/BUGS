@@ -88,6 +88,17 @@ public class FogController : MonoBehaviour
         _mask.Apply(false, false);
     }
 
+    /// <summary>Révèle toute la carte d'un coup (fin d'essai).</summary>
+    public void RevealAll()
+    {
+        var clear = new Color32(0, 0, 0, 0);
+        for (int i = 0; i < _buffer.Length; i++)
+            _buffer[i] = clear;
+
+        _mask.SetPixels32(_buffer);
+        _mask.Apply(false, false);
+    }
+
     // --- Interne ---
 
     void PaintCellSquare(Vector2Int cell)
