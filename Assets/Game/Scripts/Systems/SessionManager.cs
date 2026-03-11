@@ -50,6 +50,19 @@ public class SessionManager : MonoBehaviour
     [Tooltip("Probabilité que le chemin conseillé soit visible (1) ou caché (0). CLI: pathVisible=0|1.")]
     public float pathVisible = 1f;
 
+    [Tooltip("Probabilité que le chemin affiché soit suboptimal (0=toujours optimal, 1=toujours suboptimal). CLI: suboptimalPath=F.")]
+    [Range(0f, 1f)]
+    public float suboptimalPathProbability = 0f;
+
+    [Tooltip("Probabilité que le chemin suboptimal inclue un détour (crochet). CLI: detourProb=F.")]
+    [Range(0f, 1f)]
+    public float detourProbability = 0f;
+
+    [Header("Recherche : Fog of War")]
+    [Tooltip("Probabilité que le brouillard de guerre soit actif (0=jamais, 1=toujours). CLI: fogProbability=F.")]
+    [Range(0f, 1f)]
+    public float fogProbability = 0f;
+
     [Header("Recherche : Protocole")]
     [Tooltip("Identifiant du bloc expérimental pour le pipeline de données. CLI: blockId=N.")]
     public int blockId = 1;
@@ -156,6 +169,9 @@ public class SessionManager : MonoBehaviour
             TryParseFloat(a, "gapMin", ref gapMin);
             TryParseFloat(a, "gapMax", ref gapMax);
             TryParseFloat(a, "pathVisible", ref pathVisible);
+            TryParseFloat(a, "suboptimalPath", ref suboptimalPathProbability);
+            TryParseFloat(a, "detourProb", ref detourProbability);
+            TryParseFloat(a, "fogProbability", ref fogProbability);
             TryParseInt(a, "blockId", ref blockId);
         }
     }

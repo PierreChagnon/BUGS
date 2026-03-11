@@ -7,7 +7,15 @@ public class PathSpawner : MonoBehaviour
     [Header("Références")]
     public GameObject quadPrefab;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    [Header("Chemin suboptimal (debug)")]
+    [Tooltip("Taille min du détour en cases (ajoutera 2×N à la longueur).")]
+    [Min(1)]
+    public int detourMin = 2;
+
+    [Tooltip("Taille max du détour en cases (exclusif). Doit être > detourMin.")]
+    [Min(2)]
+    public int detourMax = 5;
+
     void Start()
     {
         var reg = LevelRegistry.Instance;
@@ -130,49 +138,100 @@ public class PathSpawner : MonoBehaviour
 
         // ------ INSTANTIATION DES QUADS LE LONG DES CHEMINS ------
 
-        // On tire au sort quel chemin on affiche, par défaut
-        Vector2Int[] chosenPath = (rng.NextDouble() < 0.5) ? pathToLeftCloud : pathToRightCloud;
+        // Déterminer le chemin optimal vers le meilleur nuage
+        Vector2Int[] optimalPath;
+        // Par défaut, on tire au sort
+        optimalPath = (rng.NextDouble() < 0.5) ? pathToLeftCloud : pathToRightCloud;
+
         // Si GameManager connaît un nuage "meilleur", on force le chemin correspondant
+        bool bestIsLeft = false;
         if (GameManager.Instance != null)
         {
             var best = GameManager.Instance.GetBestCloud();
             if (best != null)
-                chosenPath = (reg.WorldToCell(best.transform.position).x == reg.WorldToCell(leftCloud.transform.position).x)
-                             ? pathToLeftCloud
-                             : pathToRightCloud;
+            {
+                bestIsLeft = reg.WorldToCell(best.transform.position).x == reg.WorldToCell(leftCloud.transform.position).x;
+                optimalPath = bestIsLeft ? pathToLeftCloud : pathToRightCloud;
+            }
+        }
 
-            // Publier la liste des cellules du chemin conseillé
-            var advisorCells = new List<Vector2Int>(chosenPath.Length);
-            foreach (var c in chosenPath)
-                advisorCells.Add(c);
+        // Publier le chemin optimal et l'enregistrer (toujours, même si on affiche un suboptimal)
+        var optimalCells = new List<Vector2Int>(optimalPath.Length);
+        foreach (var c in optimalPath) optimalCells.Add(c);
 
-            GameManager.Instance.SetChosenPath(advisorCells);
-
+        if (GameManager.Instance != null)
+        {
             // Enregistrer le chemin optimal dans le LevelRegistry
-            reg.RegisterOptimalPath(advisorCells);
-
+            reg.RegisterOptimalPath(optimalCells);
         }
 
 
+        // ------ TIRAGE : CHEMIN SUBOPTIMAL ? ------
+        bool isSuboptimal = false;
+        List<Vector2Int> displayPath; // chemin qui sera affiché au joueur
+
+        if (session.suboptimalPathProbability > 0f && rng.NextDouble() < session.suboptimalPathProbability)
+        {
+            isSuboptimal = true;
+            Vector2Int bestCloudCell = bestIsLeft ? leftCloudCell : rightCloudCell;
+
+            // Détour (crochet) ou simple chemin Manhattan alternatif ?
+            bool withDetour = session.detourProbability > 0f && rng.NextDouble() < session.detourProbability;
+
+            if (withDetour)
+                displayPath = BuildSuboptimalDetour(rng, reg, playerCell, bestCloudCell);
+            else
+                displayPath = BuildRandomManhattanPath(rng, reg, playerCell, bestCloudCell);
+
+            // Enregistrer dans LevelRegistry pour que les murs ne bloquent pas le chemin
+            reg.RegisterSuboptimalPath(displayPath);
+
+            Debug.Log($"[PathSpawner] Chemin SUBOPTIMAL généré : {displayPath.Count} cases (détour={withDetour}, optimal={optimalPath.Length}).");
+        }
+        else
+        {
+            displayPath = optimalCells;
+        }
+
+        // Publier le chemin affiché (advisor path) au GameManager
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetChosenPath(displayPath);
+            GameManager.Instance.SetPathIsSuboptimal(isSuboptimal);
+        }
+
 
         bool visible = rng.NextDouble() < session.pathVisible;
-        // Si visible est false n'instancie aucun quad et ne révèle rien dans le fog of war (le chemin existe "en vrai" mais est invisible pour le joueur)
+
+        // ------ REVELER LES CASES DANS LE FOG OF WAR ------
+        // Toujours révéler la case joueur et les deux nuages (même si le chemin est caché).
+        // Le chemin lui-même n'est révélé que si visible.
+        if (FogController.Instance != null)
+        {
+            var reveal = new List<Vector2Int> { playerCell, leftCloudCell, rightCloudCell };
+
+            if (visible)
+            {
+                foreach (var c in displayPath)
+                    reveal.Add(c);
+            }
+
+            FogController.Instance.RevealCells(reveal);
+        }
+
+        // Si le chemin n'est pas visible, pas de quads
         if (!visible)
         {
             Debug.Log("[PathSpawner] visible=false => instanciation des quads ignorée.");
             return;
         }
 
-
-
-        // Instancier les quads le long des chemins
+        // Instancier les quads le long du chemin affiché
         int spawned = 0;
-        foreach (var cell in chosenPath)
+        foreach (var cell in displayPath)
         {
             var pos = reg.CellToWorld(cell, 0.11f);
 
-            // Important: on instancie sans parent puis on parent en conservant la transform monde.
-            // Cela évite les surprises si le GO PathSpawner a une scale non-1.
             var quad = Instantiate(quadPrefab, pos, quadPrefab.transform.rotation);
             quad.transform.SetParent(transform, true);
 
@@ -180,21 +239,141 @@ public class PathSpawner : MonoBehaviour
             spawned++;
         }
 
-        Debug.Log($"[PathSpawner] Quads instanciés: {spawned} (originWorld={reg.originWorld}, cellSize={reg.cellSize}).");
+        Debug.Log($"[PathSpawner] Quads instanciés: {spawned} (suboptimal={isSuboptimal}, originWorld={reg.originWorld}, cellSize={reg.cellSize}).");
+    }
 
+    // ══════════════════════════════════════════════════════════════
+    //  GÉNÉRATION DE CHEMINS SUBOPTIMAUX
+    // ══════════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// Construit un chemin Manhattan aléatoire vers le nuage cible.
+    /// Même longueur que l'optimal, mais tracé différent (non réservé → pièges possibles).
+    /// </summary>
+    List<Vector2Int> BuildRandomManhattanPath(System.Random rng, LevelRegistry reg,
+                                               Vector2Int start, Vector2Int goal)
+    {
+        var visited = new HashSet<Vector2Int>();
+        var path = new List<Vector2Int>();
+        var cur = start;
+        path.Add(cur);
+        visited.Add(cur);
 
-        // ------ REVELER LES CASES DU CHEMIN DANS LE FOG OF WAR ------
-        if (FogController.Instance != null)
+        int safety = reg.gridSize.x + reg.gridSize.y + 20;
+        while (cur != goal && safety-- > 0)
         {
-            var cells = new List<Vector2Int>(chosenPath.Length);
-            foreach (var c in chosenPath)
-                cells.Add(c);
-
-            // Révèle aussi la case de départ si tu veux
-            cells.Add(playerCell);
-
-            FogController.Instance.RevealCells(cells);
+            if (!TryStep(rng, reg, ref cur, goal, visited, path)) break;
         }
+
+        return path;
+    }
+
+    /// <summary>
+    /// Construit un chemin suboptimal en forme de « Z » :
+    /// 1. Quelques pas normaux vers le nuage
+    /// 2. Crochet horizontal (detourSize pas)
+    /// 3. Montée verticale (≥ GAP, sépare les couloirs)
+    /// 4. Retour horizontal en sens inverse (returnSize pas, tirage indépendant)
+    /// 5. Montée verticale (≥ GAP, sépare du chemin de rejoint)
+    /// 6. Rejoint le nuage en Manhattan
+    /// Le retour (phase 4) garantit un vrai surplus de steps vs le chemin optimal.
+    /// Le chemin ne repasse jamais sur une case déjà visitée.
+    /// </summary>
+    List<Vector2Int> BuildSuboptimalDetour(System.Random rng, LevelRegistry reg,
+                                            Vector2Int start, Vector2Int goal)
+    {
+        int normalSteps = rng.Next(2, 4);
+        int detourSize  = rng.Next(detourMin, detourMax);
+        int returnSize  = rng.Next(detourMin, detourMax); // tirage indépendant
+        int hookDx      = (rng.NextDouble() < 0.5) ? +1 : -1;
+        const int GAP   = 2; // pas verticaux entre segments horizontaux (1 rangée d'écart)
+
+        var visited = new HashSet<Vector2Int>();
+        var path = new List<Vector2Int>();
+        var cur = start;
+        path.Add(cur);
+        visited.Add(cur);
+
+        // Phase 1 : quelques pas normaux vers le nuage
+        for (int i = 0; i < normalSteps && cur != goal; i++)
+            if (!TryStep(rng, reg, ref cur, goal, visited, path)) break;
+
+        // Phase 2 : crochet horizontal
+        // On force d'abord un deplacement vertical avant de commencer le crochet, pour éviter d'avoir des portions horizontales limitrophes
+        TryVertical(reg, ref cur, GAP, goal.y, visited, path);
+        TryHorizontal(reg, ref cur, hookDx, detourSize, visited, path);
+
+        // Phase 3 : montée verticale (séparer les deux segments horizontaux)
+        TryVertical(reg, ref cur, GAP, goal.y, visited, path);
+
+        // Phase 4 : retour horizontal en sens inverse
+        TryHorizontal(reg, ref cur, -hookDx, returnSize, visited, path);
+
+        // Phase 5 : montée verticale (séparer du chemin de rejoint)
+        TryVertical(reg, ref cur, GAP, goal.y, visited, path);
+
+        // Phase 6 : rejoindre le nuage cible
+        int safety = reg.gridSize.x + reg.gridSize.y + 20;
+        while (cur != goal && safety-- > 0)
+            if (!TryStep(rng, reg, ref cur, goal, visited, path)) break;
+
+        return path;
+    }
+
+    /// <summary>Avance de <paramref name="count"/> pas horizontaux. Inverse la direction si bloqué.</summary>
+    static void TryHorizontal(LevelRegistry reg, ref Vector2Int cur, int dx, int count,
+                               HashSet<Vector2Int> visited, List<Vector2Int> path)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            var next = new Vector2Int(cur.x + dx, cur.y);
+            if (!reg.InBounds(next) || visited.Contains(next))
+            {
+                dx = -dx;
+                next = new Vector2Int(cur.x + dx, cur.y);
+                if (!reg.InBounds(next) || visited.Contains(next)) break;
+            }
+            cur = next;
+            path.Add(cur);
+            visited.Add(cur);
+        }
+    }
+
+    /// <summary>Monte de <paramref name="count"/> pas verticaux (y+1) sans dépasser <paramref name="maxY"/>.</summary>
+    static void TryVertical(LevelRegistry reg, ref Vector2Int cur, int count, int maxY,
+                             HashSet<Vector2Int> visited, List<Vector2Int> path)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            var next = new Vector2Int(cur.x, cur.y + 1);
+            if (!reg.InBounds(next) || visited.Contains(next) || next.y > maxY) break;
+            cur = next;
+            path.Add(cur);
+            visited.Add(cur);
+        }
+    }
+
+    /// <summary>Avance d'un pas Manhattan vers la cible sans repasser sur une case visitée.</summary>
+    static bool TryStep(System.Random rng, LevelRegistry reg, ref Vector2Int cur, Vector2Int goal,
+                        HashSet<Vector2Int> visited, List<Vector2Int> path)
+    {
+        int dx = goal.x - cur.x;
+        int dy = goal.y - cur.y;
+        if (dx == 0 && dy == 0) return false;
+
+        // Deux candidats vers la cible, ordre aléatoire
+        Vector2Int a = (dx != 0) ? new Vector2Int(cur.x + System.Math.Sign(dx), cur.y) : cur;
+        Vector2Int b = (dy != 0) ? new Vector2Int(cur.x, cur.y + System.Math.Sign(dy)) : cur;
+
+        if (dx != 0 && dy != 0 && rng.NextDouble() < 0.5)
+            (a, b) = (b, a);
+
+        if (a != cur && reg.InBounds(a) && !visited.Contains(a))
+        { cur = a; path.Add(cur); visited.Add(cur); return true; }
+
+        if (b != cur && reg.InBounds(b) && !visited.Contains(b))
+        { cur = b; path.Add(cur); visited.Add(cur); return true; }
+
+        return false; // bloqué
     }
 }

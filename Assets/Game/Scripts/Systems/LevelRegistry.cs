@@ -45,6 +45,7 @@ public class LevelRegistry : MonoBehaviour
         Visited = 1 << 5,  // le joueur a déjà marché ici
         Wall = 1 << 6,  // case bloquante (mur / non-praticable)
         PlayerStart = 1 << 7, // case de départ du joueur (pour éviter d'y mettre des pièges)
+        SuboptimalPath = 1 << 8, // chemin suboptimal (walkable mais PAS réservé → pièges possibles)
     }
 
     // Store “truth” here
@@ -207,6 +208,21 @@ public class LevelRegistry : MonoBehaviour
 
     public void UnregisterTrap(Vector2Int c) => RemoveFlags(c, CellFlags.Trap);
 
+    /// <summary>
+    /// Enregistre un chemin suboptimal. Marque les cases comme SuboptimalPath
+    /// (walkable pour CorridorWallsGenerator) SANS le flag Reserved
+    /// (les pièges peuvent s'y poser).
+    /// </summary>
+    public void RegisterSuboptimalPath(IEnumerable<Vector2Int> cells)
+    {
+        if (cells == null) return;
+        foreach (var c in cells)
+        {
+            if (InBounds(c))
+                AddFlags(c, CellFlags.SuboptimalPath);
+        }
+    }
+
     public void ReservePathLeft(IEnumerable<Vector2Int> cells)
     {
         foreach (var c in cells) AddFlags(c, CellFlags.PathLeft | CellFlags.Reserved);
@@ -235,6 +251,7 @@ public class LevelRegistry : MonoBehaviour
     public bool IsReserved(Vector2Int c) => (GetFlags(c) & CellFlags.Reserved) != 0;
     public bool IsVisited(Vector2Int c) => (GetFlags(c) & CellFlags.Visited) != 0;
     public bool IsWall(Vector2Int c) => (GetFlags(c) & CellFlags.Wall) != 0;
+    public bool IsOnSuboptimalPath(Vector2Int c) => (GetFlags(c) & CellFlags.SuboptimalPath) != 0;
 
     // Murs : bloquent le déplacement et interdisent le spawn de pièges.
     public void RegisterWall(Vector2Int c)

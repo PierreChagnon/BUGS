@@ -1,0 +1,82 @@
+using UnityEngine;
+
+// -----------------------------
+// Décide si le brouillard de guerre est actif ce round,
+// puis instancie et positionne la surface de fog sur la grille.
+//
+// Responsabilités :
+//   - Lire fogProbability depuis SessionManager
+//   - Tirer au sort la présence du fog (via le RNG reproductible)
+//   - Instancier fogSurfacePrefab, le positionner/dimensionner sur la grille
+//
+// Ce qui n'est PAS ici :
+//   - Logique de révélation → FogController (sur le prefab)
+//   - Décision de quoi révéler → GameManager, PathSpawner
+//
+// Exécution : Start(-245) — après TilesSpawner.Awake(-240) qui pose originWorld,
+//             avant BugCloudSpawner.Start(-200).
+// -----------------------------
+
+[DefaultExecutionOrder(-245)]
+public class FogSpawner : MonoBehaviour
+{
+    [Header("Références")]
+    [Tooltip("Prefab FogSurface (Quad + Renderer + FogController).")]
+    public GameObject fogSurfacePrefab;
+
+    [Header("Placement")]
+    [Tooltip("Hauteur Y du plan de brouillard au-dessus de la grille.")]
+    public float fogY = 0.3f;
+
+    void Start()
+    {
+        var reg = LevelRegistry.Instance;
+        var session = SessionManager.Instance;
+
+        if (reg == null)
+        {
+            Debug.LogError("[FogSpawner] LevelRegistry manquant.");
+            return;
+        }
+        if (session == null)
+        {
+            Debug.LogError("[FogSpawner] SessionManager manquant.");
+            return;
+        }
+        if (fogSurfacePrefab == null)
+        {
+            Debug.LogError("[FogSpawner] fogSurfacePrefab non assigné.");
+            return;
+        }
+
+        // Tirage : brouillard actif ce round ?
+        var rng = reg.CreateRng(nameof(FogSpawner));
+        if (rng.NextDouble() >= session.fogProbability)
+        {
+            Debug.Log("[FogSpawner] Pas de brouillard ce round (fogProbability=" +
+                      session.fogProbability + ").");
+            return;
+        }
+
+        // Instancier le prefab (FogController.Awake se déclenche immédiatement)
+        var fog = Instantiate(fogSurfacePrefab, transform);
+
+        // Positionner et dimensionner pour couvrir toute la grille
+        float gridW = reg.gridSize.x * reg.cellSize;
+        float gridH = reg.gridSize.y * reg.cellSize;
+
+        // Centre de la grille en monde (les cellules sont centrées sur leur coordonnée)
+        Vector3 center = new Vector3(
+            reg.originWorld.x + (reg.gridSize.x - 1) * reg.cellSize / 2f,
+            fogY,
+            reg.originWorld.z + (reg.gridSize.y - 1) * reg.cellSize / 2f
+        );
+
+        fog.transform.position = center;
+        fog.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+        fog.transform.localScale = new Vector3(gridW, gridH, 1f);
+        fog.SetActive(true);
+
+        Debug.Log($"[FogSpawner] Brouillard instancié (center={center}, scale={gridW}x{gridH}).");
+    }
+}

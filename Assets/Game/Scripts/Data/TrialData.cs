@@ -25,6 +25,7 @@ public class TrialData
     public string true_cloud;
     public int optimal_path_length;
     public bool optimal_path_visible; // ajouté pour indiquer si le chemin optimal était visible ou non
+    public bool path_is_suboptimal;   // true si le chemin affiché était suboptimal (détour)
 
     // Randomisation
     public long trial_seed;

@@ -1,119 +1,106 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+// -----------------------------
+// Gère la texture masque du brouillard de guerre.
+//
+// Responsabilités :
+//   - Créer une texture RGBA32 où R=255 = brouillard, R=0 = révélé
+//   - Exposer RevealCell / RevealCells pour révéler des cases entières (carrés)
+//   - Pousser le buffer vers le shader (property _Mask)
+//
+// Ne gère PAS : le spawn de la surface (→ FogSpawner),
+//               la décision de révéler (→ GameManager, PathSpawner).
+//
+// Interroge LevelRegistry pour la taille de grille (source de vérité).
+// Instancié dynamiquement par FogSpawner — pas de DefaultExecutionOrder.
+// -----------------------------
+
 [RequireComponent(typeof(Renderer))]
-[DefaultExecutionOrder(-250)]
 public class FogController : MonoBehaviour
 {
     public static FogController Instance { get; private set; }
 
-    [Header("Grille")]
-    public Vector2Int gridSize = new(10, 10); // X,Z
-
-    LevelRegistry registry;
-
     [Header("Masque")]
-    [Tooltip("Résolution du masque en pixels par case (32 = doux, 1 = carré net).")]
-    public int pixelsPerCell = 32;
-    [Tooltip("Rayon (en pixels) du pinceau de révélation.")]
-    public int brushRadiusPx = 14;
-    [Tooltip("Largeur (en pixels) du dégradé doux du bord.")]
-    public int brushFeatherPx = 6;
+    [Tooltip("Résolution du masque en pixels par case (1 = carré net, >1 = résolution plus fine).")]
+    public int pixelsPerCell = 1;
 
-    Renderer fogRenderer;
-    Texture2D mask;
-    Color32[] buffer; // on modifie en RAM puis on push
-
-    int texW, texH;
+    Renderer _renderer;
+    Texture2D _mask;
+    Color32[] _buffer;
+    int _texW, _texH, _ppc;
 
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
 
-        registry = LevelRegistry.Instance;
-        if (registry != null)
-            gridSize = registry.gridSize;
+        var reg = LevelRegistry.Instance;
+        if (reg == null)
+        {
+            Debug.LogError("[FogController] LevelRegistry introuvable.");
+            return;
+        }
 
-        fogRenderer = GetComponent<Renderer>();
+        _renderer = GetComponent<Renderer>();
+        _ppc = Mathf.Max(1, pixelsPerCell);
+        _texW = Mathf.Max(1, reg.gridSize.x * _ppc);
+        _texH = Mathf.Max(1, reg.gridSize.y * _ppc);
 
-        texW = Mathf.Max(1, gridSize.x * Mathf.Max(1, pixelsPerCell));
-        texH = Mathf.Max(1, gridSize.y * Mathf.Max(1, pixelsPerCell));
+        // Masque RGBA32 : canal R lu par le shader (FogUnlitMask.shadergraph)
+        _mask = new Texture2D(_texW, _texH, TextureFormat.RGBA32, false, true);
+        _mask.wrapMode = TextureWrapMode.Clamp;
+        _mask.filterMode = FilterMode.Point;
 
-        // Masque en RGBA32 (simple, universel) : on utilise le canal R dans le shader
-        mask = new Texture2D(texW, texH, TextureFormat.RGBA32, false, true);
-        mask.wrapMode = TextureWrapMode.Clamp;
-        mask.filterMode = pixelsPerCell > 1 ? FilterMode.Bilinear : FilterMode.Point;
+        _buffer = new Color32[_texW * _texH];
+        var opaque = new Color32(255, 255, 255, 255);
+        for (int i = 0; i < _buffer.Length; i++)
+            _buffer[i] = opaque;
 
-        buffer = new Color32[texW * texH];
-        for (int i = 0; i < buffer.Length; i++) buffer[i] = new Color32(255, 255, 255, 255); // 1 = opaque (brouillard)
-        mask.SetPixels32(buffer);
-        mask.Apply(false, false);
+        _mask.SetPixels32(_buffer);
+        _mask.Apply(false, false);
 
-        // Assigne au matériau (Shader Graph : property reference _Mask)
-        fogRenderer.material.SetTexture("_Mask", mask);
+        _renderer.material.SetTexture("_Mask", _mask);
     }
 
-    // --- API ---
+    void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
 
+    // --- API publique ---
+
+    /// <summary>Révèle une cellule entière (carré net).</summary>
     public void RevealCell(Vector2Int cell)
     {
-        var center = CellToPixelCenter(cell);
-        PaintDisc(center, brushRadiusPx, brushFeatherPx);
-        mask.SetPixels32(buffer);
-        mask.Apply(false, false);
+        PaintCellSquare(cell);
+        _mask.SetPixels32(_buffer);
+        _mask.Apply(false, false);
     }
 
+    /// <summary>Révèle plusieurs cellules en un seul Apply (batch optimisé).</summary>
     public void RevealCells(IEnumerable<Vector2Int> cells)
     {
-        foreach (var c in cells) RevealCell(c);
+        foreach (var c in cells)
+            PaintCellSquare(c);
+
+        _mask.SetPixels32(_buffer);
+        _mask.Apply(false, false);
     }
 
-    // --- Internes ---
+    // --- Interne ---
 
-    Vector2Int CellToPixelCenter(Vector2Int cell) =>
-        new Vector2Int(cell.x * pixelsPerCell + pixelsPerCell / 2,
-                       cell.y * pixelsPerCell + pixelsPerCell / 2);
-
-    void PaintDisc(Vector2Int center, int rOut, int feather)
+    void PaintCellSquare(Vector2Int cell)
     {
-        rOut = Mathf.Max(1, rOut);
-        int rIn = Mathf.Max(0, rOut - Mathf.Clamp(feather, 0, rOut));
+        int x0 = cell.x * _ppc;
+        int y0 = cell.y * _ppc;
+        var clear = new Color32(0, 0, 0, 0);
 
-        int x0 = Mathf.Max(0, center.x - rOut);
-        int x1 = Mathf.Min(texW - 1, center.x + rOut);
-        int y0 = Mathf.Max(0, center.y - rOut);
-        int y1 = Mathf.Min(texH - 1, center.y + rOut);
-
-        for (int y = y0; y <= y1; y++)
+        for (int y = y0; y < y0 + _ppc && y < _texH; y++)
         {
-            int row = y * texW;
-            for (int x = x0; x <= x1; x++)
-            {
-                float dx = x - center.x;
-                float dy = y - center.y;
-                float d = Mathf.Sqrt(dx * dx + dy * dy);
-
-                float a; // 0 = transparent (révélé), 1 = opaque
-                if (d <= rIn) a = 0f;
-                else if (d >= rOut) a = 1f;
-                else
-                {
-                    float t = (d - rIn) / (rOut - rIn);
-                    a = t * t * (3f - 2f * t); // SmoothStep
-                }
-
-                int idx = row + x;
-                byte newR = (byte)Mathf.RoundToInt(a * 255f);
-
-                // On ne fait que "révéler" : on garde le plus petit (plus transparent)
-                if (newR < buffer[idx].r)
-                {
-                    var px = buffer[idx];
-                    px.r = px.g = px.b = newR;
-                    buffer[idx] = px;
-                }
-            }
+            int row = y * _texW;
+            for (int x = x0; x < x0 + _ppc && x < _texW; x++)
+                _buffer[row + x] = clear;
         }
     }
 }

@@ -7,7 +7,7 @@ using UnityEngine.SceneManagement;
 // Orchestre l'état d'un round : score, cycle de vie, arbitrage.
 //
 // Responsabilités :
-//   - État du round (steps, trapsHit, bugsCollected, followedBestPath)
+//   - État du round (steps, trapsHit, bugsCollected, followedAdvisorPath)
 //   - Références aux nuages L/R, détermination du "meilleur"
 //   - Cycle de vie (inputLocked, roundOver, restart)
 //   - Orchestration TrialManager (record moves, end trial, send)
@@ -33,7 +33,8 @@ public class GameManager : MonoBehaviour
     public int trapsHit = 0;
     public int overtimeSteps = 0;
     public int bugsCollected = 0;
-    public bool followedBestPath = true;
+    public bool followedAdvisorPath = true;
+    bool _pathIsSuboptimal = false;
 
     // État de la manche
     public bool inputLocked { get; private set; } = false;
@@ -55,7 +56,7 @@ public class GameManager : MonoBehaviour
         public int trapsHit;
         public int overtimeSteps;
         public int steps;
-        public bool followedBestPath;
+        public bool followedAdvisorPath;
         public int leftCloudGreenBugs;
         public int rightCloudGreenBugs;
         public bool optimalPathVisible;
@@ -135,7 +136,13 @@ public class GameManager : MonoBehaviour
         _advisorPath.Clear();
         if (cells == null) return;
         foreach (var c in cells) _advisorPath.Add(c);
-        followedBestPath = true;
+        followedAdvisorPath = true;
+    }
+
+    /// <summary>PathSpawner nous indique si le chemin affiché est suboptimal.</summary>
+    public void SetPathIsSuboptimal(bool isSuboptimal)
+    {
+        _pathIsSuboptimal = isSuboptimal;
     }
 
     /// <summary>
@@ -154,7 +161,7 @@ public class GameManager : MonoBehaviour
 
         // Vérifier l'adhérence au chemin conseillé
         if (_advisorPath.Count > 0 && !_advisorPath.Contains(cell))
-            followedBestPath = false;
+            followedAdvisorPath = false;
 
         // Pénalité de dépassement : si le joueur a fait plus de mouvements
         // que la distance de Manhattan (budget de pas), chaque pas supplémentaire
@@ -237,7 +244,7 @@ public class GameManager : MonoBehaviour
                 optimalPathVisible = rng.NextDouble() < SessionManager.Instance.pathVisible;
             }
 
-            trialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps, optimalPathVisible);
+            trialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps, optimalPathVisible, _pathIsSuboptimal);
             trialManager.SendTrials();
         }
 
@@ -248,7 +255,7 @@ public class GameManager : MonoBehaviour
             trapsHit = trapsHit,
             overtimeSteps = overtimeSteps,
             steps = steps,
-            followedBestPath = followedBestPath,
+            followedAdvisorPath = followedAdvisorPath,
             leftCloudGreenBugs = _leftCloud ? Mathf.RoundToInt(_leftCloud.totalBugs * _leftCloud.greenRatio) : 0,
             rightCloudGreenBugs = _rightCloud ? Mathf.RoundToInt(_rightCloud.totalBugs * _rightCloud.greenRatio) : 0,
         });

@@ -145,7 +145,7 @@ public class CorridorWallsGenerator : MonoBehaviour
             for (int x = 0; x < reg.gridSize.x; x++)
             {
                 var c = new Vector2Int(x, y);
-                if (reg.IsOnAnyPath(c) || reg.HasBugCloud(c))
+                if (reg.IsOnAnyPath(c) || reg.HasBugCloud(c) || reg.IsOnSuboptimalPath(c))
                     baseCells.Add(c);
             }
         }
