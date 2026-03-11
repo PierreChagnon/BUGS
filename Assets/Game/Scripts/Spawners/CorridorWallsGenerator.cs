@@ -87,6 +87,18 @@ public class CorridorWallsGenerator : MonoBehaviour
 
         AddExtraConnections(reg, walkable, rng);
 
+        // Les bords de la map restent toujours praticables (pas de murs).
+        for (int x = 0; x < reg.gridSize.x; x++)
+        {
+            walkable.Add(new Vector2Int(x, 0));
+            walkable.Add(new Vector2Int(x, reg.gridSize.y - 1));
+        }
+        for (int y = 1; y < reg.gridSize.y - 1; y++)
+        {
+            walkable.Add(new Vector2Int(0, y));
+            walkable.Add(new Vector2Int(reg.gridSize.x - 1, y));
+        }
+
         // Tout ce qui n'est pas couloir devient un mur.
         int wallsPlaced = 0;
         for (int y = 0; y < reg.gridSize.y; y++)
