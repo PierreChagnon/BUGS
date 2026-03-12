@@ -58,6 +58,14 @@ public class SessionManager : MonoBehaviour
     [Range(0f, 1f)]
     public float detourProbability = 0f;
 
+    [Tooltip("Probabilité d'afficher le motor advice. CLI: motorAdviceVisible=F.")]
+    [Range(0f, 1f)]
+    public float motorAdviceVisibleProbability = 1f;
+
+    [Tooltip("Probabilité que le motor advice soit fiable. CLI: motorAdviceReliable=F.")]
+    [Range(0f, 1f)]
+    public float motorAdviceReliableProbability = 1f;
+
     [Tooltip("Probabilité que des pièges apparaissent SUR le chemin suboptimal (0=jamais, 1=toujours). CLI: subTrapProb=F.")]
     [Range(0f, 1f)]
     public float suboptimalTrapProbability = 0f;
@@ -184,6 +192,8 @@ public class SessionManager : MonoBehaviour
             TryParseFloat(a, "suboptimalPath", ref suboptimalPathProbability);
             TryParseFloat(a, "detourProb", ref detourProbability);
             TryParseFloat(a, "subTrapProb", ref suboptimalTrapProbability);
+            TryParseFloat(a, "motorAdviceVisible", ref motorAdviceVisibleProbability);
+            TryParseFloat(a, "motorAdviceReliable", ref motorAdviceReliableProbability);
             TryParseInt(a, "minSubTraps", ref minSuboptimalTraps);
             TryParseInt(a, "maxSubTraps", ref maxSuboptimalTraps);
             TryParseFloat(a, "fogProbability", ref fogProbability);

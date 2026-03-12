@@ -75,6 +75,10 @@ public class GridMover : MonoBehaviour
 
     Vector2Int ReadStep()
     {
+        if (MotorAdviceController.Instance != null &&
+            MotorAdviceController.Instance.TryGetStep(out var motorStep))
+            return motorStep;
+
         if (Keyboard.current == null) return Vector2Int.zero;
 
         if (Keyboard.current.leftArrowKey.wasPressedThisFrame) return new Vector2Int(-1, 0);
