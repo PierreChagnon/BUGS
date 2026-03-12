@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
 
 // -----------------------------
 // Entité joueur : déplacement discret sur grille.
@@ -44,7 +45,11 @@ public class GridMover : MonoBehaviour
         if (_isMoving) return;
         if (GameManager.Instance != null && GameManager.Instance.inputLocked) return;
 
+        bool invalidKeyPressed = IsAnyNonActiveMoveKeyPressedThisFrame();
         Vector2Int step = ReadStep();
+        if (invalidKeyPressed && GameManager.Instance != null)
+            GameManager.Instance.OnInvalidMoveKeyPressed();
+
         if (step == Vector2Int.zero) return;
 
         Vector3 dir = new(step.x, 0f, step.y);
@@ -87,6 +92,31 @@ public class GridMover : MonoBehaviour
         if (Keyboard.current.downArrowKey.wasPressedThisFrame) return new Vector2Int(0, -1);
 
         return Vector2Int.zero;
+    }
+
+    bool IsAnyNonActiveMoveKeyPressedThisFrame()
+    {
+        var keyboard = Keyboard.current;
+        if (keyboard == null) return false;
+
+        foreach (KeyControl key in keyboard.allKeys)
+        {
+            if (!key.wasPressedThisFrame) continue;
+            if (!IsActiveMoveKey(key)) return true;
+        }
+
+        return false;
+    }
+
+    bool IsActiveMoveKey(KeyControl key)
+    {
+        if (MotorAdviceController.Instance != null)
+            return MotorAdviceController.Instance.IsActiveMoveKey(key);
+
+        return key == Keyboard.current.leftArrowKey
+            || key == Keyboard.current.rightArrowKey
+            || key == Keyboard.current.upArrowKey
+            || key == Keyboard.current.downArrowKey;
     }
 
     // ── Déplacement ────────────────────────────────────────────────

@@ -205,6 +205,20 @@ public class GameManager : MonoBehaviour
         Debug.Log($"[GameManager] Piège ! trapsHit={trapsHit}");
     }
 
+    /// <summary>
+    /// Appelé quand le joueur appuie sur une touche non valide.
+    /// Applique une pénalité renforcée : -2 bugs sur chaque nuage.
+    /// </summary>
+    public void OnInvalidMoveKeyPressed()
+    {
+        if (_roundOver) return;
+
+        if (_leftCloud != null) _leftCloud.AddBugs(-2);
+        if (_rightCloud != null) _rightCloud.AddBugs(-2);
+
+        Debug.Log("[GameManager] Touche invalide ! Pénalité x2 appliquée.");
+    }
+
     /// <summary>Appelé par BugCloud.OnTriggerEnter quand on collecte un nuage.</summary>
     public void OnCloudCollected(BugCloud cloud)
     {

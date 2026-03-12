@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
 
 public enum MotorKeySet
 {
@@ -98,6 +99,20 @@ public class MotorAdviceController : MonoBehaviour
             MotorKeySet.TFGH => "Haut: T  Gauche: F  Bas: G  Droite: H",
             MotorKeySet.OKLM => "Haut: O  Gauche: K  Bas: L  Droite: M",
             _ => string.Empty
+        };
+    }
+
+    public bool IsActiveMoveKey(KeyControl key)
+    {
+        var kb = Keyboard.current;
+        if (kb == null) return false;
+
+        return ActiveSet switch
+        {
+            MotorKeySet.ZQSD => key == kb.wKey || key == kb.aKey || key == kb.sKey || key == kb.dKey,
+            MotorKeySet.TFGH => key == kb.tKey || key == kb.fKey || key == kb.gKey || key == kb.hKey,
+            MotorKeySet.OKLM => key == kb.oKey || key == kb.kKey || key == kb.lKey || key == kb.semicolonKey,
+            _ => false
         };
     }
 
