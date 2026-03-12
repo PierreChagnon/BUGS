@@ -2,8 +2,8 @@
 
 | Nom du projet :    | BUGS                          |
 | :----------------- | :---------------------------- |
-| **Version :**      | 2.8                           |
-| **Dernière MAJ :** | 09/03/26                      |
+| **Version :**      | 2.9                           |
+| **Dernière MAJ :** | 12/03/26                      |
 | **Auteur(s) :**    | @florian, @pierre             |
 | **Moteur :**       | Unity 6000.3.5f2              |
 | **Langage :**      | C#                            |
@@ -77,6 +77,7 @@ graph TD
     PaS["PathSpawner\nStart −100"]
     CWG["CorridorWallsGenerator\nStart −50"]
     TrS["TrapSpawner\nStart −10"]
+    MAC["MotorAdviceController\nStart 0"]
     SM["SessionManager\nStart 0 → BeginFirstRound"]
 
     LR --> TS
@@ -86,7 +87,8 @@ graph TD
     BCS -->|nuages + stepBudget| PaS
     PaS -->|chemins réservés| CWG
     CWG -->|murs générés| TrS
-    TrS -.->|spawn terminé| SM
+    TrS -.->|spawn terminé| MAC
+    MAC -.->|"motor advice prêt"| SM
     SM -->|BeginFirstRound| GM
 ```
 
@@ -105,6 +107,8 @@ graph LR
     PaS["PathSpawner"]
     GM["GameManager"]
     GR["GridMover"]
+    MAC["MotorAdviceController"]
+    MAUI["MotorAdviceUI"]
     ENT["BugCloud · Trap"]
     TM["TrialManager"]
     UI["RoundUI"]
@@ -113,6 +117,7 @@ graph LR
     CLI -->|parse| SM
     SM -->|params expérimentaux| GEN
     SM -->|"pathVisible, suboptimalPath,\ndetourProb"| PaS
+    SM -->|"motorAdviceVisible,\nmotorAdviceReliable"| MAC
     SM -->|fogProbability| FS
     SM -->|BeginFirstRound| GM
     FS -->|"Instantiate conditionnel"| FC
@@ -120,8 +125,10 @@ graph LR
     PaS <-->|chemins + optimalPath| LR
     PaS -->|RevealCells| FC
     PaS -->|SetChosenPath| GM
-    GR -->|RevealCell| FC
+    GR -->|"TryGetStep\nIsActiveMoveKey"| MAC
     GR -->|OnPlayerStep| GM
+    GR -->|OnInvalidMoveKeyPressed| GM
+    MAC -->|OnAdviceChanged| MAUI
     ENT -->|signaux| GM
     GM -->|trial data| TM
     TM -->|POST /api/trials| API
@@ -141,6 +148,9 @@ graph LR
 | **PlayerStart registration** | `PlayerSpawner` → `LevelRegistry.RegisterPlayerStart(cell, world)` → spawners lisent `TryGetPlayerStartCell()` | Les spawners n'ont plus de `Transform player` en Inspector — ils interrogent LevelRegistry. Découple le placement du joueur de la construction de la map |
 | **Research Parameter Pipeline** | `SessionManager.Instance` (Singleton, propriétaire unique) → Spawners `.Start()` (lecture directe) | Distinction claire entre **paramètre de protocole expérimental** (contrôlé par le chercheur, injectable via args CLI `key=value`, possédé par `SessionManager`) et **paramètre de game design** (fixé par le designer, reste sur le script qui l'utilise). Les spawners lisent directement `SessionManager.Instance.paramName` — les paramètres recherche ne transitent plus par LevelRegistry. Voir section 4.3 pour le détail du pipeline CLI |
 | **Step Budget Penalty** | `GameManager.OnPlayerStep` → `OnStepBudgetExceeded`, `LevelRegistry.stepBudget`, `BugCloudSpawner.RegisterStepBudget` | Même pattern que `OnTrapTriggered` : quand le joueur dépasse la distance Manhattan (budget de pas enregistré par BugCloudSpawner), chaque pas supplémentaire retire 1 bug de chaque nuage. La donnée brute `cloud_distance` est transmise aux chercheurs via TrialData |
+| **Motor Advice** | `MotorAdviceController.Instance` (Singleton) → `GridMover.ReadStep()` + `GridMover.IsActiveMoveKey()` | Tirage seedé d'un jeu de touches actif (ZQSD/TFGH/OKLM) avec advice visible/fiable configurable par SessionManager. GridMover délègue la lecture d'input et la validation des touches actives à MotorAdviceController |
+| **Invalid Key Penalty** | `GridMover.IsAnyNonActiveMoveKeyPressedThisFrame()` → `GameManager.OnInvalidMoveKeyPressed()` | Toute touche pressée hors du set actif déclenche une pénalité renforcée : -2 bugs dans chaque nuage (plus sévère que piège -1). Détection via itération `Keyboard.current.allKeys` |
+| **Suboptimal Trap Placement** | `TrapSpawner.PlaceSuboptimalTraps()` → `SessionManager.Instance` (suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps) | Permet de placer des pièges spécifiquement sur le chemin suboptimal (avant les pièges normaux). Le nombre de pièges suboptimaux est tiré dans [min, max] et compte dans le budget total `trapCount` |
 
 # 3. Systèmes de gameplay
 
@@ -536,8 +546,10 @@ Mur                    = toute cellule de la grille qui n'est PAS dans walkable
 ### 3.4.1 Responsabilités
 
 - Placer un nombre configurable de pièges sur les cellules libres de la grille
-- Respecter les contraintes spatiales (pas sur les chemins, nuages, murs, cellule joueur)
+- **Placer en priorité des pièges sur le chemin suboptimal** (tirage probabiliste + bornes min/max — comptent dans le budget `trapCount`)
+- Respecter les contraintes spatiales (pas sur les chemins réservés, nuages, murs, cellule joueur)
 - Lire le nombre de pièges depuis `SessionManager.Instance.trapCount` (propriétaire de la config expérimentale)
+- Lire les paramètres de pièges suboptimaux depuis `SessionManager.Instance` (suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps)
 - Utiliser le RNG seedé pour un placement reproductible
 - Enregistrer chaque piège dans LevelRegistry
 
@@ -562,11 +574,12 @@ public class TrapSpawner : MonoBehaviour
 | trapPrefab          | GameObject    | Prefab du piège (doit avoir Trap.cs + BoxCollider IsTrigger)            |
 | trapYOffset         | float         | Hauteur Y d'instanciation (défaut : 0.5)                               |
 | _trapCount          | int (privé)   | Lu depuis `SessionManager.Instance.trapCount` au Start — pas de champ Inspector |
+| PlaceSuboptimalTraps(registry, session, rng) | int (privé) | Place des pièges sur les cellules du chemin suboptimal. Retourne le nombre placé |
 
 ### 3.4.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (gridSize, CellToWorld, IsFreeForTrap, RegisterTrap, TryGetPlayerStartCell, CreateRng), `SessionManager.Instance` (**paramètre recherche** : trapCount)
-- **Est configuré par :** `SessionManager.Instance` (lecture directe de trapCount — voir section 2.3)
+- **Nécessite :** `LevelRegistry.Instance` (gridSize, CellToWorld, IsFreeForTrap, IsOnSuboptimalPath, RegisterTrap, TryGetPlayerStartCell, CreateRng), `SessionManager.Instance` (**paramètres recherche** : trapCount, suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps)
+- **Est configuré par :** `SessionManager.Instance` (lecture directe de trapCount + params suboptimal traps — voir section 2.3)
 - **Déclenche :** `RegisterTrap()` dans LevelRegistry pour chaque piège placé
 
 ### 3.4.4 Diagramme de flux
@@ -576,16 +589,32 @@ graph TD
     A["Start()"] --> A1["_trapCount = SessionManager.Instance.trapCount"]
     A1 --> A2["CreateRng('TrapSpawner') → seeded RNG"]
     A2 --> B["TryGetPlayerStartCell → playerCell"]
-    B --> C["Lister toutes les cellules de la grille"]
-    C --> D["Retirer playerCell"]
-    D --> E["Filtrer via IsFreeForTrap"]
+    B --> SUB["PlaceSuboptimalTraps(registry, session, rng)"]
+
+    subgraph "PlaceSuboptimalTraps"
+        SUB1{"suboptimalTrapProbability > 0 ?"}
+        SUB1 -->|Non| SUB_END["return 0"]
+        SUB1 -->|Oui| SUB2["Collecter cellules suboptimalPath + IsFreeForTrap"]
+        SUB2 --> SUB3{"subCells.Count > 0 ?"}
+        SUB3 -->|Non| SUB_END
+        SUB3 -->|Oui| SUB4{"rng.NextDouble() < suboptimalTrapProbability ?"}
+        SUB4 -->|Non| SUB_END
+        SUB4 -->|Oui| SUB5["Tirer targetCount dans [min, max]"]
+        SUB5 --> SUB6["Shuffle subCells (Fisher-Yates)"]
+        SUB6 --> SUB7["Placer jusqu’à targetCount pièges"]
+    end
+
+    SUB --> C["remainingTraps = _trapCount - suboptimalPlaced"]
+    C --> D["Lister toutes les cellules de la grille"]
+    D --> D2["Retirer playerCell + cellules suboptimalPath"]
+    D2 --> E["Filtrer via IsFreeForTrap"]
     E --> F["Mélanger Fisher-Yates avec seeded RNG"]
-    F --> G["Boucle : placer jusqu'à _trapCount pièges"]
+    F --> G["Boucle : placer jusqu'à remainingTraps pièges"]
     G --> H["RegisterTrap(cell) dans LevelRegistry"]
     H --> I{RegisterTrap retourne true ?}
     I -->|Oui| J["Instantiate trapPrefab à CellToWorld(cell)"]
     I -->|Non| K[Skip — cellule déjà occupée]
-    J --> L["placed++ → continuer jusqu'à _trapCount"]
+    J --> L["placed++ → continuer jusqu'à remainingTraps"]
     K --> L
 ```
 
@@ -598,6 +627,16 @@ Placement          = Fisher-Yates shuffle (seeded RNG) puis N premières cellule
 trapCount          = SessionManager.Instance.trapCount (lecture directe du Singleton)
                      Valeur par défaut : 10, overridable via arg CLI "trapCount=N"
 Reproductibilité   = seed dérivée via CreateRng("TrapSpawner") — même seed globale → même placement
+
+--- Pièges suboptimaux ---
+Tirage activation  = rng.NextDouble() < SessionManager.Instance.suboptimalTrapProbability
+                     (0 = jamais, 1 = toujours)
+targetCount        = rng.Next(minSuboptimalTraps, maxSuboptimalTraps + 1)
+Cellules éligibles = IsOnSuboptimalPath(cell) && IsFreeForTrap(cell)
+Budget             = les pièges suboptimaux comptent dans trapCount
+                     remainingTraps = trapCount - suboptimalPlaced
+Exclusion          = les cellules suboptimalPath sont exclues des candidats normaux
+                     (pas de double placement)
 ```
 
 ### 3.4.6 Points d'attention
@@ -606,6 +645,8 @@ Reproductibilité   = seed dérivée via CreateRng("TrapSpawner") — même seed
 - **⚠️ Séquencement :** TrapSpawner (-10) s'exécute après CorridorWallsGenerator (-50) — les murs sont déjà en place, donc `IsFreeForTrap` exclut correctement les cellules murées
 - **⚠️ Plus de champ player :** La cellule joueur est obtenue via `TryGetPlayerStartCell()` — pas de référence Transform dans l'Inspector
 - **⚠️ trapCount :** Pas de champ `trapCount` sur TrapSpawner — la valeur est lue depuis `SessionManager.Instance.trapCount` au Start. Le pipeline est : CLI arg → SessionManager.Awake (parsing) → TrapSpawner.Start (lecture directe)
+- **⚠️ Suboptimal traps prioritaires :** `PlaceSuboptimalTraps` est appelé **avant** le placement normal. Les pièges suboptimaux comptent dans le budget `trapCount`. Si `suboptimalPlaced >= trapCount`, aucun piège normal n'est placé
+- **⚠️ Exclusion croisée :** Les cellules du chemin suboptimal sont retirées des candidats normaux via `RemoveAll(c => registry.IsOnSuboptimalPath(c))` — pas de double placement possible
 
 ### 3.4.7 Journal d'implémentation
 
@@ -614,14 +655,17 @@ Reproductibilité   = seed dérivée via CreateRng("TrapSpawner") — même seed
 | 17/02/26 | @auteur     | Documentation initiale. Placement par shuffle + filtre IsFreeForTrap, configurable via CLI. |
 | 27/02/26 | @pierre     | Refacto : suppression champ player (TryGetPlayerStartCell), trapCount lu depuis registry, seeded RNG. |
 | 02/03/26 | @pierre     | Refacto SRP : TrapSpawner lit `trapCount` directement depuis `SessionManager.Instance` (nouveau Singleton). Plus de transit par LevelRegistry pour les paramètres recherche. |
+| 12/03/26 | @auteur     | Feature suboptimal traps : ajout `PlaceSuboptimalTraps()` (tirage probabiliste + bornes min/max). Les pièges suboptimaux comptent dans le budget `trapCount`. Cellules suboptimalPath exclues des candidats normaux. Params lus depuis SessionManager : `suboptimalTrapProbability`, `minSuboptimalTraps`, `maxSuboptimalTraps`. |
 
 ## 3.5 GridMover
 
 ### 3.5.1 Responsabilités
 
-- Capturer les inputs clavier (flèches directionnelles) via le New Input System
+- Capturer les inputs clavier via le set de touches actif défini par `MotorAdviceController` (ZQSD, TFGH ou OKLM)
+- Si `MotorAdviceController` est absent, fallback sur les flèches directionnelles
 - Valider le mouvement cible via LevelRegistry (InBounds, IsWalkable)
 - Interpoler le déplacement du joueur par coroutine avec SmoothStep
+- **Détecter les appuis sur des touches non actives** (itération `Keyboard.current.allKeys`) et signaler la pénalité au GameManager
 - Notifier GameManager de chaque déplacement terminé via `OnPlayerStep(cell)`
 - **Ne gère pas** le brouillard ni le marquage des cellules visitées — c'est la responsabilité de GameManager
 
@@ -649,16 +693,18 @@ public class GridMover : MonoBehaviour
 | moveDuration           | float              | Durée de l'interpolation en secondes (défaut : 0.15)                              |
 | rotateToDirection      | bool               | Rotation du joueur vers la direction du mouvement (défaut : true)                 |
 | _isMoving              | bool (privé)       | Verrou empêchant un nouveau mouvement pendant l'interpolation                     |
-| ReadStep()             | Vector2Int (privé) | Lit un pas discret depuis les flèches via `Keyboard.current.wasPressedThisFrame` (flèches uniquement) |
+| ReadStep()             | Vector2Int (privé) | Lit un pas discret depuis le set actif via `MotorAdviceController.TryGetStep()`, fallback flèches |
+| IsAnyNonActiveMoveKeyPressedThisFrame() | bool (privé) | Itère `Keyboard.current.allKeys` — retourne `true` si une touche pressée n'est pas dans le set actif |
+| IsActiveMoveKey(KeyControl) | bool (privé)  | Délègue à `MotorAdviceController.Instance.IsActiveMoveKey()`, fallback flèches si MAC absent |
 | MoveTo(Vector3, float) | Coroutine (privé)  | Interpolation SmoothStep + appel `GameManager.OnPlayerStep(cell)` à la fin        |
 | SnapToGrid()           | void               | Aligne la position du joueur au centre de la cellule la plus proche               |
 
 ### 3.5.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (WorldToCell, CellToWorld, InBounds, IsWalkable, SnapWorldToCellCenter), `GameManager.Instance` (inputLocked, OnPlayerStep)
+- **Nécessite :** `LevelRegistry.Instance` (WorldToCell, CellToWorld, InBounds, IsWalkable, SnapWorldToCellCenter), `GameManager.Instance` (inputLocked, OnPlayerStep, OnInvalidMoveKeyPressed), `MotorAdviceController.Instance` (TryGetStep, IsActiveMoveKey)
 - **Ne dépend plus de :** `FogController` (la révélation du brouillard et le marquage visited sont gérés par `GameManager.OnPlayerStep`)
 - **Est utilisé par :** Aucun — composant terminal sur le GameObject joueur
-- **Package requis :** `com.unity.inputsystem` 1.17.0 (`using UnityEngine.InputSystem`)
+- **Package requis :** `com.unity.inputsystem` 1.17.0 (`using UnityEngine.InputSystem`, `using UnityEngine.InputSystem.Controls`)
 
 ### 3.5.4 Diagramme de flux
 
@@ -671,7 +717,12 @@ graph TD
     F -->|Oui| G[return]
     F -->|Non| H{GameManager.inputLocked ?}
     H -->|Oui| G
-    H -->|Non| I["ReadStep()"]
+    H -->|Non| INV["IsAnyNonActiveMoveKeyPressedThisFrame()"]
+    INV --> INV2{Touche invalide détectée ?}
+    INV2 -->|Oui| INV3["GameManager.OnInvalidMoveKeyPressed() — pénalité -2 × 2 nuages"]
+    INV2 -->|Non| CONT[Continuer]
+    INV3 --> CONT
+    CONT --> I["ReadStep() — MotorAdviceController.TryGetStep() ou flèches"]
     I --> J{step == zero ?}
     J -->|Oui| G
     J -->|Non| K["targetCell = curCell + step"]
@@ -689,7 +740,8 @@ graph TD
 ### 3.5.5 Formules et règles métier
 
 ```
-Input mapping      = Flèches ←→↑↓ uniquement
+Input mapping      = Set actif défini par MotorAdviceController (ZQSD, TFGH ou OKLM)
+                     Fallback flèches ←→↑↓ si MotorAdviceController absent
                      wasPressedThisFrame → 1 step par appui (pas de repeat)
 Mouvement          = 1 case par input, 4 directions cardinales
 Interpolation      = Vector3.Lerp(start, target, SmoothStep(0, 1, t))
@@ -697,11 +749,15 @@ Interpolation      = Vector3.Lerp(start, target, SmoothStep(0, 1, t))
 Validation         = LevelRegistry.InBounds(targetCell) && LevelRegistry.IsWalkable(targetCell)
 Verrouillage       = _isMoving (pendant interpolation) || GameManager.inputLocked (fin de round)
 Signalisation      = OnPlayerStep(cell) → GameManager gère fog, visited, trial log
+Touche invalide    = toute touche de Keyboard.current.allKeys pressée qui n'est PAS dans le set actif
+                     → GameManager.OnInvalidMoveKeyPressed() appelé (pénalité -2 × 2 nuages)
+                     Détection AVANT ReadStep — la pénalité s'applique même si une touche valide est aussi pressée
 ```
 
 ### 3.5.6 Points d'attention
 
-- **⚠️ Input :** Seules les flèches directionnelles sont supportées — pas de WASD/ZQSD. Si des contrôles alternatifs sont requis, un rebinding ou un Input Action Map sera nécessaire
+- **⚠️ Input :** Le set de touches actif est défini par `MotorAdviceController` (ZQSD, TFGH ou OKLM). Si `MotorAdviceController.Instance` est null, fallback sur les flèches directionnelles
+- **⚠️ Pénalité touches invalides :** `IsAnyNonActiveMoveKeyPressedThisFrame()` itère sur `Keyboard.current.allKeys` — TOUTES les touches du clavier (y compris modificateurs Shift, Ctrl, Alt, Space) déclenchent la pénalité. Détection indépendante du mouvement : se produit même si le joueur ne bouge pas
 - **⚠️ Fallback :** Si `LevelRegistry.Instance` est null, le système bascule sur un snap local sans validation de marchabilité — le joueur peut sortir de la grille
 - **⚠️ Séparation des responsabilités :** GridMover ne sait rien du brouillard, des cellules visitées, ni du trial log. Il se contente de déplacer le joueur et signaler le pas au GameManager. C'est un design « entité signale, manager interprète ».
 - **⚠️ Champs nettoyés :** Les anciens champs `tileLayer`, `raycastStartHeight`, `raycastDistance` (vestiges de validation par raycast) ont été supprimés dans la refacto
@@ -713,6 +769,142 @@ Signalisation      = OnPlayerStep(cell) → GameManager gère fog, visited, tria
 | 17/02/26 | @auteur     | Documentation initiale. Mouvement discret par coroutine SmoothStep, validation via LevelRegistry. |
 | 17/02/26 | @auteur     | Suppression des touches ZQSD/WASD. Seules les flèches directionnelles restent comme contrôles de mouvement. |
 | 27/02/26 | @pierre     | Refacto : renommage GridMoverNewInput→GridMover, suppression champs raycast legacy, fog+visited déplacés vers GameManager.OnPlayerStep. |
+| 12/03/26 | @auteur     | Intégration Motor Advice : `ReadStep()` délègue à `MotorAdviceController.TryGetStep()` (fallback flèches). Ajout `IsAnyNonActiveMoveKeyPressedThisFrame()` (itère `allKeys`), `IsActiveMoveKey()` (délègue à MAC). Pénalité touche invalide via `GameManager.OnInvalidMoveKeyPressed()`. Import `UnityEngine.InputSystem.Controls`. |
+
+## 3.6 MotorAdviceController
+
+### 3.6.1 Responsabilités
+
+- Singleton gérant le **jeu de touches actif** pour le mouvement joueur (ZQSD, TFGH ou OKLM)
+- Tirage seedé du set actif au Start (RNG déterministe via `LevelRegistry.CreateRng`)
+- Déterminer si l'**advice est visible** (tirage `rng.NextDouble() < motorAdviceVisibleProbability`)
+- Si visible, déterminer si l'**advice est fiable** (tirage `rng.NextDouble() < motorAdviceReliableProbability`)
+- Si non fiable, afficher un **set différent** du set actif (trompeur)
+- Fournir l'API d'input (`TryGetStep`) pour `GridMover` — remplace la lecture directe des flèches
+- Fournir l'API de validation (`IsActiveMoveKey`) pour la détection de touches invalides
+
+### 3.6.2 Composants clés (Data Model)
+
+→ **MotorAdviceController.cs** : Singleton MonoBehaviour. Ordre d'exécution : `0` (défaut).
+
+> **Note architecture :** Les paramètres `motorAdviceVisibleProbability` et `motorAdviceReliableProbability` sont lus directement depuis `SessionManager.Instance` (Singleton). Ce script ne possède aucun paramètre de game design. Voir pattern **Research Parameter Pipeline** (section 2.3).
+
+```csharp
+public class MotorAdviceController : MonoBehaviour
+{
+    public static MotorAdviceController Instance { get; private set; }
+
+    public MotorKeySet ActiveSet { get; private set; } = MotorKeySet.ZQSD;
+    public MotorKeySet DisplayedSet { get; private set; } = MotorKeySet.None;
+    public bool AdviceVisible { get; private set; }
+    public bool AdviceReliable { get; private set; }
+
+    public event Action OnAdviceChanged;
+}
+```
+
+→ **MotorKeySet** (enum, même fichier) :
+
+```csharp
+public enum MotorKeySet
+{
+    ZQSD,   // W/A/S/D (layout AZERTY → ZQSD)
+    TFGH,   // T/F/G/H
+    OKLM,   // O/K/L/; (semicolonKey)
+    None
+}
+```
+
+| Variable / Méthode                | Type               | Description                                                                   |
+| :-------------------------------- | :----------------- | :---------------------------------------------------------------------------- |
+| Instance                          | MotorAdviceController | Référence statique globale (Singleton)                                     |
+| ActiveSet                         | MotorKeySet (get)  | Set de touches réellement actif pour le mouvement (tiré au Start)             |
+| DisplayedSet                      | MotorKeySet (get)  | Set de touches affiché à l'UI — peut différer de ActiveSet si non fiable      |
+| AdviceVisible                     | bool (get)         | `true` si l'advice est affiché au joueur (tirage probabiliste)                |
+| AdviceReliable                    | bool (get)         | `true` si le set affiché == set actif (advice fiable)                         |
+| OnAdviceChanged                   | event Action       | Émis après le tirage — `MotorAdviceUI` s'y abonne                            |
+| _Lecture depuis SessionManager.Instance :_ | | `motorAdviceVisibleProbability` (float, 0-1), `motorAdviceReliableProbability` (float, 0-1) — **paramètres recherche** (Singleton, lecture directe) |
+| TryGetStep(out Vector2Int)        | bool               | Lit `wasPressedThisFrame` sur les 4 touches du set actif. Retourne `true` + direction si pressée |
+| IsActiveMoveKey(KeyControl)       | bool               | Retourne `true` si la touche appartient au set actif (switch expression)      |
+| FormatSet(MotorKeySet)            | string (statique)  | Formatte un set en label lisible (ex: "Haut: Z  Gauche: Q  Bas: S  Droite: D") |
+| PickOtherSet(rng, current)        | MotorKeySet (statique privé) | Choisit un set différent du set courant (pour advice non fiable)     |
+| CreateRng()                       | System.Random (statique privé) | Crée un RNG seedé via `LevelRegistry.CreateRng("MotorAdviceController")` |
+
+### 3.6.3 Dépendances
+
+- **Nécessite :** `LevelRegistry.Instance` (CreateRng — pour RNG seedé), `SessionManager.Instance` (**paramètres recherche** : motorAdviceVisibleProbability, motorAdviceReliableProbability)
+- **Est configuré par :** `SessionManager.Instance` (lecture directe des probabilités visible/reliable — voir section 2.3)
+- **Est utilisé par :** `GridMover` (TryGetStep pour lecture d'input, IsActiveMoveKey pour validation touches), `MotorAdviceUI` (s'abonne à OnAdviceChanged pour l'affichage)
+- **Package requis :** `com.unity.inputsystem` 1.17.0 (`using UnityEngine.InputSystem`, `using UnityEngine.InputSystem.Controls`)
+
+### 3.6.4 Diagramme de flux
+
+```mermaid
+graph TD
+    A["Awake()"] --> A1{"Instance déjà existant ?"}
+    A1 -->|Oui| A2["Destroy(gameObject) — return"]
+    A1 -->|Non| A3["Instance = this"]
+
+    B["Start()"] --> C["CreateRng() → rng seedé (LevelRegistry)"]
+    C --> D["ActiveSet = rng.Next(0, 3) — ZQSD, TFGH ou OKLM"]
+    D --> E["Lire motorAdviceVisibleProbability depuis SessionManager"]
+    E --> F{"rng.NextDouble() < visibleProb ?"}
+    F -->|Non| G["AdviceVisible = false, AdviceReliable = false"]
+    G --> G2["DisplayedSet = None"]
+    G2 --> H["OnAdviceChanged?.Invoke()"]
+    F -->|Oui| I["AdviceVisible = true"]
+    I --> J["Lire motorAdviceReliableProbability depuis SessionManager"]
+    J --> K{"rng.NextDouble() < reliableProb ?"}
+    K -->|Oui| L["AdviceReliable = true, DisplayedSet = ActiveSet"]
+    K -->|Non| M["AdviceReliable = false, DisplayedSet = PickOtherSet(rng, ActiveSet)"]
+    L --> H
+    M --> H
+
+    subgraph "TryGetStep(out step) — appelé par GridMover.ReadStep()"
+        TS1["Switch sur ActiveSet"] --> TS2["ZQSD: W/A/S/D"]
+        TS1 --> TS3["TFGH: T/F/G/H"]
+        TS1 --> TS4["OKLM: O/K/L/;"]
+        TS2 --> TS5{"wasPressedThisFrame ?"}
+        TS3 --> TS5
+        TS4 --> TS5
+        TS5 -->|Oui| TS6["step = direction, return true"]
+        TS5 -->|Non| TS7["return false"]
+    end
+
+    subgraph "IsActiveMoveKey(key) — appelé par GridMover"
+        AM1["Switch expression sur ActiveSet"] --> AM2["Retourne true si key ∈ {4 touches du set}"]
+    end
+```
+
+### 3.6.5 Formules et règles métier
+
+```
+Tirage set actif    = rng.Next(0, 3) → index dans {ZQSD=0, TFGH=1, OKLM=2}
+Tirage visible      = rng.NextDouble() < SessionManager.Instance.motorAdviceVisibleProbability
+                      (défaut 1.0 = toujours visible)
+Tirage fiable       = rng.NextDouble() < SessionManager.Instance.motorAdviceReliableProbability
+                      (défaut 1.0 = toujours fiable, uniquement si visible)
+Set affiché         = ActiveSet si fiable, PickOtherSet(rng, ActiveSet) si non fiable, None si invisible
+PickOtherSet        = retire le set courant de la liste [ZQSD, TFGH, OKLM], tire au hasard parmi les 2 restants
+
+Mapping ZQSD : W=Haut, A=Gauche, S=Bas, D=Droite (layout physique, Keyboard.current.wKey/aKey/sKey/dKey)
+Mapping TFGH : T=Haut, F=Gauche, G=Bas, H=Droite
+Mapping OKLM : O=Haut, K=Gauche, L=Bas, ;=Droite (semicolonKey)
+```
+
+### 3.6.6 Points d'attention
+
+- **⚠️ Singleton :** `MotorAdviceController.Instance` peut être `null` si le GameObject n'est pas dans la scène. `GridMover` gère ce cas avec fallback flèches
+- **⚠️ RNG seedé :** Le tirage utilise `LevelRegistry.CreateRng(nameof(MotorAdviceController))` — même seed = même set actif + mêmes tirages visible/fiable. Si `LevelRegistry.Instance` est null, un RNG non seedé est utilisé (warning loggé)
+- **⚠️ Layout AZERTY :** Le set "ZQSD" utilise en réalité `wKey/aKey/sKey/dKey` du New Input System (layout physique QWERTY). Sur un clavier AZERTY physique, les touches physiques correspondent bien à Z/Q/S/D
+- **⚠️ Advice non fiable :** Si `AdviceReliable == false`, le joueur voit un set différent du set actif. Il doit identifier le bon set par essai — les erreurs déclenchent la pénalité de touche invalide
+- **⚠️ OnAdviceChanged :** Émis une seule fois au Start après tous les tirages. Si l'UI n'est pas encore abonnée (problème de timing), l'affichage ne sera pas mis à jour — en pratique non problématique car `MotorAdviceUI.Start()` appelle aussi `Refresh()` directement
+
+### 3.6.7 Journal d'implémentation
+
+| Date     | Développeur | Note / Décision Technique                                                                     |
+| :------- | :---------- | :-------------------------------------------------------------------------------------------- |
+| 12/03/26 | @auteur     | Création. Singleton Motor Advice : tirage seedé du set actif (ZQSD/TFGH/OKLM), advice visible/fiable configurable via SessionManager. API TryGetStep + IsActiveMoveKey. Event OnAdviceChanged pour MotorAdviceUI. |
 
 # 4. Systèmes Core
 
@@ -903,10 +1095,11 @@ graph TD
 - Suivre l'état du round en cours (steps, trapsHit, bugsCollected, followedAdvisorPath)
 - Gérer le cycle de vie des rounds (démarrage, fin de manche sur collecte de nuage, restart)
 - Enregistrer les deux nuages du round et déterminer le nuage optimal
-- Orchestrer les callbacks d'entités : `OnPlayerStep` (GridMover), `OnTrapTriggered` (Trap), `OnCloudCollected` (BugCloud)
+- Orchestrer les callbacks d'entités : `OnPlayerStep` (GridMover), `OnTrapTriggered` (Trap), `OnCloudCollected` (BugCloud), `OnInvalidMoveKeyPressed` (GridMover)
 - À chaque pas joueur : révéler le brouillard, marquer la cellule visitée, vérifier l'adhérence au chemin conseillé, vérifier le dépassement du budget de pas, enregistrer dans le trial
 - Appliquer les pénalités de pièges sur les nuages (-1 bug par nuage par piège)
 - Appliquer la pénalité de dépassement du budget de pas (-1 bug par nuage par pas en trop)
+- **Appliquer la pénalité de touche invalide** (-2 bugs par nuage par appui non valide)
 - Émettre `OnRoundEnded` pour l'UI (RoundUI) — **pas de référence UI directe**
 - Coordonner avec TrialManager pour la collecte de données de recherche (transmettre `cloud_distance` via `SetCloudDistance`)
 
@@ -977,6 +1170,7 @@ public class GameManager : MonoBehaviour
 | SetChosenPath(IEnumerable\<Vector2Int\>)    | void                    | Reçoit le chemin conseillé de PathSpawner pour détecter les déviations            |
 | OnPlayerStep(Vector2Int)                    | void                    | Appelé par GridMover — fog, visited, déviation, budget de pas, trial log           |
 | OnTrapTriggered()                           | void                    | Appelé par Trap — trapsHit++, -1 bug sur chaque nuage                            |
+| OnInvalidMoveKeyPressed()                   | void                    | Appelé par GridMover — pénalité renforcée : -2 bugs sur chaque nuage             |
 | OnStepBudgetExceeded()                      | void (privé)            | Appelé quand le joueur dépasse le budget de pas — overtimeSteps++, -1 bug sur chaque nuage |
 | OnCloudCollected(BugCloud)                  | void                    | Fin de round — calcule bugs verts, détermine trueCloud, transmet cloud_distance via SetCloudDistance, détermine optimalPathVisible par tirage probabiliste (`rng.NextDouble() < pathVisible`), finalise trial (choice, correct, trueCloud, greenBugs, trapsHit, steps, optimalPathVisible, pathIsSuboptimal), émet OnRoundEnded |
 | SetPathIsSuboptimal(bool)                   | void                    | Reçoit de PathSpawner si le chemin affiché est suboptimal — stocke dans `_pathIsSuboptimal` |
@@ -986,7 +1180,7 @@ public class GameManager : MonoBehaviour
 ### 4.2.3 Dépendances
 
 - **Nécessite :** `LevelRegistry.Instance` (MarkVisited, optimalPathLength, stepBudget, TryGetRoundSeed), `SessionManager.Instance` (blockId — lecture directe), `FogController.Instance` (RevealCell), `TrialManager` (StartNewTrial, RecordMove, SetMapConfig, SetOptimalPathLength, SetCloudDistance, EndCurrentTrial, SendTrials), `BugCloud` (nuages du round), `PathSpawner` (chemin conseillé)
-- **Est utilisé par :** `SessionManager` (lance `BeginFirstRound()`), `GridMover` (appelle `OnPlayerStep()`), `BugCloud` (appelle `OnCloudCollected()`), `Trap` (appelle `OnTrapTriggered()`), `PathSpawner` (appelle `SetChosenPath()`, `SetPathIsSuboptimal()`)
+- **Est utilisé par :** `SessionManager` (lance `BeginFirstRound()`), `GridMover` (appelle `OnPlayerStep()`, `OnInvalidMoveKeyPressed()`), `BugCloud` (appelle `OnCloudCollected()`), `Trap` (appelle `OnTrapTriggered()`), `PathSpawner` (appelle `SetChosenPath()`, `SetPathIsSuboptimal()`)
 - **Communique avec l'UI via :** `event OnRoundEnded` → `RoundUI` (pas de références UI directes)
 
 ### 4.2.4 Diagramme de flux
@@ -1033,6 +1227,13 @@ graph TD
         T4 --> T5["rightCloud.AddBugs(-1)"]
     end
 
+    subgraph "OnInvalidMoveKeyPressed — via GridMover"
+        IK0[GridMover] -->|OnInvalidMoveKeyPressed| IK1{_roundOver ?}
+        IK1 -->|Oui| IK2[return]
+        IK1 -->|Non| IK3["leftCloud.AddBugs(-2)"]
+        IK3 --> IK4["rightCloud.AddBugs(-2)"]
+    end
+
     subgraph "Phase Fin de Round — OnCloudCollected via BugCloud"
         P[BugCloud.OnTrigger] -->|OnCloudCollected| Q["_roundOver = true, inputLocked = true"]
         Q --> R["bugsCollected += max(0, RoundToInt(cloud.totalBugs × cloud.greenRatio))"]
@@ -1053,6 +1254,7 @@ graph TD
 ```
 Pénalité piège    = -1 bug dans CHAQUE nuage (leftCloud + rightCloud) par piège déclenché
 Pénalité budget   = -1 bug dans CHAQUE nuage (leftCloud + rightCloud) par pas au-delà du budget
+Pénalité invalide = -2 bugs dans CHAQUE nuage (leftCloud + rightCloud) par appui de touche non active
 Budget de pas     = LevelRegistry.stepBudget (= distance Manhattan joueur→nuages, enregistré par BugCloudSpawner)
 movesMade         = steps - 1 (le premier step est le déplacement initial, pas un dépassement)
 overtimeSteps     = nombre de pas où movesMade > stepBudget
@@ -1084,6 +1286,7 @@ Fog + Visited     = gérés par OnPlayerStep (pas par GridMover)
 | 02/03/26 | @pierre     | Mécanique Step Budget Penalty : ajout `overtimeSteps`, `OnStepBudgetExceeded()`, vérification budget dans `OnPlayerStep`. `OnCloudCollected` transmet `cloud_distance` via `TrialManager.SetCloudDistance`. `RoundEndInfo` inclut `overtimeSteps`. |
 | 02/03/26 | @auteur     | `pathVisible` passe de bool à float (probabilité). `OnCloudCollected` détermine `optimalPathVisible` par tirage `rng.NextDouble() < pathVisible` et le transmet à `EndCurrentTrial` (7 params). `RoundEndInfo` ajoute `optimalPathVisible`. |
 | 09/03/26 | @auteur     | Feature suboptimal path : renommage `followedBestPath` → `followedAdvisorPath` partout. Ajout `_pathIsSuboptimal` (bool privé) + `SetPathIsSuboptimal(bool)` (appelé par PathSpawner). `RoundEndInfo` utilise `followedAdvisorPath`. `EndCurrentTrial` passe désormais 8 params (ajout `_pathIsSuboptimal`). |
+| 12/03/26 | @auteur     | Pénalité touche invalide : ajout `OnInvalidMoveKeyPressed()` — appelé par GridMover quand une touche hors du set actif est pressée. Applique -2 bugs sur chaque nuage (pénalité renforcée vs piège -1). Guard `_roundOver`. |
 
 ## 4.3 SessionManager
 
@@ -1143,10 +1346,28 @@ public class SessionManager : MonoBehaviour
     [Range(0f, 1f)]
     public float detourProbability = 0f;
 
+    [Tooltip("Probabilité d'afficher le motor advice. CLI: motorAdviceVisible=F.")]
+    [Range(0f, 1f)]
+    public float motorAdviceVisibleProbability = 1f;
+
+    [Tooltip("Probabilité que le motor advice soit fiable. CLI: motorAdviceReliable=F.")]
+    [Range(0f, 1f)]
+    public float motorAdviceReliableProbability = 1f;
+
+    [Tooltip("Probabilité que des pièges apparaissent SUR le chemin suboptimal. CLI: subTrapProb=F.")]
+    [Range(0f, 1f)]
+    public float suboptimalTrapProbability = 0f;
+
+    [Min(0)]
+    public int minSuboptimalTraps = 1;
+
+    [Min(0)]
+    public int maxSuboptimalTraps = 3;
+
     [Header("Recherche : Fog of War")]
     [Tooltip("Probabilité que le brouillard de guerre soit actif (0=jamais, 1=toujours). CLI: fogProbability=F.")]
     [Range(0f, 1f)]
-    public float fogProbability = 1f;
+    public float fogProbability = 0f;
 
     [Header("Recherche : Protocole")]
     public int blockId = 1;
@@ -1170,14 +1391,19 @@ public class SessionManager : MonoBehaviour
 | pathVisible                       | float (public)     | Probabilité d'affichage du chemin conseillé (défaut : 1.0 = toujours visible, 0.0 = jamais). CLI: `pathVisible=F` (ex: `pathVisible=0.5`). Le tirage est fait par `rng.NextDouble() < pathVisible` dans PathSpawner et GameManager |
 | **suboptimalPathProbability**     | **float (public)** | **Probabilité que le chemin affiché soit suboptimal (défaut : 0.0 = toujours optimal, 1.0 = toujours suboptimal). CLI: `suboptimalPath=F`. Tirage `rng.NextDouble() < suboptimalPathProbability` dans PathSpawner** |
 | **detourProbability**             | **float (public)** | **Probabilité que le chemin suboptimal inclue un détour en « Z » (défaut : 0.0 = Manhattan alternatif, 1.0 = toujours détour). CLI: `detourProb=F`. Tirage conditionnel : uniquement si suboptimal est déjà tiré** |
-| **fogProbability**                | **float (public)** | **Probabilité que le brouillard de guerre soit actif ce round (défaut : 1.0 = toujours, 0.0 = jamais). CLI: `fogProbability=F`. Tirage `rng.NextDouble() >= fogProbability` dans FogSpawner** |
+| **motorAdviceVisibleProbability** | **float (public)** | **Probabilité que le motor advice soit visible (défaut : 1.0 = toujours visible). CLI: `motorAdviceVisible=F`. Lu par MotorAdviceController.Start()** |
+| **motorAdviceReliableProbability**| **float (public)** | **Probabilité que le motor advice soit fiable (défaut : 1.0 = toujours fiable). CLI: `motorAdviceReliable=F`. Lu par MotorAdviceController.Start()** |
+| **suboptimalTrapProbability**     | **float (public)** | **Probabilité que des pièges apparaissent sur le chemin suboptimal (défaut : 0.0 = jamais). CLI: `subTrapProb=F`. Lu par TrapSpawner.PlaceSuboptimalTraps()** |
+| **minSuboptimalTraps**            | **int (public)**   | **Nombre minimal de pièges sur le chemin suboptimal (défaut : 1). CLI: `minSubTraps=N`. Lu par TrapSpawner** |
+| **maxSuboptimalTraps**            | **int (public)**   | **Nombre maximal de pièges sur le chemin suboptimal (défaut : 3). CLI: `maxSubTraps=N`. Lu par TrapSpawner** |
+| **fogProbability**                | **float (public)** | **Probabilité que le brouillard de guerre soit actif ce round (défaut : 0.0 = jamais, 1.0 = toujours). CLI: `fogProbability=F`. Tirage `rng.NextDouble() >= fogProbability` dans FogSpawner** |
 | blockId                           | int (public)       | Bloc expérimental pour TrialData (défaut : 1). CLI: `blockId=N`               |
 | **Méthodes**                      |                   |                                                                                   |
 | Awake()                           | void              | Pipeline séquentiel : Singleton init → seed → CLI parsing → sessionId            |
 | Start()                           | IEnumerator       | Coroutine : `yield return null` → `BeginFirstRound()`                             |
 | ApplySeedForThisRound()           | void (privé)      | Parse `seed=` CLI, sinon génère depuis DateTime+Guid, écrit dans LevelRegistry    |
 | TryApplyTrapCountFromArgs()       | void (privé)      | Parse `trapCount=N` depuis les args CLI (legacy — à refactorer avec TryParseInt)  |
-| TryApplyBugCloudParamsFromArgs()  | void (privé)      | Parse les 11 paramètres recherche restants (minDistance, maxDistance, totalBugs, greenRatio, gap, pathVisible, fogProbability, blockId) |
+| TryApplyBugCloudParamsFromArgs()  | void (privé)      | Parse les 16 paramètres recherche restants (minDistance, maxDistance, totalBugs, greenRatio, gap, pathVisible, suboptimalPath, detourProb, motorAdviceVisible, motorAdviceReliable, subTrapProb, minSubTraps, maxSubTraps, fogProbability, blockId) |
 | TryApplySessionIdFromArgs()       | void (privé)      | Parse `sessionId=X` depuis les args et l'injecte dans TrialManager                |
 | **Helpers CLI (static)**          |                   |                                                                                   |
 | TryParseInt(arg, key, ref target) | void              | Parse un arg `key=N` (int), log si trouvé ou invalide                             |
@@ -1187,7 +1413,7 @@ public class SessionManager : MonoBehaviour
 ### 4.3.3 Dépendances
 
 - **Nécessite :** `LevelRegistry.Instance` (SetRoundSeed), `GameManager` (appelle `BeginFirstRound()`), `TrialManager` (injecte sessionId)
-- **Est utilisé par :** `BugCloudSpawner` (lecture directe : minDistance, maxDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax), `TrapSpawner` (lecture directe : trapCount), `PathSpawner` (lecture directe : pathVisible, suboptimalPathProbability, detourProbability), `FogSpawner` (lecture directe : fogProbability), `GameManager` (lecture directe : blockId)
+- **Est utilisé par :** `BugCloudSpawner` (lecture directe : minDistance, maxDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax), `TrapSpawner` (lecture directe : trapCount, suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps), `PathSpawner` (lecture directe : pathVisible, suboptimalPathProbability, detourProbability), `FogSpawner` (lecture directe : fogProbability), `GameManager` (lecture directe : blockId), `MotorAdviceController` (lecture directe : motorAdviceVisibleProbability, motorAdviceReliableProbability)
 - **Source de données :** Arguments de ligne de commande (`System.Environment.GetCommandLineArgs()`)
 - **Pattern :** Research Parameter Pipeline — SessionManager.Instance → Spawners `.Start()` (lecture directe des champs `public`)
 
@@ -1229,9 +1455,10 @@ graph TD
     subgraph "Lecture par les spawners (Start, ordres négatifs)"
         S1["BugCloudSpawner.Start(-200)"] -.->|"lit Instance.minDistance, etc."| A2
         S2["PathSpawner.Start(-100)"] -.->|"lit Instance.pathVisible,\nsuboptimalPathProbability,\ndetourProbability"| A2
-        S3["TrapSpawner.Start(-10)"] -.->|"lit Instance.trapCount"| A2
+        S3["TrapSpawner.Start(-10)"] -.->|"lit Instance.trapCount,\nsuboptimalTrapProbability,\nminSuboptimalTraps,\nmaxSuboptimalTraps"| A2
         S4["GameManager.StartNewRound(0)"] -.->|"lit Instance.blockId"| A2
         S5["FogSpawner.Start(-245)"] -.->|"lit Instance.fogProbability"| A2
+        S6["MotorAdviceController.Start(0)"] -.->|"lit Instance.motorAdviceVisibleProbability,\nmotorAdviceReliableProbability"| A2
     end
 ```
 
@@ -1270,6 +1497,7 @@ graph TD
 | 02/03/26 | @auteur     | `pathVisible` passe de `bool` (true/false) à `float` (probabilité 0-1, défaut 1.0). CLI `pathVisible=F` utilise désormais `TryParseFloat` au lieu de `TryParseBool`. Permet un contrôle probabiliste fin de la condition advisor par le protocole de recherche. |
 | 05/03/26 | @auteur     | Ajout 2 paramètres recherche Advisor : `suboptimalPathProbability` (float, CLI: `suboptimalPath=F`, défaut 0) et `detourProbability` (float, CLI: `detourProb=F`, défaut 0). Parsing CLI via `TryParseFloat`. Lus par PathSpawner pour le tirage chemin suboptimal + détour en « Z ». |
 | 09/03/26 | @auteur     | Ajout paramètre recherche Fog of War : `fogProbability` (float, CLI: `fogProbability=F`, défaut 1.0 = toujours actif). Parsing CLI via `TryParseFloat` dans `TryApplyBugCloudParamsFromArgs`. Lu par `FogSpawner` pour le tirage conditionnel du brouillard. |
+| 12/03/26 | @pierre     | Ajout 5 paramètres Motor Advice & Suboptimal Traps : `motorAdviceVisibleProbability` (float, CLI: `motorAdviceVisible=F`, défaut 1.0), `motorAdviceReliableProbability` (float, CLI: `motorAdviceReliable=F`, défaut 1.0), `suboptimalTrapProbability` (float, CLI: `subTrapProb=F`, défaut 0.0), `minSuboptimalTraps` (int, CLI: `minSubTraps=N`, défaut 1), `maxSuboptimalTraps` (int, CLI: `maxSubTraps=N`, défaut 3). Correction `fogProbability` défaut 1f→0f. Parsing CLI via `TryParseFloat`/`TryParseInt` dans `TryApplyBugCloudParamsFromArgs`. Lus par `MotorAdviceController` et `TrapSpawner.PlaceSuboptimalTraps()`. |
 
 ## 4.4 FogController
 
@@ -1968,6 +2196,73 @@ graph TD
 | 02/03/26 | @pierre     | Ajout affichage `overtimeSteps` (pas en trop) dans les stats de fin de round. RoundEndInfo inclut désormais `overtimeSteps`. |
 | 09/03/26 | @auteur     | Feature suboptimal path : label « Chemin optimal suivi » renommé en « Chemin conseillé suivi ». `info.followedBestPath` → `info.followedAdvisorPath`. |
 
+## 6.2 MotorAdviceUI
+
+### 6.2.1 Responsabilités
+
+- Afficher le motor advice (set de touches actif) en bas de l'écran quand `AdviceVisible == true`
+- Masquer automatiquement le panneau quand le motor advice est invisible
+- Se mettre à jour en réponse à l'événement `MotorAdviceController.OnAdviceChanged`
+
+### 6.2.2 Composants clés (Data Model)
+
+→ **MotorAdviceUI.cs** : MonoBehaviour, pas de Singleton. Attaché à un GameObject Canvas dans la scène.
+
+```csharp
+public class MotorAdviceUI : MonoBehaviour
+{
+    [SerializeField] private GameObject _root;
+    [SerializeField] private TMP_Text _label;
+}
+```
+
+| Variable / Méthode | Type        | Description                                                                |
+| :------------------ | :---------- | :------------------------------------------------------------------------- |
+| _root               | GameObject  | Conteneur racine du panneau motor advice — activé/désactivé selon `AdviceVisible` |
+| _label              | TMP_Text    | Label texte affichant le set de touches formaté (ex: « Z Q S D »)          |
+| Start()             | void        | S'abonne à `MotorAdviceController.Instance.OnAdviceChanged` + appel initial `Refresh()` |
+| OnDestroy()         | void        | Se désabonne de `OnAdviceChanged` pour éviter les fuites                    |
+| Refresh()           | void (privé)| Lit `motor.AdviceVisible` → active/désactive `_root`. Si visible : `_label.text = FormatSet(motor.DisplayedSet)` |
+
+### 6.2.3 Dépendances
+
+- **Nécessite :** `MotorAdviceController.Instance` (lecture `AdviceVisible`, `DisplayedSet`, abonnement `OnAdviceChanged`), `MotorAdviceController.FormatSet()` (méthode statique de formatage)
+- **Est utilisé par :** Aucun (composant UI terminal)
+- **Pattern :** Observer — écoute `OnAdviceChanged`, sans polling
+
+### 6.2.4 Diagramme de flux
+
+```mermaid
+graph TD
+    A["Start()"] --> B{"MotorAdviceController.Instance != null ?"}
+    B -->|Oui| C["S'abonne à OnAdviceChanged"]
+    B -->|Non| D["Pas d'abonnement"]
+    C --> E["Refresh()"]
+    D --> E
+
+    E --> F{"motor == null OU _root == null OU _label == null ?"}
+    F -->|Oui| G["Return — sécurité null"]
+    F -->|Non| H["_root.SetActive(motor.AdviceVisible)"]
+    H --> I{"motor.AdviceVisible ?"}
+    I -->|Non| J["Return — panneau masqué"]
+    I -->|Oui| K["_label.text = FormatSet(motor.DisplayedSet)"]
+
+    L["OnAdviceChanged (event)"] --> E
+    M["OnDestroy()"] --> N["Désabonnement OnAdviceChanged"]
+```
+
+### 6.2.5 Points d'attention
+
+- **⚠️ Null-safety :** Triple vérification `motor == null || _root == null || _label == null` — le composant est résilient aux configurations manquantes
+- **⚠️ Pas de DefaultExecutionOrder :** MotorAdviceUI n'a pas d'ordre d'exécution explicite. Elle s'abonne dans son `Start()` qui tourne après `MotorAdviceController.Start(0)` (ordre par défaut Unity)
+- **⚠️ FormatSet statique :** Utilise `MotorAdviceController.FormatSet()` (méthode statique) — pas de dépendance à l'instance pour le formatage
+
+### 6.2.6 Journal d'implémentation
+
+| Date     | Développeur | Note / Décision Technique                                                                |
+| :------- | :---------- | :--------------------------------------------------------------------------------------- |
+| 12/03/26 | @pierre     | Création. UI dédiée au motor advice. S'abonne à OnAdviceChanged, affiche DisplayedSet via FormatSet(). Panneau masqué si AdviceVisible == false. |
+
 # 7. Optimisations et performance
 
 _Section à compléter._
@@ -2062,3 +2357,4 @@ _Section à compléter._
 | 05/03/26 | 2.6     | Feature suboptimal path + détour en « Z ». MAJ section 3.2 (PathSpawner) : nouvelles responsabilités, Data Model (detourMin/detourMax), diagramme de flux avec branchement suboptimal + Vue F micro BuildSuboptimalDetour, formules du détour 6 phases, points d'attention GAP/asymétrie/bounds. MAJ section 4.3 (SessionManager) : ajout suboptimalPathProbability + detourProbability (Data Model, Dépendances, Journal). MAJ section 2.2 Vue B data flow (3 params SessionManager→PathSpawner). |
 | 09/03/26 | 2.7     | Propagation feature suboptimal path aux sections impactées. MAJ section 4.1 (LevelRegistry) : CellFlags.SuboptimalPath (1<<8), RegisterSuboptimalPath, IsOnSuboptimalPath. MAJ section 4.2 (GameManager) : renommage followedBestPath→followedAdvisorPath, ajout _pathIsSuboptimal + SetPathIsSuboptimal, EndCurrentTrial 8 params. MAJ section 3.3 (CorridorWallsGenerator) : IsOnSuboptimalPath dans baseCells. MAJ section 4.5 (TrialManager) : EndCurrentTrial 8 params. MAJ section 5.1 (TrialData) : champ path_is_suboptimal + JSON. MAJ section 6.1 (RoundUI) : label « Chemin conseillé suivi ». |
 | 09/03/26 | 2.8     | Refacto complète du fog of war. Nouvelle architecture spawner-based : `FogSpawner` (section 4.8, Start -245) décide conditionnellement de l'activation du fog via `fogProbability` (tirage seedé) et instancie dynamiquement `FogController`. `FogController` (section 4.4) réécrit : suppression DefaultExecutionOrder, gridSize, brush circulaire (PaintDisc, SmoothStep), pixelsPerCell 32→1. Remplacement par `PaintCellSquare` (carrés nets), `RevealCells` batch optimisé (1 Apply), ajout `OnDestroy`. `SessionManager` (section 4.3) : ajout `fogProbability` (float, CLI: `fogProbability=F`, défaut 1.0). `PathSpawner` (section 3.2) : révèle toujours playerCell + 2 cellules nuages dans le fog (même si chemin caché). MAJ sections 2.2 (Vue A/B), 2.3 (patterns Singleton/ExecutionOrder), 4.1 (LevelRegistry dépendances). |
+| 12/03/26 | 2.9     | Motor Advice system (nouvelle section 3.6 MotorAdviceController, nouvelle section 6.2 MotorAdviceUI). Pénalité touche invalide : GridMover détecte les touches non-actives → `GameManager.OnInvalidMoveKeyPressed` (−2 bugs/cloud). Suboptimal traps : `TrapSpawner.PlaceSuboptimalTraps` place des pièges sur le chemin suboptimal. MAJ SessionManager (+5 params : motorAdviceVisibleProbability, motorAdviceReliableProbability, suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps ; fogProbability défaut 1f→0f). MAJ GridMover (délégation MAC, détection touches invalides). MAJ GameManager (+OnInvalidMoveKeyPressed). MAJ TrapSpawner (+PlaceSuboptimalTraps). Diagrammes Vue A/B mis à jour. 3 nouveaux patterns (section 2.3). |
