@@ -177,44 +177,44 @@ public class GameManager : MonoBehaviour
 
     /// <summary>
     /// Appelé quand le joueur dépasse le budget de pas (distance de Manhattan optimale).
-    /// Applique la pénalité : -1 bug sur chaque nuage (même logique que les pièges).
+    /// Applique la pénalité : -2 bugs sur chaque nuage (même logique que les pièges).
     /// </summary>
     void OnStepBudgetExceeded()
     {
         if (_roundOver) return;
 
         overtimeSteps++;
-        if (_leftCloud != null) _leftCloud.AddBugs(-1);
-        if (_rightCloud != null) _rightCloud.AddBugs(-1);
+        if (_leftCloud != null) _leftCloud.AddBugs(-2);
+        if (_rightCloud != null) _rightCloud.AddBugs(-2);
 
         Debug.Log($"[GameManager] Dépassement du budget de pas ! overtimeSteps={overtimeSteps}, moves={steps - 1}, budget={LevelRegistry.Instance.stepBudget}");
     }
 
     /// <summary>
     /// Appelé par Trap.OnTriggerEnter quand le joueur marche sur un piège.
-    /// Applique la pénalité : -1 bug sur chaque nuage.
+    /// Applique la pénalité : -2 bugs sur chaque nuage.
     /// </summary>
     public void OnTrapTriggered()
     {
         if (_roundOver) return;
 
         trapsHit++;
-        if (_leftCloud != null) _leftCloud.AddBugs(-1);
-        if (_rightCloud != null) _rightCloud.AddBugs(-1);
+        if (_leftCloud != null) _leftCloud.AddBugs(-2);
+        if (_rightCloud != null) _rightCloud.AddBugs(-2);
 
         Debug.Log($"[GameManager] Piège ! trapsHit={trapsHit}");
     }
 
     /// <summary>
     /// Appelé quand le joueur appuie sur une touche non valide.
-    /// Applique une pénalité renforcée : -2 bugs sur chaque nuage.
+    /// Applique une pénalité renforcée : -1 bugs sur chaque nuage.
     /// </summary>
     public void OnInvalidMoveKeyPressed()
     {
         if (_roundOver) return;
 
-        if (_leftCloud != null) _leftCloud.AddBugs(-2);
-        if (_rightCloud != null) _rightCloud.AddBugs(-2);
+        if (_leftCloud != null) _leftCloud.AddBugs(-1);
+        if (_rightCloud != null) _rightCloud.AddBugs(-1);
 
         Debug.Log("[GameManager] Touche invalide ! Pénalité x2 appliquée.");
     }
