@@ -34,8 +34,8 @@
   - A : **Score cumulé** — le participant voit son total grandir au fil du bloc → plus motivant, mais un mauvais trial pèse moins dans le ressenti
   - B : **Score remis à zéro** — chaque trial est indépendant → isole mieux la mesure par trial, mais moins de sens de progression
   - C : **Les deux** — score par trial affiché + score cumulé en fond (ex: dans la Mountain UI) → plus complexe à implémenter, plus riche en données
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** Score cumulé dans le bloc, remis à zéro entre blocs (DEC-010, 2026-03-16)
 
 ### Q-002 — Quelles colonnes CSV V1 pour le motor advice ?
 - **Posée le :** 2026-03-12
