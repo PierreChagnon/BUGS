@@ -23,6 +23,9 @@ public class FlowController : MonoBehaviour
     [Header("Build")]
     [SerializeField] private string _buildVersion = "0.3.0-flow";
 
+    [Header("Editor Test")]
+    [SerializeField] private string _editorSessionId;
+
     bool _isBootstrapping;
 
     public SessionConfig Config { get; private set; }
@@ -252,6 +255,11 @@ public class FlowController : MonoBehaviour
         yield return null;
 
         string sessionId = ExtractSessionIdFromAbsoluteUrl(Application.absoluteURL, _sessionIdQueryParameter);
+#if UNITY_EDITOR
+        if (string.IsNullOrWhiteSpace(sessionId))
+            sessionId = _editorSessionId;
+#endif
+
         if (string.IsNullOrWhiteSpace(sessionId))
         {
             Debug.LogError("[FlowController] Aucun sessionId dans l'URL. Le flow ne peut pas demarrer.");

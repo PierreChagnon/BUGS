@@ -55,9 +55,4 @@ public class RoundUI : MonoBehaviour
         GameManager.Instance?.ContinueAfterRound();
     }
 
-    // Alias garde pour eviter de casser le binding bouton existant dans WebTestScene.
-    public void OnRestartClicked()
-    {
-        OnContinueClicked();
-    }
 }

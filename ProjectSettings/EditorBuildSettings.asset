@@ -5,12 +5,33 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 0
-    path: Assets/Game/Scenes/Sandboxes/Pierre/SampleScene.unity
-    guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
-    path: Assets/Game/Scenes/Sandboxes/Pierre/WebTestScene.unity
-    guid: 21a82d999f74e454bb4e6ccd5ad237ba
+    path: Assets/Game/Scenes/GameScenes/BootScene.unity
+    guid: 489c5803513d86541a7dbba2089048bc
+  - enabled: 1
+    path: Assets/Game/Scenes/GameScenes/WelcomeScene.unity
+    guid: 472b138fe50f06344a94037f9a2f3ef7
+  - enabled: 1
+    path: Assets/Game/Scenes/GameScenes/ConsentScene.unity
+    guid: e4ee7f9c76596d945b1ff0a41d0775aa
+  - enabled: 1
+    path: Assets/Game/Scenes/GameScenes/IntroScene.unity
+    guid: de14496a21603dd4f9244ea3936800bb
+  - enabled: 1
+    path: Assets/Game/Scenes/GameScenes/AdvisorChoiceScene.unity
+    guid: a0553863ec241ec4fb98681f793be95a
+  - enabled: 1
+    path: Assets/Game/Scenes/GameScenes/DistalChoiceScene.unity
+    guid: 6125b4388ba424d4b8c1946c812ddb44
+  - enabled: 1
+    path: Assets/Game/Scenes/GameScenes/ProximalScene.unity
+    guid: 088cc697484ebfe4fbc9656247731b62
+  - enabled: 1
+    path: Assets/Game/Scenes/GameScenes/QuestionnaireScene.unity
+    guid: a83307c5ce5a5384487d3999b5a60c80
+  - enabled: 1
+    path: Assets/Game/Scenes/GameScenes/EndSessionScene.unity
+    guid: 78f7ffdda9f2b42409ad48c01e77a694
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0
