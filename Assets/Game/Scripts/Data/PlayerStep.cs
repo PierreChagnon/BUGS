@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 // -----------------------------
-// Classe représentant UN pas du joueur (pour TrialData)
+// Classe représentant un pas du joueur pour le log du trial courant.
 // -----------------------------
 
 [Serializable]

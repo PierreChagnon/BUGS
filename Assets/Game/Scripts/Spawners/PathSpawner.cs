@@ -200,8 +200,10 @@ public class PathSpawner : MonoBehaviour
             GameManager.Instance.SetPathIsSuboptimal(isSuboptimal);
         }
 
-
         bool visible = rng.NextDouble() < session.pathVisible;
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.SetAdvisorPathVisible(visible);
 
         // ------ REVELER LES CASES DANS LE FOG OF WAR ------
         // Toujours révéler la case joueur et les deux nuages (même si le chemin est caché).
