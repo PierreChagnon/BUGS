@@ -173,6 +173,7 @@ public class ApiClient : MonoBehaviour
     IEnumerator FetchSessionConfigCoroutine(string sessionId, Action<SessionConfig> onSuccess, Action<string> onError)
     {
         string url = CombineUrl(supabaseUrl, _sessionConfigPath, sessionId);
+        Debug.Log($"[ApiClient] Fetching session config from {url}");
         using var request = UnityWebRequest.Get(url);
         ApplyCommonHeaders(request);
 

@@ -44,7 +44,6 @@ public static class TutorialSessionFactory
             block_order = 0,
             trial_count = 3,
             is_tutorial = true,
-            advisor_options = new[] { "none", "human", "robot" },
             valley_a = CreateTutorialMap(seed: 1001),
             valley_b = CreateTutorialMap(seed: 1002, minGreenRatio: 0.65f, maxGreenRatio: 0.8f),
             valley_a_preview = new ValleyPreview
@@ -75,8 +74,6 @@ public static class TutorialSessionFactory
             trap_count = 2,
             min_distance = 3,
             max_distance = 4,
-            grid_width = 10,
-            grid_height = 10,
             min_total_bugs = 18,
             max_total_bugs = 26,
             min_green_ratio = minGreenRatio,

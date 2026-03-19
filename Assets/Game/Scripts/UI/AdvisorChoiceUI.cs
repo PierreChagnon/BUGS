@@ -20,10 +20,6 @@ public class AdvisorChoiceUI : MonoBehaviour
         if (flow == null || flow.CurrentBlock == null)
             return;
 
-        _advisorOptions = flow.CurrentBlock.advisor_options != null && flow.CurrentBlock.advisor_options.Length > 0
-            ? flow.CurrentBlock.advisor_options
-            : _advisorOptions;
-
         if (_titleText != null)
             _titleText.text = flow.IsCurrentBlockTutorial ? "Choix d'advisor (tutorial)" : "Choix d'advisor";
 

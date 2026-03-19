@@ -57,7 +57,6 @@ public class BlockConfig
     public int block_order;
     public int trial_count = 1;
     public bool is_tutorial;
-    public string[] advisor_options = Array.Empty<string>();
     public MapGenConfig valley_a = new();
     public MapGenConfig valley_b = new();
     public ValleyPreview valley_a_preview = new();
@@ -72,7 +71,6 @@ public class BlockConfig
             block_order = block_order,
             trial_count = trial_count,
             is_tutorial = is_tutorial,
-            advisor_options = FlowCloneUtility.CloneArray(advisor_options),
             valley_a = valley_a != null ? valley_a.DeepClone() : new MapGenConfig(),
             valley_b = valley_b != null ? valley_b.DeepClone() : new MapGenConfig(),
             valley_a_preview = valley_a_preview != null ? valley_a_preview.DeepClone() : new ValleyPreview(),
@@ -87,9 +85,7 @@ public class MapGenConfig
 {
     public int trap_count = 10;
     public int min_distance = 3;
-    public int max_distance;
-    public int grid_width = 15;
-    public int grid_height = 15;
+    public int max_distance = 10;
     public int min_total_bugs = 20;
     public int max_total_bugs = 80;
     public float min_green_ratio = 0.4f;
@@ -114,8 +110,6 @@ public class MapGenConfig
             trap_count = trap_count,
             min_distance = min_distance,
             max_distance = max_distance,
-            grid_width = grid_width,
-            grid_height = grid_height,
             min_total_bugs = min_total_bugs,
             max_total_bugs = max_total_bugs,
             min_green_ratio = min_green_ratio,
@@ -215,7 +209,6 @@ public class TrialResponseRow
     public int block_index;
     public int trial_index;
     public int trial_count;
-    public string[] advisor_options;
     public string advisor_choice;
     public string valley_choice;
     public int grid_width;
