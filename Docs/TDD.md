@@ -2,8 +2,8 @@
 
 | Nom du projet :    | BUGS                          |
 | :----------------- | :---------------------------- |
-| **Version :**      | 2.9                           |
-| **Dernière MAJ :** | 12/03/26                      |
+| **Version :**      | 3.0                           |
+| **Dernière MAJ :** | 23/03/26                      |
 | **Auteur(s) :**    | @florian, @pierre             |
 | **Moteur :**       | Unity 6000.3.5f2              |
 | **Langage :**      | C#                            |
@@ -14,8 +14,10 @@
 
 Jeu de collecte de bugs sur grille, développé dans le cadre d'une étude de recherche.
 Le joueur se déplace en step-by-step sur une grille générée procéduralement pour collecter des nuages de bugs en évitant des pièges.
-Basé sur Unity 6000.3.5f2 avec le pipeline URP. Architecture orientée Singletons avec un `LevelRegistry` comme source de vérité unique pour l'état spatial.
-Intègre un pipeline complet de collecte de données de trial et de communication API.
+Basé sur Unity 6000.3.5f2 avec le pipeline URP.
+
+**Architecture multi-scènes** : un `FlowController` persistant (DontDestroyOnLoad) orchestre le déroulement complet de la session expérimentale à travers 9 scènes dédiées (Boot → Welcome → Consent → Intro → AdvisorChoice → DistalChoice → Proximal → Questionnaire → EndSession). La configuration de session est récupérée depuis un backend Supabase via `ApiClient` (également DDOL). La scène `ProximalScene` conserve l'architecture orientée Singletons avec `LevelRegistry` comme source de vérité unique pour l'état spatial de la grille.
+Intègre un pipeline complet de collecte de données de trial et de communication API REST (Supabase).
 
 ## 1.2 Objectifs techniques prioritaires
 
@@ -41,12 +43,19 @@ Assets/
 │   ├── Prefabs/          # BugCloud, Player, Tile, Trap, Wall, Quad, FogSurface, Ground
 │   │   ├── Characters/   # Personnages modulaires SciFi
 │   │   └── DesignProto/  # Proto V0 (Nature) / V1 (Alien) variantes de tuiles
-│   ├── Scripts/          # 18 scripts C# du jeu
+│   ├── Scripts/
+│   │   ├── Controllers/  # FadeTransition
+│   │   ├── Data/         # FlowDataModels, FlowSerializationUtility, TutorialSessionFactory
+│   │   ├── Entities/     # BugCloud, Trap
+│   │   ├── Network/      # ApiClient
+│   │   ├── Spawners/     # BugCloudSpawner, PathSpawner, CorridorWallsGenerator, TrapSpawner, TilesSpawner, PlayerSpawner, FogSpawner
+│   │   ├── Systems/      # FlowController, GameManager, SessionManager, TrialManager, LevelRegistry, GridMover, MotorAdviceController
+│   │   └── UI/           # RoundUI, MotorAdviceUI, AdvisorChoiceUI, ConsentUI, DistalChoiceUI, FlowContinueScreenUI, QuestionnaireUI
 │   ├── Utils/
 │   │   └── Maze/         # MazeGenerator (DFS backtracker) + MazeGrid
 │   ├── Shaders/          # FogUnlitMask, CharacterOutlineUnlit, CorruptedTile (.shadergraph)
 │   ├── Scenes/
-│   │   ├── GameScenes/   # Scènes production
+│   │   ├── GameScenes/   # BootScene, WelcomeScene, ConsentScene, IntroScene, AdvisorChoiceScene, DistalChoiceScene, ProximalScene, QuestionnaireScene, EndSessionScene
 │   │   └── Sandboxes/    # Florian/ (prototypes design) et Pierre/ (SampleScene, WebTestScene)
 │   ├── Animations/, Audio/, Materials/, Textures/, UI/
 ├── External/             # Assets tiers
@@ -68,18 +77,32 @@ Répond à : "Dans quel ordre les systèmes démarrent-ils ?"
 
 ```mermaid
 graph TD
-    LR["LevelRegistry\nAwake −300"]
-    TS["TilesSpawner\nAwake −240"]
-    GM["GameManager\nAwake 0"]
-    PS["PlayerSpawner\nStart −250"]
-    FS["FogSpawner\nStart −245"]
-    BCS["BugCloudSpawner\nStart −200"]
-    PaS["PathSpawner\nStart −100"]
-    CWG["CorridorWallsGenerator\nStart −50"]
-    TrS["TrapSpawner\nStart −10"]
-    MAC["MotorAdviceController\nStart 0"]
-    SM["SessionManager\nStart 0 → BeginFirstRound"]
+    subgraph "Couche DDOL (DontDestroyOnLoad) — persistante"
+        FC["FlowController\nAwake DDOL"]
+        AC["ApiClient\nAwake DDOL"]
+        FT["FadeTransition\nAwake DDOL"]
+    end
 
+    subgraph "ProximalScene — pipeline d'initialisation local"
+        LR["LevelRegistry\nAwake −300"]
+        TS["TilesSpawner\nAwake −240"]
+        GM["GameManager\nAwake 0"]
+        PS["PlayerSpawner\nStart −250"]
+        FS["FogSpawner\nStart −245"]
+        BCS["BugCloudSpawner\nStart −200"]
+        PaS["PathSpawner\nStart −100"]
+        CWG["CorridorWallsGenerator\nStart −50"]
+        TrS["TrapSpawner\nStart −10"]
+        MAC["MotorAdviceController\nStart 0"]
+        SM["SessionManager\nAwake 0 → CopyConfigFromFlowController"]
+    end
+
+    FC -->|"BootstrapFlow → FetchSessionConfig"| AC
+    AC -->|"SessionConfig"| FC
+    FC -->|"TransitionToScene(ProximalScene)"| FT
+    FT -->|"FadeOut → LoadScene → FadeIn"| SM
+
+    SM -->|"CopyConfigFromFlowController → seed"| LR
     LR --> TS
     TS -->|originWorld| PS
     PS -->|joueur enregistré| FS
@@ -89,7 +112,7 @@ graph TD
     CWG -->|murs générés| TrS
     TrS -.->|spawn terminé| MAC
     MAC -.->|"motor advice prêt"| SM
-    SM -->|BeginFirstRound| GM
+    SM -->|"Start → BeginFirstRound"| GM
 ```
 
 ### Vue B — Data Flow
@@ -98,11 +121,14 @@ Répond à : "Qui communique avec qui et comment ?"
 
 ```mermaid
 graph LR
-    CLI["Args CLI"]
+    SUPA["Supabase Backend"]
+    AC["ApiClient\n(DDOL)"]
+    FC["FlowController\n(DDOL)"]
+    FT["FadeTransition\n(DDOL)"]
     SM["SessionManager"]
     LR[("LevelRegistry\nSource de vérité")]
     FS["FogSpawner"]
-    FC["FogController"]
+    FOG["FogController"]
     GEN["Spawners\nPS · BCS · CWG · TrS"]
     PaS["PathSpawner"]
     GM["GameManager"]
@@ -111,19 +137,24 @@ graph LR
     MAUI["MotorAdviceUI"]
     ENT["BugCloud · Trap"]
     TM["TrialManager"]
-    UI["RoundUI"]
-    API["API REST"]
+    UI_R["RoundUI"]
+    UI_FLOW["UI Screens\nConsent · Advisor\nDistal · Questionnaire"]
 
-    CLI -->|parse| SM
+    SUPA <-->|"REST API\nGET/POST/PATCH"| AC
+    AC -->|"SessionConfig"| FC
+    AC -->|"OnTrialResponseStored"| FC
+    FC -->|"AdvanceToPhase\n+ TransitionToScene"| FT
+    FC -->|"ActiveMapConfig"| SM
+    UI_FLOW -->|"OnConsentGiven\nOnAdvisorChosen\nOnValleyChosen\nOnQuestionnaireComplete"| FC
     SM -->|params expérimentaux| GEN
     SM -->|"pathVisible, suboptimalPath,\ndetourProb"| PaS
     SM -->|"motorAdviceVisible,\nmotorAdviceReliable"| MAC
     SM -->|fogProbability| FS
-    SM -->|BeginFirstRound| GM
-    FS -->|"Instantiate conditionnel"| FC
+    SM -->|"Start → BeginFirstRound"| GM
+    FS -->|"Instantiate conditionnel"| FOG
     GEN <-->|état spatial| LR
     PaS <-->|chemins + optimalPath| LR
-    PaS -->|RevealCells| FC
+    PaS -->|RevealCells| FOG
     PaS -->|SetChosenPath| GM
     GR -->|"TryGetStep\nIsActiveMoveKey"| MAC
     GR -->|OnPlayerStep| GM
@@ -131,15 +162,70 @@ graph LR
     MAC -->|OnAdviceChanged| MAUI
     ENT -->|signaux| GM
     GM -->|trial data| TM
-    TM -->|POST /api/trials| API
-    GM -->|OnRoundEnded| UI
+    TM -->|"SendTrialResponse"| AC
+    GM -->|"ContinueAfterRound\n→ OnTrialComplete"| FC
+    GM -->|OnRoundEnded| UI_R
+```
+
+### Vue D — Cycle de vie d'une session (séquence)
+
+Répond à : "Que se passe-t-il dans le temps, de bout en bout ?"
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant FC as FlowController (DDOL)
+    participant AC as ApiClient (DDOL)
+    participant SUPA as Supabase
+    participant SC as Scènes UI
+    participant SM as SessionManager
+    participant GM as GameManager
+    participant TM as TrialManager
+
+    B->>FC: URL ?session=xyz
+    FC->>AC: FetchSessionConfig(xyz)
+    AC->>SUPA: GET /api/sessions/xyz
+    SUPA-->>AC: SessionConfig JSON
+    AC-->>FC: onSuccess(config)
+    FC->>FC: Initialize(config) + PrepareConfig (tutorial)
+
+    loop Pour chaque BlockConfig
+        FC->>SC: AdvisorChoiceScene
+        SC-->>FC: OnAdvisorChosen(type)
+        FC->>SC: DistalChoiceScene
+        SC-->>FC: OnValleyChosen(A/B)
+
+        loop Pour chaque trial du bloc
+            FC->>SM: TransitionToScene(ProximalScene)
+            SM->>SM: CopyConfigFromFlowController()
+            SM->>GM: BeginFirstRound()
+            GM->>TM: StartNewTrial()
+            Note over GM: Gameplay (steps, traps, clouds)
+            GM->>TM: EndCurrentTrial(résultats)
+            TM->>AC: SendTrialResponse(row)
+            AC->>SUPA: POST /api/trial-responses
+            SUPA-->>AC: {id: "..."}
+            AC-->>FC: OnTrialResponseStored
+            GM->>FC: OnTrialComplete(score)
+        end
+
+        opt Questions en fin de bloc
+            FC->>SC: QuestionnaireScene
+            SC-->>FC: OnQuestionnaireComplete(responses)
+            FC->>AC: QueueQuestionnairePatchForTrial
+            AC->>SUPA: PATCH /api/trial-responses/:id
+        end
+    end
+
+    FC->>SC: EndSessionScene
+    FC->>AC: CompleteSession(participant_id)
 ```
 
 ## 2.3 Patterns utilisés
 
 | Pattern | Où dans le code | Pourquoi ce choix |
 | :--- | :--- | :--- |
-| **Singleton** | `LevelRegistry.Instance`, `GameManager.Instance`, `FogController.Instance` (dynamique), `SessionManager.Instance` | Permet aux spawners d'accéder à l'état global sans injection — chaque singleton a un rôle unique et non-substituable. `SessionManager` ajouté comme Singleton pour exposer les paramètres de protocole expérimental directement aux spawners. `FogController.Instance` est instancié dynamiquement par `FogSpawner` — peut être `null` si le brouillard est désactivé ce round |
+| **Singleton** | `LevelRegistry.Instance`, `GameManager.Instance`, `FogController.Instance` (dynamique), `SessionManager.Instance`, `FlowController.Instance` (DDOL), `ApiClient.Instance` (DDOL), `FadeTransition.Instance` (DDOL) | Permet aux spawners d'accéder à l'état global sans injection — chaque singleton a un rôle unique et non-substituable. `SessionManager` ajouté comme Singleton pour exposer les paramètres de protocole expérimental directement aux spawners. `FogController.Instance` est instancié dynamiquement par `FogSpawner` — peut être `null` si le brouillard est désactivé ce round. Les singletons DDOL survivent aux changements de scène |
 | **CellFlags bitwise** | `LevelRegistry.CellFlags` (8 flags : `BugCloud`, `Trap`, `PathLeft`, `PathRight`, `Reserved`, `Visited`, `Wall`, `PlayerStart`) | Chaque cellule cumule plusieurs états en un seul int, testé par masque `&` — ex: une case peut être `PathLeft \| Reserved` |
 | **Execution Order pipeline** | `[DefaultExecutionOrder(N)]` sur 9 scripts (de -300 à 0) | Garantit Awake(-300→-240) puis Start(-250→-10→0) sans couplage direct entre spawners — chaque script lit l'état posé par le précédent via LevelRegistry. `FogController` n'a plus de `DefaultExecutionOrder` — il est instancié dynamiquement par `FogSpawner` (Start -245) et son `Awake` se déclenche immédiatement à l'`Instantiate` |
 | **Entity → Manager signaling** | `GridMover` → `GameManager.OnPlayerStep`, `BugCloud` → `OnCloudCollected`, `Trap` → `OnTrapTriggered` | Les entités savent ce qu'elles sont et signalent ce qui leur arrive. Le GameManager interprète ces signaux (fog, score, trial). Aucune entité ne connaît les règles du jeu |
@@ -151,6 +237,11 @@ graph LR
 | **Motor Advice** | `MotorAdviceController.Instance` (Singleton) → `GridMover.ReadStep()` + `GridMover.IsActiveMoveKey()` | Tirage seedé d'un jeu de touches actif (ZQSD/TFGH/OKLM) avec advice visible/fiable configurable par SessionManager. GridMover délègue la lecture d'input et la validation des touches actives à MotorAdviceController |
 | **Invalid Key Penalty** | `GridMover.IsAnyNonActiveMoveKeyPressedThisFrame()` → `GameManager.OnInvalidMoveKeyPressed()` | Toute touche pressée hors du set actif déclenche une pénalité renforcée : -2 bugs dans chaque nuage (plus sévère que piège -1). Détection via itération `Keyboard.current.allKeys` |
 | **Suboptimal Trap Placement** | `TrapSpawner.PlaceSuboptimalTraps()` → `SessionManager.Instance` (suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps) | Permet de placer des pièges spécifiquement sur le chemin suboptimal (avant les pièges normaux). Le nombre de pièges suboptimaux est tiré dans [min, max] et compte dans le budget total `trapCount` |
+| **Scene Flow State Machine** | `FlowController.AdvanceToPhase(GamePhase)` — enum `GamePhase` à 10 états (Boot → Welcome → Consent → Intro → Tutorial → AdvisorChoice → DistalChoice → Proximal → Questionnaire → EndSession) | Chaque phase correspond à une scène Unity. `FlowController` est DDOL : il survit aux `LoadScene` et orchestre les transitions. Les scènes UI appellent des callbacks typés (`OnConsentGiven`, `OnAdvisorChosen`, `OnValleyChosen`, `OnQuestionnaireComplete`) sans connaître la logique de séquencement |
+| **DDOL Persistent Layer** | `FlowController`, `ApiClient`, `FadeTransition` — tous `DontDestroyOnLoad` + Singleton avec guard `Destroy(gameObject)` si doublon | Couche persistante qui survit aux transitions de scène. Permet d'accumuler l'état de session (`PlayerSessionState`), de maintenir les connexions API et d'enchaîner les transitions visuelles. Les scènes locales (ProximalScene) ont leurs propres singletons non-DDOL (`GameManager`, `SessionManager`, `LevelRegistry`) |
+| **Backend Config Pipeline** | `FlowController.BootstrapFlow()` → `ApiClient.FetchSessionConfig(sessionId)` → `Initialize(SessionConfig)` → `SessionManager.CopyConfigFromFlowController()` | La configuration expérimentale vient du backend Supabase, pas des args CLI. `SessionConfig` contient une liste de `BlockConfig`, chaque bloc contient deux `MapGenConfig` (valley_a / valley_b). `SessionManager` copie le `MapGenConfig` actif dans ses champs publics pour que les spawners lisent toujours `SessionManager.Instance.paramName` — le pattern Research Parameter Pipeline est préservé |
+| **Valley Choice → MapGenConfig** | `FlowController.ActiveMapConfig` → computed property : `State.valley_choice == ValleyChoice.B ? block.valley_b : block.valley_a` + injection de `CurrentTrialSeed` | Le choix distal du joueur (vallée A ou B) détermine quel `MapGenConfig` sera utilisé pour générer la grille du trial. La seed du trial est injectée dans le clone pour garantir la reproductibilité |
+| **Queued Trial Upload** | `ApiClient._pendingTrialRequests` (Queue) + `_storedTrialIdsByKey` (Dictionary) + `_pendingQuestionnairePatches` (Dictionary) | Les envois de trial sont mis en queue avec retry automatique (max 3 tentatives). Quand un trial est stocké, son `id` Supabase est mémorisé par clé `participant|block|trial`. Les patchs de questionnaire sont mis en attente jusqu'à ce que le `trialResponseId` correspondant soit disponible, puis flushés automatiquement |
 
 # 3. Systèmes de gameplay
 
@@ -1093,14 +1184,15 @@ graph TD
 ### 4.2.1 Responsabilités
 
 - Suivre l'état du round en cours (steps, trapsHit, bugsCollected, followedAdvisorPath)
-- Gérer le cycle de vie des rounds (démarrage, fin de manche sur collecte de nuage, restart)
+- Gérer le cycle de vie des rounds (démarrage, fin de manche sur collecte de nuage)
 - Enregistrer les deux nuages du round et déterminer le nuage optimal
 - Orchestrer les callbacks d'entités : `OnPlayerStep` (GridMover), `OnTrapTriggered` (Trap), `OnCloudCollected` (BugCloud), `OnInvalidMoveKeyPressed` (GridMover)
 - À chaque pas joueur : révéler le brouillard, marquer la cellule visitée, vérifier l'adhérence au chemin conseillé, vérifier le dépassement du budget de pas, enregistrer dans le trial
-- Appliquer les pénalités de pièges sur les nuages (-1 bug par nuage par piège)
-- Appliquer la pénalité de dépassement du budget de pas (-1 bug par nuage par pas en trop)
+- Appliquer les pénalités de pièges sur les nuages (-2 bugs par nuage par piège)
+- Appliquer la pénalité de dépassement du budget de pas (-2 bugs par nuage par pas en trop)
 - **Appliquer la pénalité de touche invalide** (-2 bugs par nuage par appui non valide)
 - Émettre `OnRoundEnded` pour l'UI (RoundUI) — **pas de référence UI directe**
+- **Déléguer la transition post-round** à `FlowController.OnTrialComplete(score)` via `ContinueAfterRound()` — fallback `RestartRound()` si FlowController absent (mode debug)
 - Coordonner avec TrialManager pour la collecte de données de recherche (transmettre `cloud_distance` via `SetCloudDistance`)
 
 ### 4.2.2 Composants clés (Data Model)
@@ -1115,20 +1207,18 @@ public class GameManager : MonoBehaviour
     [Header("Références")]
     public TrialManager trialManager;
 
-    [Header("Session")]
-    int _screenCounter = 0;
-
     [Header("Round / Score")]
-    public int steps = 0;
-    public int trapsHit = 0;
-    public int bugsCollected = 0;
-    public int overtimeSteps = 0;
+    public int steps;
+    public int trapsHit;
+    public int overtimeSteps;
+    public int bugsCollected;
     public bool followedAdvisorPath = true;
 
-    bool _pathIsSuboptimal = false;
+    bool _roundOver;
+    bool _pathIsSuboptimal;
+    bool _advisorPathVisible = true;
 
-    public bool inputLocked { get; private set; } = false;
-    bool _roundOver = false;
+    public bool inputLocked { get; private set; }
 
     BugCloud _leftCloud, _rightCloud;
     readonly HashSet<Vector2Int> _advisorPath = new();
@@ -1154,48 +1244,49 @@ public class GameManager : MonoBehaviour
 | :------------------------------------------ | :---------------------- | :-------------------------------------------------------------------------------- |
 | Instance                                    | GameManager             | Référence statique globale (Singleton)                                            |
 | trialManager                                | TrialManager            | Référence au TrialManager pour l'envoi des données de recherche                   |
-| _blockId (lecture)_                          | _via SessionManager_    | Lu en inline depuis `SessionManager.Instance.blockId` dans `StartNewRound` — **paramètre recherche** (fallback : 1 si Instance null) |
-| _screenCounter                              | int (privé)             | Compteur séquentiel de manches dans la session                                    |
 | steps / trapsHit / bugsCollected            | int                     | Compteurs du round courant                                                        |
 | overtimeSteps                               | int                     | Compteur de pas au-delà du budget (distance Manhattan)                           |
 | followedAdvisorPath                         | bool                    | `true` tant que le joueur reste sur le chemin conseillé                           |
 | _pathIsSuboptimal                           | bool (privé)            | `true` si le chemin affiché est suboptimal (reçu de PathSpawner via `SetPathIsSuboptimal`) |
+| **_advisorPathVisible**                     | bool (privé)            | `true` par défaut — mis à jour via `SetAdvisorPathVisible(bool)` par PathSpawner  |
 | inputLocked                                 | bool (get)              | Verrouille les inputs joueur quand `true` (fin de round)                          |
 | _roundOver                                  | bool (privé)            | Empêche les callbacks d'entités après fin de round                                |
 | _advisorPath                                | HashSet (privé)         | Cellules du chemin conseillé (reçu de PathSpawner)                                |
 | RoundEndInfo                                | struct                  | Données transmises via OnRoundEnded (bugs, traps, overtimeSteps, steps, chemin conseillé, bugs L/R, optimalPathVisible) |
 | OnRoundEnded                                | event Action\<RoundEndInfo\> | Émis à la fin du round — RoundUI s'y abonne                                 |
-| BeginFirstRound()                           | void                    | Point d'entrée appelé par SessionManager — lance le premier round                 |
+| BeginFirstRound()                           | void                    | Point d'entrée appelé par SessionManager — appelle `trialManager.StartNewTrial()` |
+| **ContinueAfterRound()**                    | void                    | Délègue au `FlowController.OnTrialComplete(bugsCollected)` ; fallback `RestartRound()` si FlowController absent |
 | RegisterClouds(BugCloud, BugCloud)          | void                    | Enregistre les 2 nuages, transmet la config map (positions, totalBugs, greenRatio) à TrialManager via `SetMapConfig` |
 | SetChosenPath(IEnumerable\<Vector2Int\>)    | void                    | Reçoit le chemin conseillé de PathSpawner pour détecter les déviations            |
-| OnPlayerStep(Vector2Int)                    | void                    | Appelé par GridMover — fog, visited, déviation, budget de pas, trial log           |
-| OnTrapTriggered()                           | void                    | Appelé par Trap — trapsHit++, -1 bug sur chaque nuage                            |
-| OnInvalidMoveKeyPressed()                   | void                    | Appelé par GridMover — pénalité renforcée : -2 bugs sur chaque nuage             |
-| OnStepBudgetExceeded()                      | void (privé)            | Appelé quand le joueur dépasse le budget de pas — overtimeSteps++, -1 bug sur chaque nuage |
-| OnCloudCollected(BugCloud)                  | void                    | Fin de round — calcule bugs verts, détermine trueCloud, transmet cloud_distance via SetCloudDistance, détermine optimalPathVisible par tirage probabiliste (`rng.NextDouble() < pathVisible`), finalise trial (choice, correct, trueCloud, greenBugs, trapsHit, steps, optimalPathVisible, pathIsSuboptimal), émet OnRoundEnded |
+| **SetAdvisorPathVisible(bool)**             | void                    | Reçoit de PathSpawner si le chemin conseillé est visible — stocke dans `_advisorPathVisible` |
 | SetPathIsSuboptimal(bool)                   | void                    | Reçoit de PathSpawner si le chemin affiché est suboptimal — stocke dans `_pathIsSuboptimal` |
+| OnPlayerStep(Vector2Int)                    | void                    | Appelé par GridMover — fog, visited, déviation, budget de pas, trial log           |
+| OnTrapTriggered()                           | void                    | Appelé par Trap — trapsHit++, **-2 bugs** sur chaque nuage                       |
+| OnInvalidMoveKeyPressed()                   | void                    | Appelé par GridMover — pénalité : **-2 bugs** sur chaque nuage                   |
+| OnStepBudgetExceeded()                      | void (privé)            | Appelé quand le joueur dépasse le budget de pas — overtimeSteps++, **-2 bugs** sur chaque nuage |
+| OnCloudCollected(BugCloud)                  | void                    | Fin de round — `FogController.RevealAll()`, calcule bugs verts, détermine trueCloud, transmet cloud_distance, finalise trial (10 params dont overtimeSteps, followedAdvisorPath, _advisorPathVisible, _pathIsSuboptimal), émet OnRoundEnded |
 | GetBestCloud()                              | BugCloud                | Retourne le nuage avec le meilleur `greenRatio`, `null` si égalité                |
-| RestartRound()                              | void                    | Recharge la scène active (appelé par RoundUI)                                     |
+| RestartRound()                              | void                    | Recharge la scène active (mode debug, fallback si FlowController absent)           |
 
 ### 4.2.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (MarkVisited, optimalPathLength, stepBudget, TryGetRoundSeed), `SessionManager.Instance` (blockId — lecture directe), `FogController.Instance` (RevealCell), `TrialManager` (StartNewTrial, RecordMove, SetMapConfig, SetOptimalPathLength, SetCloudDistance, EndCurrentTrial, SendTrials), `BugCloud` (nuages du round), `PathSpawner` (chemin conseillé)
-- **Est utilisé par :** `SessionManager` (lance `BeginFirstRound()`), `GridMover` (appelle `OnPlayerStep()`, `OnInvalidMoveKeyPressed()`), `BugCloud` (appelle `OnCloudCollected()`), `Trap` (appelle `OnTrapTriggered()`), `PathSpawner` (appelle `SetChosenPath()`, `SetPathIsSuboptimal()`)
+- **Nécessite :** `LevelRegistry.Instance` (MarkVisited, optimalPathLength, stepBudget), `FogController.Instance` (RevealCell, **RevealAll**), `TrialManager` (StartNewTrial, RecordMove, SetMapConfig, SetOptimalPathLength, SetCloudDistance, EndCurrentTrial), `FlowController.Instance` (OnTrialComplete — pour ContinueAfterRound), `BugCloud` (nuages du round), `PathSpawner` (chemin conseillé)
+- **Est utilisé par :** `SessionManager` (lance `BeginFirstRound()`), `GridMover` (appelle `OnPlayerStep()`, `OnInvalidMoveKeyPressed()`), `BugCloud` (appelle `OnCloudCollected()`), `Trap` (appelle `OnTrapTriggered()`), `PathSpawner` (appelle `SetChosenPath()`, `SetPathIsSuboptimal()`, `SetAdvisorPathVisible()`), `RoundUI` (appelle `ContinueAfterRound()`)
+- **Communique avec l'UI via :** `event OnRoundEnded` → `RoundUI` (pas de références UI directes)
 - **Communique avec l'UI via :** `event OnRoundEnded` → `RoundUI` (pas de références UI directes)
 
 ### 4.2.4 Diagramme de flux
 
 ```mermaid
 graph TD
-    A[SessionManager.BeginFirstRound] --> B["StartNewRound('forest')"]
-    B --> B1["_screenCounter++"]
-    B1 --> B2["Récupérer roundSeed depuis LevelRegistry"]
-    B2 --> C["TrialManager.StartNewTrial(SessionManager.Instance.blockId, screenCounter, screenType, seed)"]
+    A[SessionManager.BeginFirstRound] --> B["trialManager.StartNewTrial()"]
 
     subgraph "Phase Setup — appelé par les spawners"
         D[BugCloudSpawner] -->|RegisterClouds| E[Trie leftCloud / rightCloud par position X]
         E --> F["TrialManager.SetMapConfig(gridSize, leftCell, leftBugs, leftGreenRatio, rightCell, rightBugs, rightGreenRatio)"]
         G[PathSpawner] -->|SetChosenPath| H[Remplit _advisorPath HashSet]
+        G -->|SetAdvisorPathVisible| H2["_advisorPathVisible = isVisible"]
+        G -->|SetPathIsSuboptimal| H3["_pathIsSuboptimal = isSuboptimal"]
     end
 
     subgraph "Phase Gameplay — OnPlayerStep(cell) via GridMover"
@@ -1215,16 +1306,16 @@ graph TD
     end
 
     subgraph "OnStepBudgetExceeded — pénalité de dépassement"
-        SB1["overtimeSteps++"] --> SB2["leftCloud.AddBugs(-1)"]
-        SB2 --> SB3["rightCloud.AddBugs(-1)"]
+        SB1["overtimeSteps++"] --> SB2["leftCloud.AddBugs(-2)"]
+        SB2 --> SB3["rightCloud.AddBugs(-2)"]
     end
 
     subgraph "OnTrapTriggered — via Trap.OnTriggerEnter"
         T0[Trap] -->|OnTrapTriggered| T1{_roundOver ?}
         T1 -->|Oui| T2[return]
         T1 -->|Non| T3["trapsHit++"]
-        T3 --> T4["leftCloud.AddBugs(-1)"]
-        T4 --> T5["rightCloud.AddBugs(-1)"]
+        T3 --> T4["leftCloud.AddBugs(-2)"]
+        T4 --> T5["rightCloud.AddBugs(-2)"]
     end
 
     subgraph "OnInvalidMoveKeyPressed — via GridMover"
@@ -1236,24 +1327,26 @@ graph TD
 
     subgraph "Phase Fin de Round — OnCloudCollected via BugCloud"
         P[BugCloud.OnTrigger] -->|OnCloudCollected| Q["_roundOver = true, inputLocked = true"]
-        Q --> R["bugsCollected += max(0, RoundToInt(cloud.totalBugs × cloud.greenRatio))"]
+        Q --> Q1["FogController.RevealAll()"]
+        Q1 --> R["bugsCollected = max(0, RoundToInt(cloud.totalBugs × cloud.greenRatio))"]
         R --> R1["trueCloud = best == leftCloud ? 'left' : best == rightCloud ? 'right' : 'none'"]
-        R1 --> R1b["TrialManager.SetCloudDistance(LevelRegistry.stepBudget)"]
-        R1b --> R2["optimalPathVisible = rng.NextDouble() < SessionManager.Instance.pathVisible"]
-        R2 --> S["TrialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps, optimalPathVisible, _pathIsSuboptimal)"]
-        S --> S1["TrialManager.SendTrials()"]
-        S1 --> U["OnRoundEnded?.Invoke(RoundEndInfo)"]
+        R1 --> R1b["TrialManager.SetOptimalPathLength + SetCloudDistance"]
+        R1b --> S["TrialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps, overtimeSteps, followedAdvisorPath, _advisorPathVisible, _pathIsSuboptimal)"]
+        S --> U["OnRoundEnded?.Invoke(RoundEndInfo)"]
     end
 
     U -.->|RoundUI écoute| V["Afficher panneau game over"]
-    V -.->|Bouton Restart| W["RestartRound() — SceneManager.LoadScene"]
+    V -.->|Bouton Continuer| W["ContinueAfterRound()"]
+    W --> W1{FlowController.Instance != null ?}
+    W1 -->|Oui| W2["FlowController.OnTrialComplete(bugsCollected)"]
+    W1 -->|Non| W3["RestartRound() — SceneManager.LoadScene"]
 ```
 
 ### 4.2.5 Formules et règles métier
 
 ```
-Pénalité piège    = -1 bug dans CHAQUE nuage (leftCloud + rightCloud) par piège déclenché
-Pénalité budget   = -1 bug dans CHAQUE nuage (leftCloud + rightCloud) par pas au-delà du budget
+Pénalité piège    = -2 bugs dans CHAQUE nuage (leftCloud + rightCloud) par piège déclenché
+Pénalité budget   = -2 bugs dans CHAQUE nuage (leftCloud + rightCloud) par pas au-delà du budget
 Pénalité invalide = -2 bugs dans CHAQUE nuage (leftCloud + rightCloud) par appui de touche non active
 Budget de pas     = LevelRegistry.stepBudget (= distance Manhattan joueur→nuages, enregistré par BugCloudSpawner)
 movesMade         = steps - 1 (le premier step est le déplacement initial, pas un dépassement)
@@ -1264,16 +1357,19 @@ Choix correct     = le joueur a collecté le nuage avec le meilleur greenRatio i
 trueCloud         = "left" si best == leftCloud, "right" si best == rightCloud, "none" si égalité
 followedAdvisorPath = true tant que TOUS les pas du joueur sont dans _advisorPath
 Fog + Visited     = gérés par OnPlayerStep (pas par GridMover)
+RevealAll         = appelé dans OnCloudCollected pour révéler toute la carte à la fin du round
+Accumulated score = FlowController.GetAccumulatedScoreAfterTrial(trialScore) — géré côté TrialManager, pas GameManager
 ```
 
 ### 4.2.6 Points d'attention
 
 - **⚠️ Séparation UI :** GameManager n'a AUCUNE référence UI directe — il émet `OnRoundEnded` et RoundUI s'y abonne. C'est un design « manager émet, UI écoute »
-- **⚠️ Edge case :** Si `leftCloud.totalBugs == rightCloud.totalBugs`, `GetBestCloud()` retourne `null` et `choice_correct` sera toujours `false` — à valider si c'est le comportement souhaité pour l'étude
-- **⚠️ Fog centralisé :** La révélation du brouillard et le marquage visited sont faits dans `OnPlayerStep()`, pas dans GridMover — un seul point de vérité pour ce qui se passe quand le joueur bouge
+- **⚠️ Edge case greenRatio :** Si `leftCloud.greenRatio == rightCloud.greenRatio` (Approximately), `GetBestCloud()` retourne `null` et `choice_correct` sera toujours `false`
+- **⚠️ Fog centralisé :** La révélation du brouillard et le marquage visited sont faits dans `OnPlayerStep()`, pas dans GridMover — un seul point de vérité. `RevealAll()` est appelé une fois en fin de round.
 - **⚠️ Budget de pas :** La vérification du dépassement utilise `steps - 1` car le premier step est l'arrivée sur la première case. Si `stepBudget == 0` (non initialisé), la pénalité ne s'applique pas
-- **⚠️ Séquencement :** `RegisterClouds` peut être appelé avant `StartNewRound` (BugCloudSpawner Start -200 vs GameManager Start 0). Le tampon `pendingMapConfigJson` dans TrialManager gère ce cas
-- **🔧 À clarifier :** `screenType` toujours "forest" — à paramétriser quand le protocole de recherche intègrera plusieurs types d'écran
+- **⚠️ Séquencement :** `RegisterClouds` peut être appelé avant `StartNewTrial` (BugCloudSpawner Start -200 vs GameManager Start 0). Le tampon `pendingMapConfigJson` dans TrialManager gère ce cas
+- **⚠️ ContinueAfterRound :** Vérifie `_roundOver` avant d'agir — empêche les appels prématurés. Délègue à FlowController si présent, sinon fallback `RestartRound()` (mode debug sans flow)
+- **⚠️ Pénalités uniformes :** Toutes les pénalités (piège, budget, touche invalide) sont **-2 bugs** sur chaque nuage — pas de différenciation entre types de pénalité
 
 ### 4.2.7 Journal d'implémentation
 
@@ -1287,26 +1383,25 @@ Fog + Visited     = gérés par OnPlayerStep (pas par GridMover)
 | 02/03/26 | @auteur     | `pathVisible` passe de bool à float (probabilité). `OnCloudCollected` détermine `optimalPathVisible` par tirage `rng.NextDouble() < pathVisible` et le transmet à `EndCurrentTrial` (7 params). `RoundEndInfo` ajoute `optimalPathVisible`. |
 | 09/03/26 | @auteur     | Feature suboptimal path : renommage `followedBestPath` → `followedAdvisorPath` partout. Ajout `_pathIsSuboptimal` (bool privé) + `SetPathIsSuboptimal(bool)` (appelé par PathSpawner). `RoundEndInfo` utilise `followedAdvisorPath`. `EndCurrentTrial` passe désormais 8 params (ajout `_pathIsSuboptimal`). |
 | 12/03/26 | @auteur     | Pénalité touche invalide : ajout `OnInvalidMoveKeyPressed()` — appelé par GridMover quand une touche hors du set actif est pressée. Applique -2 bugs sur chaque nuage (pénalité renforcée vs piège -1). Guard `_roundOver`. |
+| 23/03/26 | @pierre     | Intégration FlowController : suppression `_screenCounter`, suppression `StartNewRound`, `BeginFirstRound` appelle directement `trialManager.StartNewTrial()`. Ajout `ContinueAfterRound()` (délègue à FlowController.OnTrialComplete ou fallback RestartRound). Ajout `SetAdvisorPathVisible(bool)` + `_advisorPathVisible`. `OnCloudCollected` appelle `FogController.RevealAll()`, n'utilise plus de tirage probabiliste pour optimalPathVisible (utilise `_advisorPathVisible` directement). `EndCurrentTrial` passe 10 params (ajout overtimeSteps, followedAdvisorPath). Toutes les pénalités uniformisées à -2 (piège et budget étaient -1). |
 
 ## 4.3 SessionManager
 
 ### 4.3.1 Responsabilités
 
-- **Singleton** (`SessionManager.Instance`) — point d'accès global pour les paramètres de protocole expérimental
-- Gérer la seed de randomisation pour le round (génération ou parsing CLI)
+- **Singleton** (`SessionManager.Instance`) — façade locale du ProximalScene pour la config du trial courant
+- Exposer aux spawners la configuration du trial via les champs `public` lus directement (`SessionManager.Instance.paramName`)
+- **Copier la config depuis FlowController** (`CopyConfigFromFlowController()`) si présent — mappe `MapGenConfig` → champs locaux
+- Gérer la seed de randomisation pour le trial (copie depuis FlowController ou génération locale)
 - Écrire la seed dans `LevelRegistry.SetRoundSeed()` pour que tous les spawners l'utilisent
-- **Centraliser et exposer directement tous les paramètres de protocole expérimental** via le Singleton — les spawners lisent `SessionManager.Instance.paramName` dans leur `Start()`
-- Parser les arguments CLI (`key=value`) pour permettre au dashboard de recherche de configurer chaque trial
-- Parser `sessionId=X` depuis les arguments CLI et l'injecter dans TrialManager
 - Déclencher le début du jeu via `GameManager.BeginFirstRound()` après un frame de délai
+- **Si FlowController absent** : conserve les valeurs Inspector (mode debug standalone)
 
 ### 4.3.2 Composants clés (Data Model)
 
-→ **SessionManager.cs** : Singleton MonoBehaviour de configuration au démarrage. Ordre d'exécution : `0` (défaut). Awake initialise le Singleton, configure seed + parsing CLI des paramètres recherche + sessionId. Start est une coroutine qui lance le jeu après un frame.
+→ **SessionManager.cs** : Singleton MonoBehaviour, façade de configuration du ProximalScene. Ordre d'exécution : `0` (défaut). Awake initialise le Singleton, copie la config depuis FlowController si disponible, puis applique la seed. Start est une coroutine qui lance le jeu après un frame.
 
-> **Note architecture :** SessionManager est le **propriétaire unique** des paramètres de protocole expérimental, exposés via le pattern Singleton. Chaque paramètre est `public` (valeur par défaut visible dans l'Inspector) et peut être surchargé via CLI. Les spawners lisent directement `SessionManager.Instance.paramName` dans leur `Start()` — aucun relais intermédiaire. La distinction fondamentale :
-> - **Paramètre de protocole expérimental** → possédé par SessionManager, injectable via CLI, lu directement par les spawners
-> - **Paramètre de game design** → reste en `[SerializeField]` sur le script qui l'utilise (ex: `corridorWidth` sur CorridorWallsGenerator, `minZ` sur BugCloudSpawner)
+> **Note architecture :** SessionManager ne fait plus de parsing CLI. La configuration vient de FlowController (qui la récupère du backend via ApiClient). SessionManager reste le point de lecture direct pour les spawners (pattern Singleton identique à v2.9), mais la source de vérité est désormais FlowController → SessionManager → Spawners.
 
 ```csharp
 public class SessionManager : MonoBehaviour
@@ -1318,13 +1413,13 @@ public class SessionManager : MonoBehaviour
     public GameManager gameManager;
 
     [Header("Session")]
-    public long randomizationSeed = 0;
+    public long randomizationSeed;
     public string buildVersion = "1.0.0";
 
     [Header("Recherche : Map")]
     public int trapCount = 10;
     public int minDistance = 3;
-    public int maxDistance = 0;
+    public int maxDistance;
 
     [Header("Recherche : Discrimination")]
     public int minTotalBugs = 20;
@@ -1335,87 +1430,62 @@ public class SessionManager : MonoBehaviour
     public float gapMax = 0.3f;
 
     [Header("Recherche : Advisor")]
-    [Tooltip("Probabilité que le chemin conseillé soit visible (1) ou caché (0). CLI: pathVisible=F.")]
     public float pathVisible = 1f;
-
-    [Tooltip("Probabilité que le chemin affiché soit suboptimal. CLI: suboptimalPath=F.")]
-    [Range(0f, 1f)]
-    public float suboptimalPathProbability = 0f;
-
-    [Tooltip("Probabilité que le chemin suboptimal inclue un détour. CLI: detourProb=F.")]
-    [Range(0f, 1f)]
-    public float detourProbability = 0f;
-
-    [Tooltip("Probabilité d'afficher le motor advice. CLI: motorAdviceVisible=F.")]
-    [Range(0f, 1f)]
-    public float motorAdviceVisibleProbability = 1f;
-
-    [Tooltip("Probabilité que le motor advice soit fiable. CLI: motorAdviceReliable=F.")]
-    [Range(0f, 1f)]
-    public float motorAdviceReliableProbability = 1f;
-
-    [Tooltip("Probabilité que des pièges apparaissent SUR le chemin suboptimal. CLI: subTrapProb=F.")]
-    [Range(0f, 1f)]
-    public float suboptimalTrapProbability = 0f;
-
-    [Min(0)]
-    public int minSuboptimalTraps = 1;
-
-    [Min(0)]
-    public int maxSuboptimalTraps = 3;
+    [Range(0f, 1f)] public float suboptimalPathProbability;
+    [Range(0f, 1f)] public float detourProbability;
+    [Range(0f, 1f)] public float motorAdviceVisibleProbability = 1f;
+    [Range(0f, 1f)] public float motorAdviceReliableProbability = 1f;
+    [Range(0f, 1f)] public float suboptimalTrapProbability;
+    [Min(0)] public int minSuboptimalTraps = 1;
+    [Min(0)] public int maxSuboptimalTraps = 3;
 
     [Header("Recherche : Fog of War")]
-    [Tooltip("Probabilité que le brouillard de guerre soit actif (0=jamais, 1=toujours). CLI: fogProbability=F.")]
-    [Range(0f, 1f)]
-    public float fogProbability = 0f;
+    [Range(0f, 1f)] public float fogProbability;
 
     [Header("Recherche : Protocole")]
     public int blockId = 1;
+
+    public bool IsFlowDriven { get; private set; }
+    public bool IsTutorialBlock { get; private set; }
 }
 ```
 
 | Variable / Méthode                | Type              | Description                                                                       |
 | :-------------------------------- | :---------------- | :-------------------------------------------------------------------------------- |
 | Instance                          | SessionManager    | Référence statique globale (Singleton)                                              |
-| trialManager                      | TrialManager      | Référence pour injecter le sessionId                                              |
+| trialManager                      | TrialManager      | Référence (conservée dans l'Inspector, utilisée par TrialManager.BuildBaseRow)     |
 | gameManager                       | GameManager       | Référence pour déclencher `BeginFirstRound()`                                     |
-| randomizationSeed                 | long              | Seed de randomisation — 0 = auto-généré, sinon utilisé tel quel                   |
-| buildVersion                      | string            | Version du build (réservée, non utilisée — défaut : "1.0.0")                      |
+| randomizationSeed                 | long              | Seed de randomisation — copiée depuis FlowController ou générée localement         |
+| buildVersion                      | string            | Version du build — copiée depuis FlowController.BuildVersion si disponible         |
+| **IsFlowDriven**                  | bool (get)        | `true` si la config a été copiée avec succès depuis FlowController                 |
+| **IsTutorialBlock**               | bool (get)        | `true` si le bloc courant est un tutorial (lu depuis FlowController.IsCurrentBlockTutorial) |
 | **Paramètres recherche** _(champs `public`, lus directement par les spawners via `SessionManager.Instance`)_ | | |
-| trapCount                         | int (public)          | Nombre de pièges (défaut : 10). CLI: `trapCount=N`                            |
-| minDistance                        | int (public)          | Distance Manhattan min joueur↔nuages (défaut : 3). CLI: `minDistance=N`       |
-| maxDistance                        | int (public)          | Distance Manhattan max joueur↔nuages (défaut : 0 = pas de limite). CLI: `maxDistance=N` |
-| minTotalBugs / maxTotalBugs       | int (public)          | Range du nombre total de bugs (défaut : 20-80). CLI: `minTotalBugs=N`, `maxTotalBugs=N` |
-| minGreenBugsRatio / maxGreenBugsRatio | float (public) | Bornes ratio vert (défaut : 0.4-0.8). CLI: `minGreenRatio=F`, `maxGreenRatio=F` |
-| gapMin / gapMax                   | float (public)     | Écart min/max entre ratios verts (défaut : 0.1-0.3). CLI: `gapMin=F`, `gapMax=F` |
-| pathVisible                       | float (public)     | Probabilité d'affichage du chemin conseillé (défaut : 1.0 = toujours visible, 0.0 = jamais). CLI: `pathVisible=F` (ex: `pathVisible=0.5`). Le tirage est fait par `rng.NextDouble() < pathVisible` dans PathSpawner et GameManager |
-| **suboptimalPathProbability**     | **float (public)** | **Probabilité que le chemin affiché soit suboptimal (défaut : 0.0 = toujours optimal, 1.0 = toujours suboptimal). CLI: `suboptimalPath=F`. Tirage `rng.NextDouble() < suboptimalPathProbability` dans PathSpawner** |
-| **detourProbability**             | **float (public)** | **Probabilité que le chemin suboptimal inclue un détour en « Z » (défaut : 0.0 = Manhattan alternatif, 1.0 = toujours détour). CLI: `detourProb=F`. Tirage conditionnel : uniquement si suboptimal est déjà tiré** |
-| **motorAdviceVisibleProbability** | **float (public)** | **Probabilité que le motor advice soit visible (défaut : 1.0 = toujours visible). CLI: `motorAdviceVisible=F`. Lu par MotorAdviceController.Start()** |
-| **motorAdviceReliableProbability**| **float (public)** | **Probabilité que le motor advice soit fiable (défaut : 1.0 = toujours fiable). CLI: `motorAdviceReliable=F`. Lu par MotorAdviceController.Start()** |
-| **suboptimalTrapProbability**     | **float (public)** | **Probabilité que des pièges apparaissent sur le chemin suboptimal (défaut : 0.0 = jamais). CLI: `subTrapProb=F`. Lu par TrapSpawner.PlaceSuboptimalTraps()** |
-| **minSuboptimalTraps**            | **int (public)**   | **Nombre minimal de pièges sur le chemin suboptimal (défaut : 1). CLI: `minSubTraps=N`. Lu par TrapSpawner** |
-| **maxSuboptimalTraps**            | **int (public)**   | **Nombre maximal de pièges sur le chemin suboptimal (défaut : 3). CLI: `maxSubTraps=N`. Lu par TrapSpawner** |
-| **fogProbability**                | **float (public)** | **Probabilité que le brouillard de guerre soit actif ce round (défaut : 0.0 = jamais, 1.0 = toujours). CLI: `fogProbability=F`. Tirage `rng.NextDouble() >= fogProbability` dans FogSpawner** |
-| blockId                           | int (public)       | Bloc expérimental pour TrialData (défaut : 1). CLI: `blockId=N`               |
+| trapCount                         | int               | Nombre de pièges (défaut : 10)                                                     |
+| minDistance / maxDistance           | int              | Distance Manhattan min/max joueur↔nuages                                           |
+| minTotalBugs / maxTotalBugs       | int               | Range du nombre total de bugs (défaut : 20-80)                                     |
+| minGreenBugsRatio / maxGreenBugsRatio | float          | Bornes ratio vert (défaut : 0.4-0.8)                                              |
+| gapMin / gapMax                   | float             | Écart min/max entre ratios verts (défaut : 0.1-0.3)                                |
+| pathVisible                       | float             | Probabilité d'affichage du chemin conseillé (défaut : 1.0)                         |
+| suboptimalPathProbability         | float             | Probabilité chemin suboptimal (défaut : 0.0)                                       |
+| detourProbability                 | float             | Probabilité détour en « Z » (défaut : 0.0)                                         |
+| motorAdviceVisibleProbability     | float             | Probabilité affichage motor advice (défaut : 1.0)                                  |
+| motorAdviceReliableProbability    | float             | Probabilité fiabilité motor advice (défaut : 1.0)                                  |
+| suboptimalTrapProbability         | float             | Probabilité pièges sur chemin suboptimal (défaut : 0.0)                            |
+| minSuboptimalTraps / maxSuboptimalTraps | int          | Range pièges suboptimaux (défaut : 1-3)                                            |
+| fogProbability                    | float             | Probabilité brouillard de guerre (défaut : 0.0)                                   |
+| blockId                           | int               | Index du bloc courant (1-based, défaut : 1)                                        |
 | **Méthodes**                      |                   |                                                                                   |
-| Awake()                           | void              | Pipeline séquentiel : Singleton init → seed → CLI parsing → sessionId            |
-| Start()                           | IEnumerator       | Coroutine : `yield return null` → `BeginFirstRound()`                             |
-| ApplySeedForThisRound()           | void (privé)      | Parse `seed=` CLI, sinon génère depuis DateTime+Guid, écrit dans LevelRegistry    |
-| TryApplyTrapCountFromArgs()       | void (privé)      | Parse `trapCount=N` depuis les args CLI (legacy — à refactorer avec TryParseInt)  |
-| TryApplyBugCloudParamsFromArgs()  | void (privé)      | Parse les 16 paramètres recherche restants (minDistance, maxDistance, totalBugs, greenRatio, gap, pathVisible, suboptimalPath, detourProb, motorAdviceVisible, motorAdviceReliable, subTrapProb, minSubTraps, maxSubTraps, fogProbability, blockId) |
-| TryApplySessionIdFromArgs()       | void (privé)      | Parse `sessionId=X` depuis les args et l'injecte dans TrialManager                |
-| **Helpers CLI (static)**          |                   |                                                                                   |
-| TryParseInt(arg, key, ref target) | void              | Parse un arg `key=N` (int), log si trouvé ou invalide                             |
-| TryParseFloat(arg, key, ref target) | void            | Parse un arg `key=F` (float, InvariantCulture), log si trouvé ou invalide         |
-| TryParseBool(arg, key, ref target) | void             | Parse un arg `key=0\|1\|true\|false` (bool, case-insensitive), log si trouvé ou invalide — **n'est plus utilisé pour pathVisible** (devenu float) |
+| Awake()                           | void              | Singleton init → `CopyConfigFromFlowController()` → `ApplySeedForThisTrial()`     |
+| Start()                           | IEnumerator       | Coroutine : `yield return null` → `gameManager.BeginFirstRound()`                  |
+| CopyConfigFromFlowController()    | bool (privé)      | Lit FlowController.ActiveMapConfig et copie tous les champs MapGenConfig + blockId + IsTutorialBlock. Retourne `false` si FlowController absent ou config non chargée |
+| ApplySeedForThisTrial()           | void (privé)      | Si seed == 0 : génère depuis DateTime+Guid. Écrit dans LevelRegistry.SetRoundSeed() |
+| GenerateSeed()                    | long (static)     | `(DateTime.UtcNow.Ticks << 1) ^ Guid.NewGuid().GetHashCode()` (unchecked)          |
 
 ### 4.3.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (SetRoundSeed), `GameManager` (appelle `BeginFirstRound()`), `TrialManager` (injecte sessionId)
-- **Est utilisé par :** `BugCloudSpawner` (lecture directe : minDistance, maxDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax), `TrapSpawner` (lecture directe : trapCount, suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps), `PathSpawner` (lecture directe : pathVisible, suboptimalPathProbability, detourProbability), `FogSpawner` (lecture directe : fogProbability), `GameManager` (lecture directe : blockId), `MotorAdviceController` (lecture directe : motorAdviceVisibleProbability, motorAdviceReliableProbability)
-- **Source de données :** Arguments de ligne de commande (`System.Environment.GetCommandLineArgs()`)
-- **Pattern :** Research Parameter Pipeline — SessionManager.Instance → Spawners `.Start()` (lecture directe des champs `public`)
+- **Nécessite :** `FlowController.Instance` (ActiveMapConfig, CurrentTrialSeed, BuildVersion, State.current_block_index, IsCurrentBlockTutorial, HasLoadedConfig), `LevelRegistry.Instance` (SetRoundSeed), `GameManager` (appelle `BeginFirstRound()`)
+- **Est utilisé par :** `BugCloudSpawner` (lecture directe : minDistance, maxDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax), `TrapSpawner` (lecture directe : trapCount, suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps), `PathSpawner` (lecture directe : pathVisible, suboptimalPathProbability, detourProbability), `FogSpawner` (lecture directe : fogProbability), `TrialManager` (lecture directe dans BuildBaseRow : tous les paramètres recherche), `MotorAdviceController` (lecture directe : motorAdviceVisibleProbability, motorAdviceReliableProbability)
+- **Pattern :** Backend Config Pipeline — FlowController.ActiveMapConfig → SessionManager.CopyConfigFromFlowController() → Spawners `.Start()` (lecture directe)
 
 ### 4.3.4 Diagramme de flux
 
@@ -1424,67 +1494,55 @@ graph TD
     A["Awake()"] --> A0{"Instance déjà existant ?"}
     A0 -->|Oui| A1["Destroy(gameObject) — return"]
     A0 -->|Non| A2["Instance = this"]
-    A2 --> B["ApplySeedForThisRound()"]
-    B --> B1{Arg 'seed=N' trouvé ?}
-    B1 -->|Oui| B2["randomizationSeed = parsed"]
-    B1 -->|Non| B3{randomizationSeed == 0 ?}
-    B3 -->|Oui| B4["Générer seed (DateTime.Ticks ^ Guid)"]
-    B3 -->|Non| B5["Utiliser la valeur Inspector"]
-    B2 --> B6["LevelRegistry.SetRoundSeed(seed)"]
-    B4 --> B6
-    B5 --> B6
+    A2 --> B["CopyConfigFromFlowController()"]
+    B --> B0{"FlowController.Instance != null<br/>& HasLoadedConfig<br/>& ActiveMapConfig != null ?"}
+    B0 -->|Non| B1["IsFlowDriven = false<br/>Log warning: valeurs Inspector conservées"]
+    B0 -->|Oui| B2["Copier MapGenConfig → champs locaux"]
+    B2 --> B3["randomizationSeed = CurrentTrialSeed ?? map.seed"]
+    B3 --> B4["buildVersion = FlowController.BuildVersion"]
+    B4 --> B5["blockId = State.current_block_index + 1"]
+    B5 --> B6["IsTutorialBlock = IsCurrentBlockTutorial"]
+    B6 --> B7["IsFlowDriven = true"]
 
-    B6 --> C["TryApplyTrapCountFromArgs()"]
-    C --> C1{Arg 'trapCount=N' trouvé ?}
-    C1 -->|Oui| C2["trapCount = parsed"]
-    C1 -->|Non| C3["trapCount reste à sa valeur Inspector (10)"]
-
-    C2 --> D0["TryApplyBugCloudParamsFromArgs()"]
-    C3 --> D0
-    D0 --> D1["Boucle sur args CLI : TryParseInt/Float pour<br/>minDistance, maxDistance, totalBugs, greenRatio,<br/>gap, pathVisible (float), fogProbability (float), blockId"]
-
-    D1 --> E["TryApplySessionIdFromArgs()"]
-    E --> E1{Arg 'sessionId=X' trouvé ?}
-    E1 -->|Oui| E2["trialManager.SetSessionId(val)"]
-    E1 -->|Non| F["Fin Awake"]
-    E2 --> F
+    B1 --> C["ApplySeedForThisTrial()"]
+    B7 --> C
+    C --> C1{"LevelRegistry.Instance != null ?"}
+    C1 -->|Non| C2["Log warning: seed non appliquée"]
+    C1 -->|Oui| C3{"randomizationSeed == 0 ?"}
+    C3 -->|Oui| C4["GenerateSeed() → randomizationSeed"]
+    C3 -->|Non| C5["Utiliser la valeur existante"]
+    C4 --> C6["LevelRegistry.SetRoundSeed(seed)"]
+    C5 --> C6
 
     G["Start() — Coroutine"] --> H["yield return null"]
-    H --> I["gameManager.BeginFirstRound()"]
+    H --> I["gameManager?.BeginFirstRound()"]
 
     subgraph "Lecture par les spawners (Start, ordres négatifs)"
         S1["BugCloudSpawner.Start(-200)"] -.->|"lit Instance.minDistance, etc."| A2
-        S2["PathSpawner.Start(-100)"] -.->|"lit Instance.pathVisible,\nsuboptimalPathProbability,\ndetourProbability"| A2
-        S3["TrapSpawner.Start(-10)"] -.->|"lit Instance.trapCount,\nsuboptimalTrapProbability,\nminSuboptimalTraps,\nmaxSuboptimalTraps"| A2
-        S4["GameManager.StartNewRound(0)"] -.->|"lit Instance.blockId"| A2
+        S2["PathSpawner.Start(-100)"] -.->|"lit Instance.pathVisible, etc."| A2
+        S3["TrapSpawner.Start(-10)"] -.->|"lit Instance.trapCount, etc."| A2
         S5["FogSpawner.Start(-245)"] -.->|"lit Instance.fogProbability"| A2
-        S6["MotorAdviceController.Start(0)"] -.->|"lit Instance.motorAdviceVisibleProbability,\nmotorAdviceReliableProbability"| A2
+        S6["MotorAdviceController.Start(0)"] -.->|"lit Instance.motorAdviceVisibleProbability, etc."| A2
     end
 ```
 
 ### 4.3.5 Approche retenue & alternatives évaluées
 
-**Approche retenue :** Singleton `SessionManager.Instance` — les spawners lisent directement les champs `public` (lecture directe, pas d'intermédiaire)
+**Approche retenue :** Façade Singleton qui copie la config depuis FlowController (DDOL) vers des champs locaux lus directement par les spawners.
 
 | Approche                                 | Avantages                                                           | Inconvénients                                       |
 | :--------------------------------------- | :------------------------------------------------------------------ | :-------------------------------------------------- |
-| ✅ **Args CLI → SessionManager.Instance (Singleton, lecture directe)** | Découplé de LevelRegistry (SRP), un seul propriétaire, compatible WebGL, spawners lisent en direct | Singleton = état global, pas injectable pour tests    |
-| ~~Args CLI → LevelRegistry (relais)~~    | Utilisé en v2.1 — un seul point de vérité                            | Viole SRP : LevelRegistry devient passe-plat pour 11 champs qu'il ne consomme pas |
-| Injection directe dans chaque spawner    | Simple et explicite                                                 | Couplage SessionManager↔chaque spawner, fragile si le spawner change |
-| URL query parameters (WebGL)             | Plus standard pour le web                                           | Pas compatible Desktop, nécessite un bridge JS→Unity |
-| ScriptableObject partagé                 | Type-safe, asset-based                                              | Pas injectable via CLI, nécessite un asset dans le projet |
+| ✅ **FlowController → SessionManager.CopyConfig (Singleton façade)** | Spawners inchangés (lisent toujours SessionManager.Instance), FlowController reste DDOL découplé de la scène, fallback debug Inspector | Duplication temporaire des champs (FlowController → SessionManager) |
+| ~~Args CLI → SessionManager (v2.9)~~     | Simple, pas de dépendance backend                                    | Plus compatible avec le flow multi-scènes, pas de config dynamique |
+| FlowController direct (spawners lisent FlowController.Instance) | Pas de duplication, source unique | Couplage fort entre spawners et FlowController, pas de fallback debug |
 
 ### 4.3.6 Points d'attention
 
-- **⚠️ Awake, pas Start :** Toute la configuration (Singleton init, seed, params recherche, sessionId) est faite en Awake pour garantir que les spawners (qui tournent en Start avec des ordres négatifs) aient accès aux bonnes valeurs via `SessionManager.Instance`
-- **⚠️ Singleton :** L'initialisation du Singleton (`Instance = this`) est la **première opération** de Awake — tous les spawners peuvent lire `SessionManager.Instance` dès leur Start
-- **⚠️ Seed reproductible :** Si `seed=` est fourni en CLI ou si `randomizationSeed` est défini dans l'Inspector (≠ 0), le run est entièrement reproductible. Si = 0, une seed unique est générée à chaque lancement
-- **⚠️ Fallback Inspector :** Tous les paramètres recherche ont une valeur par défaut visible dans l'Inspector. Si un arg CLI n'est pas fourni, la valeur Inspector est utilisée — comportement silencieux par design
-- **⚠️ Edge case :** Si `sessionId` n'est pas fourni, `TrialManager.StartNewTrial()` logguera une erreur et ignorera la manche — les données de recherche seront perdues
-- **⚠️ WebGL :** `System.Environment.GetCommandLineArgs()` fonctionne en WebGL uniquement si les arguments sont passés via le template HTML Unity — à vérifier avec le dashboard
-- **⚠️ TryParseBool :** Accepte `0`, `1`, `true`, `false` (case-insensitive) — toute autre valeur est ignorée avec un warning. **Note :** `pathVisible` utilise désormais `TryParseFloat` (probabilité 0-1), plus `TryParseBool`
-- **🔧 buildVersion :** Déclaré mais non exploité — prévu pour le protocole de recherche
-- **🔧 TryApplyTrapCountFromArgs :** Parser legacy dédié — à refactorer pour utiliser le helper `TryParseInt` générique (cohérence avec les autres params)
+- **⚠️ Awake, pas Start :** `CopyConfigFromFlowController()` et `ApplySeedForThisTrial()` sont faites en Awake — les spawners (Start avec ordres négatifs) lisent les valeurs déjà copiées
+- **⚠️ Fallback Inspector :** Si FlowController est absent (mode debug), les valeurs Inspector sont conservées — comportement identique à v2.9 en standalone
+- **⚠️ Seed reproductible :** En mode flow, `CurrentTrialSeed` est prioritaire sur `map.seed`. Si 0, une seed est générée localement
+- **⚠️ Plus de CLI :** Le parsing d'arguments CLI a été entièrement supprimé — la config vient du backend via FlowController
+- **⚠️ blockId :** Calculé comme `State.current_block_index + 1` (1-based) — cohérent avec l'ancien blockId CLI
 
 ### 4.3.7 Journal d'implémentation
 
@@ -1492,12 +1550,10 @@ graph TD
 | :------- | :---------- | :------------------------------------------------------------------------------------------------------------------ |
 | 17/02/26 | @auteur     | Documentation initiale. SessionManager stable — bootstrap par args CLI avec injection dans TrapSpawner/TrialManager. |
 | 27/02/26 | @pierre     | Refacto : suppression référence TrapSpawner, SessionManager possède trapCount (SerializeField), pipeline seed (ApplySeedForThisRound → LevelRegistry.SetRoundSeed), trapCount écrit dans LevelRegistry.trapCount, ajout parsing CLI seed=N. |
-| 02/03/26 | @pierre     | Migration centralisée : SessionManager possède désormais TOUS les paramètres de protocole expérimental (10 params : trapCount, minDistance, totalBugs, greenRatio, gap, pathVisible, blockId). Ajout TryApplyBugCloudParamsFromArgs + ApplyResearchParamsToRegistry (remplace ApplyTrapCountToRegistry). Helpers CLI génériques : TryParseInt, TryParseFloat, TryParseBool. BugCloudSpawner, PathSpawner et GameManager ne possèdent plus de paramètres recherche. |
-| 02/03/26 | @pierre     | Refacto Singleton SRP : SessionManager devient Singleton (`Instance`). Champs `[SerializeField] private` → `public`. Suppression de `ApplyResearchParamsToRegistry()` — les spawners lisent directement `SessionManager.Instance.paramName`. LevelRegistry déchargé de son rôle de relais. Ajout maxDistance (0 = pas de limite). |
-| 02/03/26 | @auteur     | `pathVisible` passe de `bool` (true/false) à `float` (probabilité 0-1, défaut 1.0). CLI `pathVisible=F` utilise désormais `TryParseFloat` au lieu de `TryParseBool`. Permet un contrôle probabiliste fin de la condition advisor par le protocole de recherche. |
-| 05/03/26 | @auteur     | Ajout 2 paramètres recherche Advisor : `suboptimalPathProbability` (float, CLI: `suboptimalPath=F`, défaut 0) et `detourProbability` (float, CLI: `detourProb=F`, défaut 0). Parsing CLI via `TryParseFloat`. Lus par PathSpawner pour le tirage chemin suboptimal + détour en « Z ». |
-| 09/03/26 | @auteur     | Ajout paramètre recherche Fog of War : `fogProbability` (float, CLI: `fogProbability=F`, défaut 1.0 = toujours actif). Parsing CLI via `TryParseFloat` dans `TryApplyBugCloudParamsFromArgs`. Lu par `FogSpawner` pour le tirage conditionnel du brouillard. |
-| 12/03/26 | @pierre     | Ajout 5 paramètres Motor Advice & Suboptimal Traps : `motorAdviceVisibleProbability` (float, CLI: `motorAdviceVisible=F`, défaut 1.0), `motorAdviceReliableProbability` (float, CLI: `motorAdviceReliable=F`, défaut 1.0), `suboptimalTrapProbability` (float, CLI: `subTrapProb=F`, défaut 0.0), `minSuboptimalTraps` (int, CLI: `minSubTraps=N`, défaut 1), `maxSuboptimalTraps` (int, CLI: `maxSubTraps=N`, défaut 3). Correction `fogProbability` défaut 1f→0f. Parsing CLI via `TryParseFloat`/`TryParseInt` dans `TryApplyBugCloudParamsFromArgs`. Lus par `MotorAdviceController` et `TrapSpawner.PlaceSuboptimalTraps()`. |
+| 02/03/26 | @pierre     | Migration centralisée : SessionManager possède désormais TOUS les paramètres de protocole expérimental. Ajout helpers CLI génériques. |
+| 02/03/26 | @pierre     | Refacto Singleton SRP : SessionManager devient Singleton (`Instance`). Champs `[SerializeField] private` → `public`. Suppression relais LevelRegistry. |
+| 12/03/26 | @pierre     | Ajout paramètres Motor Advice & Suboptimal Traps. |
+| 23/03/26 | @pierre     | Refacto façade : suppression totale du parsing CLI. Ajout `CopyConfigFromFlowController()` qui mappe `MapGenConfig` vers les champs locaux. Ajout `IsFlowDriven` et `IsTutorialBlock`. Renommage `ApplySeedForThisRound` → `ApplySeedForThisTrial`. La seed prioritaire est `FlowController.CurrentTrialSeed`. |
 
 ## 4.4 FogController
 
@@ -1612,138 +1668,115 @@ graph TD
 
 ### 4.5.1 Responsabilités
 
-- Créer et gérer les objets `TrialData` pour chaque manche de jeu
+- Créer et assembler une `TrialResponseRow` pour chaque trial de gameplay
 - Enregistrer le chemin du joueur step par step (coordonnées grille + timestamp ISO)
 - Stocker la configuration de la carte via une API structurée (`SetMapConfig`) — construit le JSON en interne
-- Stocker la seed du trial dans les données de recherche
-- Finaliser les résultats de manche (choix du joueur, justesse, longueur du chemin optimal)
-- Envoyer les trials accumulés en batch vers l'API REST (`POST /api/trials`) avec auth par token
+- **Construire la ligne de base du trial** (`BuildBaseRow()`) en lisant FlowController (participant_id, session_template_id, block/trial index, advisor/valley choice) et SessionManager (tous les paramètres recherche)
+- Finaliser les résultats de manche (choix du joueur, justesse, bugs accumulés, overtime, suivi du chemin)
+- **Déléguer l'envoi à ApiClient** (`SendTrialResponse`) — aucune logique HTTP propre
+- **Ignorer les tutorials** : si `FlowController.IsCurrentBlockTutorial`, l'envoi réseau est sauté
+- Enregistrer le `trialResponseId` retourné par le backend dans FlowController
 
 ### 4.5.2 Composants clés (Data Model)
 
-→ **TrialManager.cs** : MonoBehaviour gérant le cycle de vie des données de recherche. Pas de Singleton — référencé via Inspector par GameManager et SessionManager.
+→ **TrialManager.cs** : MonoBehaviour gérant le cycle de vie des données de recherche. Pas de Singleton — référencé via Inspector par GameManager.
 
 ```csharp
 public class TrialManager : MonoBehaviour
 {
-    [Header("API Settings")]
-    public string apiBaseUrl = "http://localhost:3000";
-    public string studyToken = "ensstudytoken";
+    [Serializable]
+    struct CloudInfo
+    {
+        public int x, y, totalBugs;
+        public float greenRatio;
+    }
 
-    [Header("Session Info")]
-    public string gameSessionId;
+    [Serializable]
+    struct MiniMapCfg
+    {
+        public int gridWidth, gridHeight;
+        public CloudInfo leftCloud, rightCloud;
+    }
 
-    private List<TrialData> trials = new();
-    private TrialData currentTrial;
-    private bool isSending = false;
-    private string pendingMapConfigJson;
-}
-```
-
-→ **DTOs internes** pour la config map (privés à TrialManager) :
-
-```csharp
-[Serializable]
-private struct CloudInfo
-{
-    public int x, y, totalBugs;
-    public float greenRatio;
-}
-
-[Serializable]
-private struct MiniMapCfg
-{
-    public int gridWidth, gridHeight;
-    public CloudInfo leftCloud, rightCloud;
+    readonly List<PlayerStep> _playerPathSteps = new();
+    TrialResponseRow _currentTrialRow;
+    string _startedAtIsoUtc;
+    string _pendingMapConfigJson;
 }
 ```
 
 | Variable / Méthode                                    | Type                      | Description                                                                              |
 | :---------------------------------------------------- | :------------------------ | :--------------------------------------------------------------------------------------- |
-| apiBaseUrl                                            | string                    | URL de base de l'API backend (défaut : `http://localhost:3000`)                          |
-| studyToken                                            | string                    | Token d'authentification envoyé en header `x-study-token`                                |
-| gameSessionId                                         | string                    | ID de session injecté par SessionManager — requis pour créer des trials                  |
-| trials                                                | List\<TrialData\> (privé) | Accumulation locale des manches avant envoi en batch                                     |
-| currentTrial                                          | TrialData (privé)         | Manche en cours de jeu                                                                   |
-| pendingMapConfigJson                                  | string (privé)            | Tampon pour la config map reçue avant que le trial ne soit créé                          |
-| SetSessionId(string)                                  | void                      | Injecte l'ID de session (appelé par SessionManager)                                      |
-| StartNewTrial(int, int, string, **long trialSeed**)   | void                      | Crée un TrialData, stocke la seed, applique le tampon map_config si présent              |
+| _playerPathSteps                                      | List\<PlayerStep\> (privé)| Chemin du joueur pour le trial courant (position + timestamp)                            |
+| _currentTrialRow                                      | TrialResponseRow (privé)  | Ligne de données du trial en cours — construite par `BuildBaseRow()`                     |
+| _startedAtIsoUtc                                      | string (privé)            | Timestamp ISO du début du trial                                                          |
+| _pendingMapConfigJson                                 | string (privé)            | Tampon pour la config map reçue avant que le trial ne soit créé                          |
+| StartNewTrial()                                       | void                      | Crée une TrialResponseRow via `BuildBaseRow()`, applique le tampon map_config si présent |
 | RecordMove(Vector2Int)                                | void                      | Ajoute un PlayerStep (position + timestamp ISO) au trial courant                         |
-| EndCurrentTrial(string, bool, string, int, int, int, bool, bool) | void          | Finalise le trial : choix, justesse, trueCloud, greenBugsCollected, trapsHit, steps, optimalPathVisible, pathIsSuboptimal, timestamp de fin |
-| SetOptimalPathLength(int)                             | void                      | Enregistre la longueur du chemin optimal dans le trial courant                           |
-| SetCloudDistance(int)                                 | void                      | Enregistre la distance Manhattan joueur→nuages (`cloud_distance`) dans le trial courant  |
-| **SetMapConfig(gridSize, leftCell, leftBugs, leftGreenRatio, rightCell, rightBugs, rightGreenRatio)** | void       | API structurée — construit le JSON MiniMapCfg (avec greenRatio) en interne                    |
-| SetMapConfigJson(string)                              | void                      | Stocke le JSON brut dans le trial courant ou dans le tampon                              |
-| SendTrials()                                          | void                      | Lance l'envoi asynchrone des trials accumulés                                            |
-| SendTrialsCoroutine()                                 | IEnumerator (privé)       | POST JSON vers `apiBaseUrl/api/trials`, clear local si succès                            |
-
-→ **JsonHelper** : Classe utilitaire statique pour sérialiser un tableau en JSON Unity-friendly (wrapper `{ "Items": [...] }`).
+| EndCurrentTrial(string, bool, string, int, int, int, **int, bool, bool, bool**) | void | Finalise la row : choix, justesse, trueCloud, greenBugs, trapsHit, steps, **overtimeSteps, followedAdvisorPath**, optimalPathVisible, pathIsSuboptimal. Calcule `green_bugs_accumulated` via FlowController. Sérialise `player_path_log` via FlowSerializationUtility. Envoie via ApiClient (sauf tutorial) |
+| SetOptimalPathLength(int)                             | void                      | Enregistre la longueur du chemin optimal dans la row courante                            |
+| SetCloudDistance(int)                                 | void                      | Enregistre la distance Manhattan joueur→nuages (`cloud_distance`) dans la row courante   |
+| SetMapConfig(gridSize, leftCell, leftBugs, leftGreenRatio, rightCell, rightBugs, rightGreenRatio) | void | API structurée — construit le JSON MiniMapCfg en interne |
+| SetMapConfigJson(string)                              | void                      | Stocke le JSON brut dans la row courante ou dans le tampon                               |
+| BuildBaseRow()                                        | TrialResponseRow (privé)  | Lit FlowController (participant_id, session_template_id, block_index, trial_index, advisor, valley) et SessionManager (tous params recherche). Fallbacks si Flow absent |
+| EnsureCurrentTrialRow()                               | void (privé)              | Crée la row via BuildBaseRow si null — appelé par SetOptimalPathLength/SetCloudDistance   |
 
 ### 4.5.3 Dépendances
 
-- **Nécessite :** `TrialData` (structure de données sérialisable), `PlayerStep` (structure de données sérialisable), `UnityWebRequest` (envoi HTTP)
-- **Est utilisé par :** `GameManager` (StartNewTrial, RecordMove, EndCurrentTrial, SetMapConfig, SetOptimalPathLength, SendTrials), `SessionManager` (SetSessionId)
-- **Communique avec :** API REST externe (`POST /api/trials` avec header `x-study-token`)
-- **Possède en interne :** DTOs `MiniMapCfg` / `CloudInfo` (privés — étaient dans GameManager avant la refacto)
+- **Nécessite :** `TrialResponseRow` (structure de données sérialisable), `PlayerStep` (structure de données sérialisable), `FlowController.Instance` (participant_id, session_template_id, State, IsCurrentBlockTutorial, GetAccumulatedScoreAfterTrial, RegisterLastTrialResponse), `ApiClient.Instance` (SendTrialResponse), `SessionManager.Instance` (tous les paramètres recherche pour BuildBaseRow), `FlowSerializationUtility` (ToPlayerStepsJson)
+- **Est utilisé par :** `GameManager` (StartNewTrial, RecordMove, EndCurrentTrial, SetMapConfig, SetOptimalPathLength, SetCloudDistance)
+- **Possède en interne :** DTOs `MiniMapCfg` / `CloudInfo` (privés)
 
 ### 4.5.4 Diagramme de flux
 
 ```mermaid
 graph TD
-    A["SessionManager.SetSessionId(id)"] --> B["gameSessionId = id"]
-
-    C["GameManager.StartNewRound"] -->|"StartNewTrial(blockId, screenId, screenType, seed)"| D["Créer TrialData + stocker trial_seed"]
-    D --> E{pendingMapConfigJson ?}
-    E -->|Oui| F["currentTrial.map_config = pending"]
+    C["GameManager.BeginFirstRound"] -->|"StartNewTrial()"| D["BuildBaseRow() → _currentTrialRow"]
+    D --> D1["Lit FlowController: participant_id, session_template_id,<br/>block_index, trial_index, advisor_choice, valley_choice"]
+    D1 --> D2["Lit SessionManager: tous les params recherche +<br/>randomizationSeed"]
+    D2 --> E{_pendingMapConfigJson ?}
+    E -->|Oui| F["_currentTrialRow.map_config = pending"]
     E -->|Non| G[Trial prêt]
     F --> G
 
-    H["GameManager.RegisterClouds"] -->|"SetMapConfig(gridSize, leftCell, leftBugs, leftGreenRatio, rightCell, rightBugs, rightGreenRatio)"| H1["Construire MiniMapCfg struct (avec greenRatio)"]
+    H["GameManager.RegisterClouds"] -->|"SetMapConfig(...)"| H1["Construire MiniMapCfg struct"]
     H1 --> H2["JsonUtility.ToJson → SetMapConfigJson"]
-    H2 --> I{currentTrial != null ?}
-    I -->|Oui| J["currentTrial.map_config = json"]
-    I -->|Non| K["pendingMapConfigJson = json (tampon)"]
+    H2 --> I{_currentTrialRow != null ?}
+    I -->|Oui| J["_currentTrialRow.map_config = json"]
+    I -->|Non| K["_pendingMapConfigJson = json (tampon)"]
 
-    L["GameManager.OnPlayerStep"] -->|"RecordMove(cell)"| M["currentTrial.player_path_log.Add(PlayerStep)"]
+    L["GameManager.OnPlayerStep"] -->|"RecordMove(cell)"| M["_playerPathSteps.Add(PlayerStep)"]
 
-    N["GameManager.OnCloudCollected"] -->|"SetOptimalPathLength(n)"| O["currentTrial.optimal_path_length = n"]
-    N -->|"SetCloudDistance(d)"| O2["currentTrial.cloud_distance = d"]
-    N -->|"EndCurrentTrial(choice, correct, trueCloud, greenBugs, trapsHit, steps, optimalPathVisible, pathIsSuboptimal)"| P["currentTrial.proximal_choice = choice"]
-    P --> Q["currentTrial.end_timestamp = UTC ISO"]
-
-    N -->|"SendTrials()"| R{isSending ?}
-    R -->|Oui| S[Skip]
-    R -->|Non| T["StartCoroutine SendTrialsCoroutine"]
-    T --> U["JsonHelper.ToJson(trials)"]
-    U --> V["POST /api/trials + header x-study-token"]
-    V --> W{Succès ?}
-    W -->|Oui| X["trials.Clear()"]
-    W -->|Non| Y["LogError — trials conservés en mémoire"]
+    N["GameManager.OnCloudCollected"] -->|"SetOptimalPathLength(n)"| O["_currentTrialRow.optimal_path_length = n"]
+    N -->|"SetCloudDistance(d)"| O2["_currentTrialRow.cloud_distance = d"]
+    N -->|"EndCurrentTrial(10 params)"| P["Remplir proximal_choice, choice_correct, etc."]
+    P --> P1["green_bugs_accumulated = FlowController.GetAccumulatedScoreAfterTrial(score)"]
+    P1 --> P2["player_path_log = FlowSerializationUtility.ToPlayerStepsJson(steps)"]
+    P2 --> P3{"FlowController.IsCurrentBlockTutorial ?"}
+    P3 -->|Oui| P4["Log: tutorial, skip envoi"]
+    P3 -->|Non| P5{"ApiClient.Instance != null ?"}
+    P5 -->|Non| P6["Log warning: pas d'envoi"]
+    P5 -->|Oui| T["ApiClient.SendTrialResponse(row, onSuccess, onError)"]
+    T --> T1["onSuccess: FlowController.RegisterLastTrialResponse(trialResponseId)"]
 ```
 
 ### 4.5.5 Approche retenue & alternatives évaluées
 
-**Approche retenue :** Accumulation locale + envoi batch par coroutine HTTP + API structurée SetMapConfig
+**Approche retenue :** Assemblage local de TrialResponseRow + envoi unitaire via ApiClient (queue + retry côté ApiClient)
 
 | Approche                            | Avantages                                                   | Inconvénients                                           |
 | :---------------------------------- | :---------------------------------------------------------- | :------------------------------------------------------ |
-| ✅ **Batch local + POST coroutine** | Simple, pas de dépendance externe, compatible WebGL         | Données perdues si le joueur ferme avant l'envoi        |
+| ✅ **Row unitaire + ApiClient**     | Séparation des responsabilités, retry géré par ApiClient, compatible multi-scènes | TrialManager ne sait pas si l'envoi a réussi (callback async) |
+| ~~Batch local + POST coroutine (v2.9)~~ | Simple, tout dans TrialManager                          | Couplage HTTP dans TrialManager, pas de retry, pas de queue |
 | WebSocket persistant                | Temps réel, pas de perte de données                         | Complexité serveur, pas supporté nativement par WebGL   |
-| PlayerPrefs comme cache de secours  | Survit aux crashes/fermetures                               | Limité en taille, format clé-valeur inadapté aux trials |
-
-| Approche config map                  | Avantages                                                    | Inconvénients                                          |
-| :----------------------------------- | :----------------------------------------------------------- | :----------------------------------------------------- |
-| ✅ **SetMapConfig structuré**        | Type-safe, pas de construction JSON côté GameManager         | Un niveau d'indirection supplémentaire                 |
-| SetMapConfigJson(string) direct      | Flexible, accepte n'importe quel format                      | GameManager doit construire le JSON, couplage au format |
 
 ### 4.5.6 Points d'attention
 
-- **⚠️ Perte de données :** Si le joueur ferme le navigateur avant `SendTrials()`, les trials en mémoire sont perdus — pas de persistance locale
-- **⚠️ Séquencement :** `SetMapConfig` peut être appelé avant `StartNewTrial` (BugCloudSpawner Start -200 vs GameManager Start 0). Le tampon `pendingMapConfigJson` gère ce cas
-- **⚠️ Concurrence :** `isSending` empêche les envois concurrents mais ne met pas en queue les demandes — si `SendTrials()` est appelé pendant un envoi, il est silencieusement ignoré
-- **⚠️ Sérialisation :** `JsonHelper` wrappe le tableau dans `{ "Items": [...] }` — le backend doit s'attendre à ce format, pas un tableau JSON pur
-- **⚠️ Noms de champs JSON :** Les DTOs utilisent `gridWidth`/`gridHeight`, `totalBugs` et `greenRatio` (pas `grid_w`/`grid_h` ni `bugs` comme avant)
-- **🔧 À sécuriser :** `studyToken` est en clair dans l'Inspector — acceptable pour un prototype de recherche, à migrer vers un mécanisme plus sécurisé en production
+- **⚠️ Tutorial skip :** Si le bloc courant est un tutorial (`FlowController.IsCurrentBlockTutorial`), l'envoi réseau est ignoré — les données du trial sont construites mais pas envoyées
+- **⚠️ Séquencement :** `SetMapConfig` peut être appelé avant `StartNewTrial` (BugCloudSpawner Start -200 vs GameManager Start 0). Le tampon `_pendingMapConfigJson` gère ce cas
+- **⚠️ BuildBaseRow fallbacks :** Si FlowController est absent, `participant_id` est un GUID aléatoire, `session_template_id` = "debug-session-template", `block_index` = SessionManager.blockId ou 1
+- **⚠️ Accumulated score :** `green_bugs_accumulated` est calculé via `FlowController.GetAccumulatedScoreAfterTrial()` et inclut le score du trial courant. Si FlowController absent, = greenBugsCollected seul
+- **⚠️ Envoi asynchrone :** Le `trialResponseId` est récupéré dans le callback `onSuccess` et enregistré dans FlowController — utilisé ensuite par le questionnaire pour le PATCH
 
 ### 4.5.7 Journal d'implémentation
 
@@ -1751,10 +1784,10 @@ graph TD
 | :------- | :---------- | :-------------------------------------------------------------------------------------------------------------- |
 | 17/02/26 | @auteur     | Documentation initiale. Pipeline de collecte trial complet avec tampon map_config et envoi batch par coroutine. |
 | 27/02/26 | @pierre     | Refacto : StartNewTrial prend 4 params (ajout trialSeed), nouveau SetMapConfig structuré (construit JSON en interne), DTOs MiniMapCfg/CloudInfo déplacés de GameManager vers TrialManager, noms de champs changés (gridWidth/gridHeight, totalBugs). |
-| 02/03/26 | @pierre     | Pipeline collecte enrichi : CloudInfo ajoute `greenRatio`. SetMapConfig prend 7 params (ajout leftGreenRatio, rightGreenRatio). EndCurrentTrial prend 6 params (ajout trueCloud, greenBugsCollected, trapsHit, steps). Noms de champs JSON : `greenRatio` dans map_config. |
-| 02/03/26 | @pierre     | Ajout méthode `SetCloudDistance(int)` — même pattern que `SetOptimalPathLength`. Reçoit `cloud_distance` depuis GameManager pour que les chercheurs puissent dériver le dépassement (steps - cloud_distance). |
-| 02/03/26 | @auteur     | `EndCurrentTrial` prend désormais 7 params (ajout `optimalPathVisible` bool). Enregistre si le chemin optimal était visible pour le joueur dans cette manche. |
-| 09/03/26 | @auteur     | Feature suboptimal path : `EndCurrentTrial` passe de 7 à 8 params (ajout `pathIsSuboptimal` bool). Écrit `currentTrial.path_is_suboptimal`. |
+| 02/03/26 | @pierre     | Pipeline collecte enrichi : CloudInfo ajoute `greenRatio`. SetMapConfig prend 7 params. EndCurrentTrial prend 6 params. |
+| 02/03/26 | @pierre     | Ajout `SetCloudDistance(int)`. |
+| 09/03/26 | @auteur     | `EndCurrentTrial` passe à 8 params (ajout `pathIsSuboptimal`). |
+| 23/03/26 | @pierre     | Réécriture complète. Suppression `apiBaseUrl`, `studyToken`, `gameSessionId` — délégation totale à ApiClient. `StartNewTrial()` sans params (BuildBaseRow lit FlowController + SessionManager). `EndCurrentTrial` passe à 10 params (ajout `overtimeSteps`, `followedAdvisorPath`). Utilise `TrialResponseRow` au lieu de `TrialData`. `green_bugs_accumulated` calculé via `FlowController.GetAccumulatedScoreAfterTrial()`. `player_path_log` sérialisé via `FlowSerializationUtility.ToPlayerStepsJson()`. Tutorial skip si `IsCurrentBlockTutorial`. `trialResponseId` enregistré via `FlowController.RegisterLastTrialResponse()`. |
 
 ## 4.6 TilesSpawner
 
@@ -2006,65 +2039,481 @@ Scale fog           = (gridW, gridH, 1)            — couvre toute la grille
 | :------- | :---------- | :-------------------------------------------------------------------------------------------------- |
 | 09/03/26 | @auteur     | Création. Spawn conditionnel du brouillard de guerre basé sur `fogProbability` lu depuis SessionManager. Architecture spawner-based : FogSpawner décide et instancie, FogController gère le masque. RNG seedé via `CreateRng("FogSpawner")`. Positionnement et dimensionnement automatiques sur la grille via LevelRegistry. |
 
+## 4.9 FlowController
+
+### 4.9.1 Responsabilités
+
+- **Singleton DDOL** (`FlowController.Instance`, `DontDestroyOnLoad`) — orchestre le cycle de vie complet de la session multi-scènes
+- Extraire le `sessionId` depuis l'URL WebGL (`Application.absoluteURL`) au boot
+- Récupérer la `SessionConfig` du backend via `ApiClient.FetchSessionConfig()`
+- Initialiser l'état de session (`PlayerSessionState`) et préparer la configuration (injection tutorial, tri des blocs)
+- **Machine à états** : piloter les transitions entre `GamePhase` (Boot → Welcome → Consent → Intro → Tutorial → AdvisorChoice → DistalChoice → Proximal → Questionnaire → EndSession)
+- Exposer la configuration du bloc/trial courant (`CurrentBlock`, `ActiveMapConfig`, `CurrentTrialSeed`)
+- Recevoir les callbacks des écrans UI (OnConsentGiven, OnAdvisorChosen, OnValleyChosen, OnPhaseComplete, OnTrialComplete, OnQuestionnaireComplete)
+- Gérer le score accumulé par bloc (`BlockScore`)
+- Orchestrer la transition entre scènes via `FadeTransition`
+- Émettre `OnPhaseChanged` pour les écrans qui veulent réagir au changement de phase
+
+### 4.9.2 Composants clés (Data Model)
+
+→ **FlowController.cs** : Singleton DDOL MonoBehaviour. Pas de `DefaultExecutionOrder` — créé dans BootScene et persiste.
+
+```csharp
+public class FlowController : MonoBehaviour
+{
+    public static FlowController Instance { get; private set; }
+
+    [Header("Routing")]
+    [SerializeField] string _bootSceneName = "BootScene";
+    [SerializeField] string _welcomeSceneName = "WelcomeScene";
+    // ... 7 autres scènes configurables
+
+    [Header("Build")]
+    [SerializeField] string _buildVersion = "0.3.0-flow";
+
+    [Header("Editor Test")]
+    [SerializeField] string _editorSessionId;
+
+    public SessionConfig Config { get; private set; }
+    public PlayerSessionState State { get; private set; }
+    public long CurrentTrialSeed { get; private set; }
+    public int BlockScore { get; private set; }
+    public string BuildVersion => _buildVersion;
+
+    public BlockConfig CurrentBlock { get; }       // Config.blocks[State.current_block_index]
+    public MapGenConfig ActiveMapConfig { get; }   // valley_a ou valley_b selon State.valley_choice, clone + seed
+    public bool HasLoadedConfig { get; }
+    public bool IsCurrentBlockTutorial { get; }
+    public bool IsLastBlock { get; }
+    public bool IsLastTrial { get; }
+
+    public event Action<GamePhase> OnPhaseChanged;
+}
+```
+
+| Variable / Méthode                          | Type                    | Description                                                                       |
+| :------------------------------------------ | :---------------------- | :-------------------------------------------------------------------------------- |
+| Instance                                    | FlowController          | Singleton DDOL                                                                    |
+| Config                                      | SessionConfig (get)     | Configuration de session récupérée du backend                                     |
+| State                                       | PlayerSessionState (get)| État courant de la session (phase, block, trial, choix, score)                    |
+| CurrentTrialSeed                            | long (get)              | Seed du trial courant — générée à chaque OnValleyChosen / après chaque trial       |
+| BlockScore                                  | int (get)               | Score accumulé dans le bloc courant (reset entre blocs)                            |
+| BuildVersion                                | string (get)            | Version du build (défaut : "0.3.0-flow")                                          |
+| CurrentBlock                                | BlockConfig (get)       | `Config.blocks[State.current_block_index]`, null si index hors bornes             |
+| ActiveMapConfig                             | MapGenConfig (get)      | Clone de `valley_a` ou `valley_b` selon `State.valley_choice`, avec seed injectée |
+| HasLoadedConfig                             | bool (get)              | `true` si Config non null et contient au moins un bloc                             |
+| IsCurrentBlockTutorial                      | bool (get)              | `CurrentBlock.is_tutorial`                                                         |
+| IsLastBlock / IsLastTrial                   | bool (get)              | Indicateurs de fin de bloc/session                                                 |
+| OnPhaseChanged                              | event Action\<GamePhase\>| Émis à chaque transition de phase                                                |
+| Initialize(SessionConfig)                   | void                    | Prépare la config (tutorial injection, tri, cleanup), crée PlayerSessionState      |
+| OnConsentGiven()                            | void                    | Consent → Intro                                                                    |
+| OnPhaseComplete()                           | void                    | Welcome→Consent, Intro/Tutorial→AdvisorChoice, EndSession→CompleteSession         |
+| OnAdvisorChosen(AdvisorType)                | void                    | AdvisorChoice → DistalChoice                                                       |
+| OnValleyChosen(ValleyChoice)                | void                    | DistalChoice → Proximal (génère seed)                                              |
+| OnTrialComplete(int trialScore)             | void                    | Fin de trial : accumule score, avance trial_index. Dernier trial → Questionnaire ou bloc suivant |
+| OnQuestionnaireComplete(List\<QuestionResponse\>) | void              | Queue le PATCH questionnaire via ApiClient, avance au bloc suivant ou EndSession   |
+| GetAccumulatedScoreAfterTrial(int)          | int                     | Retourne `BlockScore + trialScore` (0 si tutorial)                                 |
+| RegisterLastTrialResponse(string)           | void                    | Enregistre le trialResponseId dans State (pour le PATCH questionnaire)             |
+| BootstrapFlow()                             | IEnumerator (privé)     | Extract sessionId from URL → ApiClient.FetchSessionConfig → Initialize → Welcome   |
+| AdvanceToPhase(GamePhase)                   | void (privé)            | Met à jour State.current_phase, émet OnPhaseChanged, lance TransitionToScene        |
+| AdvanceToNextBlockOrEnd()                   | void (privé)            | Reset score/choices, incrémente block_index, → AdvisorChoice ou EndSession          |
+| TransitionToScene(string)                   | IEnumerator (privé)     | FadeOut → LoadScene → FadeIn                                                        |
+| PrepareConfig(SessionConfig)                | SessionConfig (privé)   | EnsureTutorialBlock, cleanup nulls, sort by block_order                             |
+| GetSceneName(GamePhase)                     | string (privé)          | Mapping phase → nom de scène (configurable via SerializeField)                     |
+| ExtractSessionIdFromAbsoluteUrl(string, string) | string (static)    | Parse query parameter depuis Application.absoluteURL                                |
+| GenerateTrialSeed()                         | long (static)           | `(DateTime.UtcNow.Ticks << 1) ^ Guid.NewGuid().GetHashCode()` (unchecked)          |
+
+### 4.9.3 Dépendances
+
+- **Nécessite :** `ApiClient.Instance` (FetchSessionConfig, CompleteSession, QueueQuestionnairePatchForTrial, OnTrialResponseStored), `FadeTransition.Instance` (FadeOut, FadeIn), `TutorialSessionFactory` (EnsureTutorialBlock), `SceneManager` (LoadScene)
+- **Est utilisé par :** `SessionManager` (CopyConfigFromFlowController — lit Config, State, ActiveMapConfig, CurrentTrialSeed, BuildVersion, IsCurrentBlockTutorial), `TrialManager` (BuildBaseRow — lit State, CurrentBlock, ActiveMapConfig ; EndCurrentTrial — GetAccumulatedScoreAfterTrial, RegisterLastTrialResponse, IsCurrentBlockTutorial), `GameManager` (ContinueAfterRound → OnTrialComplete), `ConsentUI` (OnConsentGiven), `AdvisorChoiceUI` (OnAdvisorChosen), `DistalChoiceUI` (OnValleyChosen), `FlowContinueScreenUI` (OnPhaseComplete), `QuestionnaireUI` (OnQuestionnaireComplete)
+- **Communique avec :** Backend Supabase (via ApiClient), Scènes Unity (via SceneManager)
+
+### 4.9.4 Diagramme de flux
+
+```mermaid
+stateDiagram-v2
+    [*] --> Boot : Awake + DontDestroyOnLoad
+    Boot --> Welcome : BootstrapFlow (fetch config, Initialize)
+    Welcome --> Consent : OnPhaseComplete
+    Consent --> Intro : OnConsentGiven
+    Intro --> AdvisorChoice : OnPhaseComplete
+
+    state "Tutorial (optionnel)" as Tut
+    AdvisorChoice --> Tut : si tutorial_enabled (bloc is_tutorial)
+    Tut --> AdvisorChoice : OnPhaseComplete (après tutorial trials)
+
+    AdvisorChoice --> DistalChoice : OnAdvisorChosen(type)
+    DistalChoice --> Proximal : OnValleyChosen(valley) + seed
+    Proximal --> Proximal : OnTrialComplete (trial suivant, même bloc)
+    Proximal --> Questionnaire : OnTrialComplete (dernier trial)
+    Proximal --> NextBlockOrEnd : OnTrialComplete (dernier trial, pas de questions)
+    Questionnaire --> NextBlockOrEnd : OnQuestionnaireComplete
+
+    state "NextBlockOrEnd" as NB {
+        [*] --> CheckLastBlock
+        CheckLastBlock --> AdvisorChoice : pas dernier bloc (reset score/choices)
+        CheckLastBlock --> EndSession : dernier bloc
+    }
+
+    EndSession --> [*] : OnPhaseComplete → CompleteSession
+```
+
+### 4.9.5 Formules et règles métier
+
+```
+ActiveMapConfig     = clone de valley_a (si ValleyChoice.A ou None) ou valley_b (si B) + injection seed
+BlockScore          += trialScore à chaque OnTrialComplete (sauf tutorial)
+green_bugs_accumulated = BlockScore (reset à 0 entre blocs)
+Tutorial skip       = si CurrentBlock.is_tutorial → score non compté, envoi réseau ignoré
+Session complete    = ApiClient.CompleteSession après dernier bloc
+PrepareConfig       = EnsureTutorialBlock + cleanup nulls + sort by block_order
+```
+
+### 4.9.6 Points d'attention
+
+- **⚠️ DDOL :** FlowController persiste entre toutes les scènes — attention aux références de scène qui deviennent invalides après un changement de scène
+- **⚠️ BootstrapFlow :** Attend un frame (`yield return null`) avant d'extraire l'URL — nécessaire en WebGL pour que Application.absoluteURL soit disponible
+- **⚠️ Editor fallback :** `_editorSessionId` permet de tester le flow dans l'éditeur sans URL — conditionné par `#if UNITY_EDITOR`
+- **⚠️ ActiveMapConfig clone :** Retourne toujours un DeepClone pour éviter la mutation de la config source — la seed est injectée dans le clone
+- **⚠️ OnTrialComplete guards :** Vérifie `State.current_phase == Proximal` et `CurrentBlock != null` — empêche les appels hors séquence
+- **⚠️ Questionnaire PATCH :** Les réponses sont mises en queue (`QueueQuestionnairePatchForTrial`) et patchées quand le `trialResponseId` du dernier trial est disponible — mécanisme asynchrone
+
+### 4.9.7 Journal d'implémentation
+
+| Date     | Développeur | Note / Décision Technique                                                                                     |
+| :------- | :---------- | :------------------------------------------------------------------------------------------------------------ |
+| 23/03/26 | @pierre     | Création. Machine à états orchestrant 10 phases, DDOL, fetch config backend via ApiClient, transitions FadeTransition, tutorial injection via TutorialSessionFactory, score accumulé par bloc, questionnaire PATCH queue. |
+
+## 4.10 ApiClient
+
+### 4.10.1 Responsabilités
+
+- **Singleton DDOL** (`ApiClient.Instance`, `DontDestroyOnLoad`) — couche réseau exclusive pour Supabase REST API
+- Récupérer la configuration de session (`GET /api/sessions/{sessionId}`)
+- Envoyer les trial responses (`POST /api/trial-responses`) avec queue et retry (max 3 tentatives)
+- Patcher les réponses questionnaire sur un trial response existant (`PATCH /api/trial-responses/{id}`)
+- Gérer un mécanisme de queue pour les PATCH questionnaire qui attendent le `trialResponseId`
+- Authentification : `supabaseAnonKey` en headers `apikey` + `Authorization: Bearer`
+- Émettre `OnTrialResponseStored` après chaque POST réussi
+
+### 4.10.2 Composants clés (Data Model)
+
+→ **ApiClient.cs** : Singleton DDOL MonoBehaviour. Gère la queue d'envoi et les retries.
+
+```csharp
+public class ApiClient : MonoBehaviour
+{
+    public static ApiClient Instance { get; private set; }
+
+    [Header("Config")]
+    public string supabaseUrl;
+    public string supabaseAnonKey;
+    [SerializeField] string _sessionConfigPath = "api/sessions";
+    [SerializeField] string _trialResponsesPath = "api/trial-responses";
+    [SerializeField] int _maxImmediateRetries = 3;
+    [SerializeField] float _retryDelaySeconds = 1f;
+
+    readonly Queue<PendingTrialRequest> _pendingTrialRequests = new();
+    readonly Dictionary<string, string> _storedTrialIdsByKey = new();
+    readonly Dictionary<string, PendingQuestionnairePatch> _pendingQuestionnairePatches = new();
+
+    bool _isProcessingTrialQueue;
+    bool _isFlushingQuestionnairePatches;
+
+    public event Action<TrialResponseRow, string> OnTrialResponseStored;
+}
+```
+
+| Variable / Méthode                                    | Type                      | Description                                                                              |
+| :---------------------------------------------------- | :------------------------ | :--------------------------------------------------------------------------------------- |
+| Instance                                              | ApiClient                 | Singleton DDOL                                                                           |
+| supabaseUrl                                           | string                    | URL de base Supabase (configuré dans l'Inspector)                                       |
+| supabaseAnonKey                                       | string                    | Clé anonyme Supabase — envoyée en `apikey` et `Bearer` headers                         |
+| _sessionConfigPath                                    | string                    | Chemin GET sessions (défaut : `api/sessions`)                                           |
+| _trialResponsesPath                                   | string                    | Chemin POST/PATCH trial responses (défaut : `api/trial-responses`)                      |
+| _maxImmediateRetries                                  | int                       | Nombre max de tentatives par trial (défaut : 3)                                         |
+| _retryDelaySeconds                                    | float                     | Délai entre retries (défaut : 1s)                                                        |
+| _pendingTrialRequests                                 | Queue (privé)             | File d'attente FIFO des trials à envoyer                                                |
+| _storedTrialIdsByKey                                  | Dictionary (privé)        | Mapping `participantId|blockIndex|trialIndex` → `trialResponseId` retourné par le backend |
+| _pendingQuestionnairePatches                          | Dictionary (privé)        | PATCH questionnaire en attente du `trialResponseId`                                      |
+| OnTrialResponseStored                                 | event                     | Émis après chaque POST trial réussi (row, trialResponseId)                              |
+| FetchSessionConfig(sessionId, onSuccess, onError)     | void                      | GET `/api/sessions/{sessionId}` → `SessionConfig`                                       |
+| SendTrialResponse(row, onSuccess, onError)            | void                      | Enqueue le trial + lance le processing de la queue                                       |
+| PatchQuestionnaireResponses(trialResponseId, q1..q3, onSuccess, onError) | void    | PATCH `/api/trial-responses/{id}` avec les réponses questionnaire                        |
+| QueueQuestionnairePatchForTrial(participantId, blockIndex, trialIndex, responses, onSuccess, onError) | void | Met en queue un PATCH qui sera exécuté quand le trialResponseId sera disponible |
+| RetryPendingTrialUploads()                            | void                      | Relance le processing de la queue si pas déjà en cours                                   |
+| CompleteSession(participantId)                        | void                      | Flush tous les pending (trials + questionnaires), log completion                          |
+
+### 4.10.3 Dépendances
+
+- **Nécessite :** `UnityWebRequest` (HTTP), `TrialResponseRow` (payload), `QuestionResponse` (questionnaire), `FlowSerializationUtility` (ApplyQuestionnaireResponses)
+- **Est utilisé par :** `FlowController` (FetchSessionConfig, QueueQuestionnairePatchForTrial, CompleteSession, OnTrialResponseStored), `TrialManager` (SendTrialResponse)
+- **Communique avec :** Supabase REST API (GET, POST, PATCH)
+
+### 4.10.4 Diagramme de flux
+
+```mermaid
+graph TD
+    subgraph "FetchSessionConfig"
+        F1["FetchSessionConfig(sessionId)"] --> F2["GET supabaseUrl/api/sessions/sessionId"]
+        F2 --> F3{"Succès ?"}
+        F3 -->|Oui| F4["JsonUtility.FromJson → SessionConfig"]
+        F3 -->|Non| F5["onError(message)"]
+        F4 --> F6["onSuccess(config)"]
+    end
+
+    subgraph "SendTrialResponse — Queue + Retry"
+        S1["SendTrialResponse(row)"] --> S2["Enqueue dans _pendingTrialRequests"]
+        S2 --> S3["RetryPendingTrialUploads()"]
+        S3 --> S4{"_isProcessingTrialQueue ?"}
+        S4 -->|Oui| S5[Skip]
+        S4 -->|Non| S6["ProcessPendingTrialRequests()"]
+        S6 --> S7["Peek queue"]
+        S7 --> S8["POST supabaseUrl/api/trial-responses"]
+        S8 --> S9{"Succès ?"}
+        S9 -->|Non, attempt < max| S10["Wait retryDelay → retry"]
+        S9 -->|Non, attempt >= max| S11["onError → break"]
+        S9 -->|Oui| S12["Dequeue, extract ID, store in _storedTrialIdsByKey"]
+        S12 --> S13["onSuccess(rowId)"]
+        S13 --> S14["OnTrialResponseStored(row, rowId)"]
+        S14 --> S15{"Pending questionnaire patch pour ce trial ?"}
+        S15 -->|Oui| S16["FlushPendingQuestionnairePatches()"]
+        S15 -->|Non| S17["Traiter trial suivant"]
+    end
+
+    subgraph "QueueQuestionnairePatchForTrial"
+        Q1["QueueQuestionnairePatchForTrial(...)"] --> Q2["FlowSerializationUtility.ApplyQuestionnaireResponses"]
+        Q2 --> Q3["Store dans _pendingQuestionnairePatches[key]"]
+        Q3 --> Q4["RetryPendingTrialUploads + FlushPendingQuestionnairePatches"]
+    end
+
+    subgraph "FlushPendingQuestionnairePatches"
+        FP1["Pour chaque pending patch"] --> FP2{"_storedTrialIdsByKey[key] existe ?"}
+        FP2 -->|Non| FP3["Skip (attendre le ID)"]
+        FP2 -->|Oui| FP4["PATCH /api/trial-responses/rowId"]
+        FP4 --> FP5{"Succès ?"}
+        FP5 -->|Oui| FP6["Remove du pending, onSuccess"]
+        FP5 -->|Non| FP7["onError"]
+    end
+```
+
+### 4.10.5 Points d'attention
+
+- **⚠️ DDOL :** ApiClient persiste entre scènes — la queue de trials est conservée si un envoi échoue
+- **⚠️ Queue FIFO :** Les trials sont envoyés dans l'ordre — si un trial échoue après max retries, la queue est bloquée (`break`)
+- **⚠️ Auth Supabase :** `supabaseAnonKey` est envoyé en double (`apikey` header + `Authorization: Bearer`) — c'est le pattern standard Supabase
+- **⚠️ Regex ID extraction :** Le `trialResponseId` est extrait de la réponse JSON par regex `"id"\s*:\s*"([^"]+)"` — fragile si le format JSON change
+- **⚠️ QueueQuestionnairePatch :** Le PATCH questionnaire attend que le trial correspondant ait été envoyé et que son ID soit stocké dans `_storedTrialIdsByKey`
+- **⚠️ CompleteSession :** Flush tout avant de loguer — pas de garantie que tout a été envoyé avec succès
+
+### 4.10.6 Journal d'implémentation
+
+| Date     | Développeur | Note / Décision Technique                                                                                     |
+| :------- | :---------- | :------------------------------------------------------------------------------------------------------------ |
+| 23/03/26 | @pierre     | Création. Client REST Supabase DDOL : GET sessions, POST trial-responses avec queue+retry, PATCH questionnaire avec queue différée, auth par supabaseAnonKey. |
+
+## 4.11 FadeTransition
+
+### 4.11.1 Responsabilités
+
+- **Singleton DDOL** (`FadeTransition.Instance`, `DontDestroyOnLoad`) — overlay de transition visuelle entre scènes
+- Créer dynamiquement un Canvas overlay (ScreenSpaceOverlay, sortingOrder max) avec une image noire plein écran
+- Fournir `FadeOut()` (opacité 0→1) et `FadeIn()` (opacité 1→0) comme coroutines
+- Utiliser `Time.unscaledDeltaTime` pour fonctionner même si le jeu est en pause
+
+### 4.11.2 Composants clés (Data Model)
+
+→ **FadeTransition.cs** : Singleton DDOL MonoBehaviour. Crée son overlay dynamiquement en Awake.
+
+```csharp
+public class FadeTransition : MonoBehaviour
+{
+    public static FadeTransition Instance { get; private set; }
+
+    [SerializeField] float _defaultDuration = 0.2f;
+
+    CanvasGroup _canvasGroup;
+}
+```
+
+| Variable / Méthode          | Type              | Description                                                        |
+| :--------------------------- | :---------------- | :----------------------------------------------------------------- |
+| Instance                     | FadeTransition    | Singleton DDOL                                                     |
+| _defaultDuration             | float             | Durée par défaut du fade (0.2s)                                    |
+| _canvasGroup                 | CanvasGroup       | Contrôle l'opacité de l'overlay (alpha 0-1)                       |
+| FadeOut(float? duration)     | IEnumerator       | Anime alpha 0→1 — appelé par FlowController avant LoadScene        |
+| FadeIn(float? duration)      | IEnumerator       | Anime alpha 1→0 — appelé par FlowController après LoadScene        |
+| EnsureOverlay()              | void (privé)      | Crée Canvas + Image noire + CanvasGroup si pas déjà créé           |
+| FadeTo(float, float)         | IEnumerator (privé)| Lerp alpha avec unscaledDeltaTime                                  |
+
+### 4.11.3 Dépendances
+
+- **Nécessite :** Unity UI (Canvas, CanvasScaler, GraphicRaycaster, Image, CanvasGroup)
+- **Est utilisé par :** `FlowController` (TransitionToScene — FadeOut avant LoadScene, FadeIn après)
+
+### 4.11.4 Diagramme de flux
+
+```mermaid
+graph TD
+    A["Awake()"] --> A1{"Instance existant ?"}
+    A1 -->|Oui| A2["Destroy(gameObject)"]
+    A1 -->|Non| A3["Instance = this, DontDestroyOnLoad"]
+    A3 --> A4["EnsureOverlay()"]
+    A4 --> A5["Créer Canvas (ScreenSpaceOverlay, sortingOrder=MaxValue)"]
+    A5 --> A6["Ajouter CanvasScaler + GraphicRaycaster"]
+    A6 --> A7["Créer Image noire plein écran"]
+    A7 --> A8["Ajouter CanvasGroup (alpha=0, blocksRaycasts=false)"]
+
+    subgraph "FadeOut / FadeIn"
+        F1["FadeOut(duration)"] --> F2["EnsureOverlay()"]
+        F2 --> F3["FadeTo(targetAlpha=1, duration)"]
+        F3 --> F4["Lerp alpha avec unscaledDeltaTime"]
+        F4 --> F5["alpha = targetAlpha"]
+
+        G1["FadeIn(duration)"] --> G2["EnsureOverlay()"]
+        G2 --> G3["FadeTo(targetAlpha=0, duration)"]
+    end
+```
+
+### 4.11.5 Points d'attention
+
+- **⚠️ DDOL :** L'overlay persiste entre scènes — pas besoin de le recréer
+- **⚠️ UnscaledDeltaTime :** Le fade fonctionne même si `Time.timeScale == 0`
+- **⚠️ sortingOrder :** `short.MaxValue` (32767) garantit que l'overlay est au-dessus de tout
+- **⚠️ EnsureOverlay :** Idempotent — appelé à chaque FadeOut/FadeIn pour garantir l'existence du Canvas
+
+### 4.11.6 Journal d'implémentation
+
+| Date     | Développeur | Note / Décision Technique                                                                                     |
+| :------- | :---------- | :------------------------------------------------------------------------------------------------------------ |
+| 23/03/26 | @pierre     | Création. Overlay dynamique DDOL, Canvas ScreenSpaceOverlay, CanvasGroup alpha pour transitions, unscaledDeltaTime. |
+
 # 5. Gestion des données
 
 ## 5.1 Structures de données de recherche
 
-### TrialData
+### TrialResponseRow
 
-→ **TrialData.cs** : Classe `[Serializable]` représentant une manche complète de jeu. Créée par TrialManager au début de chaque round, enrichie pendant le gameplay, sérialisée en JSON pour l'envoi API.
+→ **FlowDataModels.cs** (`TrialResponseRow`) : Classe `[Serializable]` représentant une ligne plate (flat row) envoyée au backend Supabase via `POST /api/trial-responses`. Construite par `TrialManager.BuildBaseRow()` au début de chaque trial, enrichie par `EndCurrentTrial()`, sérialisée en JSON par `ApiClient.SendTrialResponse()`.
 
 ```csharp
 [Serializable]
-public class TrialData
+public class TrialResponseRow
 {
-    public string session_id;
-    public int block_id;
-    public int screen_id;
-    public string screen_type;
-    public string timestamp;
-    public float base_reward;
-    public string advisor_type;
-    public string map_config;
-    public string true_cloud;
-    public int optimal_path_length;
-    public bool optimal_path_visible;
-    public bool path_is_suboptimal;   // true si le chemin affiché était suboptimal
+    // Identité session
+    public string participant_id;
+    public string session_template_id;
+    public string build_version;
+
+    // Position dans le flow
+    public int block_index;
+    public int trial_index;
+    public int trial_count;
+    public string advisor_choice;
+    public string valley_choice;
+
+    // Config grille (MapGenConfig)
+    public int grid_width;
+    public int grid_height;
+    public int trap_count;
+    public int min_distance;
+    public int max_distance;
+    public int min_total_bugs;
+    public int max_total_bugs;
+    public float min_green_ratio;
+    public float max_green_ratio;
+    public float gap_min;
+    public float gap_max;
+    public float fog_probability;
     public long trial_seed;
-    public List<PlayerStep> player_path_log = new();
+    public float path_visible_probability;
+    public float suboptimal_path_probability;
+    public float detour_probability;
+    public float motor_advice_visible_probability;
+    public float motor_advice_reliable_probability;
+    public float suboptimal_trap_probability;
+    public int min_suboptimal_traps;
+    public int max_suboptimal_traps;
+
+    // Résultats de génération
+    public string map_config;
+    public int optimal_path_length;
+    public int cloud_distance;
+    public bool optimal_path_visible;
+    public bool path_is_suboptimal;
+
+    // Résultats joueur
     public string proximal_choice;
     public bool choice_correct;
+    public string true_cloud;
     public int green_bugs_collected;
+    public int green_bugs_accumulated;
     public int traps_hit;
-    public int cloud_distance;
     public int steps;
-    public string end_timestamp;
+    public int overtime_steps;
+    public bool followed_advisor_path;
+    public string player_path_log;
+
+    // Questionnaire (patchés après par ApiClient)
+    public string q1_text;
+    public string q1_response;
+    public string q2_text;
+    public string q2_response;
+    public string q3_text;
+    public string q3_response;
+
+    // Timestamps
+    public string started_at;
+    public string ended_at;
 }
 ```
 
-| Champ               | Type               | Rempli par                   | Description                                                    |
-| :------------------ | :----------------- | :--------------------------- | :------------------------------------------------------------- |
-| session_id          | string             | Constructeur                 | ID de session (injecté depuis les args CLI via SessionManager) |
-| block_id            | int                | Constructeur                 | Identifiant du bloc de trials (défaut : 1)                     |
-| screen_id           | int                | Constructeur                 | Numéro séquentiel de la manche dans le bloc                    |
-| screen_type         | string             | Constructeur                 | Type d'écran (ex : "forest")                                   |
-| timestamp           | string             | Constructeur                 | Date ISO 8601 UTC du début de la manche                        |
-| base_reward         | float              | _Non utilisé_                | Récompense de base (réservé pour le protocole de recherche)    |
-| advisor_type        | string             | _Non utilisé_                | Type de conseiller (réservé pour le protocole de recherche)    |
-| map_config          | string             | TrialManager.SetMapConfig    | JSON de la config carte (grille, positions/bugs des nuages)    |
-| true_cloud          | string             | GameManager.OnCloudCollected | Nuage objectivement meilleur (greenRatio) : "left", "right" ou "none" (si égalité) |
-| optimal_path_length | int                | GameManager.OnCloudCollected | Longueur du chemin optimal enregistré par PathSpawner          |
-| **optimal_path_visible** | **bool**      | **TrialManager.EndCurrentTrial** | **Indique si le chemin optimal était visible pour le joueur dans cette manche (déterminé par tirage `rng.NextDouble() < pathVisible`)** |
-| **path_is_suboptimal** | **bool**        | **TrialManager.EndCurrentTrial** | **`true` si le chemin affiché au joueur était suboptimal (non réservé, pièges possibles). Tirage `rng.NextDouble() < suboptimalPathProbability` dans PathSpawner** |
-| **trial_seed**      | **long**           | **TrialManager.StartNewTrial** | **Seed de randomisation du round — permet la reproductibilité** |
-| player_path_log     | List\<PlayerStep\> | TrialManager.RecordMove      | Séquence ordonnée des pas du joueur avec timestamps            |
-| proximal_choice     | string             | TrialManager.EndCurrentTrial | Choix du joueur : "left", "right" ou "unknown"                 |
-| choice_correct      | bool               | TrialManager.EndCurrentTrial | `true` si le joueur a collecté le nuage optimal                |
-| **green_bugs_collected** | **int**        | **TrialManager.EndCurrentTrial** | **Nombre de bugs verts collectés (totalBugs × greenRatio après pénalités)** |
-| **traps_hit**       | **int**            | **TrialManager.EndCurrentTrial** | **Nombre de pièges déclenchés pendant le round**                   |
-| **cloud_distance**  | **int**            | **TrialManager.SetCloudDistance** | **Distance Manhattan joueur→nuages (budget de pas) — permet de calculer le dépassement : steps - cloud_distance** |
-| **steps**           | **int**            | **TrialManager.EndCurrentTrial** | **Nombre de pas du joueur pendant le round**                    |
-| end_timestamp       | string             | TrialManager.EndCurrentTrial | Date ISO 8601 UTC de fin de manche                             |
+| Champ                             | Type   | Rempli par                        | Description                                                                      |
+| :-------------------------------- | :----- | :-------------------------------- | :------------------------------------------------------------------------------- |
+| participant_id                    | string | BuildBaseRow (FlowController)     | ID participant extrait de l'URL WebGL                                             |
+| session_template_id               | string | BuildBaseRow (FlowController)     | ID du template de session backend                                                 |
+| build_version                     | string | BuildBaseRow (FlowController)     | Version du build Unity (ex: "0.3.0-flow")                                        |
+| block_index                       | int    | BuildBaseRow (FlowController)     | Index du bloc courant (0-based)                                                   |
+| trial_index                       | int    | BuildBaseRow (FlowController)     | Index du trial dans le bloc (0-based)                                             |
+| trial_count                       | int    | BuildBaseRow (FlowController)     | Nombre total de trials dans le bloc                                               |
+| advisor_choice                    | string | BuildBaseRow (FlowController)     | "human", "robot" ou "none"                                                        |
+| valley_choice                     | string | BuildBaseRow (FlowController)     | "A", "B" ou null                                                                  |
+| grid_width / grid_height          | int    | BuildBaseRow (SessionManager)     | Dimensions de la grille                                                           |
+| trap_count                        | int    | BuildBaseRow (SessionManager)     | Nombre de pièges                                                                  |
+| min_distance / max_distance       | int    | BuildBaseRow (SessionManager)     | Range distance placement nuages                                                   |
+| min_total_bugs / max_total_bugs   | int    | BuildBaseRow (SessionManager)     | Range total bugs par nuage                                                        |
+| min_green_ratio / max_green_ratio | float  | BuildBaseRow (SessionManager)     | Range ratio vert par nuage                                                        |
+| gap_min / gap_max                 | float  | BuildBaseRow (SessionManager)     | Range écart greenRatio entre nuages                                               |
+| fog_probability                   | float  | BuildBaseRow (SessionManager)     | Probabilité d'activation du brouillard                                            |
+| trial_seed                        | long   | BuildBaseRow (FlowController)     | Seed de randomisation du trial — reproductibilité                                 |
+| path_visible_probability          | float  | BuildBaseRow (SessionManager)     | Probabilité que le chemin optimal soit visible                                    |
+| suboptimal_path_probability       | float  | BuildBaseRow (SessionManager)     | Probabilité de chemin suboptimal                                                  |
+| detour_probability                | float  | BuildBaseRow (SessionManager)     | Probabilité de détour dans le chemin suboptimal                                   |
+| motor_advice_visible_probability  | float  | BuildBaseRow (SessionManager)     | Probabilité d'affichage du motor advice                                           |
+| motor_advice_reliable_probability | float  | BuildBaseRow (SessionManager)     | Probabilité que le motor advice soit fiable                                       |
+| suboptimal_trap_probability       | float  | BuildBaseRow (SessionManager)     | Probabilité de pièges sur le chemin suboptimal                                    |
+| min_suboptimal_traps / max_suboptimal_traps | int | BuildBaseRow (SessionManager) | Range nombre de pièges suboptimaux                                           |
+| map_config                        | string | TrialManager.SetMapConfig         | JSON de la config carte (positions/bugs des nuages)                               |
+| optimal_path_length               | int    | EndCurrentTrial                   | Longueur du chemin optimal (PathSpawner)                                          |
+| cloud_distance                    | int    | TrialManager.SetCloudDistance     | Distance Manhattan joueur→nuages (budget de pas)                                  |
+| optimal_path_visible              | bool   | EndCurrentTrial                   | `true` si le chemin optimal était visible pour le joueur                           |
+| path_is_suboptimal                | bool   | EndCurrentTrial                   | `true` si le chemin affiché était suboptimal                                      |
+| proximal_choice                   | string | EndCurrentTrial                   | "left", "right" ou "unknown"                                                      |
+| choice_correct                    | bool   | EndCurrentTrial                   | `true` si le joueur a collecté le nuage optimal                                   |
+| true_cloud                        | string | EndCurrentTrial                   | Nuage objectivement meilleur : "left", "right" ou "none"                          |
+| green_bugs_collected              | int    | EndCurrentTrial                   | Bugs verts collectés (totalBugs × greenRatio après pénalités)                     |
+| green_bugs_accumulated            | int    | EndCurrentTrial                   | Score accumulé dans le bloc (FlowController.GetAccumulatedScoreAfterTrial)         |
+| traps_hit                         | int    | EndCurrentTrial                   | Nombre de pièges déclenchés                                                        |
+| steps                             | int    | EndCurrentTrial                   | Nombre total de pas du joueur                                                      |
+| overtime_steps                    | int    | EndCurrentTrial                   | Pas au-delà du budget (steps − cloud_distance, min 0)                             |
+| followed_advisor_path             | bool   | EndCurrentTrial                   | `true` si le joueur a suivi le chemin conseillé                                    |
+| player_path_log                   | string | EndCurrentTrial                   | JSON sérialisé de `List<PlayerStep>` (coordonnées + timestamps)                   |
+| q1_text / q1_response             | string | ApiClient.PatchQuestionnaireResponses | Texte et réponse de la question 1 (patchés après envoi trial)                |
+| q2_text / q2_response             | string | ApiClient.PatchQuestionnaireResponses | Texte et réponse de la question 2                                            |
+| q3_text / q3_response             | string | ApiClient.PatchQuestionnaireResponses | Texte et réponse de la question 3                                            |
+| started_at                        | string | BuildBaseRow                      | Timestamp ISO 8601 UTC début de trial                                             |
+| ended_at                          | string | EndCurrentTrial                   | Timestamp ISO 8601 UTC fin de trial                                               |
 
 ### PlayerStep
 
@@ -2090,42 +2539,187 @@ public class PlayerStep
 
 ### Format JSON envoyé à l'API
 
+Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJson()` et envoyé en `POST /api/trial-responses`. Le backend retourne l'ID du row créé, qui est stocké pour les PATCH questionnaire ultérieurs.
+
 ```json
 {
-  "Items": [
-    {
-      "session_id": "abc-123",
-      "block_id": 1,
-      "screen_id": 1,
-      "screen_type": "forest",
-      "timestamp": "2026-02-17T14:30:00.000Z",
-      "map_config": "{\"gridWidth\":10,\"gridHeight\":10,\"leftCloud\":{\"x\":2,\"y\":7,\"totalBugs\":45,\"greenRatio\":0.65},\"rightCloud\":{\"x\":7,\"y\":7,\"totalBugs\":45,\"greenRatio\":0.45}}",
-      "true_cloud": "left",
-      "optimal_path_length": 12,
-      "optimal_path_visible": true,
-      "path_is_suboptimal": false,
-      "trial_seed": 8234567890123456789,
-      "player_path_log": [
-        {"x": 5, "y": 0, "t": "2026-02-17T14:30:01.000Z"},
-        {"x": 5, "y": 1, "t": "2026-02-17T14:30:01.500Z"}
-      ],
-      "proximal_choice": "left",
-      "choice_correct": true,
-      "green_bugs_collected": 28,
-      "traps_hit": 2,
-      "cloud_distance": 12,
-      "steps": 14,
-      "end_timestamp": "2026-02-17T14:30:15.000Z"
-    }
-  ]
+  "participant_id": "abc-123",
+  "session_template_id": "tmpl-456",
+  "build_version": "0.3.0-flow",
+  "block_index": 0,
+  "trial_index": 2,
+  "trial_count": 4,
+  "advisor_choice": "human",
+  "valley_choice": "A",
+  "grid_width": 10,
+  "grid_height": 10,
+  "trap_count": 5,
+  "min_distance": 3,
+  "max_distance": 10,
+  "min_total_bugs": 20,
+  "max_total_bugs": 80,
+  "min_green_ratio": 0.4,
+  "max_green_ratio": 0.8,
+  "gap_min": 0.1,
+  "gap_max": 0.3,
+  "fog_probability": 0.0,
+  "trial_seed": 8234567890123456789,
+  "path_visible_probability": 1.0,
+  "suboptimal_path_probability": 0.0,
+  "detour_probability": 0.0,
+  "motor_advice_visible_probability": 1.0,
+  "motor_advice_reliable_probability": 1.0,
+  "suboptimal_trap_probability": 0.0,
+  "min_suboptimal_traps": 1,
+  "max_suboptimal_traps": 3,
+  "map_config": "{\"gridWidth\":10,\"gridHeight\":10,...}",
+  "optimal_path_length": 12,
+  "cloud_distance": 12,
+  "optimal_path_visible": true,
+  "path_is_suboptimal": false,
+  "proximal_choice": "left",
+  "choice_correct": true,
+  "true_cloud": "left",
+  "green_bugs_collected": 28,
+  "green_bugs_accumulated": 72,
+  "traps_hit": 2,
+  "steps": 14,
+  "overtime_steps": 2,
+  "followed_advisor_path": true,
+  "player_path_log": "[{\"x\":5,\"y\":0,\"t\":\"2026-02-17T14:30:01.000Z\"},{\"x\":5,\"y\":1,\"t\":\"2026-02-17T14:30:01.500Z\"}]",
+  "started_at": "2026-02-17T14:30:00.000Z",
+  "ended_at": "2026-02-17T14:30:15.000Z"
 }
 ```
 
 ### Points d'attention sur les données
 
-- **⚠️ Champs réservés :** `base_reward`, `advisor_type` sont déclarés mais jamais remplis — prévus pour l'évolution du protocole de recherche
-- **⚠️ Format wrapper :** `JsonHelper.ToJson` produit `{ "Items": [...] }` et non un tableau JSON pur — le backend doit parser ce format
-- **⚠️ Timestamps :** Tous les timestamps utilisent `DateTime.UtcNow.ToString("o")` (ISO 8601 UTC) — pas de timezone locale, cohérent pour l'analyse
+- **⚠️ Flat row :** `TrialResponseRow` est une structure plate (~50 champs) — pas de nested objects — conçue pour insertion directe dans une table Supabase
+- **⚠️ Questionnaire patchés :** Les champs `q1_text/q1_response`, `q2_text/q2_response`, `q3_text/q3_response` sont vides au POST initial — ils sont patchés via `PATCH /api/trial-responses/{id}` après que le questionnaire est complété
+- **⚠️ player_path_log :** Sérialisé en string JSON (pas un objet imbriqué) — le backend reçoit la string telle quelle
+- **⚠️ green_bugs_accumulated :** Score accumulé dans le bloc courant (pas la session entière) — reset entre blocs
+- **⚠️ Timestamps :** `started_at` et `ended_at` utilisent `DateTime.UtcNow.ToString("o")` (ISO 8601 UTC)
+- **⚠️ Tutorial skip :** Si `FlowController.IsCurrentBlockTutorial`, le trial n'est PAS envoyé au backend (skip dans TrialManager)
+
+## 5.2 Flow Data Models
+
+→ **FlowDataModels.cs** : Fichier centralisé contenant tous les enums, structures de configuration, d'état et utilitaires du flow multi-scènes. Référencé par FlowController, ApiClient, SessionManager, TrialManager et les écrans UI.
+
+### Enums
+
+| Enum         | Valeurs                                                                                          | Utilisé par                                       |
+| :----------- | :----------------------------------------------------------------------------------------------- | :------------------------------------------------ |
+| GamePhase    | Boot, Welcome, Consent, Intro, Tutorial, AdvisorChoice, DistalChoice, Proximal, Questionnaire, EndSession | FlowController (machine à états), PlayerSessionState |
+| AdvisorType  | None, Human, Robot                                                                               | FlowController, PlayerSessionState, TrialResponseRow |
+| ValleyChoice | None, A, B                                                                                        | FlowController, PlayerSessionState, TrialResponseRow |
+
+### SessionConfig
+
+Configuration de session récupérée du backend (`GET /api/sessions/{id}`).
+
+| Champ               | Type                | Description                                     |
+| :------------------- | :------------------ | :---------------------------------------------- |
+| session_template_id  | string              | ID du template de session                        |
+| consent_text         | string (TextArea)   | Texte de consentement affiché à l'écran Consent  |
+| tutorial_enabled     | bool (défaut true)  | Active l'injection automatique d'un bloc tutorial |
+| blocks               | List\<BlockConfig\> | Liste ordonnée des blocs expérimentaux            |
+
+### BlockConfig
+
+Configuration d'un bloc dans la session. Chaque bloc contient N trials + un questionnaire optionnel.
+
+| Champ              | Type                   | Description                                           |
+| :----------------- | :--------------------- | :---------------------------------------------------- |
+| block_template_id  | string                 | ID du template de bloc                                 |
+| block_order        | int                    | Ordre de tri des blocs dans la session                  |
+| trial_count        | int (défaut 1)         | Nombre de trials dans le bloc                           |
+| is_tutorial        | bool                   | Si `true`, scores non comptés, envoi réseau ignoré      |
+| valley_a / valley_b| MapGenConfig           | Configuration de génération pour chaque vallée          |
+| valley_a_preview / valley_b_preview | ValleyPreview | Données de preview pour l'écran DistalChoice      |
+| questions          | List\<QuestionConfig\> | Questions affichées après le dernier trial du bloc      |
+
+### MapGenConfig (19 paramètres + seed)
+
+Configuration de génération de map — source de vérité pour les paramètres expérimentaux d'un trial. Clonée via `DeepClone()` pour éviter la mutation cross-trial.
+
+| Champ                             | Type  | Défaut | Description                                          |
+| :-------------------------------- | :---- | :----- | :--------------------------------------------------- |
+| trap_count                        | int   | 10     | Nombre de pièges                                      |
+| min_distance / max_distance       | int   | 3 / 10 | Range distance Manhattan placement nuages              |
+| min_total_bugs / max_total_bugs   | int   | 20 / 80| Range total bugs par nuage                             |
+| min_green_ratio / max_green_ratio | float | 0.4 / 0.8 | Range ratio vert par nuage                        |
+| gap_min / gap_max                 | float | 0.1 / 0.3 | Range écart greenRatio entre nuages               |
+| path_visible                      | float | 1.0    | Probabilité que le chemin optimal soit visible         |
+| suboptimal_path_probability       | float | 0      | Probabilité de chemin suboptimal                       |
+| detour_probability                | float | 0      | Probabilité de détour dans le chemin suboptimal        |
+| motor_advice_visible_probability  | float | 1.0    | Probabilité d'affichage du motor advice                |
+| motor_advice_reliable_probability | float | 1.0    | Probabilité que le motor advice soit fiable            |
+| suboptimal_trap_probability       | float | 0      | Probabilité de pièges sur le chemin suboptimal         |
+| min_suboptimal_traps / max_suboptimal_traps | int | 1 / 3 | Range nombre de pièges suboptimaux              |
+| fog_probability                   | float | 0      | Probabilité d'activation du brouillard                 |
+| seed                              | long  | 0      | Seed injectée par FlowController (via ActiveMapConfig) |
+
+### ValleyPreview
+
+Données de preview pour l'écran de choix distal. Affiche des indices visuels sur les vallées sans révéler les paramètres exacts.
+
+| Champ            | Type  | Description                                |
+| :--------------- | :---- | :----------------------------------------- |
+| left_cloud_size  | float | Indice taille nuage gauche                  |
+| right_cloud_size | float | Indice taille nuage droit                   |
+| left_green_hint  | float | Indice vert du nuage gauche                 |
+| right_green_hint | float | Indice vert du nuage droit                  |
+
+### QuestionConfig
+
+Configuration d'une question de questionnaire (définie par le backend).
+
+| Champ              | Type     | Description                                        |
+| :----------------- | :------- | :------------------------------------------------- |
+| order              | int      | Ordre d'affichage de la question                    |
+| text               | string   | Texte de la question                                |
+| type               | string   | Type de question (ex: "likert", "freetext", "mcq") |
+| options            | string[] | Options pour les questions à choix multiple          |
+| min_value/max_value| int      | Range pour les questions Likert (défaut 1-7)         |
+| min_label/max_label| string   | Labels aux extrêmes de l'échelle Likert              |
+
+### QuestionResponse
+
+Réponse du joueur à une question — envoyée dans le PATCH questionnaire.
+
+| Champ         | Type   | Description                    |
+| :------------ | :----- | :----------------------------- |
+| order         | int    | Correspondance avec QuestionConfig.order |
+| question_text | string | Texte de la question           |
+| response      | string | Réponse saisie par le joueur   |
+
+### PlayerSessionState
+
+État mutable de la session, porté par `FlowController.State`. Mis à jour à chaque transition de phase.
+
+| Champ                    | Type         | Description                                             |
+| :----------------------- | :----------- | :------------------------------------------------------ |
+| participant_id           | string       | ID participant (extrait de l'URL)                        |
+| session_template_id      | string       | ID template de session                                   |
+| last_trial_response_id   | string       | ID de la dernière réponse trial (pour PATCH questionnaire)|
+| current_phase            | GamePhase    | Phase courante de la machine à états                     |
+| current_block_index      | int          | Index du bloc courant (0-based)                          |
+| current_trial_index      | int          | Index du trial courant dans le bloc                      |
+| advisor_choice           | AdvisorType  | Choix du conseiller (Human/Robot/None)                   |
+| valley_choice            | ValleyChoice | Choix de la vallée (A/B/None)                            |
+| green_bugs_accumulated   | int          | Score accumulé dans le bloc courant                      |
+
+### Utilitaires
+
+**FlowCloneUtility** : Méthodes statiques de deep clone pour les structures de configuration.
+- `CloneBlocks(List<BlockConfig>)` → copie profonde de la liste de blocs
+- `CloneQuestions(List<QuestionConfig>)` → copie profonde de la liste de questions
+- `CloneArray(string[])` → copie du tableau de strings
+
+**FlowValueConverters** : Conversion enum ↔ string API.
+- `ToApiValue(AdvisorType)` → "human" / "robot" / "none"
+- `ToApiValue(ValleyChoice)` → "A" / "B" / null
+- `ToAdvisorType(string)` → None / Human / Robot (case-insensitive)
 
 # 6. Interface utilisateur
 
@@ -2135,12 +2729,12 @@ public class PlayerStep
 
 - Afficher le panneau de fin de round (game over) quand `GameManager.OnRoundEnded` est émis
 - Formater et présenter les statistiques de la manche (bugs collectés, pièges, pas, chemin conseillé, pas en trop)
-- Fournir le bouton de restart qui appelle `GameManager.RestartRound()`
+- Fournir le bouton "Continuer" qui appelle `GameManager.ContinueAfterRound()` (délègue au FlowController)
 - Masquer le panneau au démarrage
 
 ### 6.1.2 Composants clés (Data Model)
 
-→ **RoundUI.cs** : MonoBehaviour, composant UI. Pas d'ordre d'exécution spécifique (défaut : `0`).
+→ **RoundUI.cs** : MonoBehaviour, composant UI dans ProximalScene. Pas d'ordre d'exécution spécifique (défaut : `0`).
 
 ```csharp
 public class RoundUI : MonoBehaviour
@@ -2148,6 +2742,7 @@ public class RoundUI : MonoBehaviour
     [Header("Game Over")]
     [SerializeField] private GameObject _gameOverPanel;
     [SerializeField] private TMP_Text _gameOverStats;
+    [SerializeField] private TMP_Text _actionButtonLabel;
 }
 ```
 
@@ -2155,12 +2750,13 @@ public class RoundUI : MonoBehaviour
 | :--------------------------- | :------------ | :------------------------------------------------------------------- |
 | _gameOverPanel               | GameObject    | Panel UI masqué au Start, activé à la fin du round                   |
 | _gameOverStats               | TMP_Text      | Texte affichant les stats de la manche (bugs, traps, steps, chemin, overtimeSteps) |
+| _actionButtonLabel           | TMP_Text      | Label du bouton d'action — défini à "Continuer" au Start             |
 | HandleRoundEnded(RoundEndInfo) | void (privé) | Callback de l'event OnRoundEnded — active le panel et formate les stats |
-| OnRestartClicked()           | void (public) | Appelé par le bouton UI — délègue à `GameManager.RestartRound()`     |
+| OnContinueClicked()          | void (public) | Appelé par le bouton UI — délègue à `GameManager.ContinueAfterRound()` |
 
 ### 6.1.3 Dépendances
 
-- **Nécessite :** `GameManager.Instance` (s'abonne à `OnRoundEnded`, appelle `RestartRound()`)
+- **Nécessite :** `GameManager.Instance` (s'abonne à `OnRoundEnded`, appelle `ContinueAfterRound()`)
 - **Est utilisé par :** Aucun — composant terminal d'affichage
 - **Package requis :** TextMeshPro (TMP_Text)
 
@@ -2169,15 +2765,19 @@ public class RoundUI : MonoBehaviour
 ```mermaid
 graph TD
     A["Start()"] --> B["S'abonner à GameManager.OnRoundEnded"]
-    B --> C["_gameOverPanel.SetActive(false)"]
+    B --> B2["_actionButtonLabel.text = 'Continuer'"]
+    B2 --> C["_gameOverPanel.SetActive(false)"]
 
     D["GameManager émet OnRoundEnded(info)"] --> E["HandleRoundEnded(info)"]
     E --> F["_gameOverPanel.SetActive(true)"]
     F --> G["Formater _gameOverStats.text"]
     G --> H["Affiche : bugs, pièges, pas, chemin, bugs L/R, pas en trop"]
 
-    I["Bouton Restart cliqué"] --> J["OnRestartClicked()"]
-    J --> K["GameManager.Instance.RestartRound()"]
+    I["Bouton Continuer cliqué"] --> J["OnContinueClicked()"]
+    J --> K["GameManager.Instance.ContinueAfterRound()"]
+    K --> K2{"FlowController.Instance != null ?"}
+    K2 -->|Oui| K3["FlowController.OnTrialComplete(greenBugsCollected)"]
+    K2 -->|Non| K4["RestartRound() (fallback)"]
 
     L["OnDestroy()"] --> M["Se désabonner de OnRoundEnded"]
 ```
@@ -2186,6 +2786,7 @@ graph TD
 
 - **⚠️ Pattern Observer :** RoundUI s'abonne à `OnRoundEnded` dans `Start()` et se désabonne dans `OnDestroy()` — pas de référence UI dans GameManager, découplage propre
 - **⚠️ Null-safe :** Tous les accès à `_gameOverPanel` et `_gameOverStats` sont protégés par des null-checks
+- **⚠️ ContinueAfterRound :** Remplace l'ancien `RestartRound()` — le bouton "Continuer" délègue au FlowController qui décide de la suite (trial suivant, questionnaire ou fin de bloc)
 - **⚠️ Format texte :** Le texte affiché inclut `followedAdvisorPath` (« Chemin conseillé suivi : Oui/Non »), les bugs restants dans chaque nuage et `overtimeSteps` (pas en trop) — utile pour le debriefing joueur
 
 ### 6.1.6 Journal d'implémentation
@@ -2195,6 +2796,7 @@ graph TD
 | 27/02/26 | @pierre     | Création. UI extraite de GameManager vers un composant dédié. S'abonne à OnRoundEnded. |
 | 02/03/26 | @pierre     | Ajout affichage `overtimeSteps` (pas en trop) dans les stats de fin de round. RoundEndInfo inclut désormais `overtimeSteps`. |
 | 09/03/26 | @auteur     | Feature suboptimal path : label « Chemin optimal suivi » renommé en « Chemin conseillé suivi ». `info.followedBestPath` → `info.followedAdvisorPath`. |
+| 23/03/26 | @pierre     | Bouton Restart → Continuer. `OnRestartClicked()` → `OnContinueClicked()`. Délègue à `GameManager.ContinueAfterRound()` au lieu de `RestartRound()`. Ajout `_actionButtonLabel` ("Continuer"). |
 
 ## 6.2 MotorAdviceUI
 
@@ -2263,7 +2865,415 @@ graph TD
 | :------- | :---------- | :--------------------------------------------------------------------------------------- |
 | 12/03/26 | @pierre     | Création. UI dédiée au motor advice. S'abonne à OnAdviceChanged, affiche DisplayedSet via FormatSet(). Panneau masqué si AdviceVisible == false. |
 
-# 7. Optimisations et performance
+## 6.3 ConsentUI
+
+### 6.3.1 Responsabilités
+
+- Afficher l'écran de consentement dans la scène ConsentScene
+- Récupérer le texte de consentement depuis `FlowController.Config.consent_text`
+- Accepter le consentement → `FlowController.OnConsentGiven()`
+- Refuser le consentement → afficher un message de refus (pas de progression)
+
+### 6.3.2 Composants clés (Data Model)
+
+→ **ConsentUI.cs** : MonoBehaviour, composant UI dans ConsentScene.
+
+```csharp
+public class ConsentUI : MonoBehaviour
+{
+    [SerializeField] private TMP_Text _titleText;
+    [SerializeField] private TMP_Text _bodyText;
+    [SerializeField] private TMP_Text _statusText;
+}
+```
+
+| Variable / Méthode   | Type     | Description                                                          |
+| :-------------------- | :------- | :------------------------------------------------------------------- |
+| _titleText            | TMP_Text | Titre affiché ("Consentement")                                       |
+| _bodyText             | TMP_Text | Corps du texte de consentement (lu depuis FlowController.Config)     |
+| _statusText           | TMP_Text | Texte de statut (vide par défaut, message de refus si décliné)       |
+| OnAcceptClicked()     | void     | Bouton Accepter → `FlowController.Instance.OnConsentGiven()`        |
+| OnDeclineClicked()    | void     | Bouton Refuser → affiche message de refus dans `_statusText`         |
+
+### 6.3.3 Dépendances
+
+- **Nécessite :** `FlowController.Instance` (Config.consent_text, OnConsentGiven())
+- **Est utilisé par :** Aucun — composant terminal
+
+### 6.3.4 Diagramme de flux
+
+```mermaid
+graph TD
+    A["Start()"] --> B{"FlowController.Instance != null ?"}
+    B -->|Non| C[Return]
+    B -->|Oui| D["_titleText = 'Consentement'"]
+    D --> E{"consent_text non vide ?"}
+    E -->|Oui| F["_bodyText = Config.consent_text"]
+    E -->|Non| G["_bodyText = texte par défaut"]
+    F --> H["_statusText = vide"]
+    G --> H
+
+    I["Bouton Accepter"] --> J["OnAcceptClicked()"]
+    J --> K["FlowController.OnConsentGiven()"]
+
+    L["Bouton Refuser"] --> M["OnDeclineClicked()"]
+    M --> N["_statusText = 'Vous avez refusé...'"]
+```
+
+### 6.3.5 Points d'attention
+
+- **⚠️ Texte fallback :** Si `consent_text` est null ou vide, un message par défaut est affiché
+- **⚠️ Refus bloquant :** Le refus ne provoque pas de navigation — le joueur reste sur l'écran
+
+### 6.3.6 Journal d'implémentation
+
+| Date     | Développeur | Note / Décision Technique                                                     |
+| :------- | :---------- | :----------------------------------------------------------------------------- |
+| 23/03/26 | @pierre     | Création. Écran consentement avec texte backend, accepter/refuser. Scène ConsentScene. |
+
+## 6.4 AdvisorChoiceUI
+
+### 6.4.1 Responsabilités
+
+- Afficher l'écran de choix d'advisor dans la scène AdvisorChoiceScene
+- Proposer 3 options : None, Human, Robot (boutons dédiés ou via index)
+- Adapter le titre selon le bloc (tutorial vs expérimental)
+- Transmettre le choix → `FlowController.OnAdvisorChosen(AdvisorType)`
+
+### 6.4.2 Composants clés (Data Model)
+
+→ **AdvisorChoiceUI.cs** : MonoBehaviour, composant UI dans AdvisorChoiceScene.
+
+```csharp
+public class AdvisorChoiceUI : MonoBehaviour
+{
+    [SerializeField] private TMP_Text _titleText;
+    [SerializeField] private TMP_Text _subtitleText;
+    [SerializeField] private TMP_Text[] _optionLabels;
+
+    string[] _advisorOptions = { "none", "human", "robot" };
+}
+```
+
+| Variable / Méthode                 | Type       | Description                                                          |
+| :--------------------------------- | :--------- | :------------------------------------------------------------------- |
+| _titleText                         | TMP_Text   | "Choix d'advisor" (ou "Choix d'advisor (tutorial)")                  |
+| _subtitleText                      | TMP_Text   | Sous-titre informatif                                                |
+| _optionLabels                      | TMP_Text[] | Labels des boutons d'option (auto-remplis en UPPER depuis _advisorOptions) |
+| _advisorOptions                    | string[]   | {"none", "human", "robot"} — source des valeurs                      |
+| Refresh()                          | void (privé)| Met à jour titres et labels depuis FlowController                    |
+| OnChooseOptionIndex(int)           | void       | Choix par index → `FlowValueConverters.ToAdvisorType()` → `OnAdvisorChosen` |
+| OnChooseNoneClicked()              | void       | Shortcut → `OnAdvisorChosen(AdvisorType.None)`                       |
+| OnChooseHumanClicked()             | void       | Shortcut → `OnAdvisorChosen(AdvisorType.Human)`                      |
+| OnChooseRobotClicked()             | void       | Shortcut → `OnAdvisorChosen(AdvisorType.Robot)`                      |
+
+### 6.4.3 Dépendances
+
+- **Nécessite :** `FlowController.Instance` (CurrentBlock, IsCurrentBlockTutorial, OnAdvisorChosen()), `FlowValueConverters.ToAdvisorType()`
+- **Est utilisé par :** Aucun — composant terminal
+
+### 6.4.4 Diagramme de flux
+
+```mermaid
+graph TD
+    A["Start()"] --> B["Refresh()"]
+    B --> C{"FlowController.Instance != null ?"}
+    C -->|Non| D[Return]
+    C -->|Oui| E{"IsCurrentBlockTutorial ?"}
+    E -->|Oui| F["_titleText = 'Choix d'advisor (tutorial)'"]
+    E -->|Non| G["_titleText = 'Choix d'advisor'"]
+    F --> H["Remplir _optionLabels (UPPER)"]
+    G --> H
+
+    I["Bouton option cliqué"] --> J["OnChooseOptionIndex(index)"]
+    J --> K["FlowValueConverters.ToAdvisorType(string)"]
+    K --> L["FlowController.OnAdvisorChosen(type)"]
+```
+
+### 6.4.5 Points d'attention
+
+- **⚠️ Index safety :** `OnChooseOptionIndex` vérifie les bornes de l'index avant de procéder
+- **⚠️ Tutorial awareness :** Le titre change selon que le bloc courant est un tutorial
+- **⚠️ Labels dynamiques :** Les labels des boutons sont auto-remplis en UPPER depuis le tableau `_advisorOptions`
+
+### 6.4.6 Journal d'implémentation
+
+| Date     | Développeur | Note / Décision Technique                                                                |
+| :------- | :---------- | :--------------------------------------------------------------------------------------- |
+| 23/03/26 | @pierre     | Création. 3 options advisor (None/Human/Robot), boutons dédiés + index, titre adaptatif tutorial. |
+
+## 6.5 DistalChoiceUI
+
+### 6.5.1 Responsabilités
+
+- Afficher l'écran de choix de vallée dans la scène DistalChoiceScene
+- Montrer un résumé de chaque vallée : preview des indices verts, nombre de pièges, probabilité de brouillard
+- Rappeler le choix d'advisor courant
+- Transmettre le choix → `FlowController.OnValleyChosen(ValleyChoice)`
+
+### 6.5.2 Composants clés (Data Model)
+
+→ **DistalChoiceUI.cs** : MonoBehaviour, composant UI dans DistalChoiceScene.
+
+```csharp
+public class DistalChoiceUI : MonoBehaviour
+{
+    [SerializeField] private TMP_Text _titleText;
+    [SerializeField] private TMP_Text _advisorChoiceText;
+    [SerializeField] private TMP_Text _valleyAText;
+    [SerializeField] private TMP_Text _valleyBText;
+}
+```
+
+| Variable / Méthode                    | Type     | Description                                                         |
+| :------------------------------------ | :------- | :------------------------------------------------------------------ |
+| _titleText                            | TMP_Text | "Choix distal"                                                       |
+| _advisorChoiceText                    | TMP_Text | Rappel du choix d'advisor (ex: "Advisor choisi: human")              |
+| _valleyAText / _valleyBText           | TMP_Text | Description formatée de chaque vallée (preview + config)             |
+| Refresh()                             | void (privé) | Met à jour tous les textes depuis FlowController                  |
+| BuildValleyDescription(label, preview, config) | string (static) | Formate : label + preview verts + pièges + fog    |
+| OnChooseValleyA()                     | void     | Bouton A → `FlowController.OnValleyChosen(ValleyChoice.A)`          |
+| OnChooseValleyB()                     | void     | Bouton B → `FlowController.OnValleyChosen(ValleyChoice.B)`          |
+
+### 6.5.3 Dépendances
+
+- **Nécessite :** `FlowController.Instance` (CurrentBlock, State.advisor_choice, OnValleyChosen()), `FlowValueConverters.ToApiValue(AdvisorType)`
+- **Est utilisé par :** Aucun — composant terminal
+
+### 6.5.4 Diagramme de flux
+
+```mermaid
+graph TD
+    A["Start()"] --> B["Refresh()"]
+    B --> C{"FlowController.Instance != null ?"}
+    C -->|Non| D[Return]
+    C -->|Oui| E["_titleText = 'Choix distal'"]
+    E --> F["_advisorChoiceText = advisor choisi"]
+    F --> G["_valleyAText = BuildValleyDescription(A)"]
+    G --> H["_valleyBText = BuildValleyDescription(B)"]
+
+    subgraph "BuildValleyDescription"
+        BD1["label + preview (green hints L/R)"] --> BD2["+ config (trap_count, fog_probability)"]
+    end
+
+    I["Bouton A"] --> J["OnChooseValleyA()"]
+    J --> K["FlowController.OnValleyChosen(ValleyChoice.A)"]
+
+    L["Bouton B"] --> M["OnChooseValleyB()"]
+    M --> N["FlowController.OnValleyChosen(ValleyChoice.B)"]
+```
+
+### 6.5.5 Points d'attention
+
+- **⚠️ Preview nullable :** Si `ValleyPreview` est null, affiche "Preview indisponible" — le texte reste lisible
+- **⚠️ Config nullable :** Si `MapGenConfig` est null, affiche "Config indisponible"
+- **⚠️ Indices visuels :** Les previews montrent des indices (green_hint) sans révéler les paramètres exacts de génération
+
+### 6.5.6 Journal d'implémentation
+
+| Date     | Développeur | Note / Décision Technique                                                          |
+| :------- | :---------- | :--------------------------------------------------------------------------------- |
+| 23/03/26 | @pierre     | Création. Choix de vallée A/B avec preview indices verts, rappel advisor, résumé config (pièges + fog). |
+
+## 6.6 FlowContinueScreenUI
+
+### 6.6.1 Responsabilités
+
+- Composant UI polyvalent gérant 3 écrans via l'enum `ScreenKind` : Welcome, Intro, EndSession
+- Configurable dans l'Inspector — une instance par scène (WelcomeScene, IntroScene, EndSessionScene)
+- Afficher titre et corps adaptés au type d'écran
+- Masquer le bouton "Continuer" sur l'écran EndSession (pas de progression possible)
+- Transmettre la progression → `FlowController.OnPhaseComplete()`
+
+### 6.6.2 Composants clés (Data Model)
+
+→ **FlowContinueScreenUI.cs** : MonoBehaviour, composant UI utilisé dans 3 scènes distinctes.
+
+```csharp
+public class FlowContinueScreenUI : MonoBehaviour
+{
+    public enum ScreenKind { Welcome, Intro, EndSession }
+
+    [SerializeField] private ScreenKind _screenKind;
+    [SerializeField] private TMP_Text _titleText;
+    [SerializeField] private TMP_Text _bodyText;
+    [SerializeField] private GameObject _continueButtonRoot;
+}
+```
+
+| Variable / Méthode     | Type          | Description                                                           |
+| :---------------------- | :------------ | :-------------------------------------------------------------------- |
+| _screenKind             | ScreenKind    | Type d'écran (configurable dans l'Inspector)                          |
+| _titleText              | TMP_Text      | Titre de l'écran                                                      |
+| _bodyText               | TMP_Text      | Corps du texte                                                        |
+| _continueButtonRoot     | GameObject    | Racine du bouton Continuer — masqué pour EndSession                   |
+| Refresh()               | void (privé)  | Met à jour textes et visibilité du bouton selon `_screenKind`         |
+| SetTexts(title, body)   | void (privé)  | Helper qui affecte _titleText et _bodyText (null-safe)                |
+| OnContinueClicked()     | void          | Bouton Continuer → `FlowController.OnPhaseComplete()`                |
+
+### Contenu par ScreenKind
+
+| ScreenKind | Scène           | Titre               | Corps                                                   | Bouton  |
+| :--------- | :-------------- | :------------------- | :------------------------------------------------------ | :------ |
+| Welcome    | WelcomeScene    | "Bienvenue"          | Session template ID + participant ID + invitation        | Visible |
+| Intro      | IntroScene      | "Introduction"       | Info tutorial (si activé) ou démarrage direct            | Visible |
+| EndSession | EndSessionScene | "Session terminée"   | "Merci pour ta participation."                           | Masqué  |
+
+### 6.6.3 Dépendances
+
+- **Nécessite :** `FlowController.Instance` (State, Config.tutorial_enabled, OnPhaseComplete())
+- **Est utilisé par :** Aucun — composant terminal
+
+### 6.6.4 Diagramme de flux
+
+```mermaid
+graph TD
+    A["Start()"] --> B["Refresh()"]
+    B --> C{"FlowController.Instance != null ?"}
+    C -->|Non| D[Return]
+    C -->|Oui| E{"_screenKind ?"}
+
+    E -->|Welcome| F["Titre: 'Bienvenue'"]
+    F --> F2["Body: session + participant ID"]
+
+    E -->|Intro| G["Titre: 'Introduction'"]
+    G --> G2{"tutorial_enabled ?"}
+    G2 -->|Oui| G3["Body: info tutorial"]
+    G2 -->|Non| G4["Body: démarrage direct"]
+
+    E -->|EndSession| H["Titre: 'Session terminée'"]
+    H --> H2["Body: remerciement"]
+    H2 --> H3["_continueButtonRoot.SetActive(false)"]
+
+    I["Bouton Continuer cliqué"] --> J["OnContinueClicked()"]
+    J --> K["FlowController.OnPhaseComplete()"]
+```
+
+### 6.6.5 Points d'attention
+
+- **⚠️ Composant polyvalent :** Un seul script pour 3 scènes — le type est configuré dans l'Inspector via `_screenKind`
+- **⚠️ EndSession sans bouton :** Le bouton est masqué pour EndSession — FlowController appelle `CompleteSession` directement (via un callback ou timer séparé si nécessaire)
+- **⚠️ Contenu dynamique :** Le corps Welcome affiche les IDs de session/participant, Intro adapte le texte selon `tutorial_enabled`
+
+### 6.6.6 Journal d'implémentation
+
+| Date     | Développeur | Note / Décision Technique                                                          |
+| :------- | :---------- | :--------------------------------------------------------------------------------- |
+| 23/03/26 | @pierre     | Création. Composant polyvalent Welcome/Intro/EndSession via enum ScreenKind. Bouton masqué pour EndSession. |
+
+## 6.7 QuestionnaireUI
+
+### 6.7.1 Responsabilités
+
+- Afficher le questionnaire post-bloc dans la scène QuestionnaireScene
+- Supporter 3 types de questions : **scale** (Slider Likert), **multiple_choice** (Dropdown), **free text** (InputField)
+- Naviguer question par question avec un bouton "Suivant"
+- Collecter les réponses dans `List<QuestionResponse>` et les transmettre → `FlowController.OnQuestionnaireComplete()`
+- Si aucune question n'est configurée → skip automatique (appelle immédiatement `OnQuestionnaireComplete`)
+
+### 6.7.2 Composants clés (Data Model)
+
+→ **QuestionnaireUI.cs** : MonoBehaviour, composant UI dans QuestionnaireScene.
+
+```csharp
+public class QuestionnaireUI : MonoBehaviour
+{
+    [Header("Texts")]
+    [SerializeField] private TMP_Text _titleText;
+    [SerializeField] private TMP_Text _progressText;
+    [SerializeField] private TMP_Text _questionText;
+
+    [Header("Scale")]
+    [SerializeField] private GameObject _scaleRoot;
+    [SerializeField] private Slider _scaleSlider;
+    [SerializeField] private TMP_Text _scaleMinLabel;
+    [SerializeField] private TMP_Text _scaleMaxLabel;
+    [SerializeField] private TMP_Text _scaleValueLabel;
+
+    [Header("Multiple Choice")]
+    [SerializeField] private GameObject _dropdownRoot;
+    [SerializeField] private TMP_Dropdown _dropdown;
+
+    [Header("Free Text")]
+    [SerializeField] private GameObject _inputRoot;
+    [SerializeField] private TMP_InputField _inputField;
+
+    readonly List<QuestionResponse> _responses = new();
+    List<QuestionConfig> _questions = new();
+    int _currentQuestionIndex;
+}
+```
+
+| Variable / Méthode                          | Type              | Description                                                          |
+| :------------------------------------------ | :---------------- | :------------------------------------------------------------------- |
+| _titleText / _progressText / _questionText  | TMP_Text          | Titre, progression ("{n}/{total}"), texte de la question courante    |
+| _scaleRoot / _scaleSlider                   | GameObject/Slider | Panneau Likert avec slider entier (wholeNumbers)                     |
+| _scaleMinLabel / _scaleMaxLabel / _scaleValueLabel | TMP_Text   | Labels min/max et valeur courante du slider                          |
+| _dropdownRoot / _dropdown                   | GameObject/TMP_Dropdown | Panneau choix multiple avec dropdown                          |
+| _inputRoot / _inputField                    | GameObject/TMP_InputField | Panneau texte libre avec input field                         |
+| _responses                                  | List\<QuestionResponse\> | Réponses collectées (accumulées question par question)        |
+| _questions                                  | List\<QuestionConfig\>   | Questions du bloc courant (triées par order)                  |
+| _currentQuestionIndex                       | int               | Index de la question affichée                                        |
+| ShowCurrentQuestion()                       | void (privé)      | Affiche la question courante et active le bon panneau (scale/dropdown/input) |
+| ConfigureScale(question)                    | void (privé)      | Configure le slider Likert (min/max, labels, valeur initiale)        |
+| ConfigureDropdown(question)                 | void (privé)      | Configure le dropdown avec les options                               |
+| ConfigureInput()                            | void (privé)      | Reset le champ texte libre                                           |
+| ReadResponse(question)                      | string (privé)    | Lit la valeur du widget actif (slider, dropdown ou inputField)       |
+| OnNextClicked()                             | void              | Enregistre la réponse, avance l'index, → ShowCurrentQuestion ou OnQuestionnaireComplete |
+| OnScaleValueChanged(float)                  | void              | Callback slider → met à jour _scaleValueLabel                        |
+
+### 6.7.3 Dépendances
+
+- **Nécessite :** `FlowController.Instance` (CurrentBlock.questions, OnQuestionnaireComplete()), `QuestionConfig`, `QuestionResponse`
+- **Est utilisé par :** Aucun — composant terminal
+- **Package requis :** TextMeshPro (TMP_Text, TMP_Dropdown, TMP_InputField), Unity UI (Slider)
+
+### 6.7.4 Diagramme de flux
+
+```mermaid
+graph TD
+    A["Start()"] --> B{"FlowController.Instance != null ?"}
+    B -->|Non| C[Return]
+    B -->|Oui| D["Charger questions depuis CurrentBlock"]
+    D --> E["Trier par order"]
+    E --> F{"questions.Count == 0 ?"}
+    F -->|Oui| G["OnQuestionnaireComplete (skip)"]
+    F -->|Non| H["ShowCurrentQuestion()"]
+
+    H --> I["_progressText = 'Question {n}/{total}'"]
+    I --> J["_questionText = question.text"]
+    J --> K{"question.type ?"}
+
+    K -->|scale| L["Activer _scaleRoot"]
+    L --> L2["ConfigureScale (slider, labels)"]
+
+    K -->|multiple_choice| M["Activer _dropdownRoot"]
+    M --> M2["ConfigureDropdown (options)"]
+
+    K -->|autre| N["Activer _inputRoot"]
+    N --> N2["ConfigureInput (reset)"]
+
+    O["Bouton Suivant"] --> P["OnNextClicked()"]
+    P --> Q["ReadResponse() → _responses.Add()"]
+    Q --> R["_currentQuestionIndex++"]
+    R --> S{"Dernière question ?"}
+    S -->|Oui| T["FlowController.OnQuestionnaireComplete(_responses)"]
+    S -->|Non| H
+```
+
+### 6.7.5 Points d'attention
+
+- **⚠️ Skip automatique :** Si le bloc n'a aucune question (questions null ou vide), `OnQuestionnaireComplete` est appelé immédiatement dans `Start()` — le questionnaire est transparent pour le flow
+- **⚠️ Tri par order :** Les questions sont triées par `QuestionConfig.order` — l'ordre dans la liste backend peut différer de l'ordre d'affichage
+- **⚠️ Scale vs labels :** Si `min_label`/`max_label` sont vides, affiche les valeurs numériques (`min_value`/`max_value`) comme fallback
+- **⚠️ ReadResponse polyvalent :** Lit le bon widget selon `question.type` — le type détermine aussi quel panneau est actif
+- **⚠️ Dropdown fallback :** Si `question.options` est null ou vide, un placeholder "Option 1" est ajouté
+
+### 6.7.6 Journal d'implémentation
+
+| Date     | Développeur | Note / Décision Technique                                                          |
+| :------- | :---------- | :--------------------------------------------------------------------------------- |
+| 23/03/26 | @pierre     | Création. Questionnaire multi-type (scale/MCQ/freetext), navigation question par question, skip si aucune question, tri par order. |
 
 _Section à compléter._
 
@@ -2358,3 +3368,4 @@ _Section à compléter._
 | 09/03/26 | 2.7     | Propagation feature suboptimal path aux sections impactées. MAJ section 4.1 (LevelRegistry) : CellFlags.SuboptimalPath (1<<8), RegisterSuboptimalPath, IsOnSuboptimalPath. MAJ section 4.2 (GameManager) : renommage followedBestPath→followedAdvisorPath, ajout _pathIsSuboptimal + SetPathIsSuboptimal, EndCurrentTrial 8 params. MAJ section 3.3 (CorridorWallsGenerator) : IsOnSuboptimalPath dans baseCells. MAJ section 4.5 (TrialManager) : EndCurrentTrial 8 params. MAJ section 5.1 (TrialData) : champ path_is_suboptimal + JSON. MAJ section 6.1 (RoundUI) : label « Chemin conseillé suivi ». |
 | 09/03/26 | 2.8     | Refacto complète du fog of war. Nouvelle architecture spawner-based : `FogSpawner` (section 4.8, Start -245) décide conditionnellement de l'activation du fog via `fogProbability` (tirage seedé) et instancie dynamiquement `FogController`. `FogController` (section 4.4) réécrit : suppression DefaultExecutionOrder, gridSize, brush circulaire (PaintDisc, SmoothStep), pixelsPerCell 32→1. Remplacement par `PaintCellSquare` (carrés nets), `RevealCells` batch optimisé (1 Apply), ajout `OnDestroy`. `SessionManager` (section 4.3) : ajout `fogProbability` (float, CLI: `fogProbability=F`, défaut 1.0). `PathSpawner` (section 3.2) : révèle toujours playerCell + 2 cellules nuages dans le fog (même si chemin caché). MAJ sections 2.2 (Vue A/B), 2.3 (patterns Singleton/ExecutionOrder), 4.1 (LevelRegistry dépendances). |
 | 12/03/26 | 2.9     | Motor Advice system (nouvelle section 3.6 MotorAdviceController, nouvelle section 6.2 MotorAdviceUI). Pénalité touche invalide : GridMover détecte les touches non-actives → `GameManager.OnInvalidMoveKeyPressed` (−2 bugs/cloud). Suboptimal traps : `TrapSpawner.PlaceSuboptimalTraps` place des pièges sur le chemin suboptimal. MAJ SessionManager (+5 params : motorAdviceVisibleProbability, motorAdviceReliableProbability, suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps ; fogProbability défaut 1f→0f). MAJ GridMover (délégation MAC, détection touches invalides). MAJ GameManager (+OnInvalidMoveKeyPressed). MAJ TrapSpawner (+PlaceSuboptimalTraps). Diagrammes Vue A/B mis à jour. 3 nouveaux patterns (section 2.3). |
+| 23/03/26 | 3.0     | **Architecture multi-scènes + backend Supabase.** Nouvelle couche DDOL persistante : FlowController (4.9, machine à états 10 phases), ApiClient (4.10, REST Supabase GET/POST/PATCH + queue/retry), FadeTransition (4.11, overlay dynamique). MAJ GameManager (4.2) : ContinueAfterRound() délègue à FlowController, SetAdvisorPathVisible, toutes pénalités →−2, RevealAll on cloud collected, EndCurrentTrial 10 params. MAJ SessionManager (4.3) : facade pattern, CopyConfigFromFlowController() remplace CLI, IsFlowDriven, IsTutorialBlock, ApplySeedForThisTrial. MAJ TrialManager (4.5) : BuildBaseRow lit FlowController+SessionManager, TrialResponseRow flat ~50 champs remplace TrialData, ApiClient.SendTrialResponse, tutorial skip. Section 5.1 : TrialResponseRow remplace TrialData, nouveau format JSON POST direct. Nouvelle section 5.2 : Flow Data Models (SessionConfig, BlockConfig, MapGenConfig 19 params, ValleyPreview, QuestionConfig, QuestionResponse, PlayerSessionState, FlowCloneUtility, FlowValueConverters). MAJ RoundUI (6.1) : bouton Continuer remplace Restart, délègue à ContinueAfterRound. 5 nouveaux écrans UI : ConsentUI (6.3), AdvisorChoiceUI (6.4), DistalChoiceUI (6.5), FlowContinueScreenUI (6.6, polyvalent Welcome/Intro/EndSession), QuestionnaireUI (6.7, scale/MCQ/freetext). Diagrammes Mermaid Vue A/B/D refaits pour 9 scènes + DDOL. |
