@@ -137,9 +137,13 @@ public class SessionManager : MonoBehaviour
     {
         unchecked
         {
-            long ticks = System.DateTime.UtcNow.Ticks;
-            int hash = System.Guid.NewGuid().GetHashCode();
-            return (ticks << 1) ^ hash;
+            int ticksHash = System.DateTime.UtcNow.Ticks.GetHashCode();
+            int guidHash = System.Guid.NewGuid().GetHashCode();
+            int seed = (ticksHash ^ guidHash) & 0x7FFFFFFF;
+            if (seed == 0)
+                seed = 1;
+
+            return seed;
         }
     }
 }

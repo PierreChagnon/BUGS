@@ -434,9 +434,14 @@ public class FlowController : MonoBehaviour
     {
         unchecked
         {
-            long ticks = DateTime.UtcNow.Ticks;
-            int hash = Guid.NewGuid().GetHashCode();
-            return (ticks << 1) ^ hash;
+            // Seed 31 bits positive: exact en JSON/JS (pas de perte de precision).
+            int ticksHash = DateTime.UtcNow.Ticks.GetHashCode();
+            int guidHash = Guid.NewGuid().GetHashCode();
+            int seed = (ticksHash ^ guidHash) & 0x7FFFFFFF;
+            if (seed == 0)
+                seed = 1;
+
+            return seed;
         }
     }
 }

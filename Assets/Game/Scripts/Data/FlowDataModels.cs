@@ -211,8 +211,6 @@ public class TrialResponseRow
     public int trial_count;
     public string advisor_choice;
     public string valley_choice;
-    public int grid_width;
-    public int grid_height;
     public int trap_count;
     public int min_distance;
     public int max_distance;
