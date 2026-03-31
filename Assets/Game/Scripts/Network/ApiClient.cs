@@ -37,7 +37,7 @@ public class ApiClient : MonoBehaviour
     public static ApiClient Instance { get; private set; }
 
     [Header("Config")]
-    public string supabaseUrl;
+    public string backendRootUrl;
     public string supabaseAnonKey;
     [SerializeField] private string _sessionConfigPath = "api/sessions";
     [SerializeField] private string _trialResponsesPath = "api/trial-responses";
@@ -172,7 +172,7 @@ public class ApiClient : MonoBehaviour
 
     IEnumerator FetchSessionConfigCoroutine(string sessionId, Action<SessionConfig> onSuccess, Action<string> onError)
     {
-        string url = CombineUrl(supabaseUrl, _sessionConfigPath, sessionId);
+        string url = CombineUrl(backendRootUrl, _sessionConfigPath, sessionId);
         Debug.Log($"[ApiClient] Fetching session config from {url}");
         using var request = UnityWebRequest.Get(url);
         ApplyCommonHeaders(request);
@@ -249,7 +249,7 @@ public class ApiClient : MonoBehaviour
 
     IEnumerator SendTrialResponseCoroutine(TrialResponseRow row, Action<string> onSuccess, Action<string> onError)
     {
-        string url = CombineUrl(supabaseUrl, _trialResponsesPath);
+        string url = CombineUrl(backendRootUrl, _trialResponsesPath);
         string payload = JsonUtility.ToJson(row);
 
         using var request = BuildJsonRequest(url, "POST", payload);
@@ -270,7 +270,7 @@ public class ApiClient : MonoBehaviour
         Action onSuccess,
         Action<string> onError)
     {
-        string url = CombineUrl(supabaseUrl, _trialResponsesPath, trialResponseId);
+        string url = CombineUrl(backendRootUrl, _trialResponsesPath, trialResponseId);
         string body = JsonUtility.ToJson(payload);
 
         using var request = BuildJsonRequest(url, "PATCH", body);

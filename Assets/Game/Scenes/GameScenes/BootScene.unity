@@ -163,7 +163,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c5327fc2ad967fd4a87bd0b60edb6e1b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ApiClient
-  supabaseUrl: http://localhost:3000
+  backendRootUrl: http://localhost:3000
   supabaseAnonKey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zbHZtenFnaXp5aXF1dndqb291Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMDg3MzMsImV4cCI6MjA3NDg4NDczM30._jIlaU-PkhQZJdbO4ce5QvBgguBEV1aW66nhTHQHrR8
   _sessionConfigPath: api/sessions
   _trialResponsesPath: api/trial-responses
@@ -192,7 +192,7 @@ MonoBehaviour:
   _questionnaireSceneName: QuestionnaireScene
   _endSessionSceneName: EndSessionScene
   _buildVersion: 0.3.0-flow
-  _editorSessionId: b43ff42d-5028-4bd4-949d-0c0fefcc15bd
+  _editorSessionId: 9cc528ab-741d-496d-b43f-76f1aab39462
 --- !u!4 &530388671
 Transform:
   m_ObjectHideFlags: 0
