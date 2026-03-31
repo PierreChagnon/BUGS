@@ -3903,7 +3903,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1716901188}
-  - {fileID: 1360529107}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &746283307 stripped
@@ -7748,11 +7747,11 @@ Transform:
   m_GameObject: {fileID: 1360529106}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 58.836548, y: -360.49997, z: 151.75989}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 741196419}
+  m_Father: {fileID: 1716901188}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1360529108
 MonoBehaviour:
@@ -7768,7 +7767,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RoundUI
   _gameOverPanel: {fileID: 1412037740}
   _gameOverStats: {fileID: 633637178}
-  _actionButtonLabel: {fileID: 0}
+  _actionButtonLabel: {fileID: 703858059}
 --- !u!4 &1369342573 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1310028211529153949, guid: c8ca65ecdf242ce43bbcc052a0064679, type: 3}
@@ -9111,7 +9110,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1640026533}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -9168,7 +9167,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1360529108}
+      - m_Target: {fileID: 1716901189}
         m_TargetAssemblyTypeName: RoundUI, Assembly-CSharp
         m_MethodName: OnContinueClicked
         m_Mode: 1
@@ -9930,6 +9929,7 @@ GameObject:
   - component: {fileID: 1716901187}
   - component: {fileID: 1716901186}
   - component: {fileID: 1716901185}
+  - component: {fileID: 1716901189}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -10012,6 +10012,7 @@ RectTransform:
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 1360529107}
   - {fileID: 1412037741}
   - {fileID: 852306472}
   m_Father: {fileID: 741196419}
@@ -10021,6 +10022,21 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!114 &1716901189
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1716901183}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 445c0c4ed49f84324925f70a0b4c7bdd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RoundUI
+  _gameOverPanel: {fileID: 1412037740}
+  _gameOverStats: {fileID: 633637178}
+  _actionButtonLabel: {fileID: 703858059}
 --- !u!1001 &1732723902
 PrefabInstance:
   m_ObjectHideFlags: 0

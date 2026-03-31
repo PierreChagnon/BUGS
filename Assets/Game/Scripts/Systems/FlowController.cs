@@ -30,6 +30,7 @@ public class FlowController : MonoBehaviour
 
     public SessionConfig Config { get; private set; }
     public PlayerSessionState State { get; private set; }
+    public long CurrentBlockSeed { get; private set; }
     public long CurrentTrialSeed { get; private set; }
     public int BlockScore { get; private set; }
     public string BuildVersion => _buildVersion;
@@ -60,11 +61,7 @@ public class FlowController : MonoBehaviour
                 ? block.valley_b
                 : block.valley_a;
 
-            var clone = source != null ? source.DeepClone() : new MapGenConfig();
-            if (CurrentTrialSeed != 0)
-                clone.seed = CurrentTrialSeed;
-
-            return clone;
+            return source != null ? source.DeepClone() : new MapGenConfig();
         }
     }
 
@@ -127,6 +124,7 @@ public class FlowController : MonoBehaviour
         };
 
         BlockScore = 0;
+        CurrentBlockSeed = 0;
         CurrentTrialSeed = 0;
     }
 
@@ -179,7 +177,9 @@ public class FlowController : MonoBehaviour
             return;
 
         State.valley_choice = valley;
-        CurrentTrialSeed = GenerateTrialSeed();
+        CurrentBlockSeed = ResolveBlockSeedForCurrentBlock();
+        CurrentTrialSeed = DeriveTrialSeed(CurrentBlockSeed, State.current_trial_index);
+        Debug.Log($"[FlowController] blockSeed={CurrentBlockSeed}, trialIndex={State.current_trial_index + 1}, trialSeed={CurrentTrialSeed}");
         AdvanceToPhase(GamePhase.Proximal);
     }
 
@@ -208,7 +208,11 @@ public class FlowController : MonoBehaviour
             return;
         }
 
-        CurrentTrialSeed = GenerateTrialSeed();
+        if (CurrentBlockSeed == 0)
+            CurrentBlockSeed = ResolveBlockSeedForCurrentBlock();
+
+        CurrentTrialSeed = DeriveTrialSeed(CurrentBlockSeed, State.current_trial_index);
+        Debug.Log($"[FlowController] blockSeed={CurrentBlockSeed}, trialIndex={State.current_trial_index + 1}, trialSeed={CurrentTrialSeed}");
         AdvanceToPhase(GamePhase.Proximal);
     }
 
@@ -310,6 +314,7 @@ public class FlowController : MonoBehaviour
         State.advisor_choice = AdvisorType.None;
         State.valley_choice = ValleyChoice.None;
         State.last_trial_response_id = null;
+        CurrentBlockSeed = 0;
         CurrentTrialSeed = 0;
 
         if (!IsLastBlock)
@@ -430,7 +435,59 @@ public class FlowController : MonoBehaviour
         return null;
     }
 
-    static long GenerateTrialSeed()
+    long ResolveBlockSeedForCurrentBlock()
+    {
+        var block = CurrentBlock;
+        if (block == null)
+            return GenerateSeed();
+
+        MapGenConfig map = State != null && State.valley_choice == ValleyChoice.B
+            ? block.valley_b
+            : block.valley_a;
+
+        if (map == null)
+            return GenerateSeed();
+
+        if (map.seed == 0)
+            map.seed = GenerateSeed();
+
+        return map.seed;
+    }
+
+    static long DeriveTrialSeed(long blockSeed, int trialIndex)
+    {
+        unchecked
+        {
+            const ulong offset = 1469598103934665603UL;
+            const ulong prime = 1099511628211UL;
+
+            ulong h = offset;
+            ulong seed64 = (ulong)blockSeed;
+
+            for (int i = 0; i < 8; i++)
+            {
+                h ^= (byte)(seed64 & 0xFF);
+                h *= prime;
+                seed64 >>= 8;
+            }
+
+            uint index = (uint)Mathf.Max(0, trialIndex);
+            for (int i = 0; i < 4; i++)
+            {
+                h ^= (byte)(index & 0xFF);
+                h *= prime;
+                index >>= 8;
+            }
+
+            int seed = (int)(h & 0x7FFFFFFF);
+            if (seed == 0)
+                seed = 1;
+
+            return seed;
+        }
+    }
+
+    static long GenerateSeed()
     {
         unchecked
         {
