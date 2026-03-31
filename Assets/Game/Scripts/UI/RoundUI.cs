@@ -1,25 +1,29 @@
-using UnityEngine;
 using TMPro;
+using UnityEngine;
 
 // -----------------------------
-// Affichage du panneau de fin de round.
-// S'abonne à GameManager.OnRoundEnded pour recevoir les stats.
+// Panneau de fin de trial.
+// S'abonne a GameManager.OnRoundEnded et propose de continuer
+// vers le trial / ecran suivant via FlowController.
 // -----------------------------
+
 public class RoundUI : MonoBehaviour
 {
     [Header("Game Over")]
     [SerializeField] private GameObject _gameOverPanel;
     [SerializeField] private TMP_Text _gameOverStats;
+    [SerializeField] private TMP_Text _actionButtonLabel;
 
     void Start()
     {
-        // S'abonner à l'événement de fin de round
         if (GameManager.Instance != null)
             GameManager.Instance.OnRoundEnded += HandleRoundEnded;
 
-        // Masquer le panneau au démarrage
         if (_gameOverPanel != null)
             _gameOverPanel.SetActive(false);
+
+        if (_actionButtonLabel != null)
+            _actionButtonLabel.text = "Continuer";
     }
 
     void OnDestroy()
@@ -28,11 +32,7 @@ public class RoundUI : MonoBehaviour
             GameManager.Instance.OnRoundEnded -= HandleRoundEnded;
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  ÉVÉNEMENT
-    // ══════════════════════════════════════════════════════════════
-
-    private void HandleRoundEnded(GameManager.RoundEndInfo info)
+    void HandleRoundEnded(GameManager.RoundEndInfo info)
     {
         if (_gameOverPanel != null)
             _gameOverPanel.SetActive(true);
@@ -40,22 +40,19 @@ public class RoundUI : MonoBehaviour
         if (_gameOverStats != null)
         {
             _gameOverStats.text =
-                $"Bugs collectés : {info.bugsCollected}\n" +
-                $"Pièges touchés : {info.trapsHit}\n" +
+                $"Bugs collectes : {info.bugsCollected}\n" +
+                $"Pieges touches : {info.trapsHit}\n" +
                 $"Pas en trop : {info.overtimeSteps}\n" +
                 $"Pas : {info.steps}\n" +
-                $"Chemin conseillé suivi : {(info.followedAdvisorPath ? "Oui" : "Non")}\n" +
+                $"Chemin conseille suivi : {(info.followedAdvisorPath ? "Oui" : "Non")}\n" +
+                $"Chemin visible : {(info.optimalPathVisible ? "Oui" : "Non")}\n" +
                 $"Bugs nuage G : {info.leftCloudGreenBugs}  |  D : {info.rightCloudGreenBugs}";
         }
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  BOUTON UI
-    // ══════════════════════════════════════════════════════════════
-
-    /// <summary>Appelé par le bouton Restart dans le panneau Game Over.</summary>
-    public void OnRestartClicked()
+    public void OnContinueClicked()
     {
-        GameManager.Instance?.RestartRound();
+        GameManager.Instance?.ContinueAfterRound();
     }
+
 }

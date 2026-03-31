@@ -1,165 +1,21 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
-using System.Text;
 using UnityEngine;
-using UnityEngine.Networking;
 
 // -----------------------------
-// Gère la création et l’envoi des manches
+// Collecte les données du trial courant dans ProximalScene.
+//
+// Responsabilités :
+//   - Ouvrir un nouveau trial local au démarrage du gameplay
+//   - Enregistrer les pas du joueur et la config de map
+//   - Assembler la TrialResponseRow complète en fin de trial
+//   - Déléguer l'envoi à ApiClient (sauf tutorial)
 // -----------------------------
+
 public class TrialManager : MonoBehaviour
 {
-    [Header("API Settings")]
-    public string apiBaseUrl = "http://localhost:3000"; // ton backend local
-    public string studyToken = "ensstudytoken"; // même que .env
-
-    [Header("Session Info")]
-    public string gameSessionId;  // récupéré après POST /api/session
-
-    private List<TrialData> trials = new(); // stocke les manches locales 
-    private TrialData currentTrial;
-    private bool isSending = false;
-    private string pendingMapConfigJson; // tampon pour la config de la map
-
-    // Permet de définir l’ID de session (appelé par SessionManager)
-    public void SetSessionId(string id)
-    {
-        gameSessionId = id;
-        Debug.Log("[TrialManager] Session ID set: " + id);
-    }
-
-    // Appelé au début de chaque manche
-    public void StartNewTrial(int blockId, int screenId, string screenType, long trialSeed)
-    {
-        if (string.IsNullOrEmpty(gameSessionId))
-        {
-            Debug.LogError("[TrialManager] Cannot StartNewTrial: gameSessionId is empty. Ensure session is created first.");
-            return;
-        }
-
-        // Crée une nouvelle manche et l’ajoute à la liste
-        currentTrial = new TrialData(gameSessionId, blockId, screenId, screenType);
-        currentTrial.trial_seed = trialSeed;
-        trials.Add(currentTrial);
-
-        // Applique la config de map en attente si elle existe
-        if (!string.IsNullOrEmpty(pendingMapConfigJson))
-        {
-            currentTrial.map_config = pendingMapConfigJson;
-            Debug.Log("[TrialManager] map_config appliquée depuis le tampon");
-            pendingMapConfigJson = null;
-        }
-
-        Debug.Log($"Nouvelle manche : block {blockId}, screen {screenId}, seed {trialSeed}");
-    }
-
-    // Appelé à chaque déplacement du joueur
-    public void RecordMove(Vector2Int position)
-    {
-        if (currentTrial != null)
-        {
-            currentTrial.player_path_log.Add(new PlayerStep(position, System.DateTime.UtcNow.ToString("o")));
-        }
-    }
-
-    // Appelé quand le joueur attrape un nuage
-    public void EndCurrentTrial(string playerChoice, bool correct, string trueCloud,
-                                int greenBugsCollected, int trapsHit, int steps, bool optimalPathVisible, bool pathIsSuboptimal)
-    {
-        if (currentTrial == null) return;
-
-        currentTrial.proximal_choice = playerChoice;
-        currentTrial.choice_correct = correct;
-        currentTrial.true_cloud = trueCloud;
-        currentTrial.green_bugs_collected = greenBugsCollected;
-        currentTrial.traps_hit = trapsHit;
-        currentTrial.steps = steps;
-        currentTrial.optimal_path_visible = optimalPathVisible;
-        currentTrial.path_is_suboptimal = pathIsSuboptimal;
-        // currentTrial.rt_ms = Mathf.RoundToInt(Time.timeSinceLevelLoad * 1000f);
-        currentTrial.end_timestamp = System.DateTime.UtcNow.ToString("o");
-
-        Debug.Log($"Manche terminée ! choix={playerChoice}, correct={correct}, trueCloud={trueCloud}, " +
-                  $"greenBugs={greenBugsCollected}, pièges={trapsHit}, pas={steps}, optimalPathVisible={optimalPathVisible}, suboptimal={pathIsSuboptimal}");
-    }
-
-    // Setter appelé par le Gameplay pour fournir la longueur de chemin optimal
-    public void SetOptimalPathLength(int value)
-    {
-        if (currentTrial == null)
-        {
-            Debug.LogWarning("[TrialManager] SetOptimalPathLength() ignoré: currentTrial est null");
-            return;
-        }
-
-        currentTrial.optimal_path_length = value;
-    }
-
-    /// <summary>
-    /// Enregistre la distance de Manhattan entre le joueur et les nuages (chosenD).
-    /// Les chercheurs utilisent cette valeur + steps pour calculer le dépassement.
-    /// </summary>
-    public void SetCloudDistance(int value)
-    {
-        if (currentTrial == null)
-        {
-            Debug.LogWarning("[TrialManager] SetCloudDistance() ignoré: currentTrial est null");
-            return;
-        }
-
-        currentTrial.cloud_distance = value;
-    }
-
-    // Envoi de toutes les manches accumulées vers ton API
-    public void SendTrials()
-    {
-        if (!isSending) StartCoroutine(SendTrialsCoroutine());
-    }
-
-    private IEnumerator SendTrialsCoroutine()
-    {
-        if (trials.Count == 0)
-        {
-            Debug.Log("Aucune manche à envoyer");
-            yield break;
-        }
-
-        isSending = true;
-
-        // Sérialisation JSON
-        string json = JsonHelper.ToJson(trials.ToArray(), true);
-        Debug.Log("Payload JSON:\n" + json);
-        Debug.Log($"Envoi de {trials.Count} manches à l’API...");
-
-        // Envoi HTTP POST
-        using UnityWebRequest req = new(apiBaseUrl + "/api/trials", "POST");
-        byte[] body = Encoding.UTF8.GetBytes(json);
-        req.uploadHandler = new UploadHandlerRaw(body);
-        req.downloadHandler = new DownloadHandlerBuffer();
-        req.SetRequestHeader("Content-Type", "application/json");
-        req.SetRequestHeader("x-study-token", studyToken);
-
-        yield return req.SendWebRequest();
-
-        if (req.result == UnityWebRequest.Result.Success)
-        {
-            Debug.Log("Essais envoyés avec succès !");
-            trials.Clear(); // vide la mémoire locale
-        }
-        else
-        {
-            Debug.LogError($"Erreur d’envoi: {req.responseCode} {req.error}\n{req.downloadHandler.text}");
-        }
-
-        isSending = false;
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    //  CONFIG MAP — construction structurée du JSON
-    // ══════════════════════════════════════════════════════════════
-
-    [System.Serializable]
-    private struct CloudInfo
+    [Serializable]
+    struct CloudInfo
     {
         public int x;
         public int y;
@@ -167,8 +23,8 @@ public class TrialManager : MonoBehaviour
         public float greenRatio;
     }
 
-    [System.Serializable]
-    private struct MiniMapCfg
+    [Serializable]
+    struct MiniMapCfg
     {
         public int gridWidth;
         public int gridHeight;
@@ -176,57 +32,203 @@ public class TrialManager : MonoBehaviour
         public CloudInfo rightCloud;
     }
 
-    /// <summary>
-    /// Appelé par GameManager.RegisterClouds pour fournir la config de la map
-    /// sous forme structurée. Construit le JSON en interne.
-    /// </summary>
-    public void SetMapConfig(Vector2Int gridSize,
-                             Vector2Int leftCell, int leftBugs, float leftGreenRatio,
-                             Vector2Int rightCell, int rightBugs, float rightGreenRatio)
+    readonly List<PlayerStep> _playerPathSteps = new();
+
+    TrialResponseRow _currentTrialRow;
+    string _startedAtIsoUtc;
+    string _pendingMapConfigJson;
+
+    public void StartNewTrial()
+    {
+        _playerPathSteps.Clear();
+        _startedAtIsoUtc = DateTime.UtcNow.ToString("o");
+        _currentTrialRow = BuildBaseRow();
+
+        if (!string.IsNullOrWhiteSpace(_pendingMapConfigJson))
+        {
+            _currentTrialRow.map_config = _pendingMapConfigJson;
+            _pendingMapConfigJson = null;
+        }
+
+        Debug.Log($"[TrialManager] Nouveau trial initialise: block={_currentTrialRow.block_index}, trial={_currentTrialRow.trial_index}, seed={_currentTrialRow.trial_seed}");
+    }
+
+    public void RecordMove(Vector2Int position)
+    {
+        if (_currentTrialRow == null)
+            return;
+
+        _playerPathSteps.Add(new PlayerStep(position, DateTime.UtcNow.ToString("o")));
+    }
+
+    public void EndCurrentTrial(
+        string playerChoice,
+        bool correct,
+        string trueCloud,
+        int greenBugsCollected,
+        int trapsHit,
+        int steps,
+        int overtimeSteps,
+        bool followedAdvisorPath,
+        bool optimalPathVisible,
+        bool pathIsSuboptimal)
+    {
+        if (_currentTrialRow == null)
+            _currentTrialRow = BuildBaseRow();
+
+        _currentTrialRow.proximal_choice = playerChoice;
+        _currentTrialRow.choice_correct = correct;
+        _currentTrialRow.true_cloud = trueCloud;
+        _currentTrialRow.green_bugs_collected = greenBugsCollected;
+        _currentTrialRow.green_bugs_accumulated = FlowController.Instance != null
+            ? FlowController.Instance.GetAccumulatedScoreAfterTrial(greenBugsCollected)
+            : greenBugsCollected;
+        _currentTrialRow.traps_hit = trapsHit;
+        _currentTrialRow.steps = steps;
+        _currentTrialRow.overtime_steps = overtimeSteps;
+        _currentTrialRow.followed_advisor_path = followedAdvisorPath;
+        _currentTrialRow.optimal_path_visible = optimalPathVisible;
+        _currentTrialRow.path_is_suboptimal = pathIsSuboptimal;
+        _currentTrialRow.player_path_log = FlowSerializationUtility.ToPlayerStepsJson(_playerPathSteps);
+        _currentTrialRow.started_at = _startedAtIsoUtc;
+        _currentTrialRow.ended_at = DateTime.UtcNow.ToString("o");
+
+        if (FlowController.Instance != null && FlowController.Instance.IsCurrentBlockTutorial)
+        {
+            Debug.Log("[TrialManager] Trial tutorial termine: envoi reseau ignore.");
+            return;
+        }
+
+        if (ApiClient.Instance == null)
+        {
+            Debug.LogWarning("[TrialManager] ApiClient introuvable: impossible d'envoyer le trial.");
+            return;
+        }
+
+        ApiClient.Instance.SendTrialResponse(
+            _currentTrialRow,
+            trialResponseId =>
+            {
+                if (FlowController.Instance != null)
+                    FlowController.Instance.RegisterLastTrialResponse(trialResponseId);
+
+                Debug.Log($"[TrialManager] Trial envoye avec succes (id={trialResponseId}).");
+            },
+            error => Debug.LogWarning($"[TrialManager] Echec envoi trial: {error}"));
+    }
+
+    public void SetOptimalPathLength(int value)
+    {
+        EnsureCurrentTrialRow();
+        _currentTrialRow.optimal_path_length = value;
+    }
+
+    public void SetCloudDistance(int value)
+    {
+        EnsureCurrentTrialRow();
+        _currentTrialRow.cloud_distance = value;
+    }
+
+    public void SetMapConfig(
+        Vector2Int gridSize,
+        Vector2Int leftCell,
+        int leftBugs,
+        float leftGreenRatio,
+        Vector2Int rightCell,
+        int rightBugs,
+        float rightGreenRatio)
     {
         var cfg = new MiniMapCfg
         {
             gridWidth = gridSize.x,
             gridHeight = gridSize.y,
-            leftCloud = new CloudInfo { x = leftCell.x, y = leftCell.y, totalBugs = leftBugs, greenRatio = leftGreenRatio },
-            rightCloud = new CloudInfo { x = rightCell.x, y = rightCell.y, totalBugs = rightBugs, greenRatio = rightGreenRatio }
+            leftCloud = new CloudInfo
+            {
+                x = leftCell.x,
+                y = leftCell.y,
+                totalBugs = leftBugs,
+                greenRatio = leftGreenRatio
+            },
+            rightCloud = new CloudInfo
+            {
+                x = rightCell.x,
+                y = rightCell.y,
+                totalBugs = rightBugs,
+                greenRatio = rightGreenRatio
+            }
         };
+
         SetMapConfigJson(JsonUtility.ToJson(cfg));
     }
 
-    // Permet de stocker la config de la map (JSON) dans la manche courante
     public void SetMapConfigJson(string json)
     {
-        Debug.Log($"[TrialManager] SetMapConfigJson()");
-        if (string.IsNullOrEmpty(json) || json == "{}")
+        if (string.IsNullOrWhiteSpace(json) || json == "{}")
         {
-            Debug.LogWarning("[TrialManager] map_config vide, ignorée");
+            Debug.LogWarning("[TrialManager] map_config vide, ignoree.");
             return;
         }
 
-        if (currentTrial != null)
+        if (_currentTrialRow != null)
         {
-            Debug.Log($"[TrialManager] currentTrial != null");
-            currentTrial.map_config = json;
+            _currentTrialRow.map_config = json;
+            return;
         }
-        else
-        {
-            Debug.LogWarning($"[TrialManager] currentTrial is null, map_config mise en tampon");
-            pendingMapConfigJson = json;
-        }
+
+        _pendingMapConfigJson = json;
     }
 
-}
-
-// Helper pour sérialiser un tableau en JSON Unity-friendly
-public static class JsonHelper
-{
-    public static string ToJson<T>(T[] array, bool prettyPrint = false)
+    TrialResponseRow BuildBaseRow()
     {
-        Wrapper<T> wrapper = new Wrapper<T> { Items = array };
-        return JsonUtility.ToJson(wrapper, prettyPrint);
+        var session = SessionManager.Instance;
+        var flow = FlowController.Instance;
+        var block = flow != null ? flow.CurrentBlock : null;
+        var map = flow != null ? flow.ActiveMapConfig : null;
+
+        int blockIndex = flow != null && flow.State != null ? flow.State.current_block_index + 1 : (session != null ? session.blockId : 1);
+        int trialIndex = flow != null && flow.State != null ? flow.State.current_trial_index + 1 : 1;
+        string participantId = flow != null && flow.State != null && !string.IsNullOrWhiteSpace(flow.State.participant_id)
+            ? flow.State.participant_id
+            : Guid.NewGuid().ToString();
+
+        return new TrialResponseRow
+        {
+            participant_id = participantId,
+            session_template_id = flow != null && flow.State != null
+                ? flow.State.session_template_id
+                : "debug-session-template",
+            build_version = session != null ? session.buildVersion : (flow != null ? flow.BuildVersion : "debug-build"),
+            block_index = blockIndex,
+            trial_index = trialIndex,
+            trial_count = block != null ? block.trial_count : 1,
+            advisor_choice = flow != null && flow.State != null ? FlowValueConverters.ToApiValue(flow.State.advisor_choice) : "none",
+            valley_choice = flow != null && flow.State != null ? FlowValueConverters.ToApiValue(flow.State.valley_choice) : null,
+            trap_count = session != null ? session.trapCount : map?.trap_count ?? 0,
+            min_distance = session != null ? session.minDistance : map?.min_distance ?? 0,
+            max_distance = session != null ? session.maxDistance : map?.max_distance ?? 0,
+            min_total_bugs = session != null ? session.minTotalBugs : map?.min_total_bugs ?? 0,
+            max_total_bugs = session != null ? session.maxTotalBugs : map?.max_total_bugs ?? 0,
+            min_green_ratio = session != null ? session.minGreenBugsRatio : map?.min_green_ratio ?? 0f,
+            max_green_ratio = session != null ? session.maxGreenBugsRatio : map?.max_green_ratio ?? 0f,
+            gap_min = session != null ? session.gapMin : map?.gap_min ?? 0f,
+            gap_max = session != null ? session.gapMax : map?.gap_max ?? 0f,
+            fog_probability = session != null ? session.fogProbability : map?.fog_probability ?? 0f,
+            trial_seed = session != null ? session.randomizationSeed : flow?.CurrentTrialSeed ?? 0,
+            path_visible_probability = session != null ? session.pathVisible : map?.path_visible ?? 0f,
+            suboptimal_path_probability = session != null ? session.suboptimalPathProbability : map?.suboptimal_path_probability ?? 0f,
+            detour_probability = session != null ? session.detourProbability : map?.detour_probability ?? 0f,
+            motor_advice_visible_probability = session != null ? session.motorAdviceVisibleProbability : map?.motor_advice_visible_probability ?? 0f,
+            motor_advice_reliable_probability = session != null ? session.motorAdviceReliableProbability : map?.motor_advice_reliable_probability ?? 0f,
+            suboptimal_trap_probability = session != null ? session.suboptimalTrapProbability : map?.suboptimal_trap_probability ?? 0f,
+            min_suboptimal_traps = session != null ? session.minSuboptimalTraps : map?.min_suboptimal_traps ?? 0,
+            max_suboptimal_traps = session != null ? session.maxSuboptimalTraps : map?.max_suboptimal_traps ?? 0,
+            started_at = _startedAtIsoUtc
+        };
     }
 
-    [System.Serializable]
-    private class Wrapper<T> { public T[] Items; }
+    void EnsureCurrentTrialRow()
+    {
+        if (_currentTrialRow == null)
+            _currentTrialRow = BuildBaseRow();
+    }
 }

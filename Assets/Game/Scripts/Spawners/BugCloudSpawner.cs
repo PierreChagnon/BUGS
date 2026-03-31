@@ -12,7 +12,7 @@ public class BugCloudSpawner : MonoBehaviour
     // Source de vérité: LevelRegistry (gridSize/cellSize/originWorld + paramètres recherche)
 
     [Header("Placement (visuel)")]
-    readonly int minZ = 5; // Z minimale pour placer un nuage (évite les nuages trop proches du joueur en Y)
+    // readonly int minZ = 5; // Z minimale pour placer un nuage (évite les nuages trop proches du joueur en Y)
     [Tooltip("Hauteur Y pour instancier les nuages (pivot au centre du prefab).")]
     public float spawnY = 0.5f;
 
@@ -77,7 +77,7 @@ public class BugCloudSpawner : MonoBehaviour
         // Choisir une couronne au hasard
         int chosenD = candidateDs[rng.Next(0, candidateDs.Count)];
         var validRing = GetRingCells(playerCell, chosenD);
-        validRing.RemoveAll(c => !registry.InBounds(c) || c == playerCell || c.y < minZ); // On enlève les cases hors-grille, la case du joueur et celles en dessous de minZ
+        validRing.RemoveAll(c => !registry.InBounds(c) || c == playerCell); // On enlève les cases hors-grille et la case du joueur
         Debug.Log($"[BugCloudSpawner] Couronne D={chosenD} a {validRing.Count} cases valides après filtrage.");
 
         // Choisir 2 cases distinctes au hasard dans la couronne valide

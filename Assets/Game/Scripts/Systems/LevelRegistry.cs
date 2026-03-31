@@ -120,9 +120,13 @@ public class LevelRegistry : MonoBehaviour
         // Assez "random" pour une seed de run sans dépendre de UnityEngine.Random.
         unchecked
         {
-            long t = System.DateTime.UtcNow.Ticks;
-            int g = System.Guid.NewGuid().GetHashCode();
-            return (t << 1) ^ g;
+            int ticksHash = System.DateTime.UtcNow.Ticks.GetHashCode();
+            int guidHash = System.Guid.NewGuid().GetHashCode();
+            int seed = (ticksHash ^ guidHash) & 0x7FFFFFFF;
+            if (seed == 0)
+                seed = 1;
+
+            return seed;
         }
     }
 

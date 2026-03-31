@@ -4,18 +4,13 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 // -----------------------------
-// Orchestre l'état d'un round : score, cycle de vie, arbitrage.
+// Orchestre l'état d'un trial de gameplay.
 //
 // Responsabilités :
-//   - État du round (steps, trapsHit, bugsCollected, followedAdvisorPath)
-//   - Références aux nuages L/R, détermination du "meilleur"
-//   - Cycle de vie (inputLocked, roundOver, restart)
-//   - Orchestration TrialManager (record moves, end trial, send)
-//
-// Ce qui n'est PAS ici :
-//   - UI -> RoundUI écoute OnRoundEnded
-//   - Détection piège -> Trap.OnTriggerEnter signale OnTrapTriggered
-//   - Construction JSON map config -> TrialManager.SetMapConfig
+//   - Etat runtime du round (steps, traps, score, chemin suivi)
+//   - Recevoir les signaux des entités (player, trap, bug cloud)
+//   - Transmettre un résultat complet au TrialManager
+//   - Laisser FlowController piloter la transition vers le trial suivant
 // -----------------------------
 
 public class GameManager : MonoBehaviour
@@ -25,30 +20,23 @@ public class GameManager : MonoBehaviour
     [Header("Références")]
     public TrialManager trialManager;
 
-    [Header("Session")]
-    int _screenCounter = 0;
-
     [Header("Round / Score")]
-    public int steps = 0;
-    public int trapsHit = 0;
-    public int overtimeSteps = 0;
-    public int bugsCollected = 0;
+    public int steps;
+    public int trapsHit;
+    public int overtimeSteps;
+    public int bugsCollected;
     public bool followedAdvisorPath = true;
-    bool _pathIsSuboptimal = false;
 
-    // État de la manche
-    public bool inputLocked { get; private set; } = false;
-    bool _roundOver = false;
+    bool _roundOver;
+    bool _pathIsSuboptimal;
+    bool _advisorPathVisible = true;
 
-    // Les 2 nuages du round (références données par le spawner)
-    BugCloud _leftCloud, _rightCloud;
+    public bool inputLocked { get; private set; }
 
-    // Chemin conseillé (PathSpawner nous l'enverra)
+    BugCloud _leftCloud;
+    BugCloud _rightCloud;
     readonly HashSet<Vector2Int> _advisorPath = new();
 
-    // --- Événements pour l'UI et les systèmes externes ---
-
-    /// <summary>Données transmises à la fin d'un round.</summary>
     [Serializable]
     public struct RoundEndInfo
     {
@@ -61,43 +49,43 @@ public class GameManager : MonoBehaviour
         public int rightCloudGreenBugs;
         public bool optimalPathVisible;
     }
-    
 
-    /// <summary>Émis quand le round se termine (nuage collecté). RoundUI s'y abonne.</summary>
     public event Action<RoundEndInfo> OnRoundEnded;
 
     void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         Instance = this;
         Debug.Log("[GameManager] Awake");
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  CYCLE DE VIE DU ROUND
-    // ══════════════════════════════════════════════════════════════
-
-    /// <summary>Appelée par SessionManager quand la session est prête.</summary>
     public void BeginFirstRound()
     {
-        StartNewRound("forest");
+        trialManager?.StartNewTrial();
     }
 
-    public void StartNewRound(string screenType)
+    public void ContinueAfterRound()
     {
-        _screenCounter++;
+        if (!_roundOver)
+            return;
 
-        long seed = 0;
-        if (LevelRegistry.Instance != null && LevelRegistry.Instance.TryGetRoundSeed(out var s))
-            seed = s;
+        if (FlowController.Instance != null)
+        {
+            FlowController.Instance.OnTrialComplete(bugsCollected);
+            return;
+        }
 
-        trialManager.StartNewTrial(SessionManager.Instance != null ? SessionManager.Instance.blockId : 1, _screenCounter, screenType, seed);
+        RestartRound();
     }
 
-    /// <summary>Restart de la scène (appelé par le bouton UI).</summary>
     public void RestartRound()
     {
-        Debug.Log("[GameManager] Redémarrage de la manche...");
+        Debug.Log("[GameManager] Redemarrage du round en mode debug.");
         inputLocked = false;
         _roundOver = false;
 
@@ -105,134 +93,139 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene(current.buildIndex);
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  ÉVÉNEMENTS REÇUS DES ENTITÉS ET SPAWNERS
-    // ══════════════════════════════════════════════════════════════
-
-    /// <summary>BugCloudSpawner nous fournit les 2 nuages.</summary>
     public void RegisterClouds(BugCloud a, BugCloud b)
     {
-        if (a == null || b == null) return;
-        if (a.transform.position.x <= b.transform.position.x)
-        { _leftCloud = a; _rightCloud = b; }
-        else
-        { _leftCloud = b; _rightCloud = a; }
+        if (a == null || b == null)
+            return;
 
-        // Transmettre la config map au TrialManager (lui construit le JSON)
+        if (a.transform.position.x <= b.transform.position.x)
+        {
+            _leftCloud = a;
+            _rightCloud = b;
+        }
+        else
+        {
+            _leftCloud = b;
+            _rightCloud = a;
+        }
+
         if (trialManager != null && LevelRegistry.Instance != null)
         {
-            var reg = LevelRegistry.Instance;
+            var registry = LevelRegistry.Instance;
             trialManager.SetMapConfig(
-                reg.gridSize,
-                reg.WorldToCell(_leftCloud.transform.position), _leftCloud.totalBugs, _leftCloud.greenRatio,
-                reg.WorldToCell(_rightCloud.transform.position), _rightCloud.totalBugs, _rightCloud.greenRatio
-            );
+                registry.gridSize,
+                registry.WorldToCell(_leftCloud.transform.position), _leftCloud.totalBugs, _leftCloud.greenRatio,
+                registry.WorldToCell(_rightCloud.transform.position), _rightCloud.totalBugs, _rightCloud.greenRatio);
         }
     }
 
-    /// <summary>PathSpawner nous donne le chemin conseillé (pour détecter une déviation).</summary>
     public void SetChosenPath(IEnumerable<Vector2Int> cells)
     {
         _advisorPath.Clear();
-        if (cells == null) return;
-        foreach (var c in cells) _advisorPath.Add(c);
+        if (cells != null)
+        {
+            foreach (var cell in cells)
+                _advisorPath.Add(cell);
+        }
+
         followedAdvisorPath = true;
     }
 
-    /// <summary>PathSpawner nous indique si le chemin affiché est suboptimal.</summary>
     public void SetPathIsSuboptimal(bool isSuboptimal)
     {
         _pathIsSuboptimal = isSuboptimal;
     }
 
-    /// <summary>
-    /// Appelé par GridMover à chaque pas terminé.
-    /// Orchestre : fog, visited, score, trial log.
-    /// </summary>
+    public void SetAdvisorPathVisible(bool isVisible)
+    {
+        _advisorPathVisible = isVisible;
+    }
+
     public void OnPlayerStep(Vector2Int cell)
     {
-        if (_roundOver) return;
+        if (_roundOver)
+            return;
 
         steps++;
 
-        // Marquer la cellule dans le registre et révéler le brouillard
         LevelRegistry.Instance?.MarkVisited(cell);
         FogController.Instance?.RevealCell(cell);
 
-        // Vérifier l'adhérence au chemin conseillé
         if (_advisorPath.Count > 0 && !_advisorPath.Contains(cell))
             followedAdvisorPath = false;
 
-        // Pénalité de dépassement : si le joueur a fait plus de mouvements
-        // que la distance de Manhattan (budget de pas), chaque pas supplémentaire
-        // retire 1 bug de chaque nuage.
-        int movesMade = steps - 1; // steps inclut la position de départ
-        var reg = LevelRegistry.Instance;
-        if (reg != null && reg.stepBudget > 0 && movesMade > reg.stepBudget)
+        int movesMade = steps - 1;
+        var registry = LevelRegistry.Instance;
+        if (registry != null && registry.stepBudget > 0 && movesMade > registry.stepBudget)
             OnStepBudgetExceeded();
 
-        // Enregistrer le mouvement dans le pipeline de données
         trialManager?.RecordMove(cell);
     }
 
-    /// <summary>
-    /// Appelé quand le joueur dépasse le budget de pas (distance de Manhattan optimale).
-    /// Applique la pénalité : -1 bug sur chaque nuage (même logique que les pièges).
-    /// </summary>
     void OnStepBudgetExceeded()
     {
-        if (_roundOver) return;
+        if (_roundOver)
+            return;
 
         overtimeSteps++;
-        if (_leftCloud != null) _leftCloud.AddBugs(-1);
-        if (_rightCloud != null) _rightCloud.AddBugs(-1);
+        _leftCloud?.AddBugs(-2);
+        _rightCloud?.AddBugs(-2);
 
-        Debug.Log($"[GameManager] Dépassement du budget de pas ! overtimeSteps={overtimeSteps}, moves={steps - 1}, budget={LevelRegistry.Instance.stepBudget}");
+        Debug.Log($"[GameManager] Depassement du budget de pas ! overtimeSteps={overtimeSteps}");
     }
 
-    /// <summary>
-    /// Appelé par Trap.OnTriggerEnter quand le joueur marche sur un piège.
-    /// Applique la pénalité : -1 bug sur chaque nuage.
-    /// </summary>
     public void OnTrapTriggered()
     {
-        if (_roundOver) return;
+        if (_roundOver)
+            return;
 
         trapsHit++;
-        if (_leftCloud != null) _leftCloud.AddBugs(-1);
-        if (_rightCloud != null) _rightCloud.AddBugs(-1);
+        _leftCloud?.AddBugs(-2);
+        _rightCloud?.AddBugs(-2);
 
-        Debug.Log($"[GameManager] Piège ! trapsHit={trapsHit}");
+        Debug.Log($"[GameManager] Piege ! trapsHit={trapsHit}");
     }
 
-    /// <summary>Appelé par BugCloud.OnTriggerEnter quand on collecte un nuage.</summary>
+    public void OnInvalidMoveKeyPressed()
+    {
+        if (_roundOver)
+            return;
+
+        _leftCloud?.AddBugs(-2);
+        _rightCloud?.AddBugs(-2);
+
+        Debug.Log("[GameManager] Touche invalide ! Penalite -2 bugs sur chaque nuage.");
+    }
+
     public void OnCloudCollected(BugCloud cloud)
     {
-        if (_roundOver) return;
+        if (_roundOver)
+            return;
+
         _roundOver = true;
         inputLocked = true;
 
-        // Révéler toute la carte (désactiver le brouillard de guerre)
         FogController.Instance?.RevealAll();
 
-        // Calculer le score final (nombre de bugs verts collectés)
-        if (cloud != null) bugsCollected += Mathf.Max(0, Mathf.RoundToInt(cloud.totalBugs * cloud.greenRatio));
-        Debug.Log($"[GameManager] Nuage collecté ! bugsCollected={bugsCollected}");
+        bugsCollected = cloud != null
+            ? Mathf.Max(0, Mathf.RoundToInt(cloud.totalBugs * cloud.greenRatio))
+            : 0;
 
-        // --- Finaliser les données de trial ---
         if (trialManager != null)
         {
-            string choice = (cloud == _leftCloud) ? "left"
-                          : (cloud == _rightCloud) ? "right"
-                          : "unknown";
+            string choice = cloud == _leftCloud
+                ? "left"
+                : cloud == _rightCloud
+                    ? "right"
+                    : "unknown";
 
-            var best = GetBestCloud();
-            bool correct = best != null && cloud == best;
-
-            // Déterminer quel côté était objectivement le meilleur (ratio initial)
-            string trueCloud = (best == _leftCloud) ? "left"
-                             : (best == _rightCloud) ? "right"
-                             : "none";
+            BugCloud bestCloud = GetBestCloud();
+            bool correct = bestCloud != null && cloud == bestCloud;
+            string trueCloud = bestCloud == _leftCloud
+                ? "left"
+                : bestCloud == _rightCloud
+                    ? "right"
+                    : "none";
 
             if (LevelRegistry.Instance != null)
             {
@@ -240,18 +233,19 @@ public class GameManager : MonoBehaviour
                 trialManager.SetCloudDistance(LevelRegistry.Instance.stepBudget);
             }
 
-            bool optimalPathVisible = true;
-            var rng = LevelRegistry.Instance.CreateRng(nameof(GameManager));
-            if (SessionManager.Instance != null)
-            {
-                optimalPathVisible = rng.NextDouble() < SessionManager.Instance.pathVisible;
-            }
-
-            trialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps, optimalPathVisible, _pathIsSuboptimal);
-            trialManager.SendTrials();
+            trialManager.EndCurrentTrial(
+                choice,
+                correct,
+                trueCloud,
+                bugsCollected,
+                trapsHit,
+                steps,
+                overtimeSteps,
+                followedAdvisorPath,
+                _advisorPathVisible,
+                _pathIsSuboptimal);
         }
 
-        // --- Émettre l'événement pour l'UI ---
         OnRoundEnded?.Invoke(new RoundEndInfo
         {
             bugsCollected = bugsCollected,
@@ -261,18 +255,18 @@ public class GameManager : MonoBehaviour
             followedAdvisorPath = followedAdvisorPath,
             leftCloudGreenBugs = _leftCloud ? Mathf.RoundToInt(_leftCloud.totalBugs * _leftCloud.greenRatio) : 0,
             rightCloudGreenBugs = _rightCloud ? Mathf.RoundToInt(_rightCloud.totalBugs * _rightCloud.greenRatio) : 0,
+            optimalPathVisible = _advisorPathVisible
         });
     }
 
-    // ══════════════════════════════════════════════════════════════
-    //  UTILITAIRES
-    // ══════════════════════════════════════════════════════════════
-
-    /// <summary>Quel nuage a le plus de bugs verts ? null si égalité.</summary>
     public BugCloud GetBestCloud()
     {
-        if (_leftCloud == null || _rightCloud == null) return null;
-        if (_leftCloud.greenRatio == _rightCloud.greenRatio) return null;
-        return (_leftCloud.greenRatio > _rightCloud.greenRatio) ? _leftCloud : _rightCloud;
+        if (_leftCloud == null || _rightCloud == null)
+            return null;
+
+        if (Mathf.Approximately(_leftCloud.greenRatio, _rightCloud.greenRatio))
+            return null;
+
+        return _leftCloud.greenRatio > _rightCloud.greenRatio ? _leftCloud : _rightCloud;
     }
 }

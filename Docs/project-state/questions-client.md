@@ -34,6 +34,39 @@
   - A : **Score cumulé** — le participant voit son total grandir au fil du bloc → plus motivant, mais un mauvais trial pèse moins dans le ressenti
   - B : **Score remis à zéro** — chaque trial est indépendant → isole mieux la mesure par trial, mais moins de sens de progression
   - C : **Les deux** — score par trial affiché + score cumulé en fond (ex: dans la Mountain UI) → plus complexe à implémenter, plus riche en données
+- **Statut :** RÉPONDU
+- **Réponse :** Score cumulé dans le bloc, remis à zéro entre blocs (DEC-010, 2026-03-16)
+
+### Q-002 — Quelles colonnes CSV V1 pour le motor advice ?
+- **Posée le :** 2026-03-12
+- **Origine :** Analyse fonctionnelle, chantier Motor Advice
+- **Bloque :** Traçabilite data et spec fonc finale
+- **Question :** Quelles colonnes CSV exactes doivent enregistrer le set actif, l affichage de l advice, sa fiabilite et le set affiche ?
+- **Options :**
+  - A : Ajouter 4 colonnes dediees → impact : mise a jour schema CSV
+  - B : Reutiliser colonnes existantes → impact : mapping a clarifier
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-003 — Le motor advice doit-il inclure une explanation ?
+- **Posée le :** 2026-03-12
+- **Origine :** Analyse fonctionnelle, chantier Motor Advice
+- **Bloque :** Design UI et contenus
+- **Question :** Doit on afficher un texte d explanation (short/long) en plus du set de touches ?
+- **Options :**
+  - A : Oui, explanation requise → impact : contenus a definir
+  - B : Non, set uniquement → impact : UI minimaliste
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-004 — Format d affichage du set de touches
+- **Posée le :** 2026-03-12
+- **Origine :** Analyse fonctionnelle, chantier Motor Advice
+- **Bloque :** UI et comprehension participant
+- **Question :** Le protocole impose t il un format exact (ordre, labels, separators) pour afficher le set ?
+- **Options :**
+  - A : Format libre → impact : choix UI local
+  - B : Format fixe a fournir → impact : texte exact a valider
 - **Statut :** EN ATTENTE
 - **Réponse :** —
 

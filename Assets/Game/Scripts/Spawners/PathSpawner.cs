@@ -200,8 +200,10 @@ public class PathSpawner : MonoBehaviour
             GameManager.Instance.SetPathIsSuboptimal(isSuboptimal);
         }
 
-
         bool visible = rng.NextDouble() < session.pathVisible;
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.SetAdvisorPathVisible(visible);
 
         // ------ REVELER LES CASES DANS LE FOG OF WAR ------
         // Toujours révéler la case joueur et les deux nuages (même si le chemin est caché).
@@ -282,7 +284,7 @@ public class PathSpawner : MonoBehaviour
     List<Vector2Int> BuildSuboptimalDetour(System.Random rng, LevelRegistry reg,
                                             Vector2Int start, Vector2Int goal)
     {
-        int normalSteps = rng.Next(2, 4);
+        int normalSteps = rng.Next(1, 3);
         int detourSize  = rng.Next(detourMin, detourMax);
         int returnSize  = rng.Next(detourMin, detourMax); // tirage indépendant
         int hookDx      = (rng.NextDouble() < 0.5) ? +1 : -1;

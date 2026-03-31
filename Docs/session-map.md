@@ -7,16 +7,16 @@
 
 ## Feature en cours
 
-**Nom :** <!-- ex: Système d'inventaire -->
-**Objectif :** <!-- description en 1 phrase -->
-**Démarrée le :** <!-- date -->
+**Nom :** Motor Advice
+**Objectif :** Tirer un set de touches par essai et afficher un advice probabiliste pour guider le joueur.
+**Démarrée le :** 2026-03-12
 
 ---
 
 ## Progression
 
 ```
-[████████░░] X/N tâches complétées
+[░░░░░░░░░░] 0/5 tâches complétées
 ```
 
 ---
@@ -25,11 +25,11 @@
 
 | # | Symbole | Tâche | État |
 |---|---------|-------|------|
-| 1 | 🤖 | <!-- ex: Écrire Item.cs --> | ⬜ À faire |
-| 2 | 🤖 | <!-- ex: Écrire Inventory.cs --> | ⬜ À faire |
-| 3 | 👤 | <!-- ex: Créer prefab ItemSlot --> | ⬜ À faire |
-| 4 | 🤖 | <!-- ex: Écrire InventoryUI.cs --> | ⬜ À faire |
-| 5 | 👁️ | <!-- ex: Valider affichage UI --> | ⬜ À faire |
+| 1 | 🤖 | Ajouter params motor advice dans SessionManager + parsing CLI | ⬜ À faire |
+| 2 | 🤖 | Ajouter MotorAdviceController (tirage set + mapping input) | ⬜ À faire |
+| 3 | 🤖 | Adapter GridMover pour lire le set actif | ⬜ À faire |
+| 4 | 👤 | Creer UI motor advice (TMP_Text) + hook scene | ⬜ À faire |
+| 5 | 👁️ | Validation manuelle (3 cas de proba) | ⬜ À faire |
 
 **Légende états :** ⬜ À faire · 🔄 En cours · ✅ Fait · ⏸️ En attente · ❌ Bloqué
 
@@ -38,11 +38,11 @@
 ## Position actuelle
 
 ```
-← ON EST ICI →  [Numéro et nom de la tâche actuelle]
+← ON EST ICI →  [Tache #1: params SessionManager]
 ```
 
-**Prochaine action IA :** <!-- ce que l'IA fera après le gate/validation en cours -->
-**Prochaine action développeur :** <!-- ce que le développeur doit faire maintenant -->
+**Prochaine action IA :** Donner le plan et les snippets pour implementer les taches #1-#3.
+**Prochaine action développeur :** Valider le plan et implementer les changements code.
 
 ---
 
@@ -60,9 +60,8 @@
 
 > Hypothèses que l'IA a faites sur la structure du projet. À valider ou corriger.
 
-- [ ] <!-- ex: Un Canvas "MainCanvas" existe dans la scène -->
-- [ ] <!-- ex: Le Layer "Enemies" est configuré dans Project Settings -->
-- [ ] <!-- ex: Le prefab Enemy a un Rigidbody2D -->
+- [ ] Un Canvas UI existe dans la scene forest pour y ajouter le bloc motor advice.
+- [ ] TextMeshPro est deja configure (TMP_Text utilise par RoundUI).
 
 ---
 
@@ -77,11 +76,7 @@
 ## Log de session
 
 ```
-[HH:MM] PLAN généré — N tâches identifiées
-[HH:MM] ✅ Tâche #1 complétée
-[HH:MM] ⏸️ GATE #1 ouvert
-[HH:MM] ✅ GATE #1 fermé par le développeur
-[HH:MM] 👁️ Validation #1 — résultat : OK / [problème décrit]
+[HH:MM] PLAN genere — 5 taches identifiees
 ```
 
 ---

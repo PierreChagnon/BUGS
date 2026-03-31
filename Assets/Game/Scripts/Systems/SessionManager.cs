@@ -2,7 +2,15 @@ using System.Collections;
 using UnityEngine;
 
 // -----------------------------
-// Gère la création et l’envoi de la session de jeu
+// Façade locale du ProximalScene.
+//
+// Responsabilités :
+//   - Exposer aux spawners la config du trial courant
+//   - Copier la config depuis FlowController
+//   - Poser la seed du trial dans LevelRegistry
+//
+// Si FlowController est absent, SessionManager conserve simplement
+// les valeurs deja presentes dans l'Inspector de la scene.
 // -----------------------------
 
 public class SessionManager : MonoBehaviour
@@ -14,242 +22,128 @@ public class SessionManager : MonoBehaviour
     public GameManager gameManager;
 
     [Header("Session")]
-    public long randomizationSeed = 0;
+    public long randomizationSeed;
     public string buildVersion = "1.0.0";
 
     [Header("Recherche : Map")]
-    [Tooltip("Nombre de pièges à placer. CLI: trapCount=N.")]
     public int trapCount = 10;
-
-    [Tooltip("Distance Manhattan minimale (en cases) entre le joueur et les nuages. CLI: minDistance=N.")]
     public int minDistance = 3;
-
-    [Tooltip("Distance Manhattan maximale (en cases) entre le joueur et les nuages. Bornée par la taille de la map. CLI: maxDistance=N. 0 = pas de limite (fallback map).")]
-    public int maxDistance = 0;
+    public int maxDistance;
 
     [Header("Recherche : Discrimination")]
-    [Tooltip("Nombre minimal de bugs par nuage. CLI: minTotalBugs=N.")]
     public int minTotalBugs = 20;
-
-    [Tooltip("Nombre maximal de bugs par nuage. CLI: maxTotalBugs=N.")]
     public int maxTotalBugs = 80;
-
-    [Tooltip("Borne minimale du ratio de bugs verts (0-1). CLI: minGreenRatio=F.")]
     public float minGreenBugsRatio = 0.4f;
-
-    [Tooltip("Borne maximale du ratio de bugs verts (0-1). CLI: maxGreenRatio=F.")]
     public float maxGreenBugsRatio = 0.8f;
-
-    [Tooltip("Écart MINIMUM entre les ratios verts des deux nuages. CLI: gapMin=F.")]
     public float gapMin = 0.1f;
-
-    [Tooltip("Écart MAXIMUM entre les ratios verts des deux nuages. CLI: gapMax=F.")]
     public float gapMax = 0.3f;
 
     [Header("Recherche : Advisor")]
-    [Tooltip("Probabilité que le chemin conseillé soit visible (1) ou caché (0). CLI: pathVisible=0|1.")]
     public float pathVisible = 1f;
-
-    [Tooltip("Probabilité que le chemin affiché soit suboptimal (0=toujours optimal, 1=toujours suboptimal). CLI: suboptimalPath=F.")]
-    [Range(0f, 1f)]
-    public float suboptimalPathProbability = 0f;
-
-    [Tooltip("Probabilité que le chemin suboptimal inclue un détour (crochet). CLI: detourProb=F.")]
-    [Range(0f, 1f)]
-    public float detourProbability = 0f;
+    [Range(0f, 1f)] public float suboptimalPathProbability;
+    [Range(0f, 1f)] public float detourProbability;
+    [Range(0f, 1f)] public float motorAdviceVisibleProbability = 1f;
+    [Range(0f, 1f)] public float motorAdviceReliableProbability = 1f;
+    [Range(0f, 1f)] public float suboptimalTrapProbability;
+    [Min(0)] public int minSuboptimalTraps = 1;
+    [Min(0)] public int maxSuboptimalTraps = 3;
 
     [Header("Recherche : Fog of War")]
-    [Tooltip("Probabilité que le brouillard de guerre soit actif (0=jamais, 1=toujours). CLI: fogProbability=F.")]
-    [Range(0f, 1f)]
-    public float fogProbability = 0f;
+    [Range(0f, 1f)] public float fogProbability;
 
     [Header("Recherche : Protocole")]
-    [Tooltip("Identifiant du bloc expérimental pour le pipeline de données. CLI: blockId=N.")]
     public int blockId = 1;
+
+    public bool IsFlowDriven { get; private set; }
+    public bool IsTutorialBlock { get; private set; }
 
     void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         Instance = this;
 
-        ApplySeedForThisRound();
+        IsFlowDriven = CopyConfigFromFlowController();
+        if (!IsFlowDriven)
+            Debug.LogWarning("[SessionManager] FlowController absent: utilisation des valeurs deja presentes dans la scene.");
 
-        // Injecter la config CLI dès Awake pour que les spawners
-        // (qui tournent en Start) aient accès aux valeurs correctes.
-        TryApplyTrapCountFromArgs();
-        TryApplyBugCloudParamsFromArgs();
-        TryApplySessionIdFromArgs();
+        ApplySeedForThisTrial();
     }
 
     IEnumerator Start()
     {
-        // Tous les spawners ont tourné (Start, ordres négatifs).
-        // On lance la partie.
         yield return null;
-        gameManager.BeginFirstRound();
+        gameManager?.BeginFirstRound();
     }
 
-    void ApplySeedForThisRound()
+    bool CopyConfigFromFlowController()
     {
-        var reg = LevelRegistry.Instance;
-        if (reg == null)
+        var flow = FlowController.Instance;
+        if (flow == null || !flow.HasLoadedConfig || flow.ActiveMapConfig == null)
+            return false;
+
+        MapGenConfig map = flow.ActiveMapConfig;
+
+        randomizationSeed = flow.CurrentTrialSeed != 0 ? flow.CurrentTrialSeed : map.seed;
+        buildVersion = flow.BuildVersion;
+
+        trapCount = map.trap_count;
+        minDistance = map.min_distance;
+        maxDistance = map.max_distance;
+        minTotalBugs = map.min_total_bugs;
+        maxTotalBugs = map.max_total_bugs;
+        minGreenBugsRatio = map.min_green_ratio;
+        maxGreenBugsRatio = map.max_green_ratio;
+        gapMin = map.gap_min;
+        gapMax = map.gap_max;
+        pathVisible = map.path_visible;
+        suboptimalPathProbability = map.suboptimal_path_probability;
+        detourProbability = map.detour_probability;
+        motorAdviceVisibleProbability = map.motor_advice_visible_probability;
+        motorAdviceReliableProbability = map.motor_advice_reliable_probability;
+        suboptimalTrapProbability = map.suboptimal_trap_probability;
+        minSuboptimalTraps = map.min_suboptimal_traps;
+        maxSuboptimalTraps = map.max_suboptimal_traps;
+        fogProbability = map.fog_probability;
+
+        blockId = flow.State.current_block_index + 1;
+        IsTutorialBlock = flow.IsCurrentBlockTutorial;
+
+        Debug.Log($"[SessionManager] Config chargee depuis FlowController (block={blockId}, tutorial={IsTutorialBlock}, seed={randomizationSeed}).");
+        return true;
+    }
+
+    void ApplySeedForThisTrial()
+    {
+        var registry = LevelRegistry.Instance;
+        if (registry == null)
         {
-            Debug.LogWarning("[SessionManager] LevelRegistry introuvable en Awake: seed non appliquée.");
+            Debug.LogWarning("[SessionManager] LevelRegistry introuvable en Awake: seed non appliquee.");
             return;
         }
 
-        // 1) seed via args (seed=<long>)
-        if (TryGetSeedFromArgs(out var fromArgs))
-            randomizationSeed = fromArgs;
-
-        // 2) sinon génération
         if (randomizationSeed == 0)
-            randomizationSeed = System.DateTime.UtcNow.Ticks ^ System.Guid.NewGuid().GetHashCode();
+            randomizationSeed = GenerateSeed();
 
-        // 3) Sinon on ne fait rien, elle est fourni dans l'inspecteur (utile pour tests reproductibles)
-
-        
-        reg.SetRoundSeed(randomizationSeed);
+        registry.SetRoundSeed(randomizationSeed);
         Debug.Log($"[SessionManager] roundSeed={randomizationSeed}");
     }
 
-    static bool TryGetSeedFromArgs(out long seed)
+    static long GenerateSeed()
     {
-        var args = System.Environment.GetCommandLineArgs();
-        foreach (var a in args)
+        unchecked
         {
-            if (!a.StartsWith("seed=", System.StringComparison.OrdinalIgnoreCase)) continue;
+            int ticksHash = System.DateTime.UtcNow.Ticks.GetHashCode();
+            int guidHash = System.Guid.NewGuid().GetHashCode();
+            int seed = (ticksHash ^ guidHash) & 0x7FFFFFFF;
+            if (seed == 0)
+                seed = 1;
 
-            var val = a.Substring("seed=".Length);
-            if (!long.TryParse(val, out seed))
-            {
-                Debug.LogWarning($"[SessionManager] Argument seed invalide: '{val}'");
-                seed = default;
-                return false;
-            }
-
-            return true;
-        }
-
-        seed = default;
-        return false;
-    }
-
-    void TryApplyTrapCountFromArgs()
-    {
-        var args = System.Environment.GetCommandLineArgs();
-        foreach (var a in args)
-        {
-            if (!a.StartsWith("trapCount=", System.StringComparison.OrdinalIgnoreCase)) continue;
-
-            var val = a.Substring("trapCount=".Length);
-            if (!int.TryParse(val, out var parsed) || parsed < 0)
-            {
-                Debug.LogWarning($"[SessionManager] Argument trapCount invalide: '{val}'");
-                return;
-            }
-
-            trapCount = parsed;
-            Debug.Log($"[SessionManager] trapCount remplacé par args CLI: {parsed}");
-            return;
-        }
-    }
-
-    void TryApplyBugCloudParamsFromArgs()
-    {
-        var args = System.Environment.GetCommandLineArgs();
-        foreach (var a in args)
-        {
-            TryParseInt(a, "minDistance", ref minDistance);
-            TryParseInt(a, "maxDistance", ref maxDistance);
-            TryParseInt(a, "minTotalBugs", ref minTotalBugs);
-            TryParseInt(a, "maxTotalBugs", ref maxTotalBugs);
-            TryParseFloat(a, "minGreenRatio", ref minGreenBugsRatio);
-            TryParseFloat(a, "maxGreenRatio", ref maxGreenBugsRatio);
-            TryParseFloat(a, "gapMin", ref gapMin);
-            TryParseFloat(a, "gapMax", ref gapMax);
-            TryParseFloat(a, "pathVisible", ref pathVisible);
-            TryParseFloat(a, "suboptimalPath", ref suboptimalPathProbability);
-            TryParseFloat(a, "detourProb", ref detourProbability);
-            TryParseFloat(a, "fogProbability", ref fogProbability);
-            TryParseInt(a, "blockId", ref blockId);
-        }
-    }
-
-
-
-    // ── Helpers de parsing CLI ──
-    static void TryParseBool(string arg, string key, ref bool target)
-    {
-        if (!arg.StartsWith(key + "=", System.StringComparison.OrdinalIgnoreCase)) return;
-        var val = arg.Substring(key.Length + 1).Trim();
-        if (val == "1" || val.Equals("true", System.StringComparison.OrdinalIgnoreCase))
-        {
-            target = true;
-            Debug.Log($"[SessionManager] {key} remplacé par args CLI: true");
-        }
-        else if (val == "0" || val.Equals("false", System.StringComparison.OrdinalIgnoreCase))
-        {
-            target = false;
-            Debug.Log($"[SessionManager] {key} remplacé par args CLI: false");
-        }
-        else
-            Debug.LogWarning($"[SessionManager] Argument {key} invalide: '{val}' (attendu: 0|1|true|false)");
-    }
-
-    static void TryParseInt(string arg, string key, ref int target)
-    {
-        if (!arg.StartsWith(key + "=", System.StringComparison.OrdinalIgnoreCase)) return;
-        var val = arg.Substring(key.Length + 1);
-        if (int.TryParse(val, out var parsed))
-        {
-            target = parsed;
-            Debug.Log($"[SessionManager] {key} remplacé par args CLI: {parsed}");
-        }
-        else
-            Debug.LogWarning($"[SessionManager] Argument {key} invalide: '{val}'");
-    }
-
-    static void TryParseFloat(string arg, string key, ref float target)
-    {
-        if (!arg.StartsWith(key + "=", System.StringComparison.OrdinalIgnoreCase)) return;
-        var val = arg.Substring(key.Length + 1);
-        if (float.TryParse(val, System.Globalization.NumberStyles.Float,
-                           System.Globalization.CultureInfo.InvariantCulture, out var parsed))
-        {
-            target = parsed;
-            Debug.Log($"[SessionManager] {key} remplacé par args CLI: {parsed}");
-        }
-        else
-            Debug.LogWarning($"[SessionManager] Argument {key} invalide: '{val}'");
-    }
-
-    void TryApplySessionIdFromArgs()
-    {
-        var args = System.Environment.GetCommandLineArgs();
-        foreach (var a in args)
-        {
-            if (!a.StartsWith("sessionId=", System.StringComparison.OrdinalIgnoreCase)) continue;
-
-            var val = a.Substring("sessionId=".Length);
-            if (string.IsNullOrWhiteSpace(val))
-            {
-                Debug.LogWarning("[SessionManager] Argument sessionId vide.");
-                return;
-            }
-
-            if (trialManager != null)
-            {
-                trialManager.SetSessionId(val);
-                Debug.Log($"[SessionManager] sessionId reçu via args: '{val}'");
-            }
-            else
-            {
-                Debug.LogWarning("[SessionManager] TrialManager est null: impossible d'assigner sessionId.");
-            }
-            return;
+            return seed;
         }
     }
 }
-
-
