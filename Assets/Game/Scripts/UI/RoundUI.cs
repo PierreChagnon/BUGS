@@ -12,7 +12,6 @@ public class RoundUI : MonoBehaviour
     [Header("Game Over")]
     [SerializeField] private GameObject _gameOverPanel;
     [SerializeField] private TMP_Text _gameOverStats;
-    [SerializeField] private TMP_Text _actionButtonLabel;
 
     void Start()
     {
@@ -22,8 +21,6 @@ public class RoundUI : MonoBehaviour
         if (_gameOverPanel != null)
             _gameOverPanel.SetActive(false);
 
-        if (_actionButtonLabel != null)
-            _actionButtonLabel.text = "Continuer";
     }
 
     void OnDestroy()

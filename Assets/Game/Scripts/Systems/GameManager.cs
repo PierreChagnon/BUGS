@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -19,6 +20,8 @@ public class GameManager : MonoBehaviour
 
     [Header("Références")]
     public TrialManager trialManager;
+    [SerializeField] private GameObject _getReadyPanel;
+    [SerializeField] float getReadyDuration = 3f;
 
     [Header("Round / Score")]
     public int steps;
@@ -66,7 +69,21 @@ public class GameManager : MonoBehaviour
 
     public void BeginFirstRound()
     {
-        trialManager?.StartNewTrial();
+        inputLocked = true;
+        trialManager.StartNewTrial();
+        StartCoroutine(GetReadySequence());
+    }
+
+    private IEnumerator GetReadySequence()
+    {
+        if (_getReadyPanel != null)
+        {
+            _getReadyPanel.SetActive(true);
+            yield return new WaitForSeconds(getReadyDuration);
+            _getReadyPanel.SetActive(false);
+        }
+
+        inputLocked = false;
     }
 
     public void ContinueAfterRound()

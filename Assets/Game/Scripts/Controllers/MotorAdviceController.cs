@@ -91,15 +91,44 @@ public class MotorAdviceController : MonoBehaviour
         return false;
     }
 
-    public static string FormatSet(MotorKeySet set)
+    //Renvoie une string representant la touche a presser pour la direction donnee dans le set donne
+    public static string FormatSet(MotorKeySet set, string direction = null)
     {
-        return set switch
+        if (direction == null) { return string.Empty; }
+        ;
+
+        switch (set)
         {
-            MotorKeySet.ZQSD => "Haut: Z  Gauche: Q  Bas: S  Droite: D",
-            MotorKeySet.TFGH => "Haut: T  Gauche: F  Bas: G  Droite: H",
-            MotorKeySet.OKLM => "Haut: O  Gauche: K  Bas: L  Droite: M",
-            _ => string.Empty
-        };
+
+            default: return string.Empty;
+            case MotorKeySet.ZQSD:
+                return direction switch
+                {
+                    "up" => "Z",
+                    "left" => "Q",
+                    "down" => "S",
+                    "right" => "D",
+                    _ => string.Empty
+                };
+            case MotorKeySet.TFGH:
+                return direction switch
+                {
+                    "up" => "T",
+                    "left" => "F",
+                    "down" => "G",
+                    "right" => "H",
+                    _ => string.Empty
+                };
+            case MotorKeySet.OKLM:
+                return direction switch
+                {
+                    "up" => "O",
+                    "left" => "K",
+                    "down" => "L",
+                    "right" => "M",
+                    _ => string.Empty
+                };
+        }
     }
 
     public bool IsActiveMoveKey(KeyControl key)

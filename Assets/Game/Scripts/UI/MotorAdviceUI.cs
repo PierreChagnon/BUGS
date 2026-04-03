@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
 
 // -----------------------------
 // Affichage du motor advice en bas de l ecran.
@@ -8,7 +9,10 @@ using TMPro;
 public class MotorAdviceUI : MonoBehaviour
 {
     [SerializeField] private GameObject _root;
-    [SerializeField] private TMP_Text _label;
+    [SerializeField] private Text keyUpLabel;
+    [SerializeField] private Text keyLeftLabel;
+    [SerializeField] private Text keyDownLabel;
+    [SerializeField] private Text keyRightLabel;
 
     void Start()
     {
@@ -27,11 +31,14 @@ public class MotorAdviceUI : MonoBehaviour
     void Refresh()
     {
         var motor = MotorAdviceController.Instance;
-        if (motor == null || _root == null || _label == null) return;
+        if (motor == null || _root == null || keyUpLabel == null || keyLeftLabel == null || keyDownLabel == null || keyRightLabel == null) return;
 
         _root.SetActive(motor.AdviceVisible);
         if (!motor.AdviceVisible) return;
 
-        _label.text = MotorAdviceController.FormatSet(motor.DisplayedSet);
+        keyUpLabel.text = MotorAdviceController.FormatSet(motor.DisplayedSet, "up");
+        keyLeftLabel.text = MotorAdviceController.FormatSet(motor.DisplayedSet, "left");
+        keyDownLabel.text = MotorAdviceController.FormatSet(motor.DisplayedSet, "down");
+        keyRightLabel.text = MotorAdviceController.FormatSet(motor.DisplayedSet, "right");
     }
 }
