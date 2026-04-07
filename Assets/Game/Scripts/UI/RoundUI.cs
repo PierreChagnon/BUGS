@@ -12,6 +12,12 @@ public class RoundUI : MonoBehaviour
     [Header("Game Over")]
     [SerializeField] private GameObject _gameOverPanel;
     [SerializeField] private TMP_Text _gameOverStats;
+    [SerializeField] private TMP_Text _greenBugsCollected;
+    [SerializeField] private TMP_Text _trapsHit;
+    [SerializeField] private TMP_Text _overtimeSteps;
+    [SerializeField] private TMP_Text _steps;
+
+
 
     void Start()
     {
@@ -37,7 +43,6 @@ public class RoundUI : MonoBehaviour
         if (_gameOverStats != null)
         {
             _gameOverStats.text =
-                $"Bugs collectes : {info.bugsCollected}\n" +
                 $"Pieges touches : {info.trapsHit}\n" +
                 $"Pas en trop : {info.overtimeSteps}\n" +
                 $"Pas : {info.steps}\n" +
@@ -45,6 +50,9 @@ public class RoundUI : MonoBehaviour
                 $"Chemin visible : {(info.optimalPathVisible ? "Oui" : "Non")}\n" +
                 $"Bugs nuage G : {info.leftCloudGreenBugs}  |  D : {info.rightCloudGreenBugs}";
         }
+
+        if (_greenBugsCollected != null)
+            _greenBugsCollected.text = $"Bugs collectes : {info.bugsCollected}";
     }
 
     public void OnContinueClicked()
