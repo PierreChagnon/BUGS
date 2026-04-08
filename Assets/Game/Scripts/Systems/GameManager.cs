@@ -177,6 +177,33 @@ public class GameManager : MonoBehaviour
             OnStepBudgetExceeded();
 
         trialManager?.RecordMove(cell);
+
+        // Fallback déterministe: en jeu sur grille, atteindre la cellule du nuage
+        // doit terminer le trial même si le trigger physique rate.
+        TryCollectCloudAtCell(cell);
+    }
+
+    void TryCollectCloudAtCell(Vector2Int playerCell)
+    {
+        if (_roundOver)
+            return;
+
+        var registry = LevelRegistry.Instance;
+        if (registry == null)
+            return;
+
+        BugCloud cloudToCollect = null;
+
+        if (_leftCloud != null && registry.WorldToCell(_leftCloud.transform.position) == playerCell)
+            cloudToCollect = _leftCloud;
+        else if (_rightCloud != null && registry.WorldToCell(_rightCloud.transform.position) == playerCell)
+            cloudToCollect = _rightCloud;
+
+        if (cloudToCollect == null)
+            return;
+
+        Debug.Log("[GameManager] Nuage détecté sur la cellule du joueur : collecte forcée (fallback grille).");
+        OnCloudCollected(cloudToCollect);
     }
 
     void OnStepBudgetExceeded()
