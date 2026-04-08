@@ -17,9 +17,7 @@ public class ConsentUI : MonoBehaviour
             _titleText.text = "Consentement";
 
         if (_bodyText != null)
-            _bodyText.text = string.IsNullOrWhiteSpace(flow.Config?.consent_text)
-                ? "Veuillez accepter le consentement pour demarrer la session."
-                : flow.Config.consent_text;
+            _bodyText.text = "Veuillez accepter le consentement pour demarrer la session.";
 
         if (_statusText != null)
             _statusText.text = string.Empty;

@@ -34,7 +34,6 @@ public enum ValleyChoice
 public class SessionConfig
 {
     public string session_template_id;
-    [TextArea(3, 10)] public string consent_text;
     public bool tutorial_enabled = true;
     public List<BlockConfig> blocks = new();
 
@@ -43,7 +42,6 @@ public class SessionConfig
         return new SessionConfig
         {
             session_template_id = session_template_id,
-            consent_text = consent_text,
             tutorial_enabled = tutorial_enabled,
             blocks = FlowCloneUtility.CloneBlocks(blocks)
         };
