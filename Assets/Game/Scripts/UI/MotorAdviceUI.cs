@@ -9,6 +9,7 @@ using UnityEngine.UI;
 public class MotorAdviceUI : MonoBehaviour
 {
     [SerializeField] private GameObject _root;
+    [SerializeField] private GameObject _advisorPicture;
     [SerializeField] private Text keyUpLabel;
     [SerializeField] private Text keyLeftLabel;
     [SerializeField] private Text keyDownLabel;
@@ -31,9 +32,10 @@ public class MotorAdviceUI : MonoBehaviour
     void Refresh()
     {
         var motor = MotorAdviceController.Instance;
-        if (motor == null || _root == null || keyUpLabel == null || keyLeftLabel == null || keyDownLabel == null || keyRightLabel == null) return;
+        if (motor == null || _root == null || _advisorPicture == null || keyUpLabel == null || keyLeftLabel == null || keyDownLabel == null || keyRightLabel == null) return;
 
         _root.SetActive(motor.AdviceVisible);
+        _advisorPicture.SetActive(motor.AdviceVisible);
         if (!motor.AdviceVisible) return;
 
         keyUpLabel.text = MotorAdviceController.FormatSet(motor.DisplayedSet, "up");
