@@ -33,9 +33,9 @@ RectTransform:
   m_Children:
   - {fileID: 4979052220520483886}
   - {fileID: 6703830728514285682}
-  - {fileID: 1019194446455511912}
   - {fileID: 4751329710442246429}
   - {fileID: 8703879855196464191}
+  - {fileID: 1019194446455511912}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -354,6 +354,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MotorAdviceUI
   _root: {fileID: 4782254391256203749}
+  _advisorPicture: {fileID: 0}
   keyUpLabel: {fileID: 4994469498276698674}
   keyLeftLabel: {fileID: 4783438292621609578}
   keyDownLabel: {fileID: 5516820624384215081}

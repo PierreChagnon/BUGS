@@ -178,8 +178,13 @@ public class GameManager : MonoBehaviour
 
         trialManager?.RecordMove(cell);
 
-        // Fallback déterministe: en jeu sur grille, atteindre la cellule du nuage
-        // doit terminer le trial même si le trigger physique rate.
+        // Fallbacks déterministes si les triggers physiques ratent.
+        if (LevelRegistry.Instance != null && LevelRegistry.Instance.HasTrap(cell))
+        {
+            OnTrapTriggered();
+            LevelRegistry.Instance.UnregisterTrap(cell);
+        }
+
         TryCollectCloudAtCell(cell);
     }
 

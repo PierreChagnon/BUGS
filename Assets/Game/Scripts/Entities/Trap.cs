@@ -14,6 +14,16 @@ public class Trap : MonoBehaviour
     {
         if (!other.CompareTag("Player")) return;
 
+
+        // Fallback de sécurité : vérifier la présence du piège dans le registre de niveau (fix le bug du collider)
+        var registry = LevelRegistry.Instance;
+        if (registry != null)
+        {
+            var cell = registry.WorldToCell(transform.position);
+            if (!registry.HasTrap(cell)) return; // déjà traité par le fallback grille
+            registry.UnregisterTrap(cell);
+        }
+
         Debug.Log("[Trap] Piège déclenché !");
 
         if (GameManager.Instance != null)

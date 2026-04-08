@@ -20,6 +20,9 @@ public class MotorAdviceUI : MonoBehaviour
         if (MotorAdviceController.Instance != null)
             MotorAdviceController.Instance.OnAdviceChanged += Refresh;
 
+        if (GameManager.Instance != null)
+            GameManager.Instance.OnRoundEnded += HandleRoundEnded;
+
         Refresh();
     }
 
@@ -27,12 +30,26 @@ public class MotorAdviceUI : MonoBehaviour
     {
         if (MotorAdviceController.Instance != null)
             MotorAdviceController.Instance.OnAdviceChanged -= Refresh;
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.OnRoundEnded -= HandleRoundEnded;
+    }
+
+    void HandleRoundEnded(GameManager.RoundEndInfo info)
+    {
+        if (_root != null) _root.SetActive(false);
+        if (_advisorPicture != null) _advisorPicture.SetActive(false);
     }
 
     void Refresh()
     {
         var motor = MotorAdviceController.Instance;
-        if (motor == null || _root == null || _advisorPicture == null || keyUpLabel == null || keyLeftLabel == null || keyDownLabel == null || keyRightLabel == null) return;
+        if (motor == null) { Debug.LogWarning("[MotorAdviceUI] Refresh skipped: MotorAdviceController.Instance est null"); return; }
+        if (_root == null || _advisorPicture == null || keyUpLabel == null || keyLeftLabel == null || keyDownLabel == null || keyRightLabel == null)
+        {
+            Debug.LogWarning($"[MotorAdviceUI] Refresh skipped: ref null — root={_root != null}, advisor={_advisorPicture != null}, up={keyUpLabel != null}, left={keyLeftLabel != null}, down={keyDownLabel != null}, right={keyRightLabel != null}");
+            return;
+        }
 
         _root.SetActive(motor.AdviceVisible);
         _advisorPicture.SetActive(motor.AdviceVisible);

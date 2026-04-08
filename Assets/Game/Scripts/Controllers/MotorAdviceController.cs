@@ -17,6 +17,7 @@ public enum MotorKeySet
 // Fournit un mapping input pour GridMover.
 // -----------------------------
 
+[DefaultExecutionOrder(-5)]
 public class MotorAdviceController : MonoBehaviour
 {
     public static MotorAdviceController Instance { get; private set; }
@@ -45,6 +46,7 @@ public class MotorAdviceController : MonoBehaviour
         float reliableProb = session != null ? session.motorAdviceReliableProbability : 1f;
 
         AdviceVisible = rng.NextDouble() < visibleProb;
+        Debug.Log($"[MotorAdviceController]: visible={AdviceVisible} (prob={visibleProb}), reliable={reliableProb}");
         if (!AdviceVisible)
         {
             AdviceReliable = false;
@@ -94,6 +96,7 @@ public class MotorAdviceController : MonoBehaviour
     //Renvoie une string representant la touche a presser pour la direction donnee dans le set donne
     public static string FormatSet(MotorKeySet set, string direction = null)
     {
+        Debug.Log($"FormatSet called with set={set} and direction={direction}");
         if (direction == null) { return string.Empty; }
         ;
 
