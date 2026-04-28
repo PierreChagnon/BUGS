@@ -6,12 +6,41 @@ public class AdvisorChoiceUI : MonoBehaviour
     [SerializeField] private TMP_Text _titleText;
     [SerializeField] private TMP_Text _subtitleText;
     [SerializeField] private TMP_Text[] _optionLabels;
+    [SerializeField]
+    private GameObject _slotLeft
+        , _slotMiddle
+        , _slotRight;
+
+    [SerializeField] private GameObject _nonePrefab;
+    [SerializeField] private GameObject _humanPrefab;
+    [SerializeField] private GameObject _robotPrefab;
 
     string[] _advisorOptions = { "none", "human", "robot" };
 
     void Start()
     {
         Refresh();
+
+        // Instantiate advisor prefabs in random order
+        GameObject[] prefabs = { _nonePrefab, _humanPrefab, _robotPrefab };
+        GameObject[] slots = { _slotLeft, _slotMiddle, _slotRight };
+        for (int i = 0; i < prefabs.Length; i++)
+        {
+            int randomIndex = Random.Range(0, prefabs.Length);
+            GameObject prefab = prefabs[randomIndex];
+            GameObject slot = slots[i];
+
+            if (prefab != null && slot != null)
+            {
+                Instantiate(prefab, slot.transform);
+            }
+
+            // Remove the used prefab from the array
+            for (int j = randomIndex; j < prefabs.Length - 1; j++)
+            {
+                prefabs[j] = prefabs[j + 1];
+            }
+        }
     }
 
     void Refresh()
@@ -47,8 +76,4 @@ public class AdvisorChoiceUI : MonoBehaviour
         AdvisorType type = FlowValueConverters.ToAdvisorType(_advisorOptions[index]);
         FlowController.Instance?.OnAdvisorChosen(type);
     }
-
-    public void OnChooseNoneClicked() => FlowController.Instance?.OnAdvisorChosen(AdvisorType.None);
-    public void OnChooseHumanClicked() => FlowController.Instance?.OnAdvisorChosen(AdvisorType.Human);
-    public void OnChooseRobotClicked() => FlowController.Instance?.OnAdvisorChosen(AdvisorType.Robot);
 }
