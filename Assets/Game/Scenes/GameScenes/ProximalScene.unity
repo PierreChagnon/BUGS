@@ -14,10 +14,10 @@ OcclusionCullingSettings:
 RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 10
-  m_Fog: 0
-  m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-  m_FogMode: 3
-  m_FogDensity: 0.01
+  m_Fog: 1
+  m_FogColor: {r: 0.03529412, g: 0.007843138, b: 0.34117648, a: 1}
+  m_FogMode: 2
+  m_FogDensity: 0.05
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
   m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
+  m_SkyboxMaterial: {fileID: 2100000, guid: aed657681c6812845bb7736c343b5e9b, type: 2}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -93,7 +93,7 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 20201, guid: 0000000000000000f000000000000000, type: 0}
+  m_LightingDataAsset: {fileID: 112000000, guid: 973493269b993485fa1acb5b0c456348, type: 2}
   m_LightingSettings: {fileID: 0}
 --- !u!196 &4
 NavMeshSettings:
@@ -4984,8 +4984,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bce1107787d6553479d9f90232cad64a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrapSpawner
-  trapPrefab: {fileID: 7046270674791465870, guid: e49ae2268eef18a4f805a56853ba691b, type: 3}
-  trapYOffset: 0.1
+  trapPrefab: {fileID: 3469861708107583510, guid: 7163722903b1c40da833013442e43686, type: 3}
+  trapYOffset: 0
 --- !u!4 &1039294639
 Transform:
   m_ObjectHideFlags: 0
@@ -7211,13 +7211,13 @@ Light:
   serializedVersion: 12
   m_Type: 1
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 2
+  m_Intensity: 0.7
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize2D: {x: 10, y: 10}
   m_Shadows:
-    m_Type: 2
+    m_Type: 1
     m_Resolution: -1
     m_CustomResolution: -1
     m_Strength: 1
@@ -7254,7 +7254,7 @@ Light:
   m_LightShadowCasterMode: 0
   m_AreaSize: {x: 1, y: 1}
   m_BounceIntensity: 1
-  m_ColorTemperature: 5000
+  m_ColorTemperature: 20000
   m_UseColorTemperature: 1
   m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
   m_UseBoundingSphereOverride: 0
@@ -7273,13 +7273,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1353873897}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.40821788, y: -0.23456968, z: 0.10938163, w: 0.8754261}
+  m_LocalRotation: {x: -0.44449982, y: 0.07799887, z: -0.038888793, w: -0.8915289}
   m_LocalPosition: {x: 0, y: 3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
+  m_LocalEulerAnglesHint: {x: 53, y: 350, z: 0}
 --- !u!4 &1356780660 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1310028211529153949, guid: c8ca65ecdf242ce43bbcc052a0064679, type: 3}
@@ -9097,7 +9097,7 @@ Transform:
   m_GameObject: {fileID: 1671159055}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 5, y: 0.557, z: 1}
+  m_LocalPosition: {x: 5, y: 0.12, z: 1}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -10536,9 +10536,9 @@ MonoBehaviour:
   mazeExtraOpenings: 0
   extraConnections: 16
   fallbackConnectToClouds: 1
-  wallPrefab: {fileID: 5936082048506224353, guid: 9f662cf1313c14a4eb9f0770c63182e3, type: 3}
+  wallPrefab: {fileID: 449975357183268341, guid: 5a6bc5592a46a486c96bb94cfbb5bfa8, type: 3}
   wallMaterial: {fileID: 0}
-  wallY: 0.5
+  wallY: 0
   wallHeight: 1
   wallThickness: 1
   clearPreviousChildren: 1
@@ -11429,7 +11429,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 01b11db466710cc4ab50ca2c022f3af9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TilesSpawner
-  tilePrefab: {fileID: 1961823369822145244, guid: c8ca65ecdf242ce43bbcc052a0064679, type: 3}
+  tilePrefab: {fileID: 2719313788500028987, guid: 783c58c057e6b4159b4b0b949823ff52, type: 3}
   root: {fileID: 1671159056}
   tilesY: 0
 --- !u!4 &2076279665 stripped
@@ -12012,7 +12012,15 @@ PrefabInstance:
     - target: {fileID: 1479656933083016645, guid: 4d7c8f012f43bf341835d6000bd2b663, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 40a9fd9b5911eb94895ba6cf3fe473c0, type: 2}
+      objectReference: {fileID: 2100000, guid: 51bdd9878f4254f01ab7cd0ac6c6443a, type: 2}
+    - target: {fileID: 2864691907690672521, guid: 4d7c8f012f43bf341835d6000bd2b663, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 2864691907690672521, guid: 4d7c8f012f43bf341835d6000bd2b663, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 5
+      objectReference: {fileID: 0}
     - target: {fileID: 2864691907690672521, guid: 4d7c8f012f43bf341835d6000bd2b663, type: 3}
       propertyPath: m_LocalPosition.x
       value: 5
@@ -12053,6 +12061,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2864691907690672521, guid: 4d7c8f012f43bf341835d6000bd2b663, type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3194563166370919604, guid: 4d7c8f012f43bf341835d6000bd2b663, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
     - target: {fileID: 4920916237527872275, guid: 4d7c8f012f43bf341835d6000bd2b663, type: 3}
       propertyPath: m_Name
       value: Ground
