@@ -36,22 +36,34 @@ public class DistalChoiceUI : MonoBehaviour
             _advisorChoiceText.text = $"Advisor choisi: {FlowValueConverters.ToApiValue(flow.State.advisor_choice)}";
 
         if (_valleyAText != null)
-            _valleyAText.text = BuildValleyDescription("Vallee A", flow.CurrentBlock.valley_a_preview, flow.CurrentBlock.valley_a);
+            _valleyAText.text = BuildValleyDescription("Vallee A", flow.CurrentBlock.valley_a);
 
         if (_valleyBText != null)
-            _valleyBText.text = BuildValleyDescription("Vallee B", flow.CurrentBlock.valley_b_preview, flow.CurrentBlock.valley_b);
+            _valleyBText.text = BuildValleyDescription("Vallee B", flow.CurrentBlock.valley_b);
     }
 
-    static string BuildValleyDescription(string label, ValleyPreview preview, MapGenConfig config)
+    static string BuildValleyDescription(string label, MapGenConfig config)
     {
         if (config == null)
             return $"{label}\nConfig indisponible";
 
-        string previewText = preview != null
-            ? $"Preview verts: {preview.left_green_hint:0.00}/{preview.right_green_hint:0.00}"
-            : "Preview indisponible";
+        float expectedGreenBugs = ComputeExpectedGreenBugs(config);
 
-        return $"{label}\n{previewText}\nPieges: {config.trap_count} | Brouillard: {config.fog_probability:0.00}";
+        return
+            $"{label}\n" +
+            $"Bugs verts attendus: {expectedGreenBugs:0.0}\n" +
+            $"Bugs totaux: {config.min_total_bugs}-{config.max_total_bugs} | Ratio vert: {config.min_green_ratio:0.00}-{config.max_green_ratio:0.00}\n" +
+            $"Pieges: {config.trap_count} | Brouillard: {config.fog_probability:0.00}";
+    }
+
+    static float ComputeExpectedGreenBugs(MapGenConfig config)
+    {
+        if (config == null)
+            return 0f;
+
+        float averageTotalBugs = (config.min_total_bugs + config.max_total_bugs) * 0.5f;
+        float averageGreenRatio = (config.min_green_ratio + config.max_green_ratio) * 0.5f;
+        return averageTotalBugs * averageGreenRatio;
     }
 
     public void OnChooseValleyA()

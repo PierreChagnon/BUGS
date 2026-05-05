@@ -46,20 +46,6 @@ public static class TutorialSessionFactory
             is_tutorial = true,
             valley_a = CreateTutorialMap(seed: 1001),
             valley_b = CreateTutorialMap(seed: 1002, minGreenRatio: 0.65f, maxGreenRatio: 0.8f),
-            valley_a_preview = new ValleyPreview
-            {
-                left_cloud_size = 0.6f,
-                right_cloud_size = 0.6f,
-                left_green_hint = 0.4f,
-                right_green_hint = 0.6f
-            },
-            valley_b_preview = new ValleyPreview
-            {
-                left_cloud_size = 0.7f,
-                right_cloud_size = 0.7f,
-                left_green_hint = 0.6f,
-                right_green_hint = 0.7f
-            },
             distal_advice_visible_probability = 1f,
             distal_advice_reliable_probability = 1f,
             questions = new List<QuestionConfig>()

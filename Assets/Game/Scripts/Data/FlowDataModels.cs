@@ -57,8 +57,6 @@ public class BlockConfig
     public bool is_tutorial;
     public MapGenConfig valley_a = new();
     public MapGenConfig valley_b = new();
-    public ValleyPreview valley_a_preview = new();
-    public ValleyPreview valley_b_preview = new();
     public float distal_advice_visible_probability = 1f;
     public float distal_advice_reliable_probability = 1f;
     public List<QuestionConfig> questions = new();
@@ -73,8 +71,6 @@ public class BlockConfig
             is_tutorial = is_tutorial,
             valley_a = valley_a != null ? valley_a.DeepClone() : new MapGenConfig(),
             valley_b = valley_b != null ? valley_b.DeepClone() : new MapGenConfig(),
-            valley_a_preview = valley_a_preview != null ? valley_a_preview.DeepClone() : new ValleyPreview(),
-            valley_b_preview = valley_b_preview != null ? valley_b_preview.DeepClone() : new ValleyPreview(),
             distal_advice_visible_probability = distal_advice_visible_probability,
             distal_advice_reliable_probability = distal_advice_reliable_probability,
             questions = FlowCloneUtility.CloneQuestions(questions)
@@ -128,26 +124,6 @@ public class MapGenConfig
             max_suboptimal_traps = max_suboptimal_traps,
             fog_probability = fog_probability,
             seed = seed
-        };
-    }
-}
-
-[Serializable]
-public class ValleyPreview
-{
-    public float left_cloud_size;
-    public float right_cloud_size;
-    public float left_green_hint;
-    public float right_green_hint;
-
-    public ValleyPreview DeepClone()
-    {
-        return new ValleyPreview
-        {
-            left_cloud_size = left_cloud_size,
-            right_cloud_size = right_cloud_size,
-            left_green_hint = left_green_hint,
-            right_green_hint = right_green_hint
         };
     }
 }
