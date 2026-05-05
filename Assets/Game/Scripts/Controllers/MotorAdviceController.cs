@@ -44,6 +44,10 @@ public class MotorAdviceController : MonoBehaviour
         var session = SessionManager.Instance;
         float visibleProb = session != null ? session.motorAdviceVisibleProbability : 1f;
         float reliableProb = session != null ? session.motorAdviceReliableProbability : 1f;
+        bool hasAdvisor = session == null || session.HasAdvisor;
+
+        if (!hasAdvisor)
+            visibleProb = 0f;
 
         AdviceVisible = rng.NextDouble() < visibleProb;
         Debug.Log($"[MotorAdviceController]: visible={AdviceVisible} (prob={visibleProb}), reliable={reliableProb}");

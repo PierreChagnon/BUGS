@@ -8,6 +8,11 @@ public class DistalChoiceUI : MonoBehaviour
     [SerializeField] private TMP_Text _valleyAText;
     [SerializeField] private TMP_Text _valleyBText;
 
+    public bool AdviceVisible { get; private set; }
+    public bool AdviceReliable { get; private set; }
+    public ValleyChoice AdvisedValley { get; private set; } = ValleyChoice.None;
+    public ValleyChoice BestValley { get; private set; } = ValleyChoice.None;
+
     void Start()
     {
         Refresh();
@@ -18,6 +23,11 @@ public class DistalChoiceUI : MonoBehaviour
         var flow = FlowController.Instance;
         if (flow == null || flow.CurrentBlock == null)
             return;
+
+        AdviceVisible = flow.State != null && flow.State.distal_advice_visible;
+        AdviceReliable = flow.State != null && flow.State.distal_advice_reliable;
+        AdvisedValley = flow != null && flow.State != null ? flow.State.distal_advice_choice : ValleyChoice.None;
+        BestValley = flow != null && flow.State != null ? flow.State.distal_best_valley : ValleyChoice.None;
 
         if (_titleText != null)
             _titleText.text = "Choix distal";

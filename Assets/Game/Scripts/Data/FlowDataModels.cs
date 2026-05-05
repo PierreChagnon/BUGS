@@ -59,6 +59,8 @@ public class BlockConfig
     public MapGenConfig valley_b = new();
     public ValleyPreview valley_a_preview = new();
     public ValleyPreview valley_b_preview = new();
+    public float distal_advice_visible_probability = 1f;
+    public float distal_advice_reliable_probability = 1f;
     public List<QuestionConfig> questions = new();
 
     public BlockConfig DeepClone()
@@ -73,6 +75,8 @@ public class BlockConfig
             valley_b = valley_b != null ? valley_b.DeepClone() : new MapGenConfig(),
             valley_a_preview = valley_a_preview != null ? valley_a_preview.DeepClone() : new ValleyPreview(),
             valley_b_preview = valley_b_preview != null ? valley_b_preview.DeepClone() : new ValleyPreview(),
+            distal_advice_visible_probability = distal_advice_visible_probability,
+            distal_advice_reliable_probability = distal_advice_reliable_probability,
             questions = FlowCloneUtility.CloneQuestions(questions)
         };
     }
@@ -195,6 +199,10 @@ public class PlayerSessionState
     public int current_trial_index;
     public AdvisorType advisor_choice = AdvisorType.None;
     public ValleyChoice valley_choice = ValleyChoice.None;
+    public bool distal_advice_visible;
+    public bool distal_advice_reliable;
+    public ValleyChoice distal_advice_choice = ValleyChoice.None;
+    public ValleyChoice distal_best_valley = ValleyChoice.None;
     public int green_bugs_accumulated;
 }
 
@@ -209,6 +217,12 @@ public class TrialResponseRow
     public int trial_count;
     public string advisor_choice;
     public string valley_choice;
+    public float distal_advice_visible_probability;
+    public float distal_advice_reliable_probability;
+    public bool distal_advice_visible;
+    public bool distal_advice_reliable;
+    public string distal_advice_choice;
+    public string distal_best_valley;
     public int trap_count;
     public int min_distance;
     public int max_distance;

@@ -119,6 +119,10 @@ public class FlowController : MonoBehaviour
             current_trial_index = 0,
             advisor_choice = AdvisorType.None,
             valley_choice = ValleyChoice.None,
+            distal_advice_visible = false,
+            distal_advice_reliable = false,
+            distal_advice_choice = ValleyChoice.None,
+            distal_best_valley = ValleyChoice.None,
             green_bugs_accumulated = 0,
             last_trial_response_id = null
         };
@@ -313,6 +317,7 @@ public class FlowController : MonoBehaviour
         State.current_trial_index = 0;
         State.advisor_choice = AdvisorType.None;
         State.valley_choice = ValleyChoice.None;
+        ResetDistalAdviceState();
         State.last_trial_response_id = null;
         CurrentBlockSeed = 0;
         CurrentTrialSeed = 0;
@@ -332,6 +337,9 @@ public class FlowController : MonoBehaviour
     {
         if (State == null)
             return;
+
+        if (next == GamePhase.DistalChoice)
+            RollDistalAdviceForCurrentBlock();
 
         State.current_phase = next;
         OnPhaseChanged?.Invoke(next);
@@ -390,6 +398,130 @@ public class FlowController : MonoBehaviour
 
         config.blocks.Sort((a, b) => a.block_order.CompareTo(b.block_order));
         return config;
+    }
+
+    // Le conseil distal est determine aleatoirement a chaque fois que le joueur arrive sur la scene de choix distal, en fonction du bloc en cours et de l'advisor choisi.
+    void RollDistalAdviceForCurrentBlock()
+    {
+        ResetDistalAdviceState();
+
+        var block = CurrentBlock;
+        if (State == null || block == null)
+            return;
+
+        var rng = CreateDistalAdviceRng();
+        State.distal_best_valley = ResolveMostRewardingValley(block, rng);
+
+        if (State.advisor_choice == AdvisorType.None)
+        {
+            Debug.Log("[FlowController] Distal advice masque car advisor_choice=none.");
+            return;
+        }
+
+        float visibleProbability = Mathf.Clamp01(block.distal_advice_visible_probability);
+        float reliableProbability = Mathf.Clamp01(block.distal_advice_reliable_probability);
+
+        State.distal_advice_visible = rng.NextDouble() < visibleProbability;
+        if (!State.distal_advice_visible)
+        {
+            Debug.Log($"[FlowController] Distal advice visible=false (prob={visibleProbability:0.###}).");
+            return;
+        }
+
+        State.distal_advice_reliable = rng.NextDouble() < reliableProbability;
+        State.distal_advice_choice = State.distal_advice_reliable
+            ? State.distal_best_valley
+            : GetOppositeValley(State.distal_best_valley);
+
+        Debug.Log(
+            $"[FlowController] Distal advice visible=true (prob={visibleProbability:0.###}), " +
+            $"reliable={State.distal_advice_reliable} (prob={reliableProbability:0.###}), " +
+            $"best={FlowValueConverters.ToApiValue(State.distal_best_valley)}, " +
+            $"choice={FlowValueConverters.ToApiValue(State.distal_advice_choice)}.");
+    }
+
+    void ResetDistalAdviceState()
+    {
+        if (State == null)
+            return;
+
+        State.distal_advice_visible = false;
+        State.distal_advice_reliable = false;
+        State.distal_advice_choice = ValleyChoice.None;
+        State.distal_best_valley = ValleyChoice.None;
+    }
+
+    System.Random CreateDistalAdviceRng()
+    {
+        unchecked
+        {
+            const ulong offset = 1469598103934665603UL;
+            const ulong prime = 1099511628211UL;
+
+            ulong hash = offset;
+            MixLong(ref hash, prime, State != null ? State.current_block_index : 0);
+            MixLong(ref hash, prime, CurrentBlock != null ? CurrentBlock.block_order : 0);
+            MixString(ref hash, prime, State != null ? State.participant_id : null);
+            MixString(ref hash, prime, Config != null ? Config.session_template_id : null);
+            MixString(ref hash, prime, "distal-advice");
+
+            int seed = (int)(hash & 0x7FFFFFFF);
+            if (seed == 0)
+                seed = 1;
+
+            return new System.Random(seed);
+        }
+    }
+
+    static ValleyChoice ResolveMostRewardingValley(BlockConfig block, System.Random rng)
+    {
+        float valleyAExpectedGreenBugs = ComputeExpectedGreenBugs(block?.valley_a);
+        float valleyBExpectedGreenBugs = ComputeExpectedGreenBugs(block?.valley_b);
+
+        if (Mathf.Approximately(valleyAExpectedGreenBugs, valleyBExpectedGreenBugs))
+            return rng.NextDouble() < 0.5 ? ValleyChoice.A : ValleyChoice.B;
+
+        return valleyAExpectedGreenBugs > valleyBExpectedGreenBugs
+            ? ValleyChoice.A
+            : ValleyChoice.B;
+    }
+
+    static float ComputeExpectedGreenBugs(MapGenConfig map)
+    {
+        if (map == null)
+            return 0f;
+
+        float averageTotalBugs = (map.min_total_bugs + map.max_total_bugs) * 0.5f;
+        float averageGreenRatio = (map.min_green_ratio + map.max_green_ratio) * 0.5f;
+        return averageTotalBugs * averageGreenRatio;
+    }
+
+    static ValleyChoice GetOppositeValley(ValleyChoice valley)
+    {
+        return valley == ValleyChoice.A ? ValleyChoice.B : ValleyChoice.A;
+    }
+
+    static void MixLong(ref ulong hash, ulong prime, long value)
+    {
+        ulong raw = (ulong)value;
+        for (int i = 0; i < 8; i++)
+        {
+            hash ^= (byte)(raw & 0xFF);
+            hash *= prime;
+            raw >>= 8;
+        }
+    }
+
+    static void MixString(ref ulong hash, ulong prime, string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return;
+
+        for (int i = 0; i < value.Length; i++)
+        {
+            hash ^= (byte)value[i];
+            hash *= prime;
+        }
     }
 
     string GetSceneName(GamePhase phase)

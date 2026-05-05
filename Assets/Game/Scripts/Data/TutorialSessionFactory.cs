@@ -60,6 +60,8 @@ public static class TutorialSessionFactory
                 left_green_hint = 0.6f,
                 right_green_hint = 0.7f
             },
+            distal_advice_visible_probability = 1f,
+            distal_advice_reliable_probability = 1f,
             questions = new List<QuestionConfig>()
         };
     }

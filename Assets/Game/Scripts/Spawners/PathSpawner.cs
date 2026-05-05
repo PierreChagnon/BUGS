@@ -169,8 +169,9 @@ public class PathSpawner : MonoBehaviour
         // ------ TIRAGE : CHEMIN SUBOPTIMAL ? ------
         bool isSuboptimal = false;
         List<Vector2Int> displayPath; // chemin qui sera affiché au joueur
+        bool hasAdvisor = session != null && session.HasAdvisor;
 
-        if (session.suboptimalPathProbability > 0f && rng.NextDouble() < session.suboptimalPathProbability)
+        if (hasAdvisor && session.suboptimalPathProbability > 0f && rng.NextDouble() < session.suboptimalPathProbability)
         {
             isSuboptimal = true;
             Vector2Int bestCloudCell = bestIsLeft ? leftCloudCell : rightCloudCell;
@@ -196,11 +197,11 @@ public class PathSpawner : MonoBehaviour
         // Publier le chemin affiché (advisor path) au GameManager
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.SetChosenPath(displayPath);
+            GameManager.Instance.SetChosenPath(hasAdvisor ? displayPath : null);
             GameManager.Instance.SetPathIsSuboptimal(isSuboptimal);
         }
 
-        bool visible = rng.NextDouble() < session.pathVisible;
+        bool visible = hasAdvisor && rng.NextDouble() < session.pathVisible;
 
         if (GameManager.Instance != null)
             GameManager.Instance.SetAdvisorPathVisible(visible);

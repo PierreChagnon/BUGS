@@ -56,6 +56,7 @@ public class SessionManager : MonoBehaviour
 
     public bool IsFlowDriven { get; private set; }
     public bool IsTutorialBlock { get; private set; }
+    public bool HasAdvisor { get; private set; } = true;
 
     void Awake()
     {
@@ -87,6 +88,7 @@ public class SessionManager : MonoBehaviour
             return false;
 
         MapGenConfig map = flow.ActiveMapConfig;
+        HasAdvisor = flow.State != null && flow.State.advisor_choice != AdvisorType.None;
 
         randomizationSeed = flow.CurrentTrialSeed != 0 ? flow.CurrentTrialSeed : map.seed;
         buildVersion = flow.BuildVersion;
@@ -109,6 +111,12 @@ public class SessionManager : MonoBehaviour
         minSuboptimalTraps = map.min_suboptimal_traps;
         maxSuboptimalTraps = map.max_suboptimal_traps;
         fogProbability = map.fog_probability;
+
+        if (!HasAdvisor)
+        {
+            pathVisible = 0f;
+            motorAdviceVisibleProbability = 0f;
+        }
 
         blockId = flow.State.current_block_index + 1;
         IsTutorialBlock = flow.IsCurrentBlockTutorial;
