@@ -21,24 +21,23 @@ public class AdvisorChoiceUI : MonoBehaviour
     {
         Refresh();
 
-        // Instantiate advisor prefabs in random order
         GameObject[] prefabs = { _nonePrefab, _humanPrefab, _robotPrefab };
         GameObject[] slots = { _slotLeft, _slotMiddle, _slotRight };
-        for (int i = 0; i < prefabs.Length; i++)
+
+        for (int i = prefabs.Length - 1; i > 0; i--)
         {
-            int randomIndex = Random.Range(0, prefabs.Length);
-            GameObject prefab = prefabs[randomIndex];
+            int randomIndex = Random.Range(0, i + 1);
+            (prefabs[i], prefabs[randomIndex]) = (prefabs[randomIndex], prefabs[i]);
+        }
+
+        for (int i = 0; i < prefabs.Length && i < slots.Length; i++)
+        {
+            GameObject prefab = prefabs[i];
             GameObject slot = slots[i];
 
             if (prefab != null && slot != null)
             {
                 Instantiate(prefab, slot.transform);
-            }
-
-            // Remove the used prefab from the array
-            for (int j = randomIndex; j < prefabs.Length - 1; j++)
-            {
-                prefabs[j] = prefabs[j + 1];
             }
         }
     }
