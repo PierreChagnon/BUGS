@@ -122,7 +122,7 @@ RectTransform:
   m_GameObject: {fileID: 6045752185523094377}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8615970258146707135}
@@ -276,7 +276,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -402,6 +402,10 @@ PrefabInstance:
       propertyPath: m_Color.r
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1793852613311089034, guid: 17bfa4d58819f8748b17018b68b179bc, type: 3}
+      propertyPath: m_RaycastTarget
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1793852613311089035, guid: 17bfa4d58819f8748b17018b68b179bc, type: 3}
       propertyPath: m_SizeDelta.x
       value: 1900
@@ -425,6 +429,10 @@ PrefabInstance:
     - target: {fileID: 1793852613395074063, guid: 17bfa4d58819f8748b17018b68b179bc, type: 3}
       propertyPath: m_Color.r
       value: 0.023529412
+      objectReference: {fileID: 0}
+    - target: {fileID: 1793852613395074063, guid: 17bfa4d58819f8748b17018b68b179bc, type: 3}
+      propertyPath: m_RaycastTarget
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1793852613395074096, guid: 17bfa4d58819f8748b17018b68b179bc, type: 3}
       propertyPath: m_SizeDelta.x
@@ -452,6 +460,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1793852613423416427, guid: 17bfa4d58819f8748b17018b68b179bc, type: 3}
       propertyPath: m_Color.r
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1793852613423416427, guid: 17bfa4d58819f8748b17018b68b179bc, type: 3}
+      propertyPath: m_RaycastTarget
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1793852613423416428, guid: 17bfa4d58819f8748b17018b68b179bc, type: 3}
