@@ -28,6 +28,12 @@ public class FogSpawner : MonoBehaviour
     [Tooltip("Hauteur Y du plan de brouillard au-dessus de la grille.")]
     public float fogY = 0.3f;
 
+    [Header("Bord adouci")]
+    [Tooltip("Largeur du halo extérieur, en proportion de la grille (chaque côté). " +
+             "0.05 = 5 % de halo, 0 = quad serré sur la grille (bords nets).")]
+    [Range(0f, 0.3f)]
+    public float borderMarginRatio = 0.05f;
+
     void Start()
     {
         var reg = LevelRegistry.Instance;
@@ -58,12 +64,23 @@ public class FogSpawner : MonoBehaviour
             return;
         }
 
-        // Instancier le prefab (FogController.Awake se déclenche immédiatement)
+        // Instancier le prefab (FogController.Awake = singleton seulement, pas d'allocation)
         var fog = Instantiate(fogSurfacePrefab, transform);
 
-        // Positionner et dimensionner pour couvrir toute la grille
+        // Allouer la texture étendue avec vignette de bord
+        var fc = fog.GetComponent<FogController>();
+        if (fc == null)
+        {
+            Debug.LogError("[FogSpawner] FogController manquant sur le prefab.");
+            return;
+        }
+        fc.Initialize(borderMarginRatio);
+
+        // Positionner et dimensionner — le quad couvre la grille + la marge périmétrique
         float gridW = reg.gridSize.x * reg.cellSize;
         float gridH = reg.gridSize.y * reg.cellSize;
+        float quadW = gridW + 2f * fc.MarginWorldX;
+        float quadH = gridH + 2f * fc.MarginWorldY;
 
         // Centre de la grille en monde (les cellules sont centrées sur leur coordonnée)
         Vector3 center = new Vector3(
@@ -74,9 +91,9 @@ public class FogSpawner : MonoBehaviour
 
         fog.transform.position = center;
         fog.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-        fog.transform.localScale = new Vector3(gridW, gridH, 1f);
+        fog.transform.localScale = new Vector3(quadW, quadH, 1f);
         fog.SetActive(true);
 
-        Debug.Log($"[FogSpawner] Brouillard instancié (center={center}, scale={gridW}x{gridH}).");
+        Debug.Log($"[FogSpawner] Brouillard instancié (center={center}, scale={quadW}x{quadH}, margin={fc.MarginWorldX}/{fc.MarginWorldY}).");
     }
 }
