@@ -10,7 +10,6 @@ public class AdvisorOptionButton : MonoBehaviour
 
     public void OnClick()
     {
-        Debug.Log($"AdvisorOptionButton: {_advisorType} clicked");
         FlowController.Instance?.OnAdvisorChosen(_advisorType);
     }
 }
