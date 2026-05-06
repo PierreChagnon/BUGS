@@ -99,84 +99,30 @@ public class BugCloudSpawner : MonoBehaviour
         var goA = Instantiate(bugCloudPrefab, registry.CellToWorld(cellA, spawnY), Quaternion.identity, transform);
         var goB = Instantiate(bugCloudPrefab, registry.CellToWorld(cellB, spawnY), Quaternion.identity, transform);
 
-        // ═════════════════════════════════════════════════════════════════════════════════
-        // TIRAGE DES RATIOS VERTS AVEC CONTRÔLE DE DIFFICULTÉ DE DISCRIMINATION
-        // ═════════════════════════════════════════════════════════════════════════════════
-        // Objectif : Les deux nuages ont le même totalBugs, mais des ratios verts DIFFÉRENTS.
-        // La meilleure récompense = le nuage avec le PLUS de bugs verts (totalBugs × greenRatio).
-        // La difficulté de discrimination visuelle = l'écart entre les deux ratios (gap).
-        //
-        // Algorithme en 5 étapes :
-        //   1) Tirer le totalBugs (partagé entre les 2 nuages)
-        //   2) Tirer le premier ratio (ratio1) entre [minGreenBugsRatio, maxGreenBugsRatio]
-        //   3) Tirer un gap (écart) entre [gapMin, gapMax]
-        //   4) Calculer le deuxième ratio (ratio2) = ratio1 ± gap (direction aléatoire)
-        //   5) Assigner aléatoirement ratio1 et ratio2 aux deux nuages (gauche/droite)
-        // ═════════════════════════════════════════════════════════════════════════════════
-
         var cloudA = goA.GetComponent<BugCloud>();
         var cloudB = goB.GetComponent<BugCloud>();
+        var cloudPair = BugCloudGenerationUtility.GenerateGameplayPair(
+            new MapGenConfig
+            {
+                min_total_bugs = minTotalBugs,
+                max_total_bugs = maxTotalBugs,
+                min_green_ratio = minGreenBugsRatio,
+                max_green_ratio = maxGreenBugsRatio,
+                gap_min = gapMin,
+                gap_max = gapMax
+            },
+            rng);
 
-        // ─────────────────────────────────────────────────────────────────────────────────
-        // ÉTAPE 1 : Tirage du nombre total de bugs (partagé entre les deux nuages)
-        // ─────────────────────────────────────────────────────────────────────────────────
-        // Exemple : minTotalBugs=20, maxTotalBugs=80 → trialTotalBugs pourrait être 50
-        int trialTotalBugs = rng.Next(minTotalBugs, maxTotalBugs + 1);
-        cloudA.totalBugs = trialTotalBugs;
-        cloudB.totalBugs = trialTotalBugs;
+        bool cloudAIsLeft = goA.transform.position.x <= goB.transform.position.x;
+        BugCloudSample leftSample = cloudPair.firstCloud;
+        BugCloudSample rightSample = cloudPair.secondCloud;
+        BugCloudSample sampleA = cloudAIsLeft ? leftSample : rightSample;
+        BugCloudSample sampleB = cloudAIsLeft ? rightSample : leftSample;
 
-        // ─────────────────────────────────────────────────────────────────────────────────
-        // ÉTAPE 2 : Premier tirage de ratio vert
-        // ─────────────────────────────────────────────────────────────────────────────────
-        // On tire un ratio entre les bornes configurées par le chercheur.
-        // Exemple : minGreenBugsRatio=0.4, maxGreenBugsRatio=0.8 → ratio1 pourrait être 0.6
-        float ratio1 = Mathf.Lerp(minGreenBugsRatio, maxGreenBugsRatio, (float)rng.NextDouble());
-
-        // ─────────────────────────────────────────────────────────────────────────────────
-        // ÉTAPE 3 : Tirage de l'écart (gap) entre les deux ratios
-        // ─────────────────────────────────────────────────────────────────────────────────
-        // Cet écart contrôle la difficulté de discrimination visuelle :
-        //   - gap petit (proche de gapMin) → ratios très proches → difficile à distinguer
-        //   - gap grand (proche de gapMax) → ratios éloignés → facile à distinguer
-        // Exemple : gapMin=0.1, gapMax=0.3 → gap pourrait être 0.15
-        float gap = Mathf.Lerp(gapMin, gapMax, (float)rng.NextDouble());
-
-        // ─────────────────────────────────────────────────────────────────────────────────
-        // ÉTAPE 4 : Calcul du deuxième ratio RELATIF au premier
-        // ─────────────────────────────────────────────────────────────────────────────────
-        // On ajoute OU soustrait le gap au premier ratio de manière aléatoire (50/50).
-        // Ensuite on clamp entre [0, 1] pour garantir un ratio valide.
-        //
-        // Exemples :
-        //   - Si ratio1=0.6 et gap=0.15 et direction=+ → ratio2 = 0.6 + 0.15 = 0.75
-        //   - Si ratio1=0.6 et gap=0.15 et direction=- → ratio2 = 0.6 - 0.15 = 0.45
-        //   - Si ratio1=0.75 et gap=0.3 et direction=+ → ratio2 = 0.75 + 0.3 = 1.05 → clamped à 1.0
-        float ratio2 = (rng.NextDouble() < 0.5)
-            ? ratio1 + gap   // Direction positive (ratio2 > ratio1)
-            : ratio1 - gap;  // Direction négative (ratio2 < ratio1)
-
-        // Clamp strict entre 0 et 1 (un ratio ne peut pas être négatif ou > 100%)
-        ratio2 = Mathf.Clamp01(ratio2);
-
-        // ─────────────────────────────────────────────────────────────────────────────────
-        // ÉTAPE 5 : Assignment ALÉATOIRE des ratios aux deux nuages
-        // ─────────────────────────────────────────────────────────────────────────────────
-        // On ne sait pas à l'avance quel nuage (gauche ou droite) aura le meilleur ratio.
-        // Cela évite un biais spatial (ex: "le nuage de gauche est toujours meilleur").
-        //
-        // Exemple :
-        //   - Si ratio1=0.6, ratio2=0.75, et tirage=0.3 (<0.5) → cloudA=0.6, cloudB=0.75
-        //   - Si ratio1=0.6, ratio2=0.75, et tirage=0.7 (≥0.5) → cloudA=0.75, cloudB=0.6
-        if (rng.NextDouble() < 0.5)
-        {
-            cloudA.greenRatio = ratio1;
-            cloudB.greenRatio = ratio2;
-        }
-        else
-        {
-            cloudA.greenRatio = ratio2;
-            cloudB.greenRatio = ratio1;
-        }
+        cloudA.totalBugs = sampleA.totalBugs;
+        cloudA.greenRatio = sampleA.greenRatio;
+        cloudB.totalBugs = sampleB.totalBugs;
+        cloudB.greenRatio = sampleB.greenRatio;
 
         // ─────────────────────────────────────────────────────────────────────────────────
         // INITIALISATION DES SYSTÈMES DE PARTICULES
@@ -189,10 +135,10 @@ public class BugCloudSpawner : MonoBehaviour
         // ─────────────────────────────────────────────────────────────────────────────────
         // LOG DE DEBUG : Affichage des valeurs tirées pour validation
         // ─────────────────────────────────────────────────────────────────────────────────
-        Debug.Log($"[BugCloudSpawner] Trial setup: totalBugs={trialTotalBugs}, " +
-                  $"cloudA greenRatio={cloudA.greenRatio:F2} ({Mathf.RoundToInt(trialTotalBugs * cloudA.greenRatio)} verts), " +
-                  $"cloudB greenRatio={cloudB.greenRatio:F2} ({Mathf.RoundToInt(trialTotalBugs * cloudB.greenRatio)} verts), " +
-                  $"gap={Mathf.Abs(cloudA.greenRatio - cloudB.greenRatio):F2}");
+        Debug.Log($"[BugCloudSpawner] Trial setup: totalBugs={cloudA.totalBugs}, " +
+                  $"cloudA greenRatio={cloudA.greenRatio:F2} ({Mathf.RoundToInt(cloudA.totalBugs * cloudA.greenRatio)} verts), " +
+                  $"cloudB greenRatio={cloudB.greenRatio:F2} ({Mathf.RoundToInt(cloudB.totalBugs * cloudB.greenRatio)} verts), " +
+                  $"gap={cloudPair.ratioGap:F2}");
 
 
         // Enregistrer les nuages dans le LevelRegistry

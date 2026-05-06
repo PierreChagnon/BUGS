@@ -63,22 +63,15 @@ public class BugCloud : MonoBehaviour
             return;
         }
 
-        int greenCount = Mathf.RoundToInt(totalBugs * greenRatio);
-        int redCount = totalBugs - greenCount;
+        var sample = new BugCloudSample
+        {
+            totalBugs = totalBugs,
+            greenRatio = greenRatio
+        };
 
-        //Configurer le nombre de particules vertes
-        var greenEmission = greenBugsParticles.emission;
-        var greenMain = greenBugsParticles.main;
-        greenMain.maxParticles = greenCount;
-        greenEmission.rateOverTime = greenCount;
+        BugCloudParticleUtility.Apply(greenBugsParticles, redBugsParticles, sample);
 
-        //Configurer le nombre de particules rouges
-        var redEmission = redBugsParticles.emission;
-        var redMain = redBugsParticles.main;
-        redMain.maxParticles = redCount;
-        redEmission.rateOverTime = redCount;
-
-        Debug.Log($"[BugCloud] Initialisé: {greenCount} verts, {redCount} rouges (total={totalBugs};ratio={greenRatio})");
+        Debug.Log($"[BugCloud] Initialisé: {sample.GreenBugCount} verts, {sample.RedBugCount} rouges (total={totalBugs};ratio={greenRatio})");
     }
 
 }
