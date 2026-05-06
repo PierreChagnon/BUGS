@@ -379,6 +379,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 6aaafbaf684461841865395cf152e661, type: 3}
+--- !u!198 &46494992 stripped
+ParticleSystem:
+  m_CorrespondingSourceObject: {fileID: 5559074142002913591, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+  m_PrefabInstance: {fileID: 1321052569502223465}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &87954892
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1873,6 +1878,25 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ef325d210f9d41246aeab9da2a651070, type: 3}
+--- !u!1 &328898810 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5127393017841639724, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+  m_PrefabInstance: {fileID: 1321052569502223465}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &328898812
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 328898810}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d1b70823febc4181bef76ece53f36a6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DistalValleyScanView
+  _greenParticles: {fileID: 2005983355}
+  _redParticles: {fileID: 979304356}
 --- !u!1001 &334726098
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4402,6 +4426,25 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!1 &785651698 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2212212418169651862, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+  m_PrefabInstance: {fileID: 1321052569502223465}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &785651700
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 785651698}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d1b70823febc4181bef76ece53f36a6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DistalValleyScanView
+  _greenParticles: {fileID: 2077674156}
+  _redParticles: {fileID: 46494992}
 --- !u!1001 &785734498
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5374,6 +5417,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e35e08096ccea5d45a0172f9b03172ad, type: 3}
+--- !u!198 &979304356 stripped
+ParticleSystem:
+  m_CorrespondingSourceObject: {fileID: 2170019354697003283, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+  m_PrefabInstance: {fileID: 1321052569502223465}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &985087729
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -20538,6 +20586,11 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!198 &2005983355 stripped
+ParticleSystem:
+  m_CorrespondingSourceObject: {fileID: 4779342680368128643, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+  m_PrefabInstance: {fileID: 1321052569502223465}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &2034764975
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -20794,6 +20847,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 01e3ad1e2a3a4ad4e8c1dd2d2375ab37, type: 3}
+--- !u!198 &2077674156 stripped
+ParticleSystem:
+  m_CorrespondingSourceObject: {fileID: 3233359589540002769, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+  m_PrefabInstance: {fileID: 1321052569502223465}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &2122804472
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -21113,10 +21171,26 @@ PrefabInstance:
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
       value: UnityEngine.Object, UnityEngine
       objectReference: {fileID: 0}
+    - target: {fileID: 2170019354697003283, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      propertyPath: lengthInSec
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2170019354697003283, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      propertyPath: InitialModule.startLifetime.scalar
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3604898702117545551, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       propertyPath: m_Camera
       value: 
       objectReference: {fileID: 363154355}
+    - target: {fileID: 4779342680368128643, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      propertyPath: lengthInSec
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4779342680368128643, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      propertyPath: InitialModule.startLifetime.scalar
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7672756682581650589, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.size
       value: 1
@@ -21156,6 +21230,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8126728153032879126, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1321052569502223467}
+    - targetCorrespondingSourceObject: {fileID: 5127393017841639724, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 328898812}
+    - targetCorrespondingSourceObject: {fileID: 2212212418169651862, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 785651700}
   m_SourcePrefab: {fileID: 100100000, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
 --- !u!1 &1321052569502223466 stripped
 GameObject:
@@ -21178,6 +21258,8 @@ MonoBehaviour:
   _advisorChoiceText: {fileID: 0}
   _valleyAText: {fileID: 0}
   _valleyBText: {fileID: 0}
+  _valleyAScanView: {fileID: 0}
+  _valleyBScanView: {fileID: 0}
 --- !u!1001 &7571023101918162471
 PrefabInstance:
   m_ObjectHideFlags: 0
