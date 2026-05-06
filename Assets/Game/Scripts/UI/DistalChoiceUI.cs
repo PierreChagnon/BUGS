@@ -20,23 +20,6 @@ public class DistalChoiceUI : MonoBehaviour
         }
     }
 
-    struct RuntimeValleyScanBinding
-    {
-        public RuntimeCloudScanBinding firstCloud;
-        public RuntimeCloudScanBinding secondCloud;
-
-        public bool IsValid => firstCloud.IsValid && secondCloud.IsValid;
-
-        public void Apply(BugCloudPairData data)
-        {
-            if (!IsValid)
-                return;
-
-            firstCloud.Apply(data.firstCloud);
-            secondCloud.Apply(data.secondCloud);
-        }
-    }
-
     [SerializeField] private TMP_Text _titleText;
     [SerializeField] private TMP_Text _advisorChoiceText;
     [SerializeField] private TMP_Text _valleyAText;
@@ -48,12 +31,12 @@ public class DistalChoiceUI : MonoBehaviour
     public bool AdviceReliable { get; private set; }
     public ValleyChoice AdvisedValley { get; private set; } = ValleyChoice.None;
     public ValleyChoice BestValley { get; private set; } = ValleyChoice.None;
-    public BugCloudPairData ValleyAScanData { get; private set; }
-    public BugCloudPairData ValleyBScanData { get; private set; }
+    public BugCloudSample ValleyAScanData { get; private set; }
+    public BugCloudSample ValleyBScanData { get; private set; }
 
     bool _autoScanBindingAttempted;
-    RuntimeValleyScanBinding _autoValleyAScan;
-    RuntimeValleyScanBinding _autoValleyBScan;
+    RuntimeCloudScanBinding _autoValleyAScan;
+    RuntimeCloudScanBinding _autoValleyBScan;
 
     void Start()
     {
@@ -70,8 +53,8 @@ public class DistalChoiceUI : MonoBehaviour
         AdviceReliable = flow.State != null && flow.State.distal_advice_reliable;
         AdvisedValley = flow != null && flow.State != null ? flow.State.distal_advice_choice : ValleyChoice.None;
         BestValley = flow != null && flow.State != null ? flow.State.distal_best_valley : ValleyChoice.None;
-        ValleyAScanData = BugCloudGenerationUtility.GenerateRepresentativePair(flow.CurrentBlock.valley_a);
-        ValleyBScanData = BugCloudGenerationUtility.GenerateRepresentativePair(flow.CurrentBlock.valley_b);
+        ValleyAScanData = BugCloudGenerationUtility.GenerateRepresentativeScan(flow.CurrentBlock.valley_a);
+        ValleyBScanData = BugCloudGenerationUtility.GenerateRepresentativeScan(flow.CurrentBlock.valley_b);
 
         if (_titleText != null)
             _titleText.text = "Choix distal";
@@ -114,9 +97,9 @@ public class DistalChoiceUI : MonoBehaviour
     }
 
     void ApplyValleyScan(
-        BugCloudPairData scanData,
+        BugCloudSample scanData,
         DistalValleyScanView explicitScanView,
-        ref RuntimeValleyScanBinding automaticScanBinding)
+        ref RuntimeCloudScanBinding automaticScanBinding)
     {
         if (explicitScanView != null)
         {
@@ -148,20 +131,11 @@ public class DistalChoiceUI : MonoBehaviour
             candidateGroups.Add(rectTransform);
         }
 
-        if (candidateGroups.Count < 4)
+        if (candidateGroups.Count < 2)
         {
             Debug.LogWarning($"[DistalChoiceUI] Auto-bind scans incomplet: {candidateGroups.Count} groupes detectes.");
             return;
         }
-
-        candidateGroups.Sort((a, b) =>
-        {
-            int sideCompare = Mathf.Sign(a.anchoredPosition.x).CompareTo(Mathf.Sign(b.anchoredPosition.x));
-            if (sideCompare != 0)
-                return sideCompare;
-
-            return b.anchoredPosition.y.CompareTo(a.anchoredPosition.y);
-        });
 
         var leftGroups = new List<RectTransform>();
         var rightGroups = new List<RectTransform>();
@@ -173,21 +147,20 @@ public class DistalChoiceUI : MonoBehaviour
                 rightGroups.Add(group);
         }
 
-        _autoValleyAScan = BuildAutomaticBinding(leftGroups);
-        _autoValleyBScan = BuildAutomaticBinding(rightGroups);
+        _autoValleyAScan = BuildAutomaticBinding(leftGroups, "A");
+        _autoValleyBScan = BuildAutomaticBinding(rightGroups, "B");
     }
 
-    static RuntimeValleyScanBinding BuildAutomaticBinding(List<RectTransform> groups)
+    static RuntimeCloudScanBinding BuildAutomaticBinding(List<RectTransform> groups, string valleyLabel)
     {
+        if (groups.Count == 0)
+        {
+            Debug.LogWarning($"[DistalChoiceUI] Aucun groupe de particules detecte pour la vallee {valleyLabel}.");
+            return default;
+        }
+
         groups.Sort((a, b) => b.anchoredPosition.y.CompareTo(a.anchoredPosition.y));
-
-        var binding = new RuntimeValleyScanBinding();
-        if (groups.Count > 0)
-            binding.firstCloud = BuildCloudBinding(groups[0]);
-        if (groups.Count > 1)
-            binding.secondCloud = BuildCloudBinding(groups[1]);
-
-        return binding;
+        return BuildCloudBinding(groups[0]);
     }
 
     static RuntimeCloudScanBinding BuildCloudBinding(RectTransform group)

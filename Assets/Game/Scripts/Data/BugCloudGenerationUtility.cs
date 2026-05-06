@@ -66,7 +66,7 @@ public static class BugCloudGenerationUtility
         return new BugCloudPairData { firstCloud = secondCloud, secondCloud = firstCloud, ratioGap = Mathf.Abs(ratio1 - ratio2) };
     }
 
-    public static BugCloudPairData GenerateRepresentativePair(MapGenConfig config)
+    public static BugCloudSample GenerateRepresentativeScan(MapGenConfig config)
     {
         if (config == null)
             return default;
@@ -78,55 +78,11 @@ public static class BugCloudGenerationUtility
         float minGreenRatio = Mathf.Min(config.min_green_ratio, config.max_green_ratio);
         float maxGreenRatio = Mathf.Max(config.min_green_ratio, config.max_green_ratio);
         float averageGreenRatio = (minGreenRatio + maxGreenRatio) * 0.5f;
-        float gapMin = Mathf.Max(0f, Mathf.Min(config.gap_min, config.gap_max));
-        float gapMax = Mathf.Max(gapMin, Mathf.Max(config.gap_min, config.gap_max));
-        float averageGap = (gapMin + gapMax) * 0.5f;
 
-        float firstRatio = Mathf.Clamp(averageGreenRatio - averageGap * 0.5f, minGreenRatio, maxGreenRatio);
-        float secondRatio = Mathf.Clamp(averageGreenRatio + averageGap * 0.5f, minGreenRatio, maxGreenRatio);
-
-        if (secondRatio < firstRatio)
+        return new BugCloudSample
         {
-            float tmp = firstRatio;
-            firstRatio = secondRatio;
-            secondRatio = tmp;
-        }
-
-        if (ShouldSwapRepresentativeClouds(config))
-        {
-            float tmp = firstRatio;
-            firstRatio = secondRatio;
-            secondRatio = tmp;
-        }
-
-        return new BugCloudPairData
-        {
-            firstCloud = new BugCloudSample { totalBugs = totalBugs, greenRatio = firstRatio },
-            secondCloud = new BugCloudSample { totalBugs = totalBugs, greenRatio = secondRatio },
-            ratioGap = Mathf.Abs(firstRatio - secondRatio)
+            totalBugs = totalBugs,
+            greenRatio = Mathf.Clamp01(averageGreenRatio)
         };
-    }
-
-    static bool ShouldSwapRepresentativeClouds(MapGenConfig config)
-    {
-        if (config == null)
-            return false;
-
-        unchecked
-        {
-            long seed = config.seed != 0 ? config.seed : ComputeFallbackSeed(config);
-            return (seed & 1L) == 0L;
-        }
-    }
-
-    static long ComputeFallbackSeed(MapGenConfig config)
-    {
-        unchecked
-        {
-            int totalHash = config.min_total_bugs * 397 ^ config.max_total_bugs;
-            int ratioHash = config.min_green_ratio.GetHashCode() * 397 ^ config.max_green_ratio.GetHashCode();
-            int gapHash = config.gap_min.GetHashCode() * 397 ^ config.gap_max.GetHashCode();
-            return (totalHash ^ ratioHash ^ gapHash) & 0x7FFFFFFF;
-        }
     }
 }
