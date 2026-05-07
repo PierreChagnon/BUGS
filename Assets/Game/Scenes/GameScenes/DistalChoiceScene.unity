@@ -21173,11 +21173,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2170019354697003283, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       propertyPath: lengthInSec
-      value: 1
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 2170019354697003283, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       propertyPath: InitialModule.startLifetime.scalar
-      value: 1
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 3604898702117545551, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       propertyPath: m_Camera
@@ -21185,11 +21185,11 @@ PrefabInstance:
       objectReference: {fileID: 363154355}
     - target: {fileID: 4779342680368128643, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       propertyPath: lengthInSec
-      value: 1
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 4779342680368128643, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       propertyPath: InitialModule.startLifetime.scalar
-      value: 1
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 7672756682581650589, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.size
@@ -21260,6 +21260,18 @@ MonoBehaviour:
   _valleyBText: {fileID: 0}
   _valleyAScanView: {fileID: 0}
   _valleyBScanView: {fileID: 0}
+  _valleyAAdviceIndicator: {fileID: 1321052569502223469}
+  _valleyBAdviceIndicator: {fileID: 1321052569502223468}
+--- !u!1 &1321052569502223468 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 548672498390251444, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+  m_PrefabInstance: {fileID: 1321052569502223465}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &1321052569502223469 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7769800280734368102, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+  m_PrefabInstance: {fileID: 1321052569502223465}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &7571023101918162471
 PrefabInstance:
   m_ObjectHideFlags: 0

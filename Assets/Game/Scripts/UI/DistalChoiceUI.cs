@@ -26,6 +26,8 @@ public class DistalChoiceUI : MonoBehaviour
     [SerializeField] private TMP_Text _valleyBText;
     [SerializeField] private DistalValleyScanView _valleyAScanView;
     [SerializeField] private DistalValleyScanView _valleyBScanView;
+    [SerializeField] private GameObject _valleyAAdviceIndicator;
+    [SerializeField] private GameObject _valleyBAdviceIndicator;
 
     public bool AdviceVisible { get; private set; }
     public bool AdviceReliable { get; private set; }
@@ -88,6 +90,7 @@ public class DistalChoiceUI : MonoBehaviour
         if (_valleyBText != null)
             _valleyBText.text = BuildValleyDescription("Vallee B", flow.CurrentBlock.valley_b);
 
+        UpdateAdviceIndicators();
         ApplyValleyScan(ValleyAScanData, _valleyAScanView, ref _autoValleyAScan);
         ApplyValleyScan(ValleyBScanData, _valleyBScanView, ref _autoValleyBScan);
     }
@@ -137,6 +140,24 @@ public class DistalChoiceUI : MonoBehaviour
             $"redPS={(automaticScanBinding.redParticles != null ? automaticScanBinding.redParticles.name : "null")}",
             this);
         automaticScanBinding.Apply(scanData);
+    }
+
+    void UpdateAdviceIndicators()
+    {
+        bool showValleyAIndicator = AdviceVisible && AdvisedValley == ValleyChoice.A;
+        bool showValleyBIndicator = AdviceVisible && AdvisedValley == ValleyChoice.B;
+
+        if (_valleyAAdviceIndicator != null)
+            _valleyAAdviceIndicator.SetActive(showValleyAIndicator);
+
+        if (_valleyBAdviceIndicator != null)
+            _valleyBAdviceIndicator.SetActive(showValleyBIndicator);
+
+        Debug.Log(
+            "[DistalChoiceUI] UpdateAdviceIndicators | " +
+            $"adviceVisible={AdviceVisible} | advisedValley={FlowValueConverters.ToApiValue(AdvisedValley)} | " +
+            $"showA={showValleyAIndicator} | showB={showValleyBIndicator}",
+            this);
     }
 
     void EnsureAutomaticScanBindings()
