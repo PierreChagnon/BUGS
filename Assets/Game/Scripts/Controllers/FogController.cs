@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -43,6 +44,11 @@ public class FogController : MonoBehaviour
     int _marginPxX, _marginPxY;
     HashSet<Vector2Int> _revealedCells;
     bool _allRevealed;
+
+    public event Action RevealedCellsChanged;
+
+    public bool IsInitialized => _buffer != null;
+    public bool IsAllRevealed => _allRevealed;
 
     /// <summary>Marge en world units sur l'axe X (utilisée par FogSpawner pour scaler le quad).</summary>
     public float MarginWorldX =>
@@ -106,6 +112,9 @@ public class FogController : MonoBehaviour
 
     // --- API publique ---
 
+    public bool IsCellRevealed(Vector2Int cell)
+        => _allRevealed || (_revealedCells != null && _revealedCells.Contains(cell));
+
     /// <summary>Révèle une cellule. Repeint la cellule + ses voisines déjà révélées.</summary>
     public void RevealCell(Vector2Int cell)
     {
@@ -119,6 +128,7 @@ public class FogController : MonoBehaviour
 
         _mask.SetPixels32(_buffer);
         _mask.Apply(false, false);
+        RevealedCellsChanged?.Invoke();
     }
 
     /// <summary>Révèle plusieurs cellules en un seul Apply (batch optimisé).</summary>
@@ -138,11 +148,14 @@ public class FogController : MonoBehaviour
             }
         }
 
+        if (toRepaint.Count == 0) return;
+
         foreach (var c in toRepaint)
             RepaintCell(c);
 
         _mask.SetPixels32(_buffer);
         _mask.Apply(false, false);
+        RevealedCellsChanged?.Invoke();
     }
 
     /// <summary>Révèle toute la carte d'un coup (fin d'essai). Nettoie aussi la marge.</summary>
@@ -156,6 +169,7 @@ public class FogController : MonoBehaviour
 
         _mask.SetPixels32(_buffer);
         _mask.Apply(false, false);
+        RevealedCellsChanged?.Invoke();
     }
 
     // --- Interne ---

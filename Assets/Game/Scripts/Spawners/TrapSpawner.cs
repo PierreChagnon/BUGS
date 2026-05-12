@@ -76,8 +76,7 @@ public class TrapSpawner : MonoBehaviour
 
             var cell = candidates[i];
             if (!registry.RegisterTrap(cell)) continue; // s'assure registre à jour + évite doublon
-            Vector3 pos = registry.CellToWorld(cell, trapYOffset);
-            Instantiate(trapPrefab, pos, Quaternion.identity, transform);
+            SpawnTrap(registry, cell);
 
             placed++;
         }
@@ -126,12 +125,23 @@ public class TrapSpawner : MonoBehaviour
         {
             var cell = subCells[i];
             if (!registry.RegisterTrap(cell)) continue;
-            Vector3 pos = registry.CellToWorld(cell, trapYOffset);
-            Instantiate(trapPrefab, pos, Quaternion.identity, transform);
+            SpawnTrap(registry, cell);
             placed++;
         }
 
         Debug.Log($"[TrapSpawner] Pièges suboptimaux: {placed}/{targetCount} (prob={session.suboptimalTrapProbability}, bornes=[{min},{max}])");
         return placed;
+    }
+
+    void SpawnTrap(LevelRegistry registry, Vector2Int cell)
+    {
+        Vector3 pos = registry.CellToWorld(cell, trapYOffset);
+        var trap = Instantiate(trapPrefab, pos, Quaternion.identity, transform);
+
+        var visibility = trap.GetComponent<TrapVisibility>();
+        if (visibility == null)
+            visibility = trap.AddComponent<TrapVisibility>();
+
+        visibility.Initialize(cell);
     }
 }
