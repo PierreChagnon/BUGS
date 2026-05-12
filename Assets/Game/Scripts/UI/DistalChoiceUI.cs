@@ -4,6 +4,10 @@ using System.Collections.Generic;
 
 public class DistalChoiceUI : MonoBehaviour
 {
+    const string AdvisorHumanMaleName = "AdvisorDisplayHumanMale";
+    const string AdvisorHumanFemaleName = "AdvisorDisplayHumanFemale";
+    const string AdvisorRobotName = "AdvisorDisplayRobot";
+
     struct RuntimeCloudScanBinding
     {
         public ParticleSystem greenParticles;
@@ -39,9 +43,11 @@ public class DistalChoiceUI : MonoBehaviour
     bool _autoScanBindingAttempted;
     RuntimeCloudScanBinding _autoValleyAScan;
     RuntimeCloudScanBinding _autoValleyBScan;
+    bool _showHumanMale;
 
     void Start()
     {
+        _showHumanMale = Random.value < 0.5f;
         Refresh();
     }
 
@@ -146,6 +152,7 @@ public class DistalChoiceUI : MonoBehaviour
     {
         bool showValleyAIndicator = AdviceVisible && AdvisedValley == ValleyChoice.A;
         bool showValleyBIndicator = AdviceVisible && AdvisedValley == ValleyChoice.B;
+        AdvisorType advisorType = GetAdvisorType();
 
         if (_valleyAAdviceIndicator != null)
             _valleyAAdviceIndicator.SetActive(showValleyAIndicator);
@@ -153,11 +160,60 @@ public class DistalChoiceUI : MonoBehaviour
         if (_valleyBAdviceIndicator != null)
             _valleyBAdviceIndicator.SetActive(showValleyBIndicator);
 
+        SetAdvisorBadge(_valleyAAdviceIndicator, showValleyAIndicator, advisorType);
+        SetAdvisorBadge(_valleyBAdviceIndicator, showValleyBIndicator, advisorType);
+
         Debug.Log(
             "[DistalChoiceUI] UpdateAdviceIndicators | " +
             $"adviceVisible={AdviceVisible} | advisedValley={FlowValueConverters.ToApiValue(AdvisedValley)} | " +
             $"showA={showValleyAIndicator} | showB={showValleyBIndicator}",
             this);
+    }
+
+    void SetAdvisorBadge(GameObject indicatorRoot, bool adviceVisible, AdvisorType advisorType)
+    {
+        if (indicatorRoot == null)
+            return;
+
+        bool showHuman = adviceVisible && advisorType == AdvisorType.Human;
+        bool showRobot = adviceVisible && advisorType == AdvisorType.Robot;
+
+        SetDescendantActive(indicatorRoot.transform, AdvisorHumanMaleName, showHuman && _showHumanMale);
+        SetDescendantActive(indicatorRoot.transform, AdvisorHumanFemaleName, showHuman && !_showHumanMale);
+        SetDescendantActive(indicatorRoot.transform, AdvisorRobotName, showRobot);
+    }
+
+    void SetDescendantActive(Transform root, string childName, bool isActive)
+    {
+        Debug.Log($"[DistalChoiceUI] SetDescendantActive | root={root.name} | childName={childName} | isActive={isActive}", this);
+        GameObject child = FindDescendant(root, childName);
+        if (child != null)
+            child.SetActive(isActive); Debug.Log("[DistaleChoiceUI] set active: " + child.name);
+    }
+
+    GameObject FindDescendant(Transform root, string childName)
+    {
+        foreach (Transform child in root)
+        {
+            if (child.name == childName)
+                return child.gameObject;
+
+            GameObject match = FindDescendant(child, childName);
+            if (match != null)
+                return match;
+        }
+
+        return null;
+    }
+
+    AdvisorType GetAdvisorType()
+    {
+        var flow = FlowController.Instance;
+        if (flow != null && flow.State != null)
+            return flow.State.advisor_choice;
+
+        var session = SessionManager.Instance;
+        return session == null || session.HasAdvisor ? AdvisorType.Human : AdvisorType.None;
     }
 
     void EnsureAutomaticScanBindings()
