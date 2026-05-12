@@ -50,6 +50,8 @@ MonoBehaviour:
   cellSize: 1
   moveDuration: 0.15
   rotateToDirection: 1
+  _sfxStep: {fileID: 11400000, guid: 3cc1955af46e9404f8e4c4daefb2484d, type: 2}
+  _sfxWallBump: {fileID: 11400000, guid: 5692b3c94a410447da8bc977f8e1f95c, type: 2}
 --- !u!136 &6237249980533176196
 CapsuleCollider:
   m_ObjectHideFlags: 0

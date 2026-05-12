@@ -30,6 +30,14 @@ public class GameManager : MonoBehaviour
     public int bugsCollected;
     public bool followedAdvisorPath = true;
 
+    [Header("Audio")]
+    [Tooltip("SFX joué quand un piège est déclenché (couvre trigger physique + fallback grille).")]
+    [SerializeField] private SoundEffect _sfxTrap;
+    [Tooltip("SFX joué à la collecte d'un nuage — partie bugs verts.")]
+    [SerializeField] private SoundEffect _sfxBugGreen;
+    [Tooltip("SFX joué à la collecte d'un nuage — partie bugs rouges.")]
+    [SerializeField] private SoundEffect _sfxBugRed;
+
     bool _roundOver;
     bool _pathIsSuboptimal;
     bool _advisorPathVisible = true;
@@ -232,6 +240,9 @@ public class GameManager : MonoBehaviour
         _leftCloud?.AddBugs(-2);
         _rightCloud?.AddBugs(-2);
 
+        if (_sfxTrap != null)
+            AudioManager.Instance?.PlaySfx(_sfxTrap);
+
         Debug.Log($"[GameManager] Piege ! trapsHit={trapsHit}");
     }
 
@@ -253,6 +264,11 @@ public class GameManager : MonoBehaviour
 
         _roundOver = true;
         inputLocked = true;
+
+        if (_sfxBugGreen != null)
+            AudioManager.Instance?.PlaySfx(_sfxBugGreen);
+        if (_sfxBugRed != null)
+            AudioManager.Instance?.PlaySfx(_sfxBugRed);
 
         FogController.Instance?.RevealAll();
 

@@ -865,6 +865,7 @@ GameObject:
   - component: {fileID: 857171379}
   - component: {fileID: 857171378}
   - component: {fileID: 857171377}
+  - component: {fileID: 857171380}
   m_Layer: 5
   m_Name: Accept Button
   m_TagString: Untagged
@@ -986,6 +987,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 857171375}
   m_CullTransparentMesh: 1
+--- !u!114 &857171380
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 857171375}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7553bcf33b0b44b0cada764331859496, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIButtonSound
+  _clickSound: {fileID: 11400000, guid: c93182c5a6f594056a3fbcdef3f25870, type: 2}
 --- !u!1 &875987673
 GameObject:
   m_ObjectHideFlags: 0
@@ -1036,6 +1050,7 @@ GameObject:
   - component: {fileID: 1283151172}
   - component: {fileID: 1283151171}
   - component: {fileID: 1283151170}
+  - component: {fileID: 1283151173}
   m_Layer: 5
   m_Name: Decline Button
   m_TagString: Untagged
@@ -1157,6 +1172,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1283151168}
   m_CullTransparentMesh: 1
+--- !u!114 &1283151173
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1283151168}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7553bcf33b0b44b0cada764331859496, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIButtonSound
+  _clickSound: {fileID: 11400000, guid: c93182c5a6f594056a3fbcdef3f25870, type: 2}
 --- !u!1 &1372440433
 GameObject:
   m_ObjectHideFlags: 0
@@ -2082,6 +2110,52 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1870613342
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1870613343}
+  - component: {fileID: 1870613344}
+  m_Layer: 0
+  m_Name: SceneMusic
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1870613343
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1870613342}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 25.32916, y: -0, z: 9.52872}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1870613344
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1870613342}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd39d31ee271c4eadad930ef1e977840, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SceneMusic
+  _music: {fileID: 11400000, guid: 1f024a4b3de6a42a6b49997af55ecf0f, type: 2}
+  _ambience: {fileID: 0}
 --- !u!1 &1960222441
 GameObject:
   m_ObjectHideFlags: 0
@@ -2162,6 +2236,7 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1625038681}
+  - {fileID: 1870613343}
   - {fileID: 1462087996}
   - {fileID: 127788683}
   - {fileID: 793190335}

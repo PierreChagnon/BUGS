@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d18a29d1a1f7484b83a4a20f288ca97, type: 3}
+  m_Name: Sfx_SceneTransition
+  m_EditorClassIdentifier: Assembly-CSharp::SoundEffect
+  clips:
+  - {fileID: 8300000, guid: 81652031b64c342cc8dbc59c138d77c5, type: 3}
+  channel: 1
+  volumeMin: 0.9
+  volumeMax: 1
+  pitchMin: 0.95
+  pitchMax: 1.05

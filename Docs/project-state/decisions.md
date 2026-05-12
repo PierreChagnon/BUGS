@@ -150,12 +150,20 @@
 - **Impact :** Plus de table `participants`. Plus de méthode `CreateParticipant()` sur ApiClient. Le `participant_id` apparaît pour la première fois quand le premier trial est POST.
 - **Statut :** ACTIF
 
+### DEC-016 — Architecture audio : ScriptableObjects + AudioMixer + AudioManager singleton
+- **Date :** 2026-05-12
+- **Tag :** [TECH]
+- **Décision :** Le sous-système audio repose sur trois piliers : (1) `AudioMixer` Unity avec 5 groupes (Master / Music / Ambience / SFX_Gameplay / SFX_UI), (2) deux ScriptableObjects `MusicTrack` et `SoundEffect` pour le data-driven, (3) un `AudioManager` singleton persistant (`DontDestroyOnLoad`, `[DefaultExecutionOrder(-350)]`) instancié dans `BootScene`. Chaque scène pose un composant `SceneMusic` qui déclenche musique + ambient via le manager. Crossfade géré côté manager (no-op si même track). SFX gameplay déclenchés par appels directs depuis `GameManager` / `GridMoverNewInput` / `Trap` / `FadeTransition`. SFX UI via composant `UIButtonSound` réutilisable. Pas d'EventBus dédié. Pas de FMOD/Wwise. Volumes persistés en `PlayerPrefs`, infra prête mais UI Settings reportée.
+- **Raison :** Le projet a 9 scènes orchestrées par `FlowController` persistant → la musique doit survivre aux `LoadScene`, ce qui impose un manager persistant. Le pattern singleton est déjà standard (`LevelRegistry`, `GameManager`, etc.) — l'AudioManager s'y aligne. Les ScriptableObjects introduisent le data-driven dans un projet qui n'en a pas encore, au moment idéal (zéro dette audio). FMOD/Wwise est disproportionné pour un jeu de grille discret sans musique adaptative. Un EventBus serait introduit juste pour ce chantier — disproportionné aussi.
+- **Impact :** Nouveau dossier `Assets/Game/Audio/` (Mixers, Music, Ambience, Sfx). Nouveau dossier `Assets/Game/Scripts/Audio/` (5 scripts). Nouveau prefab `AudioManager.prefab` instancié dans BootScene. Modifications mineures (ajout de hooks `PlaySfx`) dans `GameManager`, `GridMoverNewInput`, `Trap`, `FadeTransition`. Ajout d'un GameObject `SceneMusic` dans chaque scène du flow (9 scènes). Ajout du composant `UIButtonSound` sur tous les boutons interactifs. Mapping musical acté : 3 MusicTrack (Pregame / Choice / Gameplay) + 1 Ambient (Gameplay). Spec technique : `Docs/specs/audio/spec-tech.md`.
+- **Statut :** ACTIF
+
 ---
 
 ## Index par tag
 
 - **[SCOPE]** : DEC-004, DEC-005, DEC-008
 - **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012
-- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015
+- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016
 - **[PLANNING]** : _(aucune pour l'instant)_
 - **[CLIENT]** : _(aucune pour l'instant)_

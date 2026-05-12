@@ -8,6 +8,10 @@ public class FadeTransition : MonoBehaviour
 
     [SerializeField] private float _defaultDuration = 0.2f;
 
+    [Header("Audio")]
+    [Tooltip("SFX joué au début d'un fade-to-black (canal UI). Laisser vide pour transition silencieuse.")]
+    [SerializeField] private SoundEffect _sfxTransition;
+
     CanvasGroup _canvasGroup;
 
     void Awake()
@@ -26,6 +30,8 @@ public class FadeTransition : MonoBehaviour
     public IEnumerator FadeOut(float? duration = null)
     {
         EnsureOverlay();
+        if (_sfxTransition != null)
+            AudioManager.Instance?.PlaySfx(_sfxTransition);
         yield return FadeTo(1f, duration ?? _defaultDuration);
     }
 

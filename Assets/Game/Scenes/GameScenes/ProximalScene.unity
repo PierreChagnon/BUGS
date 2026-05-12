@@ -8899,6 +8899,52 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1252811158
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1252811160}
+  - component: {fileID: 1252811159}
+  m_Layer: 0
+  m_Name: SceneMusic
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1252811159
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1252811158}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd39d31ee271c4eadad930ef1e977840, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SceneMusic
+  _music: {fileID: 11400000, guid: b72c59320954345d6b8984d94c38c125, type: 2}
+  _ambience: {fileID: 0}
+--- !u!4 &1252811160
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1252811158}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 25.32916, y: -0, z: 9.52872}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1259058358
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -12823,6 +12869,9 @@ MonoBehaviour:
   overtimeSteps: 0
   bugsCollected: 0
   followedAdvisorPath: 1
+  _sfxTrap: {fileID: 11400000, guid: 7ae96af1d8b5248989ec53f652f9e4a3, type: 2}
+  _sfxBugGreen: {fileID: 11400000, guid: 88e03e81bb79c4f878ed0281eaa177b1, type: 2}
+  _sfxBugRed: {fileID: 11400000, guid: fea8f6c7dffef4173948b4efddb566ea, type: 2}
 --- !u!4 &1716181369
 Transform:
   m_ObjectHideFlags: 0
@@ -16772,6 +16821,7 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1647953194}
+  - {fileID: 1252811160}
   - {fileID: 670470709}
   - {fileID: 1832589549}
   - {fileID: 1671159056}

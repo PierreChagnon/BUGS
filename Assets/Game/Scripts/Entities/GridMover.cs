@@ -25,6 +25,12 @@ public class GridMover : MonoBehaviour
     public float moveDuration = 0.15f;
     public bool rotateToDirection = true;
 
+    [Header("Audio")]
+    [Tooltip("SFX joué à la fin de chaque pas réussi. Variation de pitch recommandée.")]
+    [SerializeField] private SoundEffect _sfxStep;
+    [Tooltip("SFX joué quand le joueur essaye de se déplacer sur une case mur (mouvement rejeté).")]
+    [SerializeField] private SoundEffect _sfxWallBump;
+
     bool _isMoving = false;
 
     void Start()
@@ -62,7 +68,12 @@ public class GridMover : MonoBehaviour
             var curCell = reg.WorldToCell(transform.position);
             var targetCell = curCell + step;
             if (!reg.InBounds(targetCell)) return;
-            if (!reg.IsWalkable(targetCell)) return;
+            if (!reg.IsWalkable(targetCell))
+            {
+                if (_sfxWallBump != null)
+                    AudioManager.Instance?.PlaySfx(_sfxWallBump);
+                return;
+            }
             targetPos = reg.CellToWorld(targetCell, transform.position.y);
         }
         else
@@ -136,6 +147,9 @@ public class GridMover : MonoBehaviour
 
         transform.position = target;
         _isMoving = false;
+
+        if (_sfxStep != null)
+            AudioManager.Instance?.PlaySfx(_sfxStep);
 
         // Signaler le pas terminé au GameManager
         // (lui orchestre : fog, visited, score, trial log)
