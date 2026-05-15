@@ -6,10 +6,11 @@ using UnityEngine.SceneManagement;
 
 public class FlowController : MonoBehaviour
 {
+    const string SessionIdArgumentName = "sessionId";
+
     public static FlowController Instance { get; private set; }
 
     [Header("Routing")]
-    [SerializeField] private string _sessionIdQueryParameter = "session";
     [SerializeField] private string _bootSceneName = "BootScene";
     [SerializeField] private string _welcomeSceneName = "WelcomeScene";
     [SerializeField] private string _consentSceneName = "ConsentScene";
@@ -262,7 +263,7 @@ public class FlowController : MonoBehaviour
     {
         yield return null;
 
-        string sessionId = ExtractSessionIdFromAbsoluteUrl(Application.absoluteURL, _sessionIdQueryParameter);
+        string sessionId = ExtractSessionIdFromCommandLineArgs(Environment.GetCommandLineArgs());
 #if UNITY_EDITOR
         if (string.IsNullOrWhiteSpace(sessionId))
             sessionId = _editorSessionId;
@@ -270,7 +271,7 @@ public class FlowController : MonoBehaviour
 
         if (string.IsNullOrWhiteSpace(sessionId))
         {
-            Debug.LogError("[FlowController] Aucun sessionId dans l'URL. Le flow ne peut pas demarrer.");
+            Debug.LogError("[FlowController] Aucun sessionId recu. Le flow ne peut pas demarrer.");
             yield break;
         }
 
@@ -541,30 +542,35 @@ public class FlowController : MonoBehaviour
         };
     }
 
-    static string ExtractSessionIdFromAbsoluteUrl(string absoluteUrl, string queryParameter)
+    static string ExtractSessionIdFromCommandLineArgs(string[] args)
     {
-        if (string.IsNullOrWhiteSpace(absoluteUrl) || string.IsNullOrWhiteSpace(queryParameter))
+        if (args == null)
             return null;
 
-        int queryIndex = absoluteUrl.IndexOf('?');
-        if (queryIndex < 0 || queryIndex >= absoluteUrl.Length - 1)
-            return null;
-
-        string query = absoluteUrl.Substring(queryIndex + 1);
-        string[] parts = query.Split('&');
-        for (int i = 0; i < parts.Length; i++)
+        for (int i = 0; i < args.Length; i++)
         {
-            string[] keyValue = parts[i].Split('=');
-            if (keyValue.Length != 2)
-                continue;
-
-            if (!string.Equals(keyValue[0], queryParameter, StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            return Uri.UnescapeDataString(keyValue[1]);
+            string value = ExtractSessionIdFromArgument(args[i]);
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
         }
 
         return null;
+    }
+
+    static string ExtractSessionIdFromArgument(string argument)
+    {
+        if (string.IsNullOrWhiteSpace(argument))
+            return null;
+
+        string prefix = $"{SessionIdArgumentName}=";
+        if (!argument.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        string value = argument.Substring(prefix.Length);
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        return value;
     }
 
     long ResolveBlockSeedForCurrentBlock()

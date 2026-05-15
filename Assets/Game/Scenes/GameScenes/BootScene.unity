@@ -182,7 +182,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ab74e90fcca51bb418c81b9986cda775, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FlowController
-  _sessionIdQueryParameter: session
   _bootSceneName: BootScene
   _welcomeSceneName: WelcomeScene
   _consentSceneName: ConsentScene
