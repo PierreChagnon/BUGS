@@ -36,6 +36,8 @@ public class FlowController : MonoBehaviour
     public int BlockScore { get; private set; }
     public string BuildVersion => _buildVersion;
 
+    readonly System.Random _distalAdviceRandom = new();
+
     public BlockConfig CurrentBlock
     {
         get
@@ -410,8 +412,7 @@ public class FlowController : MonoBehaviour
         if (State == null || block == null)
             return;
 
-        var rng = CreateDistalAdviceRng();
-        State.distal_best_valley = ResolveMostRewardingValley(block, rng);
+        State.distal_best_valley = ResolveMostRewardingValley(block, _distalAdviceRandom);
 
         if (State.advisor_choice == AdvisorType.None)
         {
@@ -422,14 +423,14 @@ public class FlowController : MonoBehaviour
         float visibleProbability = Mathf.Clamp01(block.distal_advice_visible_probability);
         float reliableProbability = Mathf.Clamp01(block.distal_advice_reliable_probability);
 
-        State.distal_advice_visible = rng.NextDouble() < visibleProbability;
+        State.distal_advice_visible = _distalAdviceRandom.NextDouble() < visibleProbability;
         if (!State.distal_advice_visible)
         {
             Debug.Log($"[FlowController] Distal advice visible=false (prob={visibleProbability:0.###}).");
             return;
         }
 
-        State.distal_advice_reliable = rng.NextDouble() < reliableProbability;
+        State.distal_advice_reliable = _distalAdviceRandom.NextDouble() < reliableProbability;
         State.distal_advice_choice = State.distal_advice_reliable
             ? State.distal_best_valley
             : GetOppositeValley(State.distal_best_valley);
@@ -450,28 +451,6 @@ public class FlowController : MonoBehaviour
         State.distal_advice_reliable = false;
         State.distal_advice_choice = ValleyChoice.None;
         State.distal_best_valley = ValleyChoice.None;
-    }
-
-    System.Random CreateDistalAdviceRng()
-    {
-        unchecked
-        {
-            const ulong offset = 1469598103934665603UL;
-            const ulong prime = 1099511628211UL;
-
-            ulong hash = offset;
-            MixLong(ref hash, prime, State != null ? State.current_block_index : 0);
-            MixLong(ref hash, prime, CurrentBlock != null ? CurrentBlock.block_order : 0);
-            MixString(ref hash, prime, State != null ? State.participant_id : null);
-            MixString(ref hash, prime, Config != null ? Config.session_template_id : null);
-            MixString(ref hash, prime, "distal-advice");
-
-            int seed = (int)(hash & 0x7FFFFFFF);
-            if (seed == 0)
-                seed = 1;
-
-            return new System.Random(seed);
-        }
     }
 
     static ValleyChoice ResolveMostRewardingValley(BlockConfig block, System.Random rng)
@@ -510,18 +489,6 @@ public class FlowController : MonoBehaviour
             hash ^= (byte)(raw & 0xFF);
             hash *= prime;
             raw >>= 8;
-        }
-    }
-
-    static void MixString(ref ulong hash, ulong prime, string value)
-    {
-        if (string.IsNullOrEmpty(value))
-            return;
-
-        for (int i = 0; i < value.Length; i++)
-        {
-            hash ^= (byte)value[i];
-            hash *= prime;
         }
     }
 
