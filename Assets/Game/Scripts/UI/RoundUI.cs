@@ -21,21 +21,11 @@ public class RoundUI : MonoBehaviour
 
     void Start()
     {
-        if (GameManager.Instance != null)
-            GameManager.Instance.OnRoundEnded += HandleRoundEnded;
-
         if (_gameOverPanel != null)
             _gameOverPanel.SetActive(false);
-
     }
 
-    void OnDestroy()
-    {
-        if (GameManager.Instance != null)
-            GameManager.Instance.OnRoundEnded -= HandleRoundEnded;
-    }
-
-    void HandleRoundEnded(GameManager.RoundEndInfo info)
+    public void Show(GameManager.RoundEndInfo info)
     {
         if (_gameOverPanel != null)
             _gameOverPanel.SetActive(true);

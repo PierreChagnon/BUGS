@@ -207,11 +207,7 @@ public class FlowController : MonoBehaviour
 
         if (completedLastTrial)
         {
-            if (CurrentBlock.is_tutorial || CurrentBlock.questions == null || CurrentBlock.questions.Count == 0)
-                AdvanceToNextBlockOrEnd();
-            else
-                AdvanceToPhase(GamePhase.Questionnaire);
-
+            AdvanceToNextBlockOrEnd();
             return;
         }
 
