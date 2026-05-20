@@ -8,30 +8,11 @@ public static class TutorialSessionFactory
             ? source.DeepClone()
             : new SessionConfig
             {
-                tutorial_enabled = true,
                 blocks = new List<BlockConfig>()
             };
 
         if (config.blocks == null)
             config.blocks = new List<BlockConfig>();
-
-        if (!config.tutorial_enabled)
-            return config;
-
-        if (config.blocks.Count > 0 && config.blocks[0] != null && config.blocks[0].is_tutorial)
-            return config;
-
-        var tutorialBlock = CreateTutorialBlock();
-        tutorialBlock.block_order = 0;
-        config.blocks.Insert(0, tutorialBlock);
-
-        for (int i = 1; i < config.blocks.Count; i++)
-        {
-            if (config.blocks[i] == null)
-                config.blocks[i] = new BlockConfig();
-
-            config.blocks[i].block_order = i;
-        }
 
         return config;
     }
