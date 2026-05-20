@@ -150,6 +150,14 @@
 - **Impact :** Plus de table `participants`. Plus de méthode `CreateParticipant()` sur ApiClient. Le `participant_id` apparaît pour la première fois quand le premier trial est POST.
 - **Statut :** ACTIF
 
+### DEC-017 — Explanations short/long : périmètre et modèle d'édition
+- **Date :** 2026-05-20
+- **Tag :** [FONC]
+- **Décision :** La feature `Explanations short/long` couvre les **3 advice** : distal, proximal, motor. Pour chaque advice, le chercheur édite **deux textes alternatifs** (short et long) **dans le session config panel**. Le mode actif sur un trial est `none` | `short` | `long`. **Précondition d'affichage** : une explanation n'est affichée que si (a) un advisor a été choisi par le participant ET (b) un advice est effectivement donné sur ce trial. Sinon, mode = `none` forcé.
+- **Raison :** Cadrage en session avec le pilotage. Couvre H8 (explanations × abstraction) sur les 3 niveaux. Résout Q-003 (motor advice doit aussi porter une explanation) et Q-006 (modèle d'édition = session config panel).
+- **Impact :** Spec fonc `Docs/specs/explanations-short-long/spec-fonc.md` produite. 3 colonnes ajoutées dans `trial_responses` : `distal_advice_explanation_mode`, `proximal_advice_explanation_mode`, `motor_advice_explanation_mode` (valeurs `none/short/long`). Q-003 et Q-006 marquées RÉSOLUES par renvoi à cette spec. Granularité de pilotage (par bloc / par trial / mixte) et 9 autres points restent ouverts dans la spec (Q-EXP-1 à Q-EXP-10) et seront affinés à la validation chercheur.
+- **Statut :** ACTIF
+
 ### DEC-016 — Architecture audio : ScriptableObjects + AudioMixer + AudioManager singleton
 - **Date :** 2026-05-12
 - **Tag :** [TECH]
@@ -163,7 +171,7 @@
 ## Index par tag
 
 - **[SCOPE]** : DEC-004, DEC-005, DEC-008
-- **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012
+- **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017
 - **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016
 - **[PLANNING]** : _(aucune pour l'instant)_
 - **[CLIENT]** : _(aucune pour l'instant)_

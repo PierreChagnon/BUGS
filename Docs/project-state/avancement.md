@@ -3,7 +3,7 @@
 > Ce fichier est le résumé condensé de l'état du projet.
 > Objectif : un rôle peut comprendre où en est le projet en lisant CE SEUL FICHIER.
 > Mis à jour après chaque session qui fait avancer le projet.
-> Dernière mise à jour : 2026-05-12
+> Dernière mise à jour : 2026-05-20
 
 ---
 
@@ -90,14 +90,14 @@
 | **Frequency/pattern d'apparition de l'advice** | GDD : "advice provided periodically following a given pattern". Pas de paramètre fréquence trouvé. |
 | **Questionnaire in-game (3 dimensions)** | Colonnes `q1..q3` prêtes (DEC-008). À confirmer que les 3 dimensions GDD (sense of agency, acceptability, human-likeness) sont mappées + textes éditables côté chercheur. |
 | **Saturation/blur noise sur clouds proximaux** | Ratio bug exposé, pas de paramètre de **visibility noise** sur le rendu. À vérifier shader/particules. |
-| **Motor advice — colonnes CSV, explanation, format** | Q-002, Q-003, Q-004 toujours en attente. |
+| **Motor advice — colonnes CSV, explanation, format** | Q-002 et Q-004 toujours en attente. Q-003 RÉSOLUE par DEC-017 (explanation motor confirmée, cf. spec explanations-short-long). |
 
 ### 🔴 Non couvert ou non démarré
 
 | Périmètre GDD | Impact |
 |:---|:---|
 | **Free/forced mechanic** sur les 4 choix (meta/distal/proximal/motor) | Bloque la validité expérimentale des hypothèses GDD. |
-| **Explanations short/long** liées à chaque advice | H8 (explanations × abstraction) non testable. |
+| **Explanations short/long** liées à chaque advice | 🟡 Spec fonc en cours (`Docs/specs/explanations-short-long/spec-fonc.md`, draft du 20/05/26). DEC-017 actée. 10 sous-questions ouvertes (Q-EXP-1 à Q-EXP-10) à remonter au chercheur. |
 | **Smooth camera pan + auto-walk entre trials** | GDD demande transition smooth verticale ; DEC-002 a tranché fade noir → écart à reconfirmer. |
 | **Modèle de perte de bugs** | TDD : "total décrémenté, ratio recalculé". GDD : "1 green bug perdu par cloud par piège". Modèles divergents. |
 | **4 paths visibles (2 par cloud)** | GDD : 4 paths. Code : 2 paths totaux. |
@@ -115,8 +115,10 @@
 | Réf | Sujet | Bloque quoi | Urgence |
 |:---|:---|:---|:---|
 | Q-002 | Colonnes CSV motor advice | Traçabilité data | 🔴 Bloque finalisation motor advice |
-| Q-003 | Motor advice avec explanation ? | Design UI + contenus | 🔴 Bloque finalisation motor advice |
+| Q-003 | Motor advice avec explanation ? | — | ✅ RÉSOLUE par DEC-017 |
 | Q-004 | Format d'affichage du set de touches | UI + compréhension participant | 🟡 Bloque polish UI |
+| Q-006 | Modèle d'édition des explanations | — | ✅ RÉSOLUE par DEC-017 (session config panel) |
+| Q-EXP-1 à Q-EXP-10 | Sous-questions de cadrage Explanations | Finalisation spec fonc + design panneau session | 🔴/🟡/🟢 (cf. questions-client.md) |
 | — | Free/forced choices : périmètre par bloc | Spec fonc à produire | 🔴 Bloquant validité |
 | — | Modèle de perte de bugs (1 green/piège/cloud vs total décrémenté) | Cohérence protocole | 🔴 À arbitrer avec chercheur |
 | — | 4 paths visibles vs 2 paths | Cohérence GDD | 🟡 Écart design assumé ? |
@@ -130,7 +132,7 @@
 | Risque | Impact | Statut |
 |:---|:---|:---|
 | **Free/forced choices absents** → hypothèses H1-H8 non testables | Validité expérimentale | 🔴 Non couvert, à cadrer |
-| **Explanations short/long absentes** → H8 non testable | Validité expérimentale | 🔴 Non couvert, à cadrer |
+| **Explanations short/long absentes** → H8 non testable | Validité expérimentale | 🟡 Cadrage en cours (DEC-017, spec fonc draft 20/05/26) — 10 sous-questions chercheur à régler |
 | **Modèle de perte de bugs divergent code vs GDD** | Résultats non comparables au protocole | 🔴 À arbitrer |
 | **Reliability pattern non spécifié côté chercheur** | Impossible d'implémenter la manipulation | 🔴 Spec chercheur manquante |
 | State leaking entre trials dans le flow multi-écran | Données recherche corrompues | ✅ Couvert par spec tech |

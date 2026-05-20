@@ -56,8 +56,8 @@
 - **Options :**
   - A : Oui, explanation requise → impact : contenus a definir
   - B : Non, set uniquement → impact : UI minimaliste
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** Option A — explanation requise sur le motor advice au même titre que distal et proximal. Tranché par DEC-017 et `Docs/specs/explanations-short-long/spec-fonc.md` (§2.3). Date : 2026-05-20.
 
 ### Q-004 — Format d affichage du set de touches
 - **Posée le :** 2026-03-12
@@ -79,6 +79,121 @@
   - A : **Forced au niveau bloc** uniquement (un bloc = tout forced ou tout free sur un niveau donné) → impact : config simple par bloc, contraste expérimental plus net, moins d'aléatoire
   - B : **Forced au niveau trial** (chaque trial peut indépendamment forcer ou libérer un choix) → impact : config par trial plus lourde, plus de combinaisons testables, randomisation plus fine
   - C : **Mixte** : meta-choice forced/free au bloc, distal/proximal/motor au trial → impact : plus proche du protocole multi-niveaux, complexité moyenne
+- **Statut :** RÉPONDU PARTIELLEMENT
+- **Réponse :** Notes orales chercheur (2026-05-20). Modèle retenu, plus fin que les 3 options proposées :
+  - **Meta (advisor)** : toggle bloc ON/OFF, pas de proba ; le chercheur définit l'option imposée
+  - **Distal (vallée)** : forced bloc-wise ; quand forced, proba `distal_forced_optimal_probability` que la vallée imposée soit l'optimale
+  - **Proximal (cloud)** : pas de toggle ; proba `proximal_forced_probability` au bloc, tirage par trial
+  - **Motor (set de touches)** : toggle bloc ON/OFF ; quand ON, le même set est utilisé pour tous les trials du bloc
+  - Détails et règles : `Docs/specs/free-forced-choices/spec-fonc.md` (draft)
+  - Sous-questions résiduelles : voir Q-FF-1 à Q-FF-9 ci-dessous
+
+### Q-FF-1 — Advisor forced : qui choisit l'option imposée ?
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, spec free/forced (§2.1)
+- **Bloque :** Finalisation spec free/forced. Structure de `BlockConfig`.
+- **Question :** Quand `advisor_forced = true`, qui choisit laquelle des 3 options (none / human / robot) est imposée ?
+- **Options :**
+  - A : Fixée explicitement par le chercheur dans `BlockConfig` → impact : config bloc plus riche, contrôle expérimental fin
+  - B : Tirée aléatoirement par le système au début du bloc (équiprobable ou pondérée) → impact : moins de contrôle, plus d'aléatoire
+  - C : Le chercheur choisit un sous-ensemble (ex : "tirer parmi human ou robot") → impact : compromis
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-FF-2 — Distal forced : granularité du toggle (bloc seul vs bloc + trial)
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, spec free/forced (§2.2)
+- **Bloque :** Modèle de config et de pilotage du distal forced.
+- **Question :** `distal_forced` est-il un flag bloc binaire (tout bloc-wide) ou y a-t-il aussi une proba `distal_forced_probability` au niveau bloc qui décide trial-by-trial ?
+- **Options :**
+  - A : Flag bloc uniquement (tout bloc-wide) → impact : simple, cohérent avec le distal-choice qui est lui-même block-wise (DEC-001)
+  - B : Flag + proba trial-wise → impact : plus de combinaisons, plus complexe
+  - C : Proba uniquement (pas de flag binaire) → impact : uniforme avec proximal
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-FF-3 — Proximal forced : neutralisation visuelle du cloud non retenu
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, spec free/forced (§2.3)
+- **Bloque :** Logique de génération de map et mécanique de fin de trial.
+- **Question :** Quand un trial proximal est forced, comment l'autre cloud est-il neutralisé visuellement ?
+- **Options :**
+  - A : L'autre cloud n'est pas instancié (1 seul cloud spawné) → impact : plus simple, génération de map différente
+  - B : L'autre cloud est instancié mais masqué (fog of war permanent dessus) → impact : génération de map identique, masquage à gérer
+  - C : L'autre cloud est visible mais non collectable → impact : ambigu pour le participant, déconseillé
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-FF-4 — Proximal forced : quel cloud est imposé ?
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, spec free/forced (§2.3)
+- **Bloque :** Combinatoire expérimentale et complexité de la config bloc.
+- **Question :** Quand un trial est proximal forced, quel cloud est imposé au participant ?
+- **Options :**
+  - A : Toujours l'optimal → impact : participant subit toujours le "bon" choix
+  - B : Toujours l'advisé (si advice donné) → impact : forced devient un cas particulier d'advice obligatoire
+  - C : Random équiprobable → impact : pas de biais, mais variabilité
+  - D : Configurable par bloc via une proba `proximal_forced_optimal_probability` (analogue distal) → impact : symétrie avec distal, plus complexe
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-FF-5 — Distal forced sans advisor : conserver la mécanique ?
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, spec free/forced (§2.2 R9)
+- **Bloque :** Validité scientifique de la condition "imposé sans advisor".
+- **Question :** Si meta-choice forced = `none` (no advisor imposé) OU si le participant a choisi `no advisor` en mode free, le distal forced (avec sa proba d'optimalité) reste-t-il pertinent ?
+- **Options :**
+  - A : Oui, distal forced reste actif (la vallée est imposée même sans advisor pour l'expliquer) → impact : condition expérimentale "agency annulée sans information"
+  - B : Non, distal forced est ignoré si pas d'advisor → impact : couplage agency/information
+  - C : Distal forced reste actif mais l'optimalité forcée joue un rôle différent à clarifier → impact : à préciser
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-FF-6 — Motor forced × motor-advice : cohérence
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, spec free/forced (§2.4 R18)
+- **Bloque :** Combinatoire et lisibilité expérimentale du niveau motor.
+- **Question :** Quand motor forced est ON, le motor-advice doit-il refléter le set imposé ?
+- **Options :**
+  - A : Oui, advice toujours cohérent avec le set imposé (sauf si advice unreliable) → impact : cohérent, mais redondant si fiabilité=100%
+  - B : Oui, advice toujours montré, mais peut être unreliable et montrer un autre set → impact : conserve la combinatoire reliability orthogonale
+  - C : Motor-advice est désactivé quand motor forced (redondant) → impact : simplifie l'UI, perd de la combinatoire
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-FF-7 — Validation des choix imposés (advisor/distal)
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, spec free/forced (§2.1, §2.2)
+- **Bloque :** Sense of agency mesuré, contrôle de l'exposition à l'écran.
+- **Question :** Quand un choix advisor/distal est imposé, faut-il un clic explicite du participant sur l'option imposée, ou une auto-validation après délai ?
+- **Options :**
+  - A : Clic explicite requis → impact : engage le participant, maintient une "pseudo-agency"
+  - B : Auto-validation après délai configurable → impact : neutralise complètement l'agency, plus rapide
+  - C : Clic explicite + délai minimum d'exposition (lecture forcée) → impact : compromis
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-FF-8 — Feedback explicite "choix imposé" au participant
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, spec free/forced (§3 TR6)
+- **Bloque :** Validité de la mesure de sense of agency (peut biaiser la réponse).
+- **Question :** Le participant doit-il être averti textuellement que son choix est imposé (ex : bandeau "choix imposé pour ce bloc"), ou seule la sémantique UI (options grisées) doit le signaler ?
+- **Options :**
+  - A : Pas de bandeau, UI seule (options grisées) → impact : sémantique implicite, moins de biais potentiel
+  - B : Bandeau systématique → impact : transparent, mais peut biaiser la réponse "sense of agency"
+  - C : Bandeau configurable par le chercheur (par bloc) → impact : permet les deux conditions
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-FF-9 — Motor forced : comment est défini le set imposé ?
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, spec free/forced (§2.4)
+- **Bloque :** Structure config bloc côté `BlockConfig`.
+- **Question :** Quand `motor_forced = true`, comment est défini `motor_forced_set` (le set commun à tous les trials du bloc) ?
+- **Options :**
+  - A : Fixé explicitement par le chercheur dans `BlockConfig` → impact : contrôle expérimental fin
+  - B : Tiré aléatoirement une seule fois au début du bloc → impact : moins de contrôle, plus d'aléatoire
+  - C : Le chercheur choisit un sous-ensemble parmi lequel tirer → impact : compromis
 - **Statut :** EN ATTENTE
 - **Réponse :** —
 
@@ -91,8 +206,8 @@
   - A : **Catalogue de textes éditables côté chercheur** (BDD ou fichier de config) → impact : système CMS-like, édition sans rebuild, plus de flexibilité
   - B : **Textes hardcodés validés en amont** par le chercheur → impact : pas d'outil d'édition, mais nécessite un cycle de validation à chaque modification
   - C : **Génération paramétrée** (templates avec variables) → impact : compromis flexibilité/simplicité, mais nécessite une grammaire de templates
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** Modèle retenu = **édition par les chercheurs dans le session config panel** (variante de l'option A, sans CMS dédié). Pour chaque advice, deux textes alternatifs (`short` et `long`) maintenus indépendamment. Tranché par DEC-017 et `Docs/specs/explanations-short-long/spec-fonc.md` (TR3, D5). Date : 2026-05-20. Note : les sous-questions de cadrage restantes (granularité bloc/trial, mode `none` activable, customisation par bloc, etc.) sont consignées comme Q-EXP-1 à Q-EXP-10 ci-dessous.
 
 ### Q-007 — Modèle de perte de bugs en cas de piège
 - **Posée le :** 2026-05-12
@@ -178,8 +293,127 @@
 - **Statut :** EN ATTENTE
 - **Réponse :** —
 
+### Q-EXP-1 — Explanations : comment piloter quelle version (short / long) est donnée ?
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, chantier Explanations short/long
+- **Bloque :** Finalisation spec fonc et conception du session config panel.
+- **Question :** Le mode actif (short vs long) sur un advice donné est-il piloté par bloc, par trial, ou de manière mixte ?
+- **Options :**
+  - A : **Par bloc** — un mode unique pour tous les trials du bloc → simple, contraste expérimental net
+  - B : **Par trial** — tirage indépendant à chaque trial → combinatoire plus riche pour H8
+  - C : **Mixte** — bloc active la feature, trial tire short vs long → compromis lisibilité/richesse
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-EXP-2 — Explanations : mode `none` activable même quand un advisor est choisi ?
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, chantier Explanations short/long
+- **Bloque :** Schéma de config session, validité expérimentale (variable indépendante `Explanation/No explanations` du GDD).
+- **Question :** Veut-on des blocs où l'explanation est simplement non donnée alors même qu'un advisor a été choisi et qu'un advice est donné ?
+- **Options :**
+  - A : **Oui** — `none` est un mode pilotable au même titre que short/long → permet la condition contrôle "advice sans explanation"
+  - B : **Non** — dès qu'il y a un advice il y a forcément une explanation → simplifie, mais on perd la condition contrôle
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-EXP-3 — Explanations : corpus par bloc ou par session ?
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, chantier Explanations short/long
+- **Bloque :** Taille et structure du corpus, complexité du panneau de config.
+- **Question :** Les contenus des explanations sont-ils customizables par bloc, ou identiques pour toute la session ?
+- **Options :**
+  - A : **Par session uniquement** — un corpus global (3 advice × 2 versions = 6 textes par session) → simple
+  - B : **Par bloc** — un corpus par bloc → plus de flexibilité expérimentale, panneau plus dense
+  - C : **Hybride** — corpus session par défaut, possibilité d'override par bloc → compromis
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-EXP-4 — Explanations : cross-level autorisé ?
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, chantier Explanations short/long
+- **Bloque :** Combinatoire des conditions H8.
+- **Question :** Un advice peut-il porter une explanation d'un autre niveau d'abstraction (ex : motor-advice + explanation distale) ?
+- **Options :**
+  - A : **Non, 1-to-1** — chaque advice porte uniquement sa propre explanation
+  - B : **Oui, n'importe quel level** — toutes les combinaisons sont possibles
+  - C : **Matrice contrôlée** — seul un sous-ensemble explicite de combinaisons est autorisé
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-EXP-5 — Explanations : timing d'affichage relatif à l'advice ?
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, chantier Explanations short/long
+- **Bloque :** UI, perception participant.
+- **Question :** Quand s'affiche l'explanation par rapport à l'advice ?
+- **Options :**
+  - A : **Avant l'advice**
+  - B : **Simultané** avec l'advice
+  - C : **Après** l'advice
+  - D : **Bouton "voir explication"** activable par le participant
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-EXP-6 — Explanations : skippable / lecture obligatoire ?
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, chantier Explanations short/long
+- **Bloque :** UX, contrôle de l'exposition.
+- **Question :** L'explanation est-elle skippable, a-t-elle une durée minimale d'affichage, ou une validation requise ?
+- **Options :**
+  - A : **Skippable libre** — le participant peut passer à tout moment
+  - B : **Durée minimale puis skippable** — exposition garantie avant de pouvoir continuer
+  - C : **Lecture obligatoire jusqu'à validation** — bouton "j'ai lu" requis
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-EXP-7 — Explanations : nombre max simultanées sur un trial ?
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, chantier Explanations short/long
+- **Bloque :** Surcharge UI, logging.
+- **Question :** Si plusieurs advice sont présents sur un même trial (D rappelé + P + M), combien d'explanations simultanées max ?
+- **Options :**
+  - A : **1 par advice** (jusqu'à 3) → fidèle au design distinct par niveau
+  - B : **1 globale par trial** → moins de surcharge UI, mais perd la spécificité par niveau
+  - C : **Piloté par config** → cas par cas
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-EXP-8 — Explanations : corpus différencié par advisor type ?
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, chantier Explanations short/long
+- **Bloque :** Taille du corpus, mapping config.
+- **Question :** Différencie-t-on le corpus par advisor type (human-bot vs bot-bot) ? Le no-advisor a-t-il des explanations ?
+- **Options :**
+  - A : **Corpus unique** quel que soit l'advisor type → simple
+  - B : **Corpus ×2** (human-bot / bot-bot) → permet de tester l'effet du ton
+  - C : **Corpus ×3** (human-bot / bot-bot / no-advisor) → corpus complet, plus volumineux
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-EXP-9 — Explanations : format des valeurs CSV `*_advice_explanation` ?
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, chantier Explanations short/long
+- **Bloque :** Traçabilité analytique.
+- **Question :** Comment encoder les explanations dans le CSV V1 ?
+- **Options :**
+  - A : **Enum `none/short/long`** uniquement → simple, suffit pour H8 si corpus est figé
+  - B : **Id du texte affiché** → permet de retrouver le contenu exact
+  - C : **Enum + id (deux colonnes)** → maximum de traçabilité
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-EXP-10 — Explanations : localisation du corpus ?
+- **Posée le :** 2026-05-20
+- **Origine :** Analyse fonctionnelle, chantier Explanations short/long
+- **Bloque :** Structure du corpus, taille config.
+- **Question :** Le corpus est-il FR uniquement ou multilingue dès le départ ?
+- **Options :**
+  - A : **FR seul** → cohérent avec la documentation projet en français
+  - B : **Multilingue dès le départ** → si l'étude vise une population non-FR
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
 ---
 
 ## Questions répondues
 
-_(aucune pour l'instant)_
+_(voir Q-003 et Q-006 ci-dessus, marquées RÉPONDU le 2026-05-20)_
