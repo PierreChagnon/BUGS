@@ -59,7 +59,6 @@ public class BlockConfig
     public MapGenConfig valley_b = new();
     public float distal_advice_visible_probability = 1f;
     public float distal_advice_reliable_probability = 1f;
-    public List<QuestionConfig> questions = new();
 
     public BlockConfig DeepClone()
     {
@@ -72,8 +71,7 @@ public class BlockConfig
             valley_a = valley_a != null ? valley_a.DeepClone() : new MapGenConfig(),
             valley_b = valley_b != null ? valley_b.DeepClone() : new MapGenConfig(),
             distal_advice_visible_probability = distal_advice_visible_probability,
-            distal_advice_reliable_probability = distal_advice_reliable_probability,
-            questions = FlowCloneUtility.CloneQuestions(questions)
+            distal_advice_reliable_probability = distal_advice_reliable_probability
         };
     }
 }
@@ -160,6 +158,7 @@ public class QuestionConfig
 public class QuestionResponse
 {
     public int order;
+    public string question_key;
     public string question_text;
     public string response;
 }
@@ -233,12 +232,9 @@ public class TrialResponseRow
     public int overtime_steps;
     public bool followed_advisor_path;
     public string player_path_log;
-    public string q1_text;
-    public string q1_response;
-    public string q2_text;
-    public string q2_response;
-    public string q3_text;
-    public string q3_response;
+    public string acceptability_question;
+    public string sens_of_agency_question;
+    public string human_likeness_question;
     public string started_at;
     public string ended_at;
 }
@@ -253,18 +249,6 @@ public static class FlowCloneUtility
 
         foreach (var block in blocks)
             clone.Add(block != null ? block.DeepClone() : new BlockConfig());
-
-        return clone;
-    }
-
-    public static List<QuestionConfig> CloneQuestions(List<QuestionConfig> questions)
-    {
-        var clone = new List<QuestionConfig>();
-        if (questions == null)
-            return clone;
-
-        foreach (var question in questions)
-            clone.Add(question != null ? question.DeepClone() : new QuestionConfig());
 
         return clone;
     }

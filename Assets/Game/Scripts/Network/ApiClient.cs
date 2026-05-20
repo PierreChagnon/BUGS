@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using UnityEngine;
@@ -19,12 +21,9 @@ public class ApiClient : MonoBehaviour
     [Serializable]
     class QuestionnairePatchPayload
     {
-        public string q1_text;
-        public string q1_response;
-        public string q2_text;
-        public string q2_response;
-        public string q3_text;
-        public string q3_response;
+        public string acceptability_question;
+        public string sens_of_agency_question;
+        public string human_likeness_question;
     }
 
     class PendingQuestionnairePatch
@@ -96,12 +95,9 @@ public class ApiClient : MonoBehaviour
 
     public void PatchQuestionnaireResponses(
         string trialResponseId,
-        string q1Text,
-        string q1Response,
-        string q2Text,
-        string q2Response,
-        string q3Text,
-        string q3Response,
+        string acceptabilityQuestion,
+        string sensOfAgencyQuestion,
+        string humanLikenessQuestion,
         Action onSuccess,
         Action<string> onError)
     {
@@ -113,12 +109,9 @@ public class ApiClient : MonoBehaviour
 
         var payload = new QuestionnairePatchPayload
         {
-            q1_text = q1Text,
-            q1_response = q1Response,
-            q2_text = q2Text,
-            q2_response = q2Response,
-            q3_text = q3Text,
-            q3_response = q3Response
+            acceptability_question = acceptabilityQuestion,
+            sens_of_agency_question = sensOfAgencyQuestion,
+            human_likeness_question = humanLikenessQuestion
         };
 
         StartCoroutine(PatchQuestionnaireCoroutine(trialResponseId, payload, onSuccess, onError));
@@ -135,21 +128,79 @@ public class ApiClient : MonoBehaviour
         var tempRow = new TrialResponseRow();
         FlowSerializationUtility.ApplyQuestionnaireResponses(tempRow, responses);
 
-        string key = BuildTrialKey(participantId, blockIndex, trialIndex);
-        _pendingQuestionnairePatches[key] = new PendingQuestionnairePatch
+        var payload = new QuestionnairePatchPayload
         {
-            payload = new QuestionnairePatchPayload
-            {
-                q1_text = tempRow.q1_text,
-                q1_response = tempRow.q1_response,
-                q2_text = tempRow.q2_text,
-                q2_response = tempRow.q2_response,
-                q3_text = tempRow.q3_text,
-                q3_response = tempRow.q3_response
-            },
-            onSuccess = onSuccess,
-            onError = onError
+            acceptability_question = tempRow.acceptability_question,
+            sens_of_agency_question = tempRow.sens_of_agency_question,
+            human_likeness_question = tempRow.human_likeness_question
         };
+
+        QueueQuestionnairePatchPayloadForTrial(participantId, blockIndex, trialIndex, payload, onSuccess, onError);
+    }
+
+    public void QueueHumanLikenessPatchForBlock(
+        string participantId,
+        int blockIndex,
+        int trialCount,
+        string humanLikenessQuestion,
+        Action onSuccess,
+        Action<string> onError)
+    {
+        if (string.IsNullOrWhiteSpace(humanLikenessQuestion))
+            return;
+
+        int pendingCount = Mathf.Max(1, trialCount);
+        int successCount = 0;
+        bool hasError = false;
+
+        for (int trialIndex = 1; trialIndex <= pendingCount; trialIndex++)
+        {
+            QueueQuestionnairePatchPayloadForTrial(
+                participantId,
+                blockIndex,
+                trialIndex,
+                new QuestionnairePatchPayload
+                {
+                    human_likeness_question = humanLikenessQuestion
+                },
+                () =>
+                {
+                    successCount++;
+                    if (successCount >= pendingCount && !hasError)
+                        onSuccess?.Invoke();
+                },
+                error =>
+                {
+                    hasError = true;
+                    onError?.Invoke(error);
+                });
+        }
+    }
+
+    void QueueQuestionnairePatchPayloadForTrial(
+        string participantId,
+        int blockIndex,
+        int trialIndex,
+        QuestionnairePatchPayload payload,
+        Action onSuccess,
+        Action<string> onError)
+    {
+        string key = BuildTrialKey(participantId, blockIndex, trialIndex);
+        if (_pendingQuestionnairePatches.TryGetValue(key, out var existingPatch))
+        {
+            MergeQuestionnairePatchPayload(existingPatch.payload, payload);
+            existingPatch.onSuccess += onSuccess;
+            existingPatch.onError += onError;
+        }
+        else
+        {
+            _pendingQuestionnairePatches[key] = new PendingQuestionnairePatch
+            {
+                payload = payload,
+                onSuccess = onSuccess,
+                onError = onError
+            };
+        }
 
         RetryPendingTrialUploads();
         FlushPendingQuestionnairePatches();
@@ -250,7 +301,7 @@ public class ApiClient : MonoBehaviour
     IEnumerator SendTrialResponseCoroutine(TrialResponseRow row, Action<string> onSuccess, Action<string> onError)
     {
         string url = CombineUrl(backendRootUrl, _trialResponsesPath);
-        string payload = JsonUtility.ToJson(row);
+        string payload = ToJsonObjectSkippingNullStrings(row);
 
         using var request = BuildJsonRequest(url, "POST", payload);
         yield return request.SendWebRequest();
@@ -271,7 +322,7 @@ public class ApiClient : MonoBehaviour
         Action<string> onError)
     {
         string url = CombineUrl(backendRootUrl, _trialResponsesPath, trialResponseId);
-        string body = JsonUtility.ToJson(payload);
+        string body = ToJsonObjectSkippingNullStrings(payload);
 
         using var request = BuildJsonRequest(url, "PATCH", body);
         yield return request.SendWebRequest();
@@ -328,6 +379,20 @@ public class ApiClient : MonoBehaviour
         }
 
         _isFlushingQuestionnairePatches = false;
+
+        if (HasFlushableQuestionnairePatch())
+            FlushPendingQuestionnairePatches();
+    }
+
+    bool HasFlushableQuestionnairePatch()
+    {
+        foreach (string key in _pendingQuestionnairePatches.Keys)
+        {
+            if (_storedTrialIdsByKey.TryGetValue(key, out var rowId) && !string.IsNullOrWhiteSpace(rowId))
+                return true;
+        }
+
+        return false;
     }
 
     UnityWebRequest BuildJsonRequest(string url, string method, string jsonBody)
@@ -390,6 +455,115 @@ public class ApiClient : MonoBehaviour
 
         Match match = Regex.Match(responseText, "\"id\"\\s*:\\s*\"([^\"]+)\"");
         return match.Success ? match.Groups[1].Value : null;
+    }
+
+    static void MergeQuestionnairePatchPayload(QuestionnairePatchPayload target, QuestionnairePatchPayload source)
+    {
+        if (target == null || source == null)
+            return;
+
+        if (!string.IsNullOrWhiteSpace(source.acceptability_question))
+            target.acceptability_question = source.acceptability_question;
+        if (!string.IsNullOrWhiteSpace(source.sens_of_agency_question))
+            target.sens_of_agency_question = source.sens_of_agency_question;
+        if (!string.IsNullOrWhiteSpace(source.human_likeness_question))
+            target.human_likeness_question = source.human_likeness_question;
+    }
+
+    static string ToJsonObjectSkippingNullStrings(object source)
+    {
+        if (source == null)
+            return "{}";
+
+        var builder = new StringBuilder();
+        builder.Append('{');
+
+        FieldInfo[] fields = source.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public);
+        bool hasPreviousField = false;
+
+        for (int i = 0; i < fields.Length; i++)
+        {
+            object value = fields[i].GetValue(source);
+            if (value == null)
+                continue;
+
+            if (hasPreviousField)
+                builder.Append(',');
+
+            AppendJsonString(builder, fields[i].Name);
+            builder.Append(':');
+            AppendJsonValue(builder, value);
+            hasPreviousField = true;
+        }
+
+        builder.Append('}');
+        return builder.ToString();
+    }
+
+    static void AppendJsonValue(StringBuilder builder, object value)
+    {
+        switch (value)
+        {
+            case string stringValue:
+                AppendJsonString(builder, stringValue);
+                break;
+            case bool boolValue:
+                builder.Append(boolValue ? "true" : "false");
+                break;
+            case IFormattable formattable:
+                builder.Append(formattable.ToString(null, CultureInfo.InvariantCulture));
+                break;
+            default:
+                AppendJsonString(builder, value.ToString());
+                break;
+        }
+    }
+
+    static void AppendJsonString(StringBuilder builder, string value)
+    {
+        builder.Append('"');
+
+        for (int i = 0; i < value.Length; i++)
+        {
+            char c = value[i];
+            switch (c)
+            {
+                case '"':
+                    builder.Append("\\\"");
+                    break;
+                case '\\':
+                    builder.Append("\\\\");
+                    break;
+                case '\b':
+                    builder.Append("\\b");
+                    break;
+                case '\f':
+                    builder.Append("\\f");
+                    break;
+                case '\n':
+                    builder.Append("\\n");
+                    break;
+                case '\r':
+                    builder.Append("\\r");
+                    break;
+                case '\t':
+                    builder.Append("\\t");
+                    break;
+                default:
+                    if (char.IsControl(c))
+                    {
+                        builder.Append("\\u");
+                        builder.Append(((int)c).ToString("x4", CultureInfo.InvariantCulture));
+                    }
+                    else
+                    {
+                        builder.Append(c);
+                    }
+                    break;
+            }
+        }
+
+        builder.Append('"');
     }
 
     static string BuildRequestError(string context, UnityWebRequest request)

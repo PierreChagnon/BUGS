@@ -8,6 +8,18 @@ using UnityEngine.UI;
 // 2 questions apres chaque trial, + 1 en fin de dernier trial du bloc.
 public class TrialQuestionsUI : MonoBehaviour
 {
+    struct TrialQuestionItem
+    {
+        public string key;
+        public string text;
+
+        public TrialQuestionItem(string key, string text)
+        {
+            this.key = key;
+            this.text = text;
+        }
+    }
+
     [Header("Textes des questions")]
     [SerializeField] private string _acceptabilityQuestion = "Question d'acceptabilite (a definir)";
     [SerializeField] private string _senseOfAgencyQuestion = "Question de sens d'agentivite (a definir)";
@@ -22,7 +34,7 @@ public class TrialQuestionsUI : MonoBehaviour
     [SerializeField] private RoundUI _roundUI;
 
     GameManager.RoundEndInfo _pendingInfo;
-    readonly List<string> _questions = new();
+    readonly List<TrialQuestionItem> _questions = new();
     readonly List<QuestionResponse> _responses = new();
     int _currentIndex;
 
@@ -70,12 +82,12 @@ public class TrialQuestionsUI : MonoBehaviour
             return;
         }
 
-        _questions.Add(_acceptabilityQuestion);
-        _questions.Add(_senseOfAgencyQuestion);
+        _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestionKey, _acceptabilityQuestion));
+        _questions.Add(new TrialQuestionItem(FlowSerializationUtility.SensOfAgencyQuestionKey, _senseOfAgencyQuestion));
 
         bool isLastTrial = flow.State.current_trial_index >= flow.CurrentBlock.trial_count - 1;
         if (isLastTrial)
-            _questions.Add(_humanLikenessQuestion);
+            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.HumanLikenessQuestionKey, _humanLikenessQuestion));
 
         var rng = new System.Random((int)flow.CurrentTrialSeed);
         for (int i = _questions.Count - 1; i > 0; i--)
@@ -99,14 +111,15 @@ public class TrialQuestionsUI : MonoBehaviour
         _responses.Add(new QuestionResponse
         {
             order = _currentIndex + 1,
-            question_text = _questions[_currentIndex],
+            question_key = _questions[_currentIndex].key,
+            question_text = _questions[_currentIndex].text,
             response = (selected + 1).ToString() // 1=strongly disagree … 5=strongly agree
         });
 
         _currentIndex++;
         if (_currentIndex >= _questions.Count)
         {
-            PatchAndFinish();
+            SubmitAndFinish();
             return;
         }
 
@@ -119,7 +132,7 @@ public class TrialQuestionsUI : MonoBehaviour
             _progressText.text = $"{_currentIndex + 1} / {_questions.Count}";
 
         if (_questionText != null)
-            _questionText.text = _questions[_currentIndex];
+            _questionText.text = _questions[_currentIndex].text;
 
         foreach (var toggle in _choiceToggles)
             toggle.isOn = false;
@@ -149,19 +162,13 @@ public class TrialQuestionsUI : MonoBehaviour
         return -1;
     }
 
-    void PatchAndFinish()
+    void SubmitAndFinish()
     {
-        var flow = FlowController.Instance;
-        if (flow != null && ApiClient.Instance != null)
-        {
-            ApiClient.Instance.QueueQuestionnairePatchForTrial(
-                flow.State.participant_id,
-                flow.State.current_block_index + 1,
-                flow.State.current_trial_index + 1,
-                _responses,
-                null,
-                error => Debug.LogWarning($"[TrialQuestionsUI] Patch questionnaire echoue : {error}"));
-        }
+        var trialManager = GameManager.Instance != null ? GameManager.Instance.trialManager : null;
+        if (trialManager != null)
+            trialManager.SubmitCurrentTrialResponses(_responses);
+        else
+            Debug.LogWarning("[TrialQuestionsUI] TrialManager introuvable: impossible d'envoyer les reponses.");
 
         if (_panel != null)
             _panel.SetActive(false);
@@ -169,4 +176,3 @@ public class TrialQuestionsUI : MonoBehaviour
         _roundUI?.Show(_pendingInfo);
     }
 }
-

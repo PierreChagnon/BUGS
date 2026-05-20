@@ -37,12 +37,14 @@ public class TrialManager : MonoBehaviour
     TrialResponseRow _currentTrialRow;
     string _startedAtIsoUtc;
     string _pendingMapConfigJson;
+    bool _currentTrialSubmitted;
 
     public void StartNewTrial()
     {
         _playerPathSteps.Clear();
         _startedAtIsoUtc = DateTime.UtcNow.ToString("o");
         _currentTrialRow = BuildBaseRow();
+        _currentTrialSubmitted = false;
 
         if (!string.IsNullOrWhiteSpace(_pendingMapConfigJson))
         {
@@ -99,12 +101,46 @@ public class TrialManager : MonoBehaviour
             return;
         }
 
+        Debug.Log("[TrialManager] Trial termine: envoi en attente des reponses questionnaire.");
+    }
+
+    public void SubmitCurrentTrialResponses(IReadOnlyList<QuestionResponse> responses)
+    {
+        if (_currentTrialRow == null)
+        {
+            Debug.LogWarning("[TrialManager] Aucun trial courant a envoyer.");
+            return;
+        }
+
+        if (_currentTrialSubmitted)
+        {
+            Debug.LogWarning("[TrialManager] Trial deja envoye, soumission ignoree.");
+            return;
+        }
+
+        FlowSerializationUtility.ApplyQuestionnaireResponses(_currentTrialRow, responses);
+
+        if (string.IsNullOrWhiteSpace(_currentTrialRow.acceptability_question) ||
+            string.IsNullOrWhiteSpace(_currentTrialRow.sens_of_agency_question))
+        {
+            Debug.LogWarning("[TrialManager] Reponses questionnaire incompletes: envoi du trial annule.");
+            return;
+        }
+
+        string humanLikenessQuestion = _currentTrialRow.human_likeness_question;
+        _currentTrialRow.human_likeness_question = null;
+
         if (ApiClient.Instance == null)
         {
             Debug.LogWarning("[TrialManager] ApiClient introuvable: impossible d'envoyer le trial.");
             return;
         }
 
+        string participantId = _currentTrialRow.participant_id;
+        int blockIndex = _currentTrialRow.block_index;
+        int trialCount = _currentTrialRow.trial_count;
+
+        _currentTrialSubmitted = true;
         ApiClient.Instance.SendTrialResponse(
             _currentTrialRow,
             trialResponseId =>
@@ -113,6 +149,17 @@ public class TrialManager : MonoBehaviour
                     FlowController.Instance.RegisterLastTrialResponse(trialResponseId);
 
                 Debug.Log($"[TrialManager] Trial envoye avec succes (id={trialResponseId}).");
+
+                if (!string.IsNullOrWhiteSpace(humanLikenessQuestion))
+                {
+                    ApiClient.Instance.QueueHumanLikenessPatchForBlock(
+                        participantId,
+                        blockIndex,
+                        trialCount,
+                        humanLikenessQuestion,
+                        () => Debug.Log($"[TrialManager] Human-likeness patche sur le bloc {blockIndex}."),
+                        error => Debug.LogWarning($"[TrialManager] Echec patch human-likeness: {error}"));
+                }
             },
             error => Debug.LogWarning($"[TrialManager] Echec envoi trial: {error}"));
     }

@@ -47,8 +47,7 @@ public static class TutorialSessionFactory
             valley_a = CreateTutorialMap(seed: 1001),
             valley_b = CreateTutorialMap(seed: 1002, minGreenRatio: 0.65f, maxGreenRatio: 0.8f),
             distal_advice_visible_probability = 1f,
-            distal_advice_reliable_probability = 1f,
-            questions = new List<QuestionConfig>()
+            distal_advice_reliable_probability = 1f
         };
     }
 

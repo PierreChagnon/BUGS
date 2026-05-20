@@ -35,11 +35,7 @@ public class QuestionnaireUI : MonoBehaviour
         if (flow == null || flow.CurrentBlock == null)
             return;
 
-        _questions = flow.CurrentBlock.questions != null
-            ? new List<QuestionConfig>(flow.CurrentBlock.questions)
-            : new List<QuestionConfig>();
-
-        _questions.Sort((a, b) => a.order.CompareTo(b.order));
+        _questions = new List<QuestionConfig>();
 
         if (_titleText != null)
             _titleText.text = "Questionnaire";

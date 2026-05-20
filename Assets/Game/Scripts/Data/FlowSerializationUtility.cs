@@ -4,6 +4,10 @@ using UnityEngine;
 
 public static class FlowSerializationUtility
 {
+    public const string AcceptabilityQuestionKey = "acceptability";
+    public const string SensOfAgencyQuestionKey = "sens_of_agency";
+    public const string HumanLikenessQuestionKey = "human_likeness";
+
     [System.Serializable]
     private class PlayerStepsWrapper
     {
@@ -38,32 +42,31 @@ public static class FlowSerializationUtility
         if (row == null)
             return;
 
-        row.q1_text = null;
-        row.q1_response = null;
-        row.q2_text = null;
-        row.q2_response = null;
-        row.q3_text = null;
-        row.q3_response = null;
+        row.acceptability_question = null;
+        row.sens_of_agency_question = null;
+        row.human_likeness_question = null;
 
         if (responses == null)
             return;
 
-        if (responses.Count > 0)
+        for (int i = 0; i < responses.Count; i++)
         {
-            row.q1_text = responses[0]?.question_text;
-            row.q1_response = responses[0]?.response;
-        }
+            QuestionResponse response = responses[i];
+            if (response == null)
+                continue;
 
-        if (responses.Count > 1)
-        {
-            row.q2_text = responses[1]?.question_text;
-            row.q2_response = responses[1]?.response;
-        }
-
-        if (responses.Count > 2)
-        {
-            row.q3_text = responses[2]?.question_text;
-            row.q3_response = responses[2]?.response;
+            switch (response.question_key)
+            {
+                case AcceptabilityQuestionKey:
+                    row.acceptability_question = response.response;
+                    break;
+                case SensOfAgencyQuestionKey:
+                    row.sens_of_agency_question = response.response;
+                    break;
+                case HumanLikenessQuestionKey:
+                    row.human_likeness_question = response.response;
+                    break;
+            }
         }
     }
 
