@@ -55,6 +55,7 @@ public class BlockConfig
     public int block_order;
     public int trial_count = 1;
     public bool is_tutorial;
+    public DistalSceneConfig distal_scene = new();
     public MapGenConfig valley_a = new();
     public MapGenConfig valley_b = new();
     public float distal_advice_visible_probability = 1f;
@@ -68,10 +69,35 @@ public class BlockConfig
             block_order = block_order,
             trial_count = trial_count,
             is_tutorial = is_tutorial,
+            distal_scene = distal_scene != null ? distal_scene.DeepClone() : new DistalSceneConfig(),
             valley_a = valley_a != null ? valley_a.DeepClone() : new MapGenConfig(),
             valley_b = valley_b != null ? valley_b.DeepClone() : new MapGenConfig(),
             distal_advice_visible_probability = distal_advice_visible_probability,
             distal_advice_reliable_probability = distal_advice_reliable_probability
+        };
+    }
+}
+
+[Serializable]
+public class DistalSceneConfig
+{
+    public int min_total_bugs = 20;
+    public int max_total_bugs = 80;
+    public float min_green_ratio = 0.4f;
+    public float max_green_ratio = 0.8f;
+    public float gap_min = 0.1f;
+    public float gap_max = 0.3f;
+
+    public DistalSceneConfig DeepClone()
+    {
+        return new DistalSceneConfig
+        {
+            min_total_bugs = min_total_bugs,
+            max_total_bugs = max_total_bugs,
+            min_green_ratio = min_green_ratio,
+            max_green_ratio = max_green_ratio,
+            gap_min = gap_min,
+            gap_max = gap_max
         };
     }
 }
@@ -198,6 +224,7 @@ public class TrialResponseRow
     public bool distal_advice_reliable;
     public string distal_advice_choice;
     public string distal_best_valley;
+    public DistalSceneConfig distal_scene;
     public int trap_count;
     public int min_distance;
     public int max_distance;

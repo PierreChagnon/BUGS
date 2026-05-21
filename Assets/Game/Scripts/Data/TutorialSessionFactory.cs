@@ -25,10 +25,24 @@ public static class TutorialSessionFactory
             block_order = 0,
             trial_count = 3,
             is_tutorial = true,
+            distal_scene = CreateTutorialDistalScene(),
             valley_a = CreateTutorialMap(seed: 1001),
             valley_b = CreateTutorialMap(seed: 1002, minGreenRatio: 0.65f, maxGreenRatio: 0.8f),
             distal_advice_visible_probability = 1f,
             distal_advice_reliable_probability = 1f
+        };
+    }
+
+    private static DistalSceneConfig CreateTutorialDistalScene()
+    {
+        return new DistalSceneConfig
+        {
+            min_total_bugs = 18,
+            max_total_bugs = 26,
+            min_green_ratio = 0.45f,
+            max_green_ratio = 0.75f,
+            gap_min = 0.2f,
+            gap_max = 0.3f
         };
     }
 

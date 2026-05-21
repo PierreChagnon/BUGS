@@ -256,6 +256,7 @@ public class TrialManager : MonoBehaviour
             distal_advice_reliable = flow != null && flow.State != null && flow.State.distal_advice_reliable,
             distal_advice_choice = flow != null && flow.State != null ? FlowValueConverters.ToApiValue(flow.State.distal_advice_choice) : null,
             distal_best_valley = flow != null && flow.State != null ? FlowValueConverters.ToApiValue(flow.State.distal_best_valley) : null,
+            distal_scene = block != null && block.distal_scene != null ? block.distal_scene.DeepClone() : new DistalSceneConfig(),
             trap_count = session != null ? session.trapCount : map?.trap_count ?? 0,
             min_distance = session != null ? session.minDistance : map?.min_distance ?? 0,
             max_distance = session != null ? session.maxDistance : map?.max_distance ?? 0,

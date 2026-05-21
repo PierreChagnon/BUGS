@@ -61,15 +61,20 @@ public class DistalChoiceUI : MonoBehaviour
         AdviceReliable = flow.State != null && flow.State.distal_advice_reliable;
         AdvisedValley = flow != null && flow.State != null ? flow.State.distal_advice_choice : ValleyChoice.None;
         BestValley = flow != null && flow.State != null ? flow.State.distal_best_valley : ValleyChoice.None;
-        ValleyAScanData = BugCloudGenerationUtility.GenerateRepresentativeScan(flow.CurrentBlock.valley_a);
-        ValleyBScanData = BugCloudGenerationUtility.GenerateRepresentativeScan(flow.CurrentBlock.valley_b);
+        BugCloudPairData distalScans = BugCloudGenerationUtility.GenerateRepresentativeScan(
+            flow.CurrentBlock.distal_scene,
+            BestValley);
+        ValleyAScanData = distalScans.firstCloud;
+        ValleyBScanData = distalScans.secondCloud;
 
         Debug.Log(
             "[DistalChoiceUI] Refresh DistalScene | " +
             $"advisorChoice={FlowValueConverters.ToApiValue(flow.State.advisor_choice)} | " +
             $"adviceVisible={AdviceVisible} | adviceReliable={AdviceReliable} | " +
             $"bestValley={FlowValueConverters.ToApiValue(BestValley)} | " +
-            $"advisedValley={FlowValueConverters.ToApiValue(AdvisedValley)}",
+            $"advisedValley={FlowValueConverters.ToApiValue(AdvisedValley)} | " +
+            $"distalScene={FormatDistalSceneConfig(flow.CurrentBlock.distal_scene)} | " +
+            $"scanGap={distalScans.ratioGap:0.000}",
             this);
         Debug.Log(
             "[DistalChoiceUI] Valley A config | " +
@@ -303,6 +308,17 @@ public class DistalChoiceUI : MonoBehaviour
             $"greenRatio={config.min_green_ratio:0.00}-{config.max_green_ratio:0.00}, " +
             $"gap={config.gap_min:0.00}-{config.gap_max:0.00}, " +
             $"traps={config.trap_count}, fog={config.fog_probability:0.00}, seed={config.seed}";
+    }
+
+    static string FormatDistalSceneConfig(DistalSceneConfig config)
+    {
+        if (config == null)
+            return "config=null";
+
+        return
+            $"totalBugs={config.min_total_bugs}-{config.max_total_bugs}, " +
+            $"greenRatio={config.min_green_ratio:0.00}-{config.max_green_ratio:0.00}, " +
+            $"gap={config.gap_min:0.00}-{config.gap_max:0.00}";
     }
 
     static string FormatSample(BugCloudSample sample)

@@ -66,7 +66,7 @@ public static class BugCloudGenerationUtility
         return new BugCloudPairData { firstCloud = secondCloud, secondCloud = firstCloud, ratioGap = Mathf.Abs(ratio1 - ratio2) };
     }
 
-    public static BugCloudSample GenerateRepresentativeScan(MapGenConfig config)
+    public static BugCloudPairData GenerateRepresentativeScan(DistalSceneConfig config, ValleyChoice bestValley)
     {
         if (config == null)
             return default;
@@ -77,12 +77,37 @@ public static class BugCloudGenerationUtility
 
         float minGreenRatio = Mathf.Min(config.min_green_ratio, config.max_green_ratio);
         float maxGreenRatio = Mathf.Max(config.min_green_ratio, config.max_green_ratio);
-        float averageGreenRatio = (minGreenRatio + maxGreenRatio) * 0.5f;
+        float representativeGreenRatio = Mathf.Clamp01((minGreenRatio + maxGreenRatio) * 0.5f);
 
-        return new BugCloudSample
+        float gapMin = Mathf.Max(0f, Mathf.Min(config.gap_min, config.gap_max));
+        float gapMax = Mathf.Max(gapMin, Mathf.Max(config.gap_min, config.gap_max));
+        float representativeGap = (gapMin + gapMax) * 0.5f;
+
+        float lowerRatio;
+        float higherRatio;
+        if (representativeGreenRatio + representativeGap <= 1f)
         {
-            totalBugs = totalBugs,
-            greenRatio = Mathf.Clamp01(averageGreenRatio)
+            lowerRatio = representativeGreenRatio;
+            higherRatio = representativeGreenRatio + representativeGap;
+        }
+        else
+        {
+            lowerRatio = representativeGreenRatio - representativeGap;
+            higherRatio = representativeGreenRatio;
+        }
+
+        lowerRatio = Mathf.Clamp01(lowerRatio);
+        higherRatio = Mathf.Clamp01(higherRatio);
+
+        var lowerCloud = new BugCloudSample { totalBugs = totalBugs, greenRatio = lowerRatio };
+        var higherCloud = new BugCloudSample { totalBugs = totalBugs, greenRatio = higherRatio };
+
+        bool valleyAIsBest = bestValley == ValleyChoice.A;
+        return new BugCloudPairData
+        {
+            firstCloud = valleyAIsBest ? higherCloud : lowerCloud,
+            secondCloud = valleyAIsBest ? lowerCloud : higherCloud,
+            ratioGap = Mathf.Abs(higherRatio - lowerRatio)
         };
     }
 }
