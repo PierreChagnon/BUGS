@@ -268,7 +268,7 @@ public class TrialManager : MonoBehaviour
             gap_max = session != null ? session.gapMax : map?.gap_max ?? 0f,
             fog_probability = session != null ? session.fogProbability : map?.fog_probability ?? 0f,
             trial_seed = session != null ? session.randomizationSeed : flow?.CurrentTrialSeed ?? 0,
-            path_visible_probability = session != null ? session.pathVisible : map?.path_visible ?? 0f,
+            path_visible_probability = session != null ? session.pathVisible : map?.path_visible_probability ?? 0f,
             suboptimal_path_probability = session != null ? session.suboptimalPathProbability : map?.suboptimal_path_probability ?? 0f,
             detour_probability = session != null ? session.detourProbability : map?.detour_probability ?? 0f,
             motor_advice_visible_probability = session != null ? session.motorAdviceVisibleProbability : map?.motor_advice_visible_probability ?? 0f,

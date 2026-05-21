@@ -102,7 +102,7 @@ public class SessionManager : MonoBehaviour
         maxGreenBugsRatio = map.max_green_ratio;
         gapMin = map.gap_min;
         gapMax = map.gap_max;
-        pathVisible = map.path_visible;
+        pathVisible = map.path_visible_probability;
         suboptimalPathProbability = map.suboptimal_path_probability;
         detourProbability = map.detour_probability;
         motorAdviceVisibleProbability = map.motor_advice_visible_probability;

@@ -62,7 +62,7 @@ public static class TutorialSessionFactory
             max_green_ratio = maxGreenRatio,
             gap_min = 0.2f,
             gap_max = 0.3f,
-            path_visible = 1f,
+            path_visible_probability = 1f,
             suboptimal_path_probability = 0f,
             detour_probability = 0f,
             motor_advice_visible_probability = 1f,

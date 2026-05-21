@@ -21,8 +21,6 @@ public class ApiClient : MonoBehaviour
     [Serializable]
     class QuestionnairePatchPayload
     {
-        public string acceptability_question;
-        public string sens_of_agency_question;
         public string human_likeness_question;
     }
 
@@ -93,10 +91,8 @@ public class ApiClient : MonoBehaviour
         RetryPendingTrialUploads();
     }
 
-    public void PatchQuestionnaireResponses(
+    public void PatchHumanLikenessQuestion(
         string trialResponseId,
-        string acceptabilityQuestion,
-        string sensOfAgencyQuestion,
         string humanLikenessQuestion,
         Action onSuccess,
         Action<string> onError)
@@ -109,8 +105,6 @@ public class ApiClient : MonoBehaviour
 
         var payload = new QuestionnairePatchPayload
         {
-            acceptability_question = acceptabilityQuestion,
-            sens_of_agency_question = sensOfAgencyQuestion,
             human_likeness_question = humanLikenessQuestion
         };
 
@@ -130,10 +124,11 @@ public class ApiClient : MonoBehaviour
 
         var payload = new QuestionnairePatchPayload
         {
-            acceptability_question = tempRow.acceptability_question,
-            sens_of_agency_question = tempRow.sens_of_agency_question,
             human_likeness_question = tempRow.human_likeness_question
         };
+
+        if (string.IsNullOrWhiteSpace(payload.human_likeness_question))
+            return;
 
         QueueQuestionnairePatchPayloadForTrial(participantId, blockIndex, trialIndex, payload, onSuccess, onError);
     }
@@ -329,7 +324,7 @@ public class ApiClient : MonoBehaviour
 
         if (request.result != UnityWebRequest.Result.Success)
         {
-            onError?.Invoke(BuildRequestError("PatchQuestionnaireResponses", request));
+            onError?.Invoke(BuildRequestError("PatchHumanLikenessQuestion", request));
             yield break;
         }
 
@@ -462,12 +457,7 @@ public class ApiClient : MonoBehaviour
         if (target == null || source == null)
             return;
 
-        if (!string.IsNullOrWhiteSpace(source.acceptability_question))
-            target.acceptability_question = source.acceptability_question;
-        if (!string.IsNullOrWhiteSpace(source.sens_of_agency_question))
-            target.sens_of_agency_question = source.sens_of_agency_question;
-        if (!string.IsNullOrWhiteSpace(source.human_likeness_question))
-            target.human_likeness_question = source.human_likeness_question;
+        target.human_likeness_question = source.human_likeness_question;
     }
 
     static string ToJsonObjectSkippingNullStrings(object source)
@@ -514,7 +504,7 @@ public class ApiClient : MonoBehaviour
                 builder.Append(formattable.ToString(null, CultureInfo.InvariantCulture));
                 break;
             default:
-                AppendJsonString(builder, value.ToString());
+                builder.Append(JsonUtility.ToJson(value));
                 break;
         }
     }

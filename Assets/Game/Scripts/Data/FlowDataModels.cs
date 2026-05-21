@@ -114,7 +114,7 @@ public class MapGenConfig
     public float max_green_ratio = 0.8f;
     public float gap_min = 0.1f;
     public float gap_max = 0.3f;
-    public float path_visible = 1f;
+    public float path_visible_probability = 1f;
     public float suboptimal_path_probability;
     public float detour_probability;
     public float motor_advice_visible_probability = 1f;
@@ -138,7 +138,7 @@ public class MapGenConfig
             max_green_ratio = max_green_ratio,
             gap_min = gap_min,
             gap_max = gap_max,
-            path_visible = path_visible,
+            path_visible_probability = path_visible_probability,
             suboptimal_path_probability = suboptimal_path_probability,
             detour_probability = detour_probability,
             motor_advice_visible_probability = motor_advice_visible_probability,
