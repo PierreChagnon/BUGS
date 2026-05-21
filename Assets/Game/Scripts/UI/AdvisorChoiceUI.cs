@@ -49,7 +49,7 @@ public class AdvisorChoiceUI : MonoBehaviour
             return;
 
         if (_titleText != null)
-            _titleText.text = flow.IsCurrentBlockTutorial ? "Choix d'advisor (tutorial)" : "Choix d'advisor";
+            _titleText.text = "Choix d'advisor";
 
         if (_subtitleText != null)
             _subtitleText.text = "Ce choix est enregistre mais n'affecte pas encore la generation de la map.";

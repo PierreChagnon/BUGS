@@ -38,10 +38,7 @@ public class FlowContinueScreenUI : MonoBehaviour
                 break;
 
             case ScreenKind.Intro:
-                string nextStep = flow.Config != null && flow.Config.tutorial_enabled
-                    ? "Un bloc tutorial demarrera en premier pour te familiariser avec le flow."
-                    : "Tu vas demarrer directement les blocs experimentaux.";
-                SetTexts("Introduction", nextStep);
+                SetTexts("Introduction", "Tu vas demarrer les blocs de la session.");
                 break;
 
             case ScreenKind.EndSession:

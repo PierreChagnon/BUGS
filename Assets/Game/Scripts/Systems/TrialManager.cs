@@ -9,7 +9,7 @@ using UnityEngine;
 //   - Ouvrir un nouveau trial local au démarrage du gameplay
 //   - Enregistrer les pas du joueur et la config de map
 //   - Assembler la TrialResponseRow complète en fin de trial
-//   - Déléguer l'envoi à ApiClient (sauf tutorial)
+//   - Déléguer l'envoi à ApiClient quand le bloc courant n'est pas un tutoriel
 // -----------------------------
 
 public class TrialManager : MonoBehaviour
@@ -95,12 +95,6 @@ public class TrialManager : MonoBehaviour
         _currentTrialRow.started_at = _startedAtIsoUtc;
         _currentTrialRow.ended_at = DateTime.UtcNow.ToString("o");
 
-        if (FlowController.Instance != null && FlowController.Instance.IsCurrentBlockTutorial)
-        {
-            Debug.Log("[TrialManager] Trial tutorial termine: envoi reseau ignore.");
-            return;
-        }
-
         Debug.Log("[TrialManager] Trial termine: envoi en attente des reponses questionnaire.");
     }
 
@@ -119,6 +113,13 @@ public class TrialManager : MonoBehaviour
         }
 
         FlowSerializationUtility.ApplyQuestionnaireResponses(_currentTrialRow, responses);
+
+        if (ShouldSkipNetworkForCurrentBlock())
+        {
+            _currentTrialSubmitted = true;
+            Debug.Log("[TrialManager] Trial de bloc tutoriel termine: donnees locales conservees, envoi reseau ignore.");
+            return;
+        }
 
         if (string.IsNullOrWhiteSpace(_currentTrialRow.acceptability_question) ||
             string.IsNullOrWhiteSpace(_currentTrialRow.sens_of_agency_question))
@@ -284,5 +285,10 @@ public class TrialManager : MonoBehaviour
     {
         if (_currentTrialRow == null)
             _currentTrialRow = BuildBaseRow();
+    }
+
+    static bool ShouldSkipNetworkForCurrentBlock()
+    {
+        return FlowController.Instance != null && FlowController.Instance.IsCurrentBlockTutorial;
     }
 }

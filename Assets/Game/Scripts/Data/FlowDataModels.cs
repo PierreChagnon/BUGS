@@ -8,7 +8,6 @@ public enum GamePhase
     Welcome,
     Consent,
     Intro,
-    Tutorial,
     AdvisorChoice,
     DistalChoice,
     Proximal,
@@ -34,7 +33,6 @@ public enum ValleyChoice
 public class SessionConfig
 {
     public string session_template_id;
-    public bool tutorial_enabled = true;
     public List<BlockConfig> blocks = new();
 
     public SessionConfig DeepClone()
@@ -42,7 +40,6 @@ public class SessionConfig
         return new SessionConfig
         {
             session_template_id = session_template_id,
-            tutorial_enabled = tutorial_enabled,
             blocks = FlowCloneUtility.CloneBlocks(blocks)
         };
     }

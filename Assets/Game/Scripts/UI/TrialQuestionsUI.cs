@@ -75,8 +75,7 @@ public class TrialQuestionsUI : MonoBehaviour
 
         var flow = FlowController.Instance;
 
-        // Pas de questions en mode tutorial
-        if (flow == null || flow.CurrentBlock == null || flow.CurrentBlock.is_tutorial)
+        if (flow == null || flow.CurrentBlock == null)
         {
             _roundUI?.Show(info);
             return;

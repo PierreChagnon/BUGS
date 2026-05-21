@@ -155,7 +155,6 @@ public class FlowController : MonoBehaviour
                 break;
 
             case GamePhase.Intro:
-            case GamePhase.Tutorial:
                 AdvanceToPhase(GamePhase.AdvisorChoice);
                 break;
 
@@ -197,11 +196,8 @@ public class FlowController : MonoBehaviour
 
         bool completedLastTrial = State.current_trial_index >= CurrentBlock.trial_count - 1;
 
-        if (!CurrentBlock.is_tutorial)
-        {
-            BlockScore += trialScore;
-            State.green_bugs_accumulated = BlockScore;
-        }
+        BlockScore += trialScore;
+        State.green_bugs_accumulated = BlockScore;
 
         State.current_trial_index++;
 
@@ -243,9 +239,6 @@ public class FlowController : MonoBehaviour
 
     public int GetAccumulatedScoreAfterTrial(int trialScore)
     {
-        if (CurrentBlock != null && CurrentBlock.is_tutorial)
-            return 0;
-
         return BlockScore + trialScore;
     }
 
@@ -387,7 +380,13 @@ public class FlowController : MonoBehaviour
 
     SessionConfig PrepareConfig(SessionConfig source)
     {
-        var config = TutorialSessionFactory.EnsureTutorialBlock(source);
+        var config = source != null
+            ? source.DeepClone()
+            : new SessionConfig
+            {
+                blocks = new List<BlockConfig>()
+            };
+
         if (config.blocks == null)
             config.blocks = new List<BlockConfig>();
 
