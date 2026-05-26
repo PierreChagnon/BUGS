@@ -3,7 +3,7 @@
 > Produit par le Rôle 2 (Analyse Fonctionnelle).
 > Décrit le QUOI et le POURQUOI. Jamais le COMMENT technique.
 
-**Date :** 2026-05-20
+**Date :** 2026-05-26 *(révisée — consolidation post-échange chercheurs)*
 **Statut :** `draft`
 **Chantier :** Explanations short/long
 **Spec tech associée :** `Docs/specs/explanations-short-long/spec-tech.md` (à produire)
@@ -14,16 +14,19 @@
 
 ### Objectif
 
-Permettre à chaque advice (distal, proximal, motor) d'être accompagné d'une **explication textuelle** affichée au participant. L'explication existe en **deux variantes éditoriales** (`short` et `long`), éditées par les chercheurs depuis le panneau de configuration de session. Le mode actif sur un trial détermine quelle variante est affichée — ou aucune (`none`). La feature est la brique nécessaire à l'hypothèse **H8** du GDD : *"Explanations with reference to higher levels of abstraction leads to higher levels of acceptability and human-likeness."*
+Permettre à chaque advice (distal, proximal, motor) d'être accompagné d'une **explication textuelle** affichée au participant. L'explication existe en **deux variantes éditoriales** (`short` et `long`), éditées par les chercheurs depuis le panneau de configuration de session. Deux dimensions orthogonales pilotent l'affichage : un **`display_mode`** (`forced` / `opt-in` / `none`) et un **`content_variant`** (`short` / `long`), tous deux configurés au niveau bloc. La feature est la brique nécessaire à l'hypothèse **H8** du GDD : *"Explanations with reference to higher levels of abstraction leads to higher levels of acceptability and human-likeness."*
 
 ### Périmètre IN
 
 - [x] Affichage d'une explanation accompagnant un advice **distal**, **proximal** ou **motor**, conditionné à la précondition d'affichage (cf. règle R1).
 - [x] Deux variantes textuelles **short** et **long** stockées et éditées indépendamment pour chaque advice.
-- [x] Un mode actif par advice et par trial parmi `none` | `short` | `long`.
-- [x] Pilotage du mode via la configuration de session (`SessionConfig` / `BlockConfig`), au niveau bloc ou trial (granularité à trancher, cf. Q-EXP-1).
-- [x] Édition des contenus short et long par les chercheurs dans le **session config panel**.
-- [x] Tracé des données dans la table `trial_responses` (table plate dénormalisée, DEC-011) avec colonnes dédiées par advice.
+- [x] Deux dimensions orthogonales par advice :
+  - **`display_mode`** ∈ `forced` / `opt-in` / `none` — pilote comment et si l'explanation est présentée
+  - **`content_variant`** ∈ `short` / `long` — pilote quelle variante éditoriale est utilisée quand affichée
+- [x] Pilotage **blockwise** des deux dimensions via la configuration de session (`SessionConfig` / `BlockConfig`).
+- [x] Édition des contenus short et long par les chercheurs dans le **session config panel**, avec **2 corpora distincts par bloc** indexés par `advisor_type` (`human-bot`, `bot-bot`) → 12 textes par bloc (3 advice × 2 variants × 2 advisor types).
+- [x] Tracking du `display_mode=opt-in` : enregistrement du clic du participant sur le bouton « show explanation » et de la durée d'affichage de l'explication.
+- [x] Tracé des données dans la table `trial_responses` (table plate dénormalisée, DEC-011) avec colonnes dédiées par advice (5 colonnes par advice, 15 au total).
 - [x] Indépendance vis-à-vis de la fiabilité (`reliability`) de l'advice : un advice non fiable peut porter une explanation.
 
 ### Périmètre OUT
@@ -44,13 +47,15 @@ Permettre à chaque advice (distal, proximal, motor) d'être accompagné d'une *
 - **DEC-011** — Modèle de données = table plate `trial_responses`.
 - **DEC-013** — Questionnaire envoyé par PATCH après le dernier trial.
 - **DEC-014** — Tutorial modélisé comme `BlockConfig` avec flag `is_tutorial` (pas d'envoi API).
-- **DEC-017 (en cours)** — Cadrage du présent chantier : périmètre D+P+M, deux textes alternatifs, précondition advisor choisi + advice donné, édition via session config panel. Résout Q-003 (motor advice avec explanation) et Q-006 (modèle d'édition).
+- **DEC-017** — Cadrage initial du présent chantier : périmètre D+P+M, deux textes alternatifs, précondition advisor choisi + advice donné, édition via session config panel. Résout Q-003 (motor advice avec explanation) et Q-006 (modèle d'édition).
+- **DEC-018** — Consolidation post-échange chercheurs (Florian / Valerian / Mark). Introduction de `display_mode` orthogonal à `content_variant`, granularité blockwise, cross-level interdit, jusqu'à 3 explanations simultanées (layout L/R), corpus indexé par advisor type, format CSV enum + id, tracking opt-in obligatoire, contrainte UI no-overlap avec la map. Principe directeur : « keep it simple, adapt later ». Résout Q-EXP-1, 2, 3, 4, 5, 7, 8, 9.
 
 ### Dépendances
 
-- **Requiert :** Advisors fonctionnels (DistalChoiceScene, ProximalScene, MotorAdvice forest UI), pipeline `trial_responses` (DEC-011), configuration de session chargée par URL + API (DEC-009).
+- **Requiert :** Advisors fonctionnels (DistalChoiceScene, ProximalScene, MotorAdvice forest UI), pipeline `trial_responses` (DEC-011), configuration de session chargée par URL + API (DEC-009), connaissance de l'`advisor_type` actif au moment d'afficher une explanation.
 - **Est requis par :** validité de l'hypothèse H8, finalisation du chantier Motor Advice (Q-003), spec free/forced (les conditions `explanation × forced` font partie de la combinatoire GDD).
 - **Doit rester cohérent avec :** `BlockConfig` (DEC-014), envoi PATCH questionnaire (DEC-013), neutralité du flag `is_tutorial`.
+- **Dépendances UI :** non-overlap avec la map (TR10), layout L/R pour multi-advices simultanés (TR9). Détails à régler en spec tech et en UI test.
 
 ---
 
@@ -63,37 +68,45 @@ Permettre à chaque advice (distal, proximal, motor) d'être accompagné d'une *
 
 #### Ce qui est affiché
 
-- Si **mode = `none`** : aucun texte d'explication n'est affiché. L'advice (s'il est donné) reste visible seul.
-- Si **mode = `short`** : un encart texte court accompagne l'advice. Contenu défini par le chercheur.
-- Si **mode = `long`** : un encart texte plus développé accompagne l'advice. Contenu défini par le chercheur.
+L'affichage est piloté par **2 dimensions blockwise orthogonales** :
 
-L'emplacement et le timing précis (avant / simultané / après l'advice, encart fixe vs bouton "voir explication") restent à trancher — cf. Q-EXP-5.
+| `display_mode` | `content_variant` | Résultat |
+|:---|:---|:---|
+| `none` | (ignoré) | Aucune explanation affichée. L'advice (s'il est donné) reste visible seul. |
+| `forced` | `short` | Texte court accompagne l'advice d'office, sans interaction. |
+| `forced` | `long` | Texte long accompagne l'advice d'office, sans interaction. |
+| `opt-in` | `short` | Bouton « show explanation » ; au clic, le texte court s'affiche. |
+| `opt-in` | `long` | Bouton « show explanation » ; au clic, le texte long s'affiche. |
+
+Le texte affiché est sélectionné dans le corpus du bloc indexé par l'`advisor_type` du trial (cf. TR13).
 
 #### Interactions utilisateur
 
 | Action utilisateur | Résultat | Cas limite |
 |:---|:---|:---|
-| Le participant lit l'explanation | Pas d'action requise dans le comportement par défaut | Si l'explanation est interactive (Q-EXP-6), comportement à préciser |
-| Le participant fait son distal-choice | Le choix est enregistré normalement, l'explanation lue ou non n'influe pas sur la validité du choix | — |
+| Le participant lit l'explanation (mode `forced`) | Pas d'action requise. L'explanation reste visible (cf. R7) | — |
+| Le participant clique sur « show explanation » (mode `opt-in`) | Le texte s'affiche. Clic et durée d'affichage loggés. | Si pas de clic → `clicked = false`, `display_duration_ms = 0` |
+| Le participant cache l'explanation | L'explanation est masquée (modalités UI : à régler en UI test, cf. Q-EXP-6) | — |
+| Le participant fait son distal-choice | Le choix est enregistré normalement ; la lecture ou non de l'explanation n'influe pas sur la validité du choix | — |
 
 #### Règles métier
 
-- **R1 (Précondition d'affichage)** : l'explanation n'est affichée que si **(a)** un advisor a été choisi par le participant (meta-choice ≠ "no advisor") **ET (b)** un advice distal est effectivement donné sur ce bloc. Si l'une des deux conditions manque, mode = `none` forcé, aucune explanation affichée, et la colonne CSV est renseignée en `none`.
-- **R2** : le mode (`none`/`short`/`long`) est lu depuis la config de session. La granularité (par bloc ou par trial) reste à trancher — cf. Q-EXP-1.
-- **R3** : l'explanation est **indépendante de la fiabilité** de l'advice. Un advice non fiable peut être accompagné d'une explanation (short ou long).
-- **R4** : pendant le bloc tutorial (`is_tutorial = true`, DEC-014), aucune explanation n'est affichée et aucune ligne n'est envoyée à l'API (cohérent avec DEC-014).
-
-#### Modes
-
-- **`none`** vs **`short`** vs **`long`** (mode d'affichage).
-- **Précondition satisfaite** vs **précondition non satisfaite** (R1).
+- **R1 (Précondition d'affichage)** : l'explanation n'est affichée que si **(a)** un advisor a été choisi par le participant (meta-choice ≠ "no advisor") **ET (b)** un advice distal est effectivement donné sur ce bloc. Si l'une des deux conditions manque, `display_mode = none` forcé.
+- **R2** : `display_mode` et `content_variant` sont lus depuis la config du bloc (granularité **blockwise**, cf. TR7).
+- **R3** : l'explanation est **indépendante de la fiabilité** de l'advice. Un advice non fiable peut être accompagné d'une explanation.
+- **R4** : pendant le bloc tutorial (`is_tutorial = true`, DEC-014), aucune explanation n'est affichée et aucune ligne n'est envoyée à l'API.
+- **R7 (Tracking opt-in)** : quand `display_mode = opt-in`, le système enregistre **(a)** si le participant a cliqué sur « show explanation » et **(b)** la durée d'affichage de l'explication. Quand `display_mode ≠ opt-in`, les colonnes de tracking sont à `null`.
+- **R8 (Cross-level interdit)** : seule l'explanation **du même niveau** que l'advice peut être affichée. Pas de motor-explanation pour un distal-advice, etc. (cf. TR8).
 
 #### Données collectées
 
 | Donnée | Colonne CSV V1 | Valeurs possibles | Quand enregistrée |
 |:---|:---|:---|:---|
-| Mode d'explanation distal sur ce trial | `distal_advice_explanation_mode` | `none` / `short` / `long` | À l'affichage de la scène distale |
-| Texte effectivement affiché (id du texte source, si retenu) | `distal_advice_explanation_text_id` *(optionnel, cf. Q-EXP-9)* | id du contenu chercheur / `null` | À l'affichage de la scène distale |
+| Mode d'affichage de l'explanation distale | `distal_advice_explanation_display_mode` | `forced` / `opt-in` / `none` | À l'affichage de la scène distale |
+| Variante éditoriale active | `distal_advice_explanation_content_variant` | `short` / `long` / `null` (si `display_mode = none`) | À l'affichage de la scène distale |
+| Id du texte effectivement affiché | `distal_advice_explanation_text_id` | id chercheur / `null` | À l'affichage de la scène distale |
+| Clic sur « show explanation » | `distal_advice_explanation_clicked` | `true` / `false` / `null` (si `display_mode ≠ opt-in`) | À la sortie de la scène distale |
+| Durée d'affichage de l'explication | `distal_advice_explanation_display_duration_ms` | int (ms) / `null` (si `display_mode ≠ opt-in`) | À la sortie de la scène distale |
 
 ---
 
@@ -104,31 +117,33 @@ L'emplacement et le timing précis (avant / simultané / après l'advice, encart
 
 #### Ce qui est affiché
 
-- Mêmes 3 modes que 2.1 (`none` / `short` / `long`).
-- Contenus textuels propres à l'advice proximal, édités par le chercheur dans le session config panel.
+- Mêmes 2 dimensions (`display_mode` × `content_variant`) que §2.1, mêmes valeurs.
+- Contenus textuels propres à l'advice proximal, édités par le chercheur dans le session config panel, **indexés par advisor_type** (cf. TR13).
+- Quand un proximal-advice et un motor-advice coexistent sur le même trial, leurs explanations respectent le layout **L/R** : motor à gauche, proximal à droite (cf. TR9).
 
 #### Interactions utilisateur
 
 | Action utilisateur | Résultat | Cas limite |
 |:---|:---|:---|
-| Le participant lit l'explanation | Pas d'action requise par défaut | Si interactive (Q-EXP-6), à préciser |
+| Le participant lit l'explanation (mode `forced`) | Pas d'action requise. L'explanation reste visible (cf. R7) | — |
+| Le participant clique sur « show explanation » (mode `opt-in`) | Le texte s'affiche. Clic et durée loggés. | — |
+| Le participant cache l'explanation | L'explanation est masquée sans recouvrir la map (cf. TR10) | — |
 | Le participant se déplace sur la grille | Le mouvement reste indépendant de l'explanation | — |
 
 #### Règles métier
 
-- **R1, R2, R3, R4** s'appliquent à l'identique (cf. §2.1).
-- **R5 (positionnement écran)** : l'explanation proximale partage le forest screen avec l'advice proximal lui-même (chemin coloré dans le fog of war, cf. specs-light §9) — l'emplacement de l'encart doit ne pas masquer le chemin ni les nuages. Détails UI hors scope (Q-EXP-5).
-
-#### Modes
-
-- Identiques à §2.1.
+- **R1, R2, R3, R4, R7, R8** s'appliquent à l'identique (cf. §2.1).
+- **R5 (positionnement écran)** : l'explanation proximale partage le forest screen avec l'advice proximal lui-même (chemin coloré dans le fog of war, cf. specs-light §9) — l'emplacement de l'encart doit **ne pas recouvrir la map** (TR10) ni masquer le chemin/les nuages. Détails UI à régler en UI test (cf. Q-EXP-6).
 
 #### Données collectées
 
 | Donnée | Colonne CSV V1 | Valeurs possibles | Quand enregistrée |
 |:---|:---|:---|:---|
-| Mode d'explanation proximal | `proximal_advice_explanation_mode` | `none` / `short` / `long` | Au début du trial |
-| Texte affiché (id, optionnel) | `proximal_advice_explanation_text_id` *(cf. Q-EXP-9)* | id / `null` | Au début du trial |
+| Mode d'affichage de l'explanation proximale | `proximal_advice_explanation_display_mode` | `forced` / `opt-in` / `none` | Au début du trial |
+| Variante éditoriale active | `proximal_advice_explanation_content_variant` | `short` / `long` / `null` | Au début du trial |
+| Id du texte affiché | `proximal_advice_explanation_text_id` | id / `null` | Au début du trial |
+| Clic sur « show explanation » | `proximal_advice_explanation_clicked` | `true` / `false` / `null` | À la fin du trial |
+| Durée d'affichage de l'explication | `proximal_advice_explanation_display_duration_ms` | int (ms) / `null` | À la fin du trial |
 
 ---
 
@@ -139,8 +154,9 @@ L'emplacement et le timing précis (avant / simultané / après l'advice, encart
 
 #### Ce qui est affiché
 
-- Mêmes 3 modes (`none` / `short` / `long`).
+- Mêmes 2 dimensions (`display_mode` × `content_variant`) que §2.1, mêmes valeurs.
 - Le motor-advice lui-même reste l'affichage du set complet de touches (cf. spec MotorAdvice). L'explanation, si présente, vient justifier ce set ou expliquer le mécanisme.
+- Quand un proximal-advice et un motor-advice coexistent sur le même trial, la motor-explanation est affichée à **gauche**, la proximal-explanation à **droite** (cf. TR9).
 
 **Note** : cette section **résout Q-003** (le motor advice doit-il inclure une explanation ?). Réponse : **oui**, au même titre que distal et proximal.
 
@@ -148,69 +164,124 @@ L'emplacement et le timing précis (avant / simultané / après l'advice, encart
 
 | Action utilisateur | Résultat | Cas limite |
 |:---|:---|:---|
-| Le participant lit l'explanation | Pas d'action requise par défaut | Si interactive (Q-EXP-6), à préciser |
+| Le participant lit l'explanation (mode `forced`) | Pas d'action requise. L'explanation reste visible (cf. R7) | — |
+| Le participant clique sur « show explanation » (mode `opt-in`) | Le texte s'affiche. Clic et durée loggés. | — |
 | Le participant appuie sur une touche | Comportement standard du motor-advice (cf. MotorAdvice spec) | L'explanation n'influe pas sur le mapping touches |
 
 #### Règles métier
 
-- **R1, R2, R3, R4** s'appliquent à l'identique.
-- **R6 (cohérence avec MotorAdvice)** : l'explanation motor n'est affichée que si l'advice motor lui-même est affiché (probabilité d'apparition gérée par la spec MotorAdvice). Si motor advice = caché, mode explanation = `none` forcé.
-
-#### Modes
-
-- Identiques à §2.1.
+- **R1, R2, R3, R4, R7, R8** s'appliquent à l'identique.
+- **R6 (cohérence avec MotorAdvice)** : l'explanation motor n'est affichée que si l'advice motor lui-même est affiché (probabilité d'apparition gérée par la spec MotorAdvice). Si motor advice = caché, `display_mode = none` forcé.
 
 #### Données collectées
 
 | Donnée | Colonne CSV V1 | Valeurs possibles | Quand enregistrée |
 |:---|:---|:---|:---|
-| Mode d'explanation motor | `motor_advice_explanation_mode` | `none` / `short` / `long` | Au début du trial |
-| Texte affiché (id, optionnel) | `motor_advice_explanation_text_id` *(cf. Q-EXP-9)* | id / `null` | Au début du trial |
+| Mode d'affichage de l'explanation motor | `motor_advice_explanation_display_mode` | `forced` / `opt-in` / `none` | Au début du trial |
+| Variante éditoriale active | `motor_advice_explanation_content_variant` | `short` / `long` / `null` | Au début du trial |
+| Id du texte affiché | `motor_advice_explanation_text_id` | id / `null` | Au début du trial |
+| Clic sur « show explanation » | `motor_advice_explanation_clicked` | `true` / `false` / `null` | À la fin du trial |
+| Durée d'affichage de l'explication | `motor_advice_explanation_display_duration_ms` | int (ms) / `null` | À la fin du trial |
 
 ---
 
 ## 3. Règles transversales
 
 - **TR1 — Indépendance fiabilité / explanation** : la fiabilité d'un advice ne conditionne pas l'affichage de son explanation. Les deux variables sont orthogonales (cohérent avec les variables indépendantes du GDD : `Explanation/No explanations` listée séparément de `Advice reliability`).
-- **TR2 — Deux textes alternatifs** : pour chaque advice, le chercheur édite **deux textes indépendants** (un court, un long). Aucune génération automatique d'un texte à partir de l'autre.
+- **TR2 — Deux textes alternatifs** : pour chaque advice et chaque advisor_type, le chercheur édite **deux textes indépendants** (un court, un long). Aucune génération automatique d'un texte à partir de l'autre.
 - **TR3 — Édition centralisée** : tous les contenus d'explanation sont édités par les chercheurs depuis le **session config panel** (DEC-017). Aucun texte n'est hardcodé côté Unity.
-- **TR4 — Neutralité tutorial** : pendant un bloc `is_tutorial = true` (DEC-014), aucune explanation n'est affichée. Aucune colonne `*_explanation_mode` n'est envoyée à l'API (cohérent avec DEC-014, pas d'envoi API en tuto).
-- **TR5 — Indépendance entre advice** : les trois modes d'explanation (distal, proximal, motor) sont pilotés indépendamment. Un trial peut avoir distal = `long`, proximal = `none`, motor = `short`.
-- **TR6 — Cohérence avec free/forced** : l'interaction entre `explanation` et le mécanisme `free/forced` (Q-005 en attente) doit être confirmée dans la spec free/forced. Hypothèse de travail : les deux paramètres sont orthogonaux.
+- **TR4 — Neutralité tutorial** : pendant un bloc `is_tutorial = true` (DEC-014), aucune explanation n'est affichée. Aucune colonne `*_explanation_*` n'est envoyée à l'API (cohérent avec DEC-014, pas d'envoi API en tuto).
+- **TR5 — Indépendance entre advice** : les trois explanations (distal, proximal, motor) sont pilotées indépendamment. Un trial peut avoir distal `display_mode = forced/long`, proximal `display_mode = none`, motor `display_mode = opt-in/short`.
+- **TR6 — Cohérence avec free/forced** : l'interaction entre `explanation` et le mécanisme `free/forced` (Q-005 partiellement résolue) doit être confirmée dans la spec free/forced. Hypothèse de travail : les deux paramètres sont orthogonaux.
+- **TR7 — Granularité blockwise des deux dimensions** : `display_mode` et `content_variant` sont définis **par bloc** dans `BlockConfig`, pas par trial. Tous les trials d'un même bloc partagent la même configuration explanation. (Q-EXP-1, DEC-018)
+- **TR8 — Cross-level interdit (1-to-1)** : une advice d'un niveau donné ne peut être accompagnée que d'une explanation **du même niveau**. Pas de motor-explanation pour un distal-advice, etc. (Q-EXP-4, DEC-018)
+- **TR9 — Plusieurs explanations simultanées** : jusqu'à 3 explanations peuvent être affichées simultanément sur un même trial (1 par advice). Quand un motor-advice et un proximal-advice coexistent, leurs explanations respectent un layout **L/R** : motor à gauche, proximal à droite. (Q-EXP-7, DEC-018)
+- **TR10 — Contrainte UI no-overlap** : aucune explanation, dans aucun mode d'affichage, ne doit recouvrir la map / le forest screen / les nuages / le chemin. La possibilité de cacher l'explanation et son positionnement précis sont à régler en UI test (Q-EXP-6).
+- **TR11 — Tracking opt-in obligatoire** : quand `display_mode = opt-in` est configuré, le tracking (clic sur le bouton + durée d'affichage) est obligatoire et doit alimenter les colonnes `*_explanation_clicked` et `*_explanation_display_duration_ms`. (DEC-018)
+- **TR12 — Principe « keep it simple, adapt later »** : sur les points de cadrage encore ambigus à la date de la spec, retenir la version la plus simple, quitte à ré-ouvrir après lancement de l'étude si les premiers résultats le justifient. (DEC-018)
+- **TR13 — Corpus indexé par advisor type** : pour chaque bloc, le chercheur édite **2 corpora distincts** (advisor_type = `human-bot`, `bot-bot`), chacun contenant 3 advice × 2 variants = 6 textes. Soit **12 textes par bloc**. Le corpus utilisé sur un trial est sélectionné au runtime selon l'advisor effectivement choisi par le participant. Le `no-advisor` ne reçoit pas de corpus (cohérent avec R1). (Q-EXP-8, DEC-018)
 
 ---
 
 ## 4. Matrice de traçabilité
 
+**15 colonnes** au total (5 par advice × 3 advices). Renommages depuis la version initiale de la spec : `*_advice_explanation_mode` → `*_advice_explanation_content_variant`. Ajout des colonnes `*_display_mode`, `*_clicked`, `*_display_duration_ms`.
+
+### Distal
+
 | Colonne CSV V1 | Écran / Composant | Comportement source | Valeurs possibles |
 |:---|:---|:---|:---|
-| `distal_advice_explanation_mode` | DistalChoiceScene | Enregistrer mode d'explanation distal du bloc | `none` / `short` / `long` |
-| `distal_advice_explanation_text_id` *(optionnel)* | DistalChoiceScene | Enregistrer l'id du texte distal effectivement affiché | id chercheur / `null` |
-| `proximal_advice_explanation_mode` | ProximalScene | Enregistrer mode d'explanation proximal du trial | `none` / `short` / `long` |
-| `proximal_advice_explanation_text_id` *(optionnel)* | ProximalScene | Enregistrer l'id du texte proximal effectivement affiché | id chercheur / `null` |
-| `motor_advice_explanation_mode` | ProximalScene (motor advice UI) | Enregistrer mode d'explanation motor du trial | `none` / `short` / `long` |
-| `motor_advice_explanation_text_id` *(optionnel)* | ProximalScene (motor advice UI) | Enregistrer l'id du texte motor effectivement affiché | id chercheur / `null` |
+| `distal_advice_explanation_display_mode` | DistalChoiceScene | Mode d'affichage du bloc | `forced` / `opt-in` / `none` |
+| `distal_advice_explanation_content_variant` | DistalChoiceScene | Variante éditoriale active | `short` / `long` / `null` |
+| `distal_advice_explanation_text_id` | DistalChoiceScene | Id du texte chercheur effectivement affiché | id / `null` |
+| `distal_advice_explanation_clicked` | DistalChoiceScene | Clic sur « show explanation » (opt-in uniquement) | `true` / `false` / `null` |
+| `distal_advice_explanation_display_duration_ms` | DistalChoiceScene | Durée d'affichage en ms (opt-in uniquement) | int / `null` |
 
-**Note** : Les colonnes `*_text_id` ne sont conservées que si l'option C de Q-EXP-9 est retenue (enum + id côte à côte).
+### Proximal
+
+| Colonne CSV V1 | Écran / Composant | Comportement source | Valeurs possibles |
+|:---|:---|:---|:---|
+| `proximal_advice_explanation_display_mode` | ProximalScene | Mode d'affichage du bloc | `forced` / `opt-in` / `none` |
+| `proximal_advice_explanation_content_variant` | ProximalScene | Variante éditoriale active | `short` / `long` / `null` |
+| `proximal_advice_explanation_text_id` | ProximalScene | Id du texte chercheur effectivement affiché | id / `null` |
+| `proximal_advice_explanation_clicked` | ProximalScene | Clic sur « show explanation » (opt-in uniquement) | `true` / `false` / `null` |
+| `proximal_advice_explanation_display_duration_ms` | ProximalScene | Durée d'affichage en ms (opt-in uniquement) | int / `null` |
+
+### Motor
+
+| Colonne CSV V1 | Écran / Composant | Comportement source | Valeurs possibles |
+|:---|:---|:---|:---|
+| `motor_advice_explanation_display_mode` | ProximalScene (motor UI) | Mode d'affichage du bloc | `forced` / `opt-in` / `none` |
+| `motor_advice_explanation_content_variant` | ProximalScene (motor UI) | Variante éditoriale active | `short` / `long` / `null` |
+| `motor_advice_explanation_text_id` | ProximalScene (motor UI) | Id du texte chercheur effectivement affiché | id / `null` |
+| `motor_advice_explanation_clicked` | ProximalScene (motor UI) | Clic sur « show explanation » (opt-in uniquement) | `true` / `false` / `null` |
+| `motor_advice_explanation_display_duration_ms` | ProximalScene (motor UI) | Durée d'affichage en ms (opt-in uniquement) | int / `null` |
+
+**Note** : le couple `display_mode + content_variant` couvre l'option C de Q-EXP-9 (enum + id, max traçabilité), enrichi par le tracking opt-in demandé par les chercheurs (DEC-018, R7).
 
 **Correspondance avec le GDD V1** :
-- `distal_advice_explanation_mode` ↔ `ValleyAdviseExplanation` du GDD (« Did the advisor include explanation? Which one? »).
-- `proximal_advice_explanation_mode` ↔ `ForestAdviseExplanation` du GDD.
-- `motor_advice_explanation_mode` : **colonne nouvelle** non présente dans le GDD initial, ajoutée par DEC-017 pour couvrir H8 sur le niveau motor.
+- `distal_advice_explanation_*` ↔ `ValleyAdviseExplanation` du GDD (« Did the advisor include explanation? Which one? »).
+- `proximal_advice_explanation_*` ↔ `ForestAdviseExplanation` du GDD.
+- `motor_advice_explanation_*` : **colonnes nouvelles** non présentes dans le GDD initial, ajoutées par DEC-017 pour couvrir H8 sur le niveau motor.
 
 ---
 
 ## 5. Questions ouvertes
 
-| # | Question | Options | Impact | Urgence |
+### Résolues (échange chercheurs du 2026-05-26, DEC-018)
+
+| # | Décision retenue | Source |
+|:---|:---|:---|
+| Q-EXP-1 | **A — Blockwise** : `display_mode` et `content_variant` pilotés par bloc | Valerian + synthèse Florian |
+| Q-EXP-2 | **A — `none` activable** : couvert par `display_mode = none` (nouvelle dimension Q-EXP-5) | Valerian |
+| Q-EXP-3 | **B — Par bloc** : corpus customisable bloc par bloc | Valerian (flexibilité demandée, low priority) |
+| Q-EXP-4 | **A — 1-to-1 strict** : pas de cross-level | Valerian + synthèse Florian (cf. §6 pour l'alternative évaluée) |
+| Q-EXP-5 | **Nouveau modèle** : introduction du `display_mode` ∈ `forced` / `opt-in` / `none` (orthogonal au `content_variant`). Remplace les options A/B/C/D originales. | Valerian + Mark + synthèse Florian |
+| Q-EXP-7 | **A — 1 par advice (jusqu'à 3)** + layout L/R : motor à gauche, proximal à droite | Valerian |
+| Q-EXP-8 | **B — 2 corpora (human-bot, bot-bot)** : indexation par advisor_type | Valerian + arbitrage Florian |
+| Q-EXP-9 | **C — Enum + id** : maximum de traçabilité, enrichi du tracking opt-in (clic + durée) | Valerian + Mark (tracking) |
+
+### Restant ouvertes
+
+| # | Question | Options / Statut | Impact | Urgence |
 |:---|:---|:---|:---|:---|
-| Q-EXP-1 | Comment piloter quelle version (short / long) est donnée ? | A: par bloc / B: par trial / C: mixte (bloc active, trial tire short/long) | Schéma de config et de log | 🔴 |
-| Q-EXP-2 | Veut-on des blocs où l'explanation est **simplement non donnée** alors même qu'un advisor a été choisi et qu'un advice est donné (mode `none` activable explicitement) ? | A: oui, `none` est un mode pilotable au même titre que short/long / B: non, dès qu'il y a un advice il y a forcément une explanation | Validité expérimentale, design panneau session | 🔴 |
-| Q-EXP-3 | Les contenus des explanations sont-ils **customizables par bloc** ou **identiques pour toute la session** ? | A: par session uniquement (un corpus global) / B: par bloc (un corpus par bloc) / C: hybride (corpus session + overrides par bloc) | Taille et structure du corpus, complexité du panneau session | 🔴 |
-| Q-EXP-4 | Un advice peut-il porter une explanation d'un **autre niveau d'abstraction** (cross-level) ? Ex : motor-advice + explanation distale, comme H8 le sous-entend. | A: non, 1-to-1 / B: oui, n'importe quel level / C: matrice contrôlée | Combinatoire des conditions H8 | 🟡 |
-| Q-EXP-5 | Quand s'affiche l'explanation par rapport à l'advice ? | A: avant l'advice / B: simultané / C: après / D: bouton "voir explication" | UI, timing perception | 🟡 |
-| Q-EXP-6 | L'explanation est-elle skippable ou a-t-elle une durée minimale d'affichage / une validation requise ? | A: skippable libre / B: durée minimale puis skippable / C: lecture obligatoire jusqu'à validation | UX, contrôle exposition | 🟡 |
-| Q-EXP-7 | Si plusieurs advice présents sur un même trial (D rappelé + P + M), combien d'explanations max simultanées ? | A: 1 par advice (jusqu'à 3) / B: 1 globale par trial / C: piloté par config | Surcharge UI, logging | 🟡 |
-| Q-EXP-8 | Différencie-t-on le corpus par **advisor type** (human-bot vs bot-bot) ? Le no-advisor a-t-il des explanations ? | A: corpus unique / B: corpus ×2 (human/bot) / C: corpus ×3 (incl. no-advisor) | Taille du corpus, mapping config | 🟡 |
-| Q-EXP-9 | Format des valeurs CSV `*_advice_explanation` ? | A: enum `none/short/long` / B: id du texte affiché / C: enum + id (deux colonnes) | Traçabilité analytique | 🟡 |
+| Q-EXP-6 | Modalités précises de hide / minimum exposure de l'explication | Reformulée : **UI test à mener** pour valider la possibilité de cacher l'explication et son positionnement no-overlap. Contrainte acquise : pas de recouvrement de la map (TR10) | UX, contrôle exposition | 🟡 |
 | Q-EXP-10 | Localisation du corpus (FR seul vs multilingue) ? | A: FR seul / B: multilingue dès le départ | Structure corpus, taille config | 🟢 |
+
+---
+
+## 6. Alternatives évaluées
+
+### A1 — Cross-level autorisé (Q-EXP-4) — proposition Mark
+
+**Proposition** : autoriser le cross-level **dans un seul sens** : un advice de niveau inférieur peut être accompagné d'une explanation de niveau supérieur (ex : motor-advice + explanation distale), mais jamais l'inverse.
+
+**Justification scientifique** : permettrait de tester si la présence d'explanations de haut niveau modifie l'advice-taking en général. Exemple cité par Mark : « it would be very interesting if people took more motor advice from robots that give higher-level explanations than they did when the same advice is given with lower-level explanations ».
+
+**Statut** : non retenu dans DEC-018 (Valerian + synthèse Florian préfèrent 1-to-1 strict, principe « keep it simple »). Conservé ici comme alternative ré-ouvrable si les premiers résultats expérimentaux le justifient.
+
+### A2 — Pilotage trial-wise (Q-EXP-1) — préférence Mark
+
+**Proposition** : tirage indépendant short/long à chaque trial plutôt qu'au niveau bloc.
+
+**Statut** : non retenu (Valerian + synthèse Florian préfèrent blockwise, principe « keep it simple »). Combinatoire plus riche pour H8 si ré-ouverture future.

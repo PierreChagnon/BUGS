@@ -3,14 +3,14 @@
 > Ce fichier est le résumé condensé de l'état du projet.
 > Objectif : un rôle peut comprendre où en est le projet en lisant CE SEUL FICHIER.
 > Mis à jour après chaque session qui fait avancer le projet.
-> Dernière mise à jour : 2026-05-20
+> Dernière mise à jour : 2026-05-26
 
 ---
 
 ## Vue macro
 
 **Avancement global estimé :** ~60-65% du périmètre fonctionnel GDD
-**Phase actuelle :** Squelette multi-écran en place (toutes les scènes du flow créées). Système audio livré. Reste les briques scientifiques (free/forced choices, explanations, reliability patterns) et la mise en cohérence avec le GDD sur plusieurs points de modèle.
+**Phase actuelle :** Squelette multi-écran en place (toutes les scènes du flow créées). Système audio livré. **Specs fonctionnelles `free-forced-choices` et `explanations-short-long` validées** (DEC-019 + DEC-018, 26/05/26). Restent à produire les specs tech et à implémenter ces briques côté Unity. La spec `reliability patterns` est encore à cadrer côté chercheur, ainsi que plusieurs points de mise en cohérence avec le GDD (modèle de perte de bugs, 4 paths, smooth pan).
 
 ---
 
@@ -96,8 +96,8 @@
 
 | Périmètre GDD | Impact |
 |:---|:---|
-| **Free/forced mechanic** sur les 4 choix (meta/distal/proximal/motor) | Bloque la validité expérimentale des hypothèses GDD. |
-| **Explanations short/long** liées à chaque advice | 🟡 Spec fonc en cours (`Docs/specs/explanations-short-long/spec-fonc.md`, draft du 20/05/26). DEC-017 actée. 10 sous-questions ouvertes (Q-EXP-1 à Q-EXP-10) à remonter au chercheur. |
+| **Free/forced mechanic** sur les 4 choix (meta/distal/proximal/motor) | 🟢 **Spec fonc validée 26/05/26** (`Docs/specs/free-forced-choices/spec-fonc.md`, statut `validé`). DEC-019 + 11 sous-questions résolues + 3 notes intégrées (advisor follows forced, equipment failure overlay, motor passe trial-wise). Q-FF-12 et Q-FF-13 restent ouvertes (non bloquantes). **Spec tech à produire**, puis implémentation Unity. |
+| **Explanations short/long** liées à chaque advice | 🟢 Spec fonc consolidée (`Docs/specs/explanations-short-long/spec-fonc.md`, draft révisé 26/05/26). DEC-017 + DEC-018 actées. 8/10 sous-questions résolues via échange chercheurs (Q-EXP-1, 2, 3, 4, 5, 7, 8, 9). Reste : Q-EXP-6 (UI test à mener) et Q-EXP-10 (localisation, non bloquante). Implémentation : à démarrer après production de la spec tech. |
 | **Smooth camera pan + auto-walk entre trials** | GDD demande transition smooth verticale ; DEC-002 a tranché fade noir → écart à reconfirmer. |
 | **Modèle de perte de bugs** | TDD : "total décrémenté, ratio recalculé". GDD : "1 green bug perdu par cloud par piège". Modèles divergents. |
 | **4 paths visibles (2 par cloud)** | GDD : 4 paths. Code : 2 paths totaux. |
@@ -118,8 +118,10 @@
 | Q-003 | Motor advice avec explanation ? | — | ✅ RÉSOLUE par DEC-017 |
 | Q-004 | Format d'affichage du set de touches | UI + compréhension participant | 🟡 Bloque polish UI |
 | Q-006 | Modèle d'édition des explanations | — | ✅ RÉSOLUE par DEC-017 (session config panel) |
-| Q-EXP-1 à Q-EXP-10 | Sous-questions de cadrage Explanations | Finalisation spec fonc + design panneau session | 🔴/🟡/🟢 (cf. questions-client.md) |
-| — | Free/forced choices : périmètre par bloc | Spec fonc à produire | 🔴 Bloquant validité |
+| Q-EXP-1, 2, 3, 4, 5, 7, 8, 9 | Sous-questions de cadrage Explanations | — | ✅ RÉSOLUES par DEC-018 (2026-05-26) |
+| Q-EXP-6 | Modalités UI hide / no-overlap | UI test à mener avant freeze UI | 🟡 |
+| Q-EXP-10 | Localisation corpus FR/multilingue | Structure config | 🟢 Non bloquante |
+| Q-005 + Q-FF-1..11 | Free/forced choices : périmètre + arbitrages | — | ✅ RÉSOLUE par DEC-019 (26/05/26) — spec fonc `validé`. Q-FF-12 et Q-FF-13 résiduelles 🟡 non bloquantes. |
 | — | Modèle de perte de bugs (1 green/piège/cloud vs total décrémenté) | Cohérence protocole | 🔴 À arbitrer avec chercheur |
 | — | 4 paths visibles vs 2 paths | Cohérence GDD | 🟡 Écart design assumé ? |
 | — | Smooth pan vs fade noir | Cohérence GDD | 🟡 DEC-002 à reconfirmer |
@@ -131,8 +133,8 @@
 
 | Risque | Impact | Statut |
 |:---|:---|:---|
-| **Free/forced choices absents** → hypothèses H1-H8 non testables | Validité expérimentale | 🔴 Non couvert, à cadrer |
-| **Explanations short/long absentes** → H8 non testable | Validité expérimentale | 🟡 Cadrage en cours (DEC-017, spec fonc draft 20/05/26) — 10 sous-questions chercheur à régler |
+| **Free/forced choices : implémentation absente** → hypothèses H1-H8 non testables tant que pas implémentées | Validité expérimentale | 🟡 Cadrage finalisé (DEC-019, spec fonc validée 26/05/26) — implémentation à démarrer, Q-FF-12 et Q-FF-13 résiduelles non bloquantes |
+| **Explanations short/long absentes** → H8 non testable | Validité expérimentale | 🟢 Cadrage finalisé (DEC-017 + DEC-018, spec fonc révisée 26/05/26) — implémentation à démarrer, Q-EXP-6 et Q-EXP-10 non bloquantes |
 | **Modèle de perte de bugs divergent code vs GDD** | Résultats non comparables au protocole | 🔴 À arbitrer |
 | **Reliability pattern non spécifié côté chercheur** | Impossible d'implémenter la manipulation | 🔴 Spec chercheur manquante |
 | State leaking entre trials dans le flow multi-écran | Données recherche corrompues | ✅ Couvert par spec tech |
@@ -145,8 +147,8 @@
 ## Recommandations de priorisation
 
 1. **Débloquer les questions client** Q-002 / Q-003 / Q-004 (motor advice) → action chef de projet, déblocage immédiat.
-2. **Cadrer le free/forced choice mechanic** → relève de l'analyse fonctionnelle (`Docs/roles/analyse-fonctionnelle.md`). Bloquant pour la validité.
-3. **Cadrer les explanations short/long** (contenu, mapping aux niveaux distal/proximal/motor, modèle d'édition côté chercheur).
+2. **Produire la spec tech `free-forced-choices`** (cadrage fonctionnel finalisé par DEC-019 le 26/05/26 — 11 sous-questions résolues, Notes 1/2/3 intégrées). Périmètre tech : 8 nouveaux champs `BlockConfig`, 14 nouvelles colonnes `trial_responses`, instrumentation des scènes Advisor/Distal/Proximal, overlay « Equipment failure », masquage par fog of war permanent du cloud non imposé.
+3. **Produire la spec tech `explanations-short-long`** (cadrage fonctionnel finalisé par DEC-018 le 26/05/26 — 8/10 sous-questions résolues). Périmètre tech : 2 dimensions `display_mode` × `content_variant` par advice, 15 colonnes CSV, 2 corpora par bloc indexés par advisor_type, tracking opt-in, contrainte UI no-overlap.
 4. **Arbitrer le modèle de perte de bugs** avec le chercheur (1 green/cloud/piège vs total décrémenté).
 5. **Confirmer ou revisiter les écarts GDD assumés** : 4 paths vs 2 paths, smooth pan vs fade noir.
 6. **Spec reliability pattern** (fréquence, distribution, déclenchement) — à demander au chercheur.

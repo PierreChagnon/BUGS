@@ -79,14 +79,18 @@
   - A : **Forced au niveau bloc** uniquement (un bloc = tout forced ou tout free sur un niveau donné) → impact : config simple par bloc, contraste expérimental plus net, moins d'aléatoire
   - B : **Forced au niveau trial** (chaque trial peut indépendamment forcer ou libérer un choix) → impact : config par trial plus lourde, plus de combinaisons testables, randomisation plus fine
   - C : **Mixte** : meta-choice forced/free au bloc, distal/proximal/motor au trial → impact : plus proche du protocole multi-niveaux, complexité moyenne
-- **Statut :** RÉPONDU PARTIELLEMENT
-- **Réponse :** Notes orales chercheur (2026-05-20). Modèle retenu, plus fin que les 3 options proposées :
-  - **Meta (advisor)** : toggle bloc ON/OFF, pas de proba ; le chercheur définit l'option imposée
-  - **Distal (vallée)** : forced bloc-wise ; quand forced, proba `distal_forced_optimal_probability` que la vallée imposée soit l'optimale
-  - **Proximal (cloud)** : pas de toggle ; proba `proximal_forced_probability` au bloc, tirage par trial
-  - **Motor (set de touches)** : toggle bloc ON/OFF ; quand ON, le même set est utilisé pour tous les trials du bloc
-  - Détails et règles : `Docs/specs/free-forced-choices/spec-fonc.md` (draft)
-  - Sous-questions résiduelles : voir Q-FF-1 à Q-FF-9 ci-dessous
+- **Statut :** RÉPONDU
+- **Réponse :** Cadrage finalisé via deux passes :
+  - **2026-05-20** — Notes orales chercheur posent le modèle initial (toggles meta/distal/motor block-wise, proxima trial-wise).
+  - **2026-05-26** — Consolidation post-arbitrage chercheur (Q-FF-1 à Q-FF-9 + 3 notes complémentaires) :
+    - **Meta** : toggle déterministe `advisor_forced` + dropdown explicite `advisor_forced_value ∈ {none, human, robot}`.
+    - **Distal** : toggle déterministe `distal_forced` + valeur binaire `distal_forced_optimal_probability ∈ {0, 1}`.
+    - **Proximal** : proba trial-wise `proximal_forced_probability ∈ [0, 1]` + valeur binaire `proximal_forced_optimal_probability ∈ {0, 1}`.
+    - **Motor** : passage block-wise → trial-wise. Proba `motor_forced_probability ∈ [0, 1]` + set fixé `motor_forced_set` appliqué aux trials forced uniquement.
+    - **Note 1** : « Advisor follows forced » — l'advice est subordonné au forced aux 3 niveaux, strict même en unreliable. La reliability ne s'exprime que sur les trials free.
+    - **Note 2** : overlay diégétique « Equipment failure » sur trials forced + advisor=none.
+  - Spec fonc validée (statut `validé`) : `Docs/specs/free-forced-choices/spec-fonc.md`.
+  - Décisions consolidées dans DEC-019 (cf. `decisions.md`).
 
 ### Q-FF-1 — Advisor forced : qui choisit l'option imposée ?
 - **Posée le :** 2026-05-20
@@ -97,8 +101,8 @@
   - A : Fixée explicitement par le chercheur dans `BlockConfig` → impact : config bloc plus riche, contrôle expérimental fin
   - B : Tirée aléatoirement par le système au début du bloc (équiprobable ou pondérée) → impact : moins de contrôle, plus d'aléatoire
   - C : Le chercheur choisit un sous-ensemble (ex : "tirer parmi human ou robot") → impact : compromis
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** **Option A** (2026-05-26). Le chercheur sélectionne explicitement l'option imposée via un dropdown `{none, human, robot}` dans le session config panel, par bloc. Tranché par DEC-019 et `Docs/specs/free-forced-choices/spec-fonc.md` (§2.1 R1).
 
 ### Q-FF-2 — Distal forced : granularité du toggle (bloc seul vs bloc + trial)
 - **Posée le :** 2026-05-20
@@ -109,8 +113,8 @@
   - A : Flag bloc uniquement (tout bloc-wide) → impact : simple, cohérent avec le distal-choice qui est lui-même block-wise (DEC-001)
   - B : Flag + proba trial-wise → impact : plus de combinaisons, plus complexe
   - C : Proba uniquement (pas de flag binaire) → impact : uniforme avec proximal
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** **Option A** (2026-05-26). Flag binaire au bloc — un bloc n'a qu'un distal-choice, un tirage probabiliste trial-wise n'a pas de sens. Paramètre séparé `distal_forced_optimal_probability ∈ {0, 1}` (valeur binaire, cf. Note 3) pour l'optimalité de la vallée imposée. Tranché par DEC-019 et `Docs/specs/free-forced-choices/spec-fonc.md` (§2.2 R5).
 
 ### Q-FF-3 — Proximal forced : neutralisation visuelle du cloud non retenu
 - **Posée le :** 2026-05-20
@@ -121,8 +125,8 @@
   - A : L'autre cloud n'est pas instancié (1 seul cloud spawné) → impact : plus simple, génération de map différente
   - B : L'autre cloud est instancié mais masqué (fog of war permanent dessus) → impact : génération de map identique, masquage à gérer
   - C : L'autre cloud est visible mais non collectable → impact : ambigu pour le participant, déconseillé
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** **Option B** (2026-05-26). Les deux clouds restent instanciés (spawner inchangé). Le cloud non imposé est masqué par fog of war permanent (non révélable, non collectable). Détails et implémentation : `Docs/specs/free-forced-choices/spec-fonc.md` (§2.3). Mécanique exacte de masquage à préciser côté spec tech.
 
 ### Q-FF-4 — Proximal forced : quel cloud est imposé ?
 - **Posée le :** 2026-05-20
@@ -134,8 +138,8 @@
   - B : Toujours l'advisé (si advice donné) → impact : forced devient un cas particulier d'advice obligatoire
   - C : Random équiprobable → impact : pas de biais, mais variabilité
   - D : Configurable par bloc via une proba `proximal_forced_optimal_probability` (analogue distal) → impact : symétrie avec distal, plus complexe
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** **Option D** (2026-05-26). Paramètre `proximal_forced_optimal_probability ∈ {0, 1}` (valeur binaire, cf. Note 3) au niveau bloc, en symétrie avec `distal_forced_optimal_probability`. 1 → cloud optimal toujours imposé, 0 → cloud sous-optimal toujours imposé. Tranché par DEC-019 et `Docs/specs/free-forced-choices/spec-fonc.md` (§2.3 R11).
 
 ### Q-FF-5 — Distal forced sans advisor : conserver la mécanique ?
 - **Posée le :** 2026-05-20
@@ -146,8 +150,8 @@
   - A : Oui, distal forced reste actif (la vallée est imposée même sans advisor pour l'expliquer) → impact : condition expérimentale "agency annulée sans information"
   - B : Non, distal forced est ignoré si pas d'advisor → impact : couplage agency/information
   - C : Distal forced reste actif mais l'optimalité forcée joue un rôle différent à clarifier → impact : à préciser
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** **Option A étendue** (2026-05-26). Distal forced **ET** proximal forced restent actifs même sans advisor — condition expérimentale "agency annulée sans information" préservée. Pour contextualiser narrativement la contrainte en l'absence d'advisor, un overlay diégétique « **Equipment failure** » est affiché à l'écran (cf. Note 2). Tranché par DEC-019 et `Docs/specs/free-forced-choices/spec-fonc.md` (§2.2 R9 et TR6 réécrite).
 
 ### Q-FF-6 — Motor forced × motor-advice : cohérence
 - **Posée le :** 2026-05-20
@@ -158,8 +162,8 @@
   - A : Oui, advice toujours cohérent avec le set imposé (sauf si advice unreliable) → impact : cohérent, mais redondant si fiabilité=100%
   - B : Oui, advice toujours montré, mais peut être unreliable et montrer un autre set → impact : conserve la combinatoire reliability orthogonale
   - C : Motor-advice est désactivé quand motor forced (redondant) → impact : simplifie l'UI, perd de la combinatoire
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** **Option A renforcée par Note 1** (2026-05-26). Motor-advice obligatoirement cohérent avec le set imposé sur les trials forced, **strict même en unreliable** (« advisor follows forced », TR3 réécrite). La reliability ne s'exprime que sur les trials free du bloc. Tranché par DEC-019 et `Docs/specs/free-forced-choices/spec-fonc.md` (§2.4 R20 et TR3).
 
 ### Q-FF-7 — Validation des choix imposés (advisor/distal)
 - **Posée le :** 2026-05-20
@@ -170,8 +174,8 @@
   - A : Clic explicite requis → impact : engage le participant, maintient une "pseudo-agency"
   - B : Auto-validation après délai configurable → impact : neutralise complètement l'agency, plus rapide
   - C : Clic explicite + délai minimum d'exposition (lecture forcée) → impact : compromis
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** **Option A** (2026-05-26). Clic explicite requis sur l'option imposée pour valider et passer à la suite. Préserve un acte moteur d'engagement même en mode forced. Tranché par DEC-019 et `Docs/specs/free-forced-choices/spec-fonc.md` (§2.1 et §2.2).
 
 ### Q-FF-8 — Feedback explicite "choix imposé" au participant
 - **Posée le :** 2026-05-20
@@ -182,8 +186,8 @@
   - A : Pas de bandeau, UI seule (options grisées) → impact : sémantique implicite, moins de biais potentiel
   - B : Bandeau systématique → impact : transparent, mais peut biaiser la réponse "sense of agency"
   - C : Bandeau configurable par le chercheur (par bloc) → impact : permet les deux conditions
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** **Hybride** (2026-05-26). Par défaut, pas de bandeau textuel — seule l'UI signale visuellement la contrainte (options grisées, cloud masqué par fog of war). **Exception unique** : quand un trial est forced ET que l'advisor est `none`, un overlay diégétique « **Equipment failure** » est affiché à l'écran (Note 2). Justifie narrativement la contrainte en l'absence d'advisor pour la contextualiser. Tranché par DEC-019 et `Docs/specs/free-forced-choices/spec-fonc.md` (TR6 réécrite).
 
 ### Q-FF-9 — Motor forced : comment est défini le set imposé ?
 - **Posée le :** 2026-05-20
@@ -194,8 +198,8 @@
   - A : Fixé explicitement par le chercheur dans `BlockConfig` → impact : contrôle expérimental fin
   - B : Tiré aléatoirement une seule fois au début du bloc → impact : moins de contrôle, plus d'aléatoire
   - C : Le chercheur choisit un sous-ensemble parmi lequel tirer → impact : compromis
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** **Option A étendue par Note 3** (2026-05-26). `motor_forced_set ∈ {QZD, FTH, KOM}` fixé par le chercheur via dropdown dans le session config panel. **Évolution majeure** : motor passe de block-wise à trial-wise. Le set imposé s'applique **uniquement aux trials forced** du bloc (selon `motor_forced_probability ∈ [0, 1]`) ; les trials free du même bloc conservent le tirage aléatoire par trial. Tranché par DEC-019 et `Docs/specs/free-forced-choices/spec-fonc.md` (§2.4 R17–R20).
 
 ### Q-006 — Explanations associées aux advice (short/long)
 - **Posée le :** 2026-05-12
@@ -302,8 +306,8 @@
   - A : **Par bloc** — un mode unique pour tous les trials du bloc → simple, contraste expérimental net
   - B : **Par trial** — tirage indépendant à chaque trial → combinatoire plus riche pour H8
   - C : **Mixte** — bloc active la feature, trial tire short vs long → compromis lisibilité/richesse
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** Option A — **Blockwise**. `display_mode` et `content_variant` sont définis par bloc. Tranché par DEC-018 (échange Florian / Valerian / Mark, principe « keep it simple »). Date : 2026-05-26. Note : Mark préférait trial-wise (option B), consigné comme alternative évaluée dans la spec fonc §6.
 
 ### Q-EXP-2 — Explanations : mode `none` activable même quand un advisor est choisi ?
 - **Posée le :** 2026-05-20
@@ -313,8 +317,8 @@
 - **Options :**
   - A : **Oui** — `none` est un mode pilotable au même titre que short/long → permet la condition contrôle "advice sans explanation"
   - B : **Non** — dès qu'il y a un advice il y a forcément une explanation → simplifie, mais on perd la condition contrôle
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** Option A — **`none` activable**. Couvert par la nouvelle dimension `display_mode = none` introduite via Q-EXP-5 (cf. DEC-018). Valerian : « We need the possibility to have advice without explanation ». Date : 2026-05-26.
 
 ### Q-EXP-3 — Explanations : corpus par bloc ou par session ?
 - **Posée le :** 2026-05-20
@@ -325,8 +329,8 @@
   - A : **Par session uniquement** — un corpus global (3 advice × 2 versions = 6 textes par session) → simple
   - B : **Par bloc** — un corpus par bloc → plus de flexibilité expérimentale, panneau plus dense
   - C : **Hybride** — corpus session par défaut, possibilité d'override par bloc → compromis
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** Option B — **Par bloc**. Valerian a marqué une préférence pour davantage de flexibilité (« If you give me more flexibility, I'll take it ») tout en notant que ce n'est pas une priorité scientifique forte. Arbitrage Florian : donner la flexibilité dès le départ. Combiné avec Q-EXP-8 (option B, 2 corpora par advisor type) → 12 textes par bloc (3 advice × 2 variants × 2 advisor types). Tranché par DEC-018. Date : 2026-05-26.
 
 ### Q-EXP-4 — Explanations : cross-level autorisé ?
 - **Posée le :** 2026-05-20
@@ -337,8 +341,8 @@
   - A : **Non, 1-to-1** — chaque advice porte uniquement sa propre explanation
   - B : **Oui, n'importe quel level** — toutes les combinaisons sont possibles
   - C : **Matrice contrôlée** — seul un sous-ensemble explicite de combinaisons est autorisé
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** Option A — **1-to-1 strict** (TR8). Valerian : « only a motor explanation can accompany a motor advice, etc. ». Tranché par DEC-018. Date : 2026-05-26. Note : Mark proposait un cross-level one-way (lower-level advice + higher-order explanation) avec une justification scientifique forte (tester l'effet du framing AI sur l'advice-taking). Alternative consignée dans la spec fonc §6 (A1), ré-ouvrable si les premiers résultats expérimentaux le justifient.
 
 ### Q-EXP-5 — Explanations : timing d'affichage relatif à l'advice ?
 - **Posée le :** 2026-05-20
@@ -350,20 +354,20 @@
   - B : **Simultané** avec l'advice
   - C : **Après** l'advice
   - D : **Bouton "voir explication"** activable par le participant
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** **Nouveau modèle** : refonte de la question en une dimension `display_mode` à 3 valeurs : `forced` (affichage d'office, pas de bouton), `opt-in` (bouton « show explanation » activable par le participant), `none` (aucune explanation). Mark et Valerian convergent sur l'intérêt scientifique du bouton opt-in (mesure du besoin d'explication par le participant). Mark a également demandé le tracking du clic et de la durée d'affichage (acté : colonnes `*_explanation_clicked` et `*_explanation_display_duration_ms`). Tranché par DEC-018. Date : 2026-05-26.
 
 ### Q-EXP-6 — Explanations : skippable / lecture obligatoire ?
 - **Posée le :** 2026-05-20
 - **Origine :** Analyse fonctionnelle, chantier Explanations short/long
 - **Bloque :** UX, contrôle de l'exposition.
-- **Question :** L'explanation est-elle skippable, a-t-elle une durée minimale d'affichage, ou une validation requise ?
-- **Options :**
-  - A : **Skippable libre** — le participant peut passer à tout moment
-  - B : **Durée minimale puis skippable** — exposition garantie avant de pouvoir continuer
-  - C : **Lecture obligatoire jusqu'à validation** — bouton "j'ai lu" requis
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Question (reformulée 2026-05-26) :** Modalités précises de hide et positionnement de l'explication, à valider en **UI test**. Contrainte acquise : pas de recouvrement de la map (TR10 / DEC-018). Compromis Valerian (« stays on screen until the trial is complete ») + Mark (« they can hide the explanation after a while ») → l'explication doit pouvoir être cachée par le participant, sans la masquer derrière la map.
+- **Options résiduelles :**
+  - A : durée minimale d'exposition obligatoire avant possibilité de cacher
+  - B : hide libre dès l'affichage
+  - C : positionnement fixe (encart latéral) sans hide
+- **Statut :** EN ATTENTE — UI test à mener
+- **Réponse partielle :** Décision reportée à un UI test ; contrainte TR10 (no-overlap) actée. Date : 2026-05-26.
 
 ### Q-EXP-7 — Explanations : nombre max simultanées sur un trial ?
 - **Posée le :** 2026-05-20
@@ -374,8 +378,8 @@
   - A : **1 par advice** (jusqu'à 3) → fidèle au design distinct par niveau
   - B : **1 globale par trial** → moins de surcharge UI, mais perd la spécificité par niveau
   - C : **Piloté par config** → cas par cas
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** Option A — **1 par advice (jusqu'à 3)**. Valerian : « we also want to test the combined effect of advices ». Layout proposé et acté : motor à gauche, proximal à droite (TR9). Tranché par DEC-018. Date : 2026-05-26.
 
 ### Q-EXP-8 — Explanations : corpus différencié par advisor type ?
 - **Posée le :** 2026-05-20
@@ -386,8 +390,8 @@
   - A : **Corpus unique** quel que soit l'advisor type → simple
   - B : **Corpus ×2** (human-bot / bot-bot) → permet de tester l'effet du ton
   - C : **Corpus ×3** (human-bot / bot-bot / no-advisor) → corpus complet, plus volumineux
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** Option B — **2 corpora (human-bot, bot-bot)**. Valerian a marqué un intérêt scientifique : « we have hypotheses about the effect of the "AI syntax/language" on recommendations ». Arbitrage Florian : retenir B (le no-advisor n'a pas d'advice donc pas d'explanation, cohérent avec R1). 12 textes par bloc au total (3 advice × 2 variants × 2 advisor types). Tranché par DEC-018 (TR13). Date : 2026-05-26.
 
 ### Q-EXP-9 — Explanations : format des valeurs CSV `*_advice_explanation` ?
 - **Posée le :** 2026-05-20
@@ -398,8 +402,8 @@
   - A : **Enum `none/short/long`** uniquement → simple, suffit pour H8 si corpus est figé
   - B : **Id du texte affiché** → permet de retrouver le contenu exact
   - C : **Enum + id (deux colonnes)** → maximum de traçabilité
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU
+- **Réponse :** Option C — **Enum + id**. Valerian : « Maximum traceability! ». Enrichi du tracking opt-in (clic + durée d'affichage) demandé par Mark. Schéma final : 5 colonnes par advice × 3 advices = 15 colonnes (`*_display_mode`, `*_content_variant`, `*_text_id`, `*_clicked`, `*_display_duration_ms`). Tranché par DEC-018. Date : 2026-05-26.
 
 ### Q-EXP-10 — Explanations : localisation du corpus ?
 - **Posée le :** 2026-05-20
@@ -416,4 +420,8 @@
 
 ## Questions répondues
 
-_(voir Q-003 et Q-006 ci-dessus, marquées RÉPONDU le 2026-05-20)_
+- **Q-001, Q-003, Q-006** : RÉPONDU (cf. ci-dessus, 2026-03-16 à 2026-05-20)
+- **Q-005, Q-FF-1 à Q-FF-9** : RÉPONDU le 2026-05-26 via DEC-019 (consolidation post-arbitrage chercheur sur free/forced choices, intégration des Notes 1/2/3). Spec fonc passée en statut `validé`.
+- **Q-EXP-1, 2, 3, 4, 5, 7, 8, 9** : RÉPONDU le 2026-05-26 via DEC-018 (échange Florian / Valerian / Mark)
+- **Q-EXP-6** : reformulée — UI test à mener (cf. ci-dessus, 2026-05-26)
+- **Q-EXP-10** : EN ATTENTE — jamais abordée dans l'échange mail (localisation FR/multilingue)
