@@ -242,7 +242,6 @@ public class PathSpawner : MonoBehaviour
             spawned++;
         }
 
-        Debug.Log($"[PathSpawner] Quads instanciés: {spawned} (suboptimal={isSuboptimal}, originWorld={reg.originWorld}, cellSize={reg.cellSize}).");
     }
 
     // ══════════════════════════════════════════════════════════════

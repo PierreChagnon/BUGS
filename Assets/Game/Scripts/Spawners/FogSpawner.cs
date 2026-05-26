@@ -94,6 +94,5 @@ public class FogSpawner : MonoBehaviour
         fog.transform.localScale = new Vector3(quadW, quadH, 1f);
         fog.SetActive(true);
 
-        Debug.Log($"[FogSpawner] Brouillard instancié (center={center}, scale={quadW}x{quadH}, margin={fc.MarginWorldX}/{fc.MarginWorldY}).");
     }
 }

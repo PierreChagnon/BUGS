@@ -35,10 +35,10 @@ public class DistalChoiceUI : MonoBehaviour
 
     public bool AdviceVisible { get; private set; }
     public bool AdviceReliable { get; private set; }
-    public ValleyChoice AdvisedValley { get; private set; } = ValleyChoice.None;
-    public ValleyChoice BestValley { get; private set; } = ValleyChoice.None;
-    public BugCloudSample ValleyAScanData { get; private set; }
-    public BugCloudSample ValleyBScanData { get; private set; }
+    public string AdvisedScanSide { get; private set; }
+    public string BestScanSide { get; private set; }
+    public BugCloudSample LeftScanData { get; private set; }
+    public BugCloudSample RightScanData { get; private set; }
 
     bool _autoScanBindingAttempted;
     RuntimeCloudScanBinding _autoValleyAScan;
@@ -59,35 +59,12 @@ public class DistalChoiceUI : MonoBehaviour
 
         AdviceVisible = flow.State != null && flow.State.distal_advice_visible;
         AdviceReliable = flow.State != null && flow.State.distal_advice_reliable;
-        AdvisedValley = flow != null && flow.State != null ? flow.State.distal_advice_choice : ValleyChoice.None;
-        BestValley = flow != null && flow.State != null ? flow.State.distal_best_valley : ValleyChoice.None;
-        BugCloudPairData distalScans = BugCloudGenerationUtility.GenerateRepresentativeScan(
-            flow.CurrentBlock.distal_scene,
-            BestValley);
-        ValleyAScanData = distalScans.firstCloud;
-        ValleyBScanData = distalScans.secondCloud;
+        AdvisedScanSide = flow.State != null ? flow.State.distal_advice_choice : null;
+        BestScanSide = flow.State != null ? flow.State.distal_best_valley : null;
+        BugCloudPairData distalScans = flow.GenerateCurrentDistalScans();
+        LeftScanData = distalScans.firstCloud;
+        RightScanData = distalScans.secondCloud;
 
-        Debug.Log(
-            "[DistalChoiceUI] Refresh DistalScene | " +
-            $"advisorChoice={FlowValueConverters.ToApiValue(flow.State.advisor_choice)} | " +
-            $"adviceVisible={AdviceVisible} | adviceReliable={AdviceReliable} | " +
-            $"bestValley={FlowValueConverters.ToApiValue(BestValley)} | " +
-            $"advisedValley={FlowValueConverters.ToApiValue(AdvisedValley)} | " +
-            $"distalScene={FormatDistalSceneConfig(flow.CurrentBlock.distal_scene)} | " +
-            $"scanGap={distalScans.ratioGap:0.000}",
-            this);
-        Debug.Log(
-            "[DistalChoiceUI] Valley A config | " +
-            FormatMapGenConfig(flow.CurrentBlock.valley_a) + " | " +
-            $"expectedGreen={ComputeExpectedGreenBugs(flow.CurrentBlock.valley_a):0.00} | " +
-            $"scan={FormatSample(ValleyAScanData)}",
-            this);
-        Debug.Log(
-            "[DistalChoiceUI] Valley B config | " +
-            FormatMapGenConfig(flow.CurrentBlock.valley_b) + " | " +
-            $"expectedGreen={ComputeExpectedGreenBugs(flow.CurrentBlock.valley_b):0.00} | " +
-            $"scan={FormatSample(ValleyBScanData)}",
-            this);
 
         if (_titleText != null)
             _titleText.text = "Choix distal";
@@ -96,28 +73,14 @@ public class DistalChoiceUI : MonoBehaviour
             _advisorChoiceText.text = $"Advisor choisi: {FlowValueConverters.ToApiValue(flow.State.advisor_choice)}";
 
         if (_valleyAText != null)
-            _valleyAText.text = BuildValleyDescription("Vallee A", flow.CurrentBlock.valley_a);
+            _valleyAText.text = "Scan gauche";
 
         if (_valleyBText != null)
-            _valleyBText.text = BuildValleyDescription("Vallee B", flow.CurrentBlock.valley_b);
+            _valleyBText.text = "Scan droit";
 
         UpdateAdviceIndicators();
-        ApplyValleyScan(ValleyAScanData, _valleyAScanView, ref _autoValleyAScan);
-        ApplyValleyScan(ValleyBScanData, _valleyBScanView, ref _autoValleyBScan);
-    }
-
-    static string BuildValleyDescription(string label, MapGenConfig config)
-    {
-        if (config == null)
-            return $"{label}\nConfig indisponible";
-
-        float expectedGreenBugs = ComputeExpectedGreenBugs(config);
-
-        return
-            $"{label}\n" +
-            $"Bugs verts attendus: {expectedGreenBugs:0.0}\n" +
-            $"Bugs totaux: {config.min_total_bugs}-{config.max_total_bugs} | Ratio vert: {config.min_green_ratio:0.00}-{config.max_green_ratio:0.00}\n" +
-            $"Pieges: {config.trap_count} | Brouillard: {config.fog_probability:0.00}";
+        ApplyValleyScan(LeftScanData, _valleyAScanView, ref _autoValleyAScan);
+        ApplyValleyScan(RightScanData, _valleyBScanView, ref _autoValleyBScan);
     }
 
     static float ComputeExpectedGreenBugs(MapGenConfig config)
@@ -137,26 +100,18 @@ public class DistalChoiceUI : MonoBehaviour
     {
         if (explicitScanView != null)
         {
-            Debug.Log(
-                $"[DistalChoiceUI] Applying scan through explicit view '{explicitScanView.name}' | {FormatSample(scanData)}",
-                explicitScanView);
             explicitScanView.Apply(scanData);
             return;
         }
 
         EnsureAutomaticScanBindings();
-        Debug.Log(
-            $"[DistalChoiceUI] Applying scan through auto binding | {FormatSample(scanData)} | " +
-            $"greenPS={(automaticScanBinding.greenParticles != null ? automaticScanBinding.greenParticles.name : "null")} | " +
-            $"redPS={(automaticScanBinding.redParticles != null ? automaticScanBinding.redParticles.name : "null")}",
-            this);
         automaticScanBinding.Apply(scanData);
     }
 
     void UpdateAdviceIndicators()
     {
-        bool showValleyAIndicator = AdviceVisible && AdvisedValley == ValleyChoice.A;
-        bool showValleyBIndicator = AdviceVisible && AdvisedValley == ValleyChoice.B;
+        bool showValleyAIndicator = AdviceVisible && AdvisedScanSide == DistalScanSide.Left;
+        bool showValleyBIndicator = AdviceVisible && AdvisedScanSide == DistalScanSide.Right;
         AdvisorType advisorType = GetAdvisorType();
 
         if (_valleyAAdviceIndicator != null)
@@ -167,12 +122,6 @@ public class DistalChoiceUI : MonoBehaviour
 
         SetAdvisorBadge(_valleyAAdviceIndicator, showValleyAIndicator, advisorType);
         SetAdvisorBadge(_valleyBAdviceIndicator, showValleyBIndicator, advisorType);
-
-        Debug.Log(
-            "[DistalChoiceUI] UpdateAdviceIndicators | " +
-            $"adviceVisible={AdviceVisible} | advisedValley={FlowValueConverters.ToApiValue(AdvisedValley)} | " +
-            $"showA={showValleyAIndicator} | showB={showValleyBIndicator}",
-            this);
     }
 
     void SetAdvisorBadge(GameObject indicatorRoot, bool adviceVisible, AdvisorType advisorType)
@@ -190,10 +139,9 @@ public class DistalChoiceUI : MonoBehaviour
 
     void SetDescendantActive(Transform root, string childName, bool isActive)
     {
-        Debug.Log($"[DistalChoiceUI] SetDescendantActive | root={root.name} | childName={childName} | isActive={isActive}", this);
         GameObject child = FindDescendant(root, childName);
         if (child != null)
-            child.SetActive(isActive); Debug.Log("[DistaleChoiceUI] set active: " + child.name);
+            child.SetActive(isActive);
     }
 
     GameObject FindDescendant(Transform root, string childName)
@@ -257,10 +205,6 @@ public class DistalChoiceUI : MonoBehaviour
                 rightGroups.Add(group);
         }
 
-        Debug.Log(
-            $"[DistalChoiceUI] Auto-bind candidate groups | total={candidateGroups.Count} | left={leftGroups.Count} | right={rightGroups.Count}",
-            this);
-
         _autoValleyAScan = BuildAutomaticBinding(leftGroups, "A");
         _autoValleyBScan = BuildAutomaticBinding(rightGroups, "B");
     }
@@ -274,8 +218,6 @@ public class DistalChoiceUI : MonoBehaviour
         }
 
         groups.Sort((a, b) => b.anchoredPosition.y.CompareTo(a.anchoredPosition.y));
-        Debug.Log(
-            $"[DistalChoiceUI] Auto-bind valley {valleyLabel} -> group '{groups[0].name}' at x={groups[0].anchoredPosition.x:0.##}, y={groups[0].anchoredPosition.y:0.##}");
         return BuildCloudBinding(groups[0]);
     }
 
@@ -341,11 +283,11 @@ public class DistalChoiceUI : MonoBehaviour
 
     public void OnChooseValleyA()
     {
-        FlowController.Instance?.OnValleyChosen(ValleyChoice.A);
+        FlowController.Instance?.OnValleyChosen(DistalScanSide.Left);
     }
 
     public void OnChooseValleyB()
     {
-        FlowController.Instance?.OnValleyChosen(ValleyChoice.B);
+        FlowController.Instance?.OnValleyChosen(DistalScanSide.Right);
     }
 }

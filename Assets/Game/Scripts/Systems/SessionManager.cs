@@ -138,7 +138,6 @@ public class SessionManager : MonoBehaviour
             randomizationSeed = GenerateSeed();
 
         registry.SetRoundSeed(randomizationSeed);
-        Debug.Log($"[SessionManager] roundSeed={randomizationSeed}");
     }
 
     static long GenerateSeed()

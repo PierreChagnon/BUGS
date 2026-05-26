@@ -199,8 +199,9 @@ public class PlayerSessionState
     public ValleyChoice valley_choice = ValleyChoice.None;
     public bool distal_advice_visible;
     public bool distal_advice_reliable;
-    public ValleyChoice distal_advice_choice = ValleyChoice.None;
-    public ValleyChoice distal_best_valley = ValleyChoice.None;
+    public string distal_advice_choice;
+    public string distal_best_valley;
+    public string distal_scan_choice;
     public int green_bugs_accumulated;
 }
 
@@ -221,6 +222,7 @@ public class TrialResponseRow
     public bool distal_advice_reliable;
     public string distal_advice_choice;
     public string distal_best_valley;
+    public string distal_scan_choice;
     public DistalSceneConfig distal_scene;
     public int trap_count;
     public int min_distance;
@@ -324,5 +326,16 @@ public static class FlowValueConverters
             default:
                 return AdvisorType.None;
         }
+    }
+}
+
+public static class DistalScanSide
+{
+    public const string Left = "left";
+    public const string Right = "right";
+
+    public static string Opposite(string side)
+    {
+        return side == Left ? Right : Left;
     }
 }

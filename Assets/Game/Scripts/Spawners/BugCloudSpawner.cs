@@ -78,7 +78,6 @@ public class BugCloudSpawner : MonoBehaviour
         int chosenD = candidateDs[rng.Next(0, candidateDs.Count)];
         var validRing = GetRingCells(playerCell, chosenD);
         validRing.RemoveAll(c => !registry.InBounds(c) || c == playerCell); // On enlève les cases hors-grille et la case du joueur
-        Debug.Log($"[BugCloudSpawner] Couronne D={chosenD} a {validRing.Count} cases valides après filtrage.");
 
         // Choisir 2 cases distinctes au hasard dans la couronne valide
         // Il faut une case plutot à gauche et une plutot à droite pour éviter qu'elles soient trop proches
@@ -157,7 +156,6 @@ public class BugCloudSpawner : MonoBehaviour
             GameManager.Instance.RegisterClouds(left, right);
         }
 
-        Debug.Log($"[BugCloudSpawner] D={chosenD}  A={cellA}  B={cellB}");
     }
 
 

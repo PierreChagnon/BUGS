@@ -39,75 +39,125 @@ public static class BugCloudGenerationUtility
         if (rng == null)
             rng = new System.Random();
 
-        int minTotalBugs = Mathf.Min(config.min_total_bugs, config.max_total_bugs);
-        int maxTotalBugs = Mathf.Max(config.min_total_bugs, config.max_total_bugs);
-        int totalBugs = rng.Next(minTotalBugs, maxTotalBugs + 1);
-
-        float minGreenRatio = Mathf.Min(config.min_green_ratio, config.max_green_ratio);
-        float maxGreenRatio = Mathf.Max(config.min_green_ratio, config.max_green_ratio);
-        float gapMin = Mathf.Max(0f, Mathf.Min(config.gap_min, config.gap_max));
-        float gapMax = Mathf.Max(gapMin, Mathf.Max(config.gap_min, config.gap_max));
-
-        float ratio1 = Mathf.Lerp(minGreenRatio, maxGreenRatio, (float)rng.NextDouble());
-        float sampledGap = Mathf.Lerp(gapMin, gapMax, (float)rng.NextDouble());
-        float ratio2 = rng.NextDouble() < 0.5
-            ? ratio1 + sampledGap
-            : ratio1 - sampledGap;
-
-        ratio1 = Mathf.Clamp01(ratio1);
-        ratio2 = Mathf.Clamp01(ratio2);
-
-        var firstCloud = new BugCloudSample { totalBugs = totalBugs, greenRatio = ratio1 };
-        var secondCloud = new BugCloudSample { totalBugs = totalBugs, greenRatio = ratio2 };
+        BugCloudPairData orderedPair = GenerateOrderedPair(
+            config.min_total_bugs,
+            config.max_total_bugs,
+            config.min_green_ratio,
+            config.max_green_ratio,
+            config.gap_min,
+            config.gap_max,
+            rng);
 
         if (rng.NextDouble() < 0.5)
-            return new BugCloudPairData { firstCloud = firstCloud, secondCloud = secondCloud, ratioGap = Mathf.Abs(ratio1 - ratio2) };
+            return orderedPair;
 
-        return new BugCloudPairData { firstCloud = secondCloud, secondCloud = firstCloud, ratioGap = Mathf.Abs(ratio1 - ratio2) };
+        return new BugCloudPairData
+        {
+            firstCloud = orderedPair.secondCloud,
+            secondCloud = orderedPair.firstCloud,
+            ratioGap = orderedPair.ratioGap
+        };
     }
 
-    public static BugCloudPairData GenerateRepresentativeScan(DistalSceneConfig config, ValleyChoice bestValley)
+    public static BugCloudPairData GenerateDistalScanPair(DistalSceneConfig config, string bestScanSide, System.Random rng)
     {
         if (config == null)
             return default;
 
-        int minTotalBugs = Mathf.Min(config.min_total_bugs, config.max_total_bugs);
-        int maxTotalBugs = Mathf.Max(config.min_total_bugs, config.max_total_bugs);
-        int totalBugs = Mathf.RoundToInt((minTotalBugs + maxTotalBugs) * 0.5f);
+        if (rng == null)
+            rng = new System.Random();
 
-        float minGreenRatio = Mathf.Min(config.min_green_ratio, config.max_green_ratio);
-        float maxGreenRatio = Mathf.Max(config.min_green_ratio, config.max_green_ratio);
-        float representativeGreenRatio = Mathf.Clamp01((minGreenRatio + maxGreenRatio) * 0.5f);
+        BugCloudPairData orderedPair = GenerateOrderedPair(
+            config.min_total_bugs,
+            config.max_total_bugs,
+            config.min_green_ratio,
+            config.max_green_ratio,
+            config.gap_min,
+            config.gap_max,
+            rng);
 
-        float gapMin = Mathf.Max(0f, Mathf.Min(config.gap_min, config.gap_max));
-        float gapMax = Mathf.Max(gapMin, Mathf.Max(config.gap_min, config.gap_max));
-        float representativeGap = (gapMin + gapMax) * 0.5f;
-
-        float lowerRatio;
-        float higherRatio;
-        if (representativeGreenRatio + representativeGap <= 1f)
+        bool bestScanIsLeft = bestScanSide == DistalScanSide.Left;
+        return new BugCloudPairData
         {
-            lowerRatio = representativeGreenRatio;
-            higherRatio = representativeGreenRatio + representativeGap;
-        }
-        else
-        {
-            lowerRatio = representativeGreenRatio - representativeGap;
-            higherRatio = representativeGreenRatio;
-        }
+            firstCloud = bestScanIsLeft ? orderedPair.secondCloud : orderedPair.firstCloud,
+            secondCloud = bestScanIsLeft ? orderedPair.firstCloud : orderedPair.secondCloud,
+            ratioGap = orderedPair.ratioGap
+        };
+    }
 
-        lowerRatio = Mathf.Clamp01(lowerRatio);
-        higherRatio = Mathf.Clamp01(higherRatio);
+    static BugCloudPairData GenerateOrderedPair(
+        int minTotalBugs,
+        int maxTotalBugs,
+        float minGreenRatio,
+        float maxGreenRatio,
+        float gapMin,
+        float gapMax,
+        System.Random rng)
+    {
+        int minTotal = Mathf.Min(minTotalBugs, maxTotalBugs);
+        int maxTotal = Mathf.Max(minTotalBugs, maxTotalBugs);
+        int totalBugs = rng.Next(minTotal, maxTotal + 1);
+
+        SampleGappedRatios(minGreenRatio, maxGreenRatio, gapMin, gapMax, rng, out float lowerRatio, out float higherRatio);
 
         var lowerCloud = new BugCloudSample { totalBugs = totalBugs, greenRatio = lowerRatio };
         var higherCloud = new BugCloudSample { totalBugs = totalBugs, greenRatio = higherRatio };
 
-        bool valleyAIsBest = bestValley == ValleyChoice.A;
         return new BugCloudPairData
         {
-            firstCloud = valleyAIsBest ? higherCloud : lowerCloud,
-            secondCloud = valleyAIsBest ? lowerCloud : higherCloud,
+            firstCloud = lowerCloud,
+            secondCloud = higherCloud,
             ratioGap = Mathf.Abs(higherRatio - lowerRatio)
         };
+    }
+
+    static void SampleGappedRatios(
+        float minGreenRatio,
+        float maxGreenRatio,
+        float gapMin,
+        float gapMax,
+        System.Random rng,
+        out float lowerRatio,
+        out float higherRatio)
+    {
+        float minRatio = Mathf.Clamp01(Mathf.Min(minGreenRatio, maxGreenRatio));
+        float maxRatio = Mathf.Clamp01(Mathf.Max(minGreenRatio, maxGreenRatio));
+        float minGap = Mathf.Max(0f, Mathf.Min(gapMin, gapMax));
+        float maxGap = Mathf.Max(minGap, Mathf.Max(gapMin, gapMax));
+        float gap = Mathf.Lerp(minGap, maxGap, (float)rng.NextDouble());
+
+        gap = Mathf.Min(gap, Mathf.Max(maxRatio, 1f - minRatio));
+        bool addGap = rng.NextDouble() < 0.5;
+
+        if (!TrySampleBaseRatio(minRatio, maxRatio, gap, addGap, rng, out float baseRatio))
+        {
+            addGap = !addGap;
+            TrySampleBaseRatio(minRatio, maxRatio, gap, addGap, rng, out baseRatio);
+        }
+
+        float otherRatio = addGap ? baseRatio + gap : baseRatio - gap;
+        lowerRatio = Mathf.Min(baseRatio, otherRatio);
+        higherRatio = Mathf.Max(baseRatio, otherRatio);
+    }
+
+    static bool TrySampleBaseRatio(
+        float minRatio,
+        float maxRatio,
+        float gap,
+        bool addGap,
+        System.Random rng,
+        out float baseRatio)
+    {
+        float minBase = addGap ? minRatio : Mathf.Max(minRatio, gap);
+        float maxBase = addGap ? Mathf.Min(maxRatio, 1f - gap) : maxRatio;
+
+        if (minBase > maxBase)
+        {
+            baseRatio = 0f;
+            return false;
+        }
+
+        baseRatio = Mathf.Lerp(minBase, maxBase, (float)rng.NextDouble());
+        return true;
     }
 }

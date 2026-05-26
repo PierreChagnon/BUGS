@@ -36,8 +36,6 @@ public class FlowController : MonoBehaviour
     public int BlockScore { get; private set; }
     public string BuildVersion => _buildVersion;
 
-    readonly System.Random _distalAdviceRandom = new();
-
     public BlockConfig CurrentBlock
     {
         get
@@ -124,8 +122,9 @@ public class FlowController : MonoBehaviour
             valley_choice = ValleyChoice.None,
             distal_advice_visible = false,
             distal_advice_reliable = false,
-            distal_advice_choice = ValleyChoice.None,
-            distal_best_valley = ValleyChoice.None,
+            distal_advice_choice = null,
+            distal_best_valley = null,
+            distal_scan_choice = null,
             green_bugs_accumulated = 0,
             last_trial_response_id = null
         };
@@ -177,15 +176,20 @@ public class FlowController : MonoBehaviour
         AdvanceToPhase(GamePhase.DistalChoice);
     }
 
-    public void OnValleyChosen(ValleyChoice valley)
+    public void OnValleyChosen(string scanChoice)
     {
         if (State == null || State.current_phase != GamePhase.DistalChoice)
             return;
 
-        State.valley_choice = valley;
+        State.distal_scan_choice = scanChoice;
+        State.valley_choice = ResolveValleyFromDistalScanChoice(scanChoice);
         CurrentBlockSeed = ResolveBlockSeedForCurrentBlock();
         CurrentTrialSeed = DeriveTrialSeed(CurrentBlockSeed, State.current_trial_index);
-        Debug.Log($"[FlowController] blockSeed={CurrentBlockSeed}, trialIndex={State.current_trial_index + 1}, trialSeed={CurrentTrialSeed}");
+        Debug.Log(
+            $"[FlowController] distalScanChoice={scanChoice}, " +
+            $"distalBestScan={State.distal_best_valley}, " +
+            $"valleyChoice={FlowValueConverters.ToApiValue(State.valley_choice)}, " +
+            $"blockSeed={CurrentBlockSeed}, trialIndex={State.current_trial_index + 1}, trialSeed={CurrentTrialSeed}");
         AdvanceToPhase(GamePhase.Proximal);
     }
 
@@ -250,6 +254,14 @@ public class FlowController : MonoBehaviour
         State.last_trial_response_id = trialResponseId;
     }
 
+    public BugCloudPairData GenerateCurrentDistalScans()
+    {
+        return BugCloudGenerationUtility.GenerateDistalScanPair(
+            CurrentBlock.distal_scene,
+            State.distal_best_valley,
+            CreateCurrentBlockRandom(2));
+    }
+
     IEnumerator BootstrapFlow()
     {
         yield return null;
@@ -309,6 +321,7 @@ public class FlowController : MonoBehaviour
         State.current_trial_index = 0;
         State.advisor_choice = AdvisorType.None;
         State.valley_choice = ValleyChoice.None;
+        State.distal_scan_choice = null;
         ResetDistalAdviceState();
         State.last_trial_response_id = null;
         CurrentBlockSeed = 0;
@@ -407,7 +420,10 @@ public class FlowController : MonoBehaviour
         if (State == null || block == null)
             return;
 
-        State.distal_best_valley = ResolveMostRewardingValley(block, _distalAdviceRandom);
+        var rng = CreateCurrentBlockRandom(0);
+        State.distal_best_valley = rng.NextDouble() < 0.5
+            ? DistalScanSide.Left
+            : DistalScanSide.Right;
 
         if (State.advisor_choice == AdvisorType.None)
         {
@@ -418,23 +434,23 @@ public class FlowController : MonoBehaviour
         float visibleProbability = Mathf.Clamp01(block.distal_advice_visible_probability);
         float reliableProbability = Mathf.Clamp01(block.distal_advice_reliable_probability);
 
-        State.distal_advice_visible = _distalAdviceRandom.NextDouble() < visibleProbability;
+        State.distal_advice_visible = rng.NextDouble() < visibleProbability;
         if (!State.distal_advice_visible)
         {
             Debug.Log($"[FlowController] Distal advice visible=false (prob={visibleProbability:0.###}).");
             return;
         }
 
-        State.distal_advice_reliable = _distalAdviceRandom.NextDouble() < reliableProbability;
+        State.distal_advice_reliable = rng.NextDouble() < reliableProbability;
         State.distal_advice_choice = State.distal_advice_reliable
             ? State.distal_best_valley
-            : GetOppositeValley(State.distal_best_valley);
+            : DistalScanSide.Opposite(State.distal_best_valley);
 
         Debug.Log(
             $"[FlowController] Distal advice visible=true (prob={visibleProbability:0.###}), " +
             $"reliable={State.distal_advice_reliable} (prob={reliableProbability:0.###}), " +
-            $"best={FlowValueConverters.ToApiValue(State.distal_best_valley)}, " +
-            $"choice={FlowValueConverters.ToApiValue(State.distal_advice_choice)}.");
+            $"bestScan={State.distal_best_valley}, " +
+            $"advisor_choice={State.distal_advice_choice}.");
     }
 
     void ResetDistalAdviceState()
@@ -444,8 +460,30 @@ public class FlowController : MonoBehaviour
 
         State.distal_advice_visible = false;
         State.distal_advice_reliable = false;
-        State.distal_advice_choice = ValleyChoice.None;
-        State.distal_best_valley = ValleyChoice.None;
+        State.distal_advice_choice = null;
+        State.distal_best_valley = null;
+        State.distal_scan_choice = null;
+    }
+
+    ValleyChoice ResolveValleyFromDistalScanChoice(string scanChoice)
+    {
+        ValleyChoice bestValley = ResolveMostRewardingValley(CurrentBlock, CreateCurrentBlockRandom(1));
+        bool choseBestScan = scanChoice == State.distal_best_valley;
+
+        if (choseBestScan)
+            return bestValley;
+
+        return GetOppositeValley(bestValley);
+    }
+
+    System.Random CreateCurrentBlockRandom(int salt)
+    {
+        long seed = ResolveDistalSeedForCurrentBlock();
+        int intSeed = (int)(DeriveTrialSeed(seed, salt) & 0x7FFFFFFF);
+        if (intSeed == 0)
+            intSeed = 1;
+
+        return new System.Random(intSeed);
     }
 
     static ValleyChoice ResolveMostRewardingValley(BlockConfig block, System.Random rng)
@@ -552,6 +590,25 @@ public class FlowController : MonoBehaviour
             map.seed = GenerateSeed();
 
         return map.seed;
+    }
+
+    long ResolveDistalSeedForCurrentBlock()
+    {
+        var block = CurrentBlock;
+        if (block == null)
+            return GenerateSeed();
+
+        if (block.valley_a != null && block.valley_a.seed != 0)
+            return block.valley_a.seed;
+
+        if (block.valley_b != null && block.valley_b.seed != 0)
+            return block.valley_b.seed;
+
+        long seed = GenerateSeed();
+        if (block.valley_a != null)
+            block.valley_a.seed = seed;
+
+        return seed;
     }
 
     static long DeriveTrialSeed(long blockSeed, int trialIndex)

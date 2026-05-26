@@ -66,7 +66,6 @@ public class LevelRegistry : MonoBehaviour
     {
         _roundSeed = seed;
         _hasRoundSeed = true;
-        Debug.Log($"[LevelRegistry] roundSeed={_roundSeed}");
     }
 
     public bool TryGetRoundSeed(out long seed)
@@ -197,7 +196,6 @@ public class LevelRegistry : MonoBehaviour
     public void RegisterOptimalPath(List<Vector2Int> path)
     {
         optimalPathLength = path != null ? path.Count : 0;
-        Debug.Log($"[LevelRegistry] Chemin optimal enregistré ({optimalPathLength} cases).");
     }
 
     /// <summary>
@@ -207,7 +205,6 @@ public class LevelRegistry : MonoBehaviour
     public void RegisterStepBudget(int manhattanDistance)
     {
         stepBudget = manhattanDistance;
-        Debug.Log($"[LevelRegistry] Budget de pas enregistré : {stepBudget} (distance Manhattan).");
     }
 
     public void UnregisterTrap(Vector2Int c) => RemoveFlags(c, CellFlags.Trap);

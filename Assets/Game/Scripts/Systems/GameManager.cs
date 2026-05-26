@@ -72,7 +72,6 @@ public class GameManager : MonoBehaviour
         }
 
         Instance = this;
-        Debug.Log("[GameManager] Awake");
     }
 
     public void BeginFirstRound()

@@ -120,7 +120,6 @@ public class CorridorWallsGenerator : MonoBehaviour
             }
         }
 
-        Debug.Log($"[CorridorWallsGenerator] Walkable={walkable.Count}  Walls={wallsPlaced}  Seed={_mazeSeedUsed}");
     }
 
     void CacheTilesByCell(LevelRegistry reg)
@@ -234,9 +233,6 @@ public class CorridorWallsGenerator : MonoBehaviour
             foreach (var c in inflated) walkable.Add(c);
             added++;
         }
-
-        if (added > 0)
-            Debug.Log($"[CorridorWallsGenerator] Extra connections added: {added}");
     }
 
     static IEnumerable<Vector2Int> Neighbors4(Vector2Int c)

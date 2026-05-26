@@ -100,7 +100,6 @@ public class MotorAdviceController : MonoBehaviour
     //Renvoie une string representant la touche a presser pour la direction donnee dans le set donne
     public static string FormatSet(MotorKeySet set, string direction = null)
     {
-        Debug.Log($"FormatSet called with set={set} and direction={direction}");
         if (direction == null) { return string.Empty; }
         ;
 
