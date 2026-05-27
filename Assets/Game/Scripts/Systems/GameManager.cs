@@ -43,6 +43,7 @@ public class GameManager : MonoBehaviour
     bool _advisorPathVisible = true;
 
     public bool inputLocked { get; private set; }
+    public void SetInputLocked(bool value) => inputLocked = value;
 
     BugCloud _leftCloud;
     BugCloud _rightCloud;
