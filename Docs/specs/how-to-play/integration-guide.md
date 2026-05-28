@@ -122,6 +122,23 @@ Trois points importants :
 
 Seul ajout au code projet : `IntroSceneController.cs`. Seule scène modifiée : `IntroScene.unity`.
 
+### 2.4 Pré-requis sur la scène hôte — `CanvasScaler` calibré 1920×1080
+
+Le prefab `HowToPlayPanel` a été calibré dans la sandbox avec un Canvas en mode **`ScaleWithScreenSize / 1920×1080 / match 0.5`**. Tous ses `sizeDelta` absolus (`Content` 1300×820, `Footer` 1300×140, boutons 240×90 et 200×80, etc.) supposent ce référentiel. Si la scène hôte n'a pas un Canvas configuré de la même façon, Unity tente automatiquement de **conserver la rect visuelle du prefab** lors de l'instanciation et fabrique des **overrides anormaux** sur la `RectTransform` de l'instance (`sizeDelta` qui devient `-1920, -1080`, `anchoredPosition` qui devient `-960, -540`). Le résultat est une rect calculée négative sur tout Canvas plus petit que 1920×1080 → boutons projetés, contenu invisible ou mal placé en Game View.
+
+**Conclusion** : avant de poser le prefab dans une scène hôte, vérifier que son `Canvas` + `CanvasScaler` racine sont configurés ainsi :
+
+| Composant | Champ | Valeur attendue |
+|:---|:---|:---|
+| `Canvas` | `m_RenderMode` | `0` (Screen Space - Overlay) |
+| `CanvasScaler` | `m_UiScaleMode` | `1` (ScaleWithScreenSize) |
+| `CanvasScaler` | `m_ReferenceResolution` | `{x: 1920, y: 1080}` |
+| `CanvasScaler` | `m_MatchWidthOrHeight` | `0.5` |
+
+C'est exactement le pattern de **`BootScene`** et de la **sandbox**. La plupart des autres scènes du projet sont encore en `ConstantPixelSize / 800×600` (héritage du template Unity par défaut) — c'est une dette de cohérence visuelle non bloquante, mais qui implique que **chaque scène où on pose le prefab doit d'abord être alignée**, sinon le rendu se casse comme décrit ci-dessus.
+
+Si la modification est faite a posteriori (après instanciation du prefab), il faut aussi **reset les overrides anormaux** de la `RectTransform` de l'instance : `anchoredPosition` à `(0, 0)`, `sizeDelta` à `(0, 0)`. C'est équivalent à un "Revert" sur ces deux propriétés depuis le menu des prefab overrides Unity.
+
 ---
 
 ## 3. Branchement runtime aux données back-end
@@ -278,3 +295,51 @@ Le DTO porte une `string` (un nom logique, ex: `"intro_page_movement"`). Côté 
 | Q-INT-3 | Fallback si pas de pages configurées | Skip silencieux (proposé) / écran d'erreur / page par défaut | À valider avec le chercheur |
 | Q-INT-4 | Tracking de la consultation tutoriel | Aucun (V1, cf. spec fonc) / vue oui/non / log détaillé | À évaluer si le chercheur exprime un besoin de mesure |
 | Q-INT-5 | Localisation multilingue | FR seul (V1) / clés i18n dès maintenant | À évaluer selon la population cible |
+
+---
+
+## 8. Journal d'avancement de l'intégration
+
+Entrées append-only, du plus récent au plus ancien. Sert à l'intégrateur back-end pour savoir exactement où le porteur s'est arrêté et ce qui reste à faire.
+
+### 2026-05-28 — Étape 1 terminée : composant posé dans IntroScene avec dummy data, en attente du branchement back
+
+**Par :** @fsorco
+
+**Ce qui est fait :**
+- `IntroSceneController.cs` créé dans `Assets/Game/Scripts/UI/` — glue entre `HowToPlayUI` et `FlowController`. Méthode `LoadPages()` retourne actuellement `_testPages` (champ `[SerializeField] List<HowToPlayPage>` Inspector) — le TODO de remplacement par lecture `FlowController.Config.intro_pages` est explicite dans le commentaire de la méthode.
+- `IntroScene.unity` modifiée :
+  - `FlowContinueScreenUI` retiré du Canvas
+  - Bouton "Continue" enfant supprimé
+  - Prefab `HowToPlayPanel.prefab` instancié sous le Canvas
+  - GameObject `IntroSceneController` créé avec ref `_howToPlay` → instance du prefab + 3 pages dummy hardcodées dans `_testPages` ("Bienvenue", "Te deplacer", "C'est parti !")
+  - **CanvasScaler aligné** sur 1920×1080 ScaleWithScreenSize match 0.5 (cf. §2.4) — c'était `ConstantPixelSize 800×600` avant
+  - **Overrides RectTransform** de l'instance prefab remis à `(0, 0) / (0, 0)` (cf. §2.4) — Unity les avait fabriqués à `(-960, -540) / (-1920, -1080)` à l'instanciation
+
+**Ce qui reste pour l'étape 2 (branchement back-end)** :
+- Décider Option A vs B (cf. §3.2) avec le back-end dev
+- Implémenter le DTO `HowToPlayPageDto` dans `FlowDataModels.cs` (Option A) **ou** la méthode `ApiClient.FetchIntroPages` (Option B)
+- Implémenter `ResolveSprite(string key)` selon le choix retenu (Resources.Load V1 conseillé, cf. §3.5)
+- Remplacer le corps de `LoadPages()` dans `IntroSceneController.cs` : aujourd'hui `return _testPages;`, demain → lecture depuis Config + mapping DTO → `HowToPlayPage` + `ResolveSprite`
+- Une fois le branchement back fonctionnel, on peut retirer le champ `_testPages` du controller (ou le garder comme fallback dev silencieux, à arbitrer)
+- Trancher les Q-INT-1 à Q-INT-5 du §7
+
+**Tests passés à cette étape :**
+- IntroScene lancée seule depuis l'Editor → panel s'auto-affiche avec les 3 dummy pages, navigation OK, fermeture OK (FlowController.Instance null = no-op silencieux grâce au `?.`)
+- Aucune exception console en Play Mode
+- Layout visuel conforme à la sandbox après correction du CanvasScaler
+
+**Tests qui restent à faire avant clôture du chantier :**
+- Flow complet BootScene → Welcome → Consent → IntroScene → AdvisorChoice avec un `sessionId` valide
+- WebGL build
+- Une fois étape 2 faite : édition du JSON back-end → vérifier reflet en Unity sans rebuild
+
+**Commits associés :**
+- `a6ddbc59` (livraison composant + sandbox, branche `ui/how-to-play-component`) — déjà pushé
+- L'étape 1 d'intégration n'est **pas encore commitée** au moment de l'écriture de cette entrée (changements en `git status` : `IntroScene.unity` modifié, `IntroSceneController.cs` + .meta créés)
+
+**Décisions techniques actées à cette étape :**
+- Le composant `HowToPlayUI` reste strictement inchangé (objectif "agnostique" tenu)
+- `FlowController`, `ApiClient`, `FlowDataModels` restent strictement inchangés à cette étape (changements prévus uniquement à l'étape 2)
+- `FlowContinueScreenUI` n'est pas supprimé — il reste utilisé par WelcomeScene et EndSessionScene
+- `_testPages` Inspector dans le controller est un choix transitoire : il permet à l'étape 1 d'être testable visuellement de bout en bout sans dépendre du back, et facilite la bascule vers les vraies données à l'étape 2 (changement isolé dans `LoadPages()`)
