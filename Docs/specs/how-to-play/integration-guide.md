@@ -302,6 +302,28 @@ Le DTO porte une `string` (un nom logique, ex: `"intro_page_movement"`). Côté 
 
 Entrées append-only, du plus récent au plus ancien. Sert à l'intégrateur back-end pour savoir exactement où le porteur s'est arrêté et ce qui reste à faire.
 
+### 2026-05-28 — Ajustement ratio PageImage + assets dummy d'illustrations
+
+**Par :** @fsorco
+
+**Ce qui change :**
+- **Ratio PageImage du prefab** : passage de **3.17 : 1** (très panoramique) à **≈ 16 : 9** (standard screenshot gameplay). Modification des anchors dans le prefab `HowToPlayPanel.prefab` :
+  - `PageImage` : `anchorMin (0.05, 0.5) → (0.95, 0.95)` devient `(0.20, 0.42) → (0.80, 0.95)` (780 × 435 en référentiel 1920×1080)
+  - `HeaderText` : `(0.05, 0.32) → (0.95, 0.48)` devient `(0.05, 0.25) → (0.95, 0.38)` (descendu pour ne pas chevaucher l'image)
+  - `BodyText` : `(0.05, 0.05) → (0.95, 0.3)` devient `(0.05, 0.05) → (0.95, 0.22)` (resserré au-dessous du header)
+- **Assets dummy** ajoutés dans `Assets/Game/Textures/` : `Advisor_illustrations_dummy.png`, `Forest_illutrations_dummy.png`, `Valley_illustrations_dummy.png` — servent à donner un aperçu visuel cohérent du tutoriel en attendant les visuels finaux chercheurs
+- **Assignation dans la scène** : sur le GameObject `IntroSceneController` de `IntroScene`, le champ `_testPages.image` des 3 entrées est désormais rempli avec ces sprites
+
+**Conséquences pour le futur intégrateur :**
+- Toute image source destinée au PageImage doit être préparée à un ratio ≈ **16:9**. Dimension de référence 1× : `780 × 435 px`. Pour HiDPI/4K, viser 2× (`1560 × 870`) ou 3× (`2340 × 1305`)
+- Si le ratio 16:9 ne convient pas pour un asset particulier (ex: portrait), il faudra repenser les anchors PageImage ET les anchors HeaderText/BodyText pour rester cohérent verticalement
+- Quand le branchement back sera fait (étape 2) et que `LoadPages()` lira depuis `FlowController.Config.intro_pages`, les 3 PNG dummy + leur assignation Inspector pourront être retirés. Les 3 PNG eux-mêmes peuvent rester comme assets de test ou être déplacés vers la sandbox.
+
+**Tests passés :**
+- Play Mode IntroScene seule : panel s'affiche, 3 dummy slides visibles avec leurs nouvelles illustrations, navigation OK, fermeture OK, zéro exception
+
+---
+
 ### 2026-05-28 — Étape 1 terminée : composant posé dans IntroScene avec dummy data, en attente du branchement back
 
 **Par :** @fsorco
