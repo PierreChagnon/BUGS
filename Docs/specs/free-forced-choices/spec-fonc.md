@@ -70,8 +70,8 @@ Brique nécessaire à la validité des hypothèses **H1 à H8** du GDD (sense of
   | Niveau | Champs |
   |:---|:---|
   | meta | `advisor_forced: bool`, `advisor_forced_value ∈ {none, human, robot}` |
-  | distal | `distal_forced: bool`, `distal_forced_optimal_probability ∈ {0, 1}` |
-  | proximal | `proximal_forced_probability ∈ [0, 1]`, `proximal_forced_optimal_probability ∈ {0, 1}` |
+  | distal | `distal_forced: bool`, `distal_forced_optimal_probability ∈ [0, 1]` |
+  | proximal | `proximal_forced_probability ∈ [0, 1]`, `proximal_forced_optimal_probability ∈ [0, 1]` |
   | motor | `motor_forced_probability ∈ [0, 1]`, `motor_forced_set ∈ {QZD, FTH, KOM}` |
 
 ### Dépendances
