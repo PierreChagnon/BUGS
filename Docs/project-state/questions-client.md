@@ -416,6 +416,71 @@
 - **Statut :** EN ATTENTE
 - **Réponse :** —
 
+### Q-ICT-1 — In-context tutorial : origine de la donnée réelle (titre/texte par scène) ?
+- **Posée le :** 2026-05-29
+- **Origine :** Architecture technique, chantier in-context-tutorial (DEC-020)
+- **Bloque :** Rien pour la livraison composant (agnostique). Bloque l'intégration back-end (collègue).
+- **Question :** D'où vient le contenu (titre + texte) injecté dans l'overlay de chaque scène ?
+- **Options :**
+  - A : Champs ajoutés à `BlockConfig` (back-end Supabase) → cohérent avec le reste de la config
+  - B : Autre source → à définir
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-ICT-2 — In-context tutorial : condition exacte de déclenchement ?
+- **Posée le :** 2026-05-29
+- **Origine :** Analyse fonctionnelle, chantier in-context-tutorial
+- **Bloque :** Logique de gating côté intégrateur.
+- **Question :** L'overlay s'affiche-t-il dès qu'un contenu est présent pour la scène, ou faut-il aussi que le bloc soit explicitement flaggé tutorial ?
+- **Options :**
+  - A : Présence de contenu suffit (le composant no-op si vide) → plus simple
+  - B : Gate `is_tutorial` + contenu présent → garde-fou explicite
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-ICT-3 — In-context tutorial : tracking de la consultation dans `trial_responses` ?
+- **Posée le :** 2026-05-29
+- **Origine :** Analyse fonctionnelle, chantier in-context-tutorial
+- **Bloque :** Rien (V1 sans tracking). Donnée de recherche éventuelle.
+- **Question :** Faut-il enregistrer que l'overlay a été vu (et/ou sa durée de lecture) ?
+- **Options :**
+  - A : Aucun tracking (V1) → composant n'écrit rien
+  - B : Vu oui/non + durée → via abonnement aux events côté intégrateur (sans modifier le composant)
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-ICT-4 — In-context tutorial : localisation multilingue ?
+- **Posée le :** 2026-05-29
+- **Origine :** Analyse fonctionnelle, chantier in-context-tutorial
+- **Bloque :** Structure du contenu côté config. Non bloquant V1.
+- **Question :** Les instructions sont-elles FR seul ou multilingue ? (À aligner avec Q-EXP-10.)
+- **Options :**
+  - A : FR seul (V1)
+  - B : Clés i18n
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-ICT-5 — In-context tutorial : contenu final des instructions par scène ?
+- **Posée le :** 2026-05-29
+- **Origine :** Analyse fonctionnelle, chantier in-context-tutorial
+- **Bloque :** Onboarding contextuel effectif. La dummy data est représentative, pas validée.
+- **Question :** Quels titres + textes exacts pour Advisor / Distal / Proximal, par bloc tutorial ?
+- **Options :**
+  - A : À fournir par les chercheurs avant lancement
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-ICT-6 — In-context tutorial : périmètre du verrou input sur Proximal pendant l'overlay ?
+- **Posée le :** 2026-05-29
+- **Origine :** Architecture technique, chantier in-context-tutorial
+- **Bloque :** UX gameplay (intégration Proximal).
+- **Question :** Quels inputs geler tant que l'overlay est ouvert sur la scène de jeu ?
+- **Options :**
+  - A : Clavier gameplay via `GameManager.inputLocked` (le fond modal bloque déjà la souris)
+  - B : + autres systèmes (caméra, scan) si nécessaire
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
 ---
 
 ## Questions répondues

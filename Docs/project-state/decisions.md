@@ -182,12 +182,21 @@
 - **Impact :** Nouveau dossier `Assets/Game/Audio/` (Mixers, Music, Ambience, Sfx). Nouveau dossier `Assets/Game/Scripts/Audio/` (5 scripts). Nouveau prefab `AudioManager.prefab` instancié dans BootScene. Modifications mineures (ajout de hooks `PlaySfx`) dans `GameManager`, `GridMoverNewInput`, `Trap`, `FadeTransition`. Ajout d'un GameObject `SceneMusic` dans chaque scène du flow (9 scènes). Ajout du composant `UIButtonSound` sur tous les boutons interactifs. Mapping musical acté : 3 MusicTrack (Pregame / Choice / Gameplay) + 1 Ambient (Gameplay). Spec technique : `Docs/specs/audio/spec-tech.md`.
 - **Statut :** ACTIF
 
+### DEC-020 — Composant UI in-context tutorial : agnostique, gating porté par l'intégrateur
+- **Date :** 2026-05-29
+- **Tag :** [TECH]
+- **Décision :** Le tutoriel *in-context* (overlay modal titre + texte affiché à l'arrivée sur `AdvisorChoiceScene` / `DistalChoiceScene` / `ProximalScene`) est livré comme composant UI autonome `InContextTutorialUI`, **distinct** du « How To Play » (onboarding paginé). Le composant est **100 % agnostique** : API `Show(title, body)` / `Show()` / `SetContent` / `Close()` + events `Shown` / `Closed`, propriétés `IsOpen` / `HasContent`, fond modal bloquant la souris, auto-show dummy Inspector pour le test isolé. Contenu = **titre + texte uniquement** (pas d'image, pas de pagination). La logique « afficher ou non » (bloc flaggé tutorial, scène avec contenu, et pour Proximal **au 1er trial du bloc seulement**) ainsi que le **verrou des inputs clavier gameplay** sont portés par **l'intégrateur**, pas par le composant.
+- **Raison :** Cohérence avec le pattern `HowToPlayUI` (composant réutilisable, testable en isolation, zéro couplage au flow). Sépare la livraison UI (porteur) du branchement back-end (collègue). Le gating « 1er trial » dépend de l'état de session (`FlowController.State.current_trial_index`), qui n'appartient pas au composant (TR1/TR2 spec fonc).
+- **Impact :** Livré : `Assets/Game/Scripts/UI/InContextTutorialUI.cs`, prefab `Assets/Game/Prefabs/UI/InContextTutorial/InContextTutorialPanel.prefab`, sandbox `InContextTutorialSandbox.unity` + `InContextTutorialTestRunner` + `InContextTutorialSceneArrivalDemo` (mock du gating, testable en éditeur). Specs `Docs/specs/in-context-tutorial/` (spec-fonc, spec-tech, integration-guide). À la charge de l'intégrateur (cf. `integration-guide.md`) : étendre `BlockConfig` avec `InContextTutorialConfig` (titre + texte par scène) + `DeepClone`, poser le prefab dans les 3 scènes, gater l'affichage (Proximal : `current_trial_index == 0`), verrou `GameManager.inputLocked`, et recette de test offline du vrai flux (hook dev skip-fetch + `SessionConfig` local). Aucun tracking `trial_responses`. Questions ouvertes Q-ICT-1..6 dans `questions-client.md`.
+- **Mise à jour 2026-05-29 (étape 2 — scaffold d'intégration) :** prefab + composant `InContextTutorialSceneBinder` posés dans les 3 scènes (`AdvisorChoiceScene`, `DistalChoiceScene`, `ProximalScene`) sous un Canvas dédié `InContextTutorialCanvas` (Overlay, sortingOrder 50). Le binder réalise **pour de vrai** le gating (`is_tutorial`, 1er trial Proximal via `current_trial_index`) + le verrou input Proximal (`GameManager.SetInputLocked`) + un self-test éditeur. **Contenu via placeholder sérialisé + seam `LoadContent()` (// TODO)** — décision : on **n'étend PAS `BlockConfig`** ici, le collègue garde la main sur le modèle de données backend. Reste au collègue : étendre `BlockConfig`, brancher `LoadContent()`, coordonner le verrou input Proximal avec `GameManager.GetReadySequence`. Cf. `integration-guide.md` §0/§4.
+- **Statut :** ACTIF
+
 ---
 
 ## Index par tag
 
 - **[SCOPE]** : DEC-004, DEC-005, DEC-008
 - **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019
-- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016
+- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020
 - **[PLANNING]** : _(aucune pour l'instant)_
 - **[CLIENT]** : _(aucune pour l'instant)_

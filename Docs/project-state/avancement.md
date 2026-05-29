@@ -3,7 +3,7 @@
 > Ce fichier est le résumé condensé de l'état du projet.
 > Objectif : un rôle peut comprendre où en est le projet en lisant CE SEUL FICHIER.
 > Mis à jour après chaque session qui fait avancer le projet.
-> Dernière mise à jour : 2026-05-26
+> Dernière mise à jour : 2026-05-29
 
 ---
 
@@ -68,6 +68,14 @@
 | SceneMusic component (musique + ambient par scène) | ✅ Implémenté |
 | UIButtonSound (SFX UI réutilisable) | ✅ Implémenté |
 | AudioMixer 5 groupes (Master/Music/Ambience/SFX_Gameplay/SFX_UI) | ✅ Configuré |
+
+### UI — Composants tutoriels (overlay)
+
+| Composant | État |
+|:---|:---|
+| HowToPlayUI (tutoriel paginé onboarding) + sandbox | ✅ Composant livré (specs `how-to-play`, 28/05/26) — branchement flow par l'intégrateur |
+| InContextTutorialUI (overlay instructions sur scène de jeu) + sandbox | ✅ Composant livré (specs `in-context-tutorial`, 29/05/26, DEC-020) — agnostique, testable en isolation |
+| InContextTutorialSceneBinder + pose dans les 3 scènes | ✅ Scaffold d'intégration en place (étape 2, 29/05/26) : prefab + binder sous `InContextTutorialCanvas` dans Advisor/Distal/Proximal ; gating réel (`is_tutorial`, 1er trial) + verrou input Proximal + self-test éditeur. Reste au collègue : étendre `BlockConfig`, brancher `LoadContent()`, coordonner verrou vs `GetReadySequence` (cf. `integration-guide.md`) |
 
 ### Outillage / documentation
 
