@@ -1,10 +1,11 @@
+using System;
 using TMPro;
 using UnityEngine;
 
 // -----------------------------
 // Panneau de fin de trial.
-// S'abonne a GameManager.OnRoundEnded et propose de continuer
-// vers le trial / ecran suivant via FlowController.
+// S'affiche en premier a la fin du trial. Son bouton laisse ensuite
+// TrialQuestionsUI afficher les questions de fin de trial.
 // -----------------------------
 
 public class RoundUI : MonoBehaviour
@@ -17,12 +18,21 @@ public class RoundUI : MonoBehaviour
     [SerializeField] private TMP_Text _overtimeSteps;
     [SerializeField] private TMP_Text _steps;
 
-
+    public event Action OnContinueFromReport;
 
     void Start()
     {
         if (_gameOverPanel != null)
             _gameOverPanel.SetActive(false);
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.OnRoundEnded += Show;
+    }
+
+    void OnDestroy()
+    {
+        if (GameManager.Instance != null)
+            GameManager.Instance.OnRoundEnded -= Show;
     }
 
     public void Show(GameManager.RoundEndInfo info)
@@ -45,8 +55,20 @@ public class RoundUI : MonoBehaviour
             _greenBugsCollected.text = $"Bugs collectes : {info.bugsCollected}";
     }
 
+    public void Hide()
+    {
+        if (_gameOverPanel != null)
+            _gameOverPanel.SetActive(false);
+    }
+
     public void OnContinueClicked()
     {
+        if (OnContinueFromReport != null)
+        {
+            OnContinueFromReport.Invoke();
+            return;
+        }
+
         GameManager.Instance?.ContinueAfterRound();
     }
 

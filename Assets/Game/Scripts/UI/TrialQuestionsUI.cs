@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 // Affiche les questions de fin de trial dans la ProximalScene,
-// avant d'afficher le panneau de resultats (RoundUI).
+// apres le panneau de resultats (RoundUI).
 // 2 questions apres chaque trial, + 1 en fin de dernier trial du bloc.
 public class TrialQuestionsUI : MonoBehaviour
 {
@@ -33,10 +33,10 @@ public class TrialQuestionsUI : MonoBehaviour
     [SerializeField] private Button _confirmButton;
     [SerializeField] private RoundUI _roundUI;
 
-    GameManager.RoundEndInfo _pendingInfo;
     readonly List<TrialQuestionItem> _questions = new();
     readonly List<QuestionResponse> _responses = new();
     int _currentIndex;
+    bool _hasPreparedQuestions;
 
     void Start()
     {
@@ -58,28 +58,34 @@ public class TrialQuestionsUI : MonoBehaviour
 
         if (GameManager.Instance != null)
             GameManager.Instance.OnRoundEnded += HandleRoundEnded;
+
+        if (_roundUI == null)
+            _roundUI = FindFirstObjectByType<RoundUI>();
+
+        if (_roundUI != null)
+            _roundUI.OnContinueFromReport += HandleMissionReportContinue;
     }
 
     void OnDestroy()
     {
         if (GameManager.Instance != null)
             GameManager.Instance.OnRoundEnded -= HandleRoundEnded;
+
+        if (_roundUI != null)
+            _roundUI.OnContinueFromReport -= HandleMissionReportContinue;
     }
 
     void HandleRoundEnded(GameManager.RoundEndInfo info)
     {
-        _pendingInfo = info;
         _questions.Clear();
         _responses.Clear();
         _currentIndex = 0;
+        _hasPreparedQuestions = false;
 
         var flow = FlowController.Instance;
 
         if (flow == null || flow.CurrentBlock == null)
-        {
-            _roundUI?.Show(info);
             return;
-        }
 
         _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestionKey, _acceptabilityQuestion));
         _questions.Add(new TrialQuestionItem(FlowSerializationUtility.SensOfAgencyQuestionKey, _senseOfAgencyQuestion));
@@ -94,6 +100,19 @@ public class TrialQuestionsUI : MonoBehaviour
             int j = rng.Next(i + 1);
             (_questions[i], _questions[j]) = (_questions[j], _questions[i]);
         }
+
+        _hasPreparedQuestions = _questions.Count > 0;
+    }
+
+    void HandleMissionReportContinue()
+    {
+        if (!_hasPreparedQuestions)
+        {
+            GameManager.Instance?.ContinueAfterRound();
+            return;
+        }
+
+        _roundUI?.Hide();
 
         if (_panel != null)
             _panel.SetActive(true);
@@ -118,7 +137,7 @@ public class TrialQuestionsUI : MonoBehaviour
         _currentIndex++;
         if (_currentIndex >= _questions.Count)
         {
-            SubmitAndFinish();
+            SubmitAndContinue();
             return;
         }
 
@@ -161,7 +180,7 @@ public class TrialQuestionsUI : MonoBehaviour
         return -1;
     }
 
-    void SubmitAndFinish()
+    void SubmitAndContinue()
     {
         var trialManager = GameManager.Instance != null ? GameManager.Instance.trialManager : null;
         if (trialManager != null)
@@ -172,6 +191,7 @@ public class TrialQuestionsUI : MonoBehaviour
         if (_panel != null)
             _panel.SetActive(false);
 
-        _roundUI?.Show(_pendingInfo);
+        _hasPreparedQuestions = false;
+        GameManager.Instance?.ContinueAfterRound();
     }
 }
