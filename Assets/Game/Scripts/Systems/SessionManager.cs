@@ -57,6 +57,11 @@ public class SessionManager : MonoBehaviour
     public bool IsFlowDriven { get; private set; }
     public bool IsTutorialBlock { get; private set; }
     public bool HasAdvisor { get; private set; } = true;
+    public bool ProximalChoiceIsForced { get; private set; }
+    public string ProximalChoiceForcedValue { get; private set; }
+    public bool MotorChoiceIsForced { get; private set; }
+    public string MotorChoiceForcedSet { get; private set; }
+    public bool ShouldShowEquipmentFailureOverlay { get; private set; }
 
     void Awake()
     {
@@ -81,6 +86,17 @@ public class SessionManager : MonoBehaviour
         gameManager?.BeginFirstRound();
     }
 
+    public void RefreshForcedValuesFromFlow()
+    {
+        var flow = FlowController.Instance;
+        if (flow == null || flow.State == null)
+            return;
+
+        ProximalChoiceIsForced = flow.State.proximal_choice_is_forced;
+        ProximalChoiceForcedValue = flow.State.proximal_choice_forced_value;
+        ShouldShowEquipmentFailureOverlay = flow.ShouldShowEquipmentFailureOverlay;
+    }
+
     bool CopyConfigFromFlowController()
     {
         var flow = FlowController.Instance;
@@ -89,6 +105,11 @@ public class SessionManager : MonoBehaviour
 
         MapGenConfig map = flow.ActiveMapConfig;
         HasAdvisor = flow.State != null && flow.State.advisor_choice != AdvisorType.None;
+        ProximalChoiceIsForced = flow.State != null && flow.State.proximal_choice_is_forced;
+        ProximalChoiceForcedValue = flow.State != null ? flow.State.proximal_choice_forced_value : null;
+        MotorChoiceIsForced = flow.State != null && flow.State.motor_choice_is_forced;
+        MotorChoiceForcedSet = flow.State != null ? flow.State.motor_choice_forced_set : null;
+        ShouldShowEquipmentFailureOverlay = flow.ShouldShowEquipmentFailureOverlay;
 
         randomizationSeed = flow.CurrentTrialSeed != 0 ? flow.CurrentTrialSeed : map.seed;
         buildVersion = flow.BuildVersion;

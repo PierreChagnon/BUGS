@@ -52,6 +52,14 @@ public class BlockConfig
     public int block_order;
     public int trial_count = 1;
     public bool is_tutorial;
+    public bool advisor_forced;
+    public string advisor_forced_value = "none";
+    public bool distal_forced;
+    public float distal_forced_optimal_probability = 1f;
+    public float proximal_forced_probability;
+    public float proximal_forced_optimal_probability = 1f;
+    public float motor_forced_probability;
+    public string motor_forced_set = "QZD";
     public DistalSceneConfig distal_scene = new();
     public MapGenConfig valley_a = new();
     public MapGenConfig valley_b = new();
@@ -66,6 +74,14 @@ public class BlockConfig
             block_order = block_order,
             trial_count = trial_count,
             is_tutorial = is_tutorial,
+            advisor_forced = advisor_forced,
+            advisor_forced_value = advisor_forced_value,
+            distal_forced = distal_forced,
+            distal_forced_optimal_probability = distal_forced_optimal_probability,
+            proximal_forced_probability = proximal_forced_probability,
+            proximal_forced_optimal_probability = proximal_forced_optimal_probability,
+            motor_forced_probability = motor_forced_probability,
+            motor_forced_set = motor_forced_set,
             distal_scene = distal_scene != null ? distal_scene.DeepClone() : new DistalSceneConfig(),
             valley_a = valley_a != null ? valley_a.DeepClone() : new MapGenConfig(),
             valley_b = valley_b != null ? valley_b.DeepClone() : new MapGenConfig(),
@@ -197,6 +213,21 @@ public class PlayerSessionState
     public int current_trial_index;
     public AdvisorType advisor_choice = AdvisorType.None;
     public ValleyChoice valley_choice = ValleyChoice.None;
+    public bool meta_choice_is_forced;
+    public string meta_choice_forced_value;
+    public bool distal_choice_is_forced;
+    public string distal_choice_forced_scan_side;
+    public string distal_choice_forced_value;
+    public bool? distal_choice_forced_was_optimal;
+    public float? distal_choice_forced_optimal_probability;
+    public bool proximal_choice_is_forced;
+    public string proximal_choice_forced_value;
+    public bool? proximal_choice_forced_was_optimal;
+    public float proximal_choice_forced_probability;
+    public float? proximal_choice_forced_optimal_probability;
+    public bool motor_choice_is_forced;
+    public string motor_choice_forced_set;
+    public float motor_choice_forced_probability;
     public bool distal_advice_visible;
     public bool distal_advice_reliable;
     public string distal_advice_choice;
@@ -216,6 +247,21 @@ public class TrialResponseRow
     public int trial_count;
     public string advisor_choice;
     public string valley_choice;
+    public bool meta_choice_is_forced;
+    public string meta_choice_forced_value;
+    public bool distal_choice_is_forced;
+    public string distal_choice_forced_value;
+    public bool? distal_choice_forced_was_optimal;
+    public float? distal_choice_forced_optimal_probability;
+    public bool proximal_choice_is_forced;
+    public string proximal_choice_forced_value;
+    public bool? proximal_choice_forced_was_optimal;
+    public float proximal_choice_forced_probability;
+    public float? proximal_choice_forced_optimal_probability;
+    public bool motor_choice_is_forced;
+    public string motor_choice_forced_set;
+    public float motor_choice_forced_probability;
+    public string motor_choice_active_config;
     public float distal_advice_visible_probability;
     public float distal_advice_reliable_probability;
     public bool distal_advice_visible;
@@ -325,6 +371,38 @@ public static class FlowValueConverters
                 return AdvisorType.Robot;
             default:
                 return AdvisorType.None;
+        }
+    }
+
+    public static string ToApiValue(MotorKeySet set)
+    {
+        return set switch
+        {
+            MotorKeySet.ZQSD => "QZD",
+            MotorKeySet.TFGH => "FTH",
+            MotorKeySet.OKLM => "KOM",
+            _ => null
+        };
+    }
+
+    public static MotorKeySet ToMotorKeySet(string rawValue)
+    {
+        if (string.IsNullOrWhiteSpace(rawValue))
+            return MotorKeySet.ZQSD;
+
+        switch (rawValue.Trim().ToUpperInvariant())
+        {
+            case "QZD":
+            case "ZQSD":
+                return MotorKeySet.ZQSD;
+            case "FTH":
+            case "TFGH":
+                return MotorKeySet.TFGH;
+            case "KOM":
+            case "OKLM":
+                return MotorKeySet.OKLM;
+            default:
+                return MotorKeySet.ZQSD;
         }
     }
 }

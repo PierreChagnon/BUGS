@@ -145,12 +145,14 @@ public class PathSpawner : MonoBehaviour
 
         // Si GameManager connaît un nuage "meilleur", on force le chemin correspondant
         bool bestIsLeft = false;
+        bool bestKnown = false;
         if (GameManager.Instance != null)
         {
             var best = GameManager.Instance.GetBestCloud();
             if (best != null)
             {
                 bestIsLeft = reg.WorldToCell(best.transform.position).x == reg.WorldToCell(leftCloud.transform.position).x;
+                bestKnown = true;
                 optimalPath = bestIsLeft ? pathToLeftCloud : pathToRightCloud;
             }
         }
@@ -170,8 +172,18 @@ public class PathSpawner : MonoBehaviour
         bool isSuboptimal = false;
         List<Vector2Int> displayPath; // chemin qui sera affiché au joueur
         bool hasAdvisor = session != null && session.HasAdvisor;
+        bool proximalForced = FlowController.Instance != null &&
+                              FlowController.Instance.State != null &&
+                              FlowController.Instance.State.proximal_choice_is_forced;
+        bool forcedIsLeft = proximalForced &&
+                            FlowController.Instance.State.proximal_choice_forced_value != DistalScanSide.Right;
 
-        if (hasAdvisor && session.suboptimalPathProbability > 0f && rng.NextDouble() < session.suboptimalPathProbability)
+        if (hasAdvisor && proximalForced)
+        {
+            displayPath = new List<Vector2Int>(forcedIsLeft ? pathToLeftCloud : pathToRightCloud);
+            isSuboptimal = bestKnown && forcedIsLeft != bestIsLeft;
+        }
+        else if (hasAdvisor && session.suboptimalPathProbability > 0f && rng.NextDouble() < session.suboptimalPathProbability)
         {
             isSuboptimal = true;
             Vector2Int bestCloudCell = bestIsLeft ? leftCloudCell : rightCloudCell;
@@ -207,11 +219,18 @@ public class PathSpawner : MonoBehaviour
             GameManager.Instance.SetAdvisorPathVisible(visible);
 
         // ------ REVELER LES CASES DANS LE FOG OF WAR ------
-        // Toujours révéler la case joueur et les deux nuages (même si le chemin est caché).
+        // Toujours révéler la case joueur. En proximal forced, seul le cloud imposé est révélé.
         // Le chemin lui-même n'est révélé que si visible.
         if (FogController.Instance != null)
         {
-            var reveal = new List<Vector2Int> { playerCell, leftCloudCell, rightCloudCell };
+            var reveal = new List<Vector2Int> { playerCell };
+            if (proximalForced)
+                reveal.Add(forcedIsLeft ? leftCloudCell : rightCloudCell);
+            else
+            {
+                reveal.Add(leftCloudCell);
+                reveal.Add(rightCloudCell);
+            }
 
             if (visible)
             {

@@ -70,6 +70,13 @@ public class FlowController : MonoBehaviour
     public bool IsCurrentBlockTutorial => CurrentBlock != null && CurrentBlock.is_tutorial;
     public bool IsLastBlock => HasLoadedConfig && State.current_block_index >= Config.blocks.Count - 1;
     public bool IsLastTrial => CurrentBlock != null && State.current_trial_index >= CurrentBlock.trial_count - 1;
+    public bool IsAnyChoiceForcedThisTrial => State != null && (
+        State.meta_choice_is_forced ||
+        State.distal_choice_is_forced ||
+        State.proximal_choice_is_forced ||
+        State.motor_choice_is_forced);
+    public bool ShouldShowEquipmentFailureOverlay =>
+        IsAnyChoiceForcedThisTrial && State != null && State.advisor_choice == AdvisorType.None;
 
     public event Action<GamePhase> OnPhaseChanged;
 
@@ -120,6 +127,21 @@ public class FlowController : MonoBehaviour
             current_trial_index = 0,
             advisor_choice = AdvisorType.None,
             valley_choice = ValleyChoice.None,
+            meta_choice_is_forced = false,
+            meta_choice_forced_value = null,
+            distal_choice_is_forced = false,
+            distal_choice_forced_scan_side = null,
+            distal_choice_forced_value = null,
+            distal_choice_forced_was_optimal = null,
+            distal_choice_forced_optimal_probability = null,
+            proximal_choice_is_forced = false,
+            proximal_choice_forced_value = null,
+            proximal_choice_forced_was_optimal = null,
+            proximal_choice_forced_probability = 0f,
+            proximal_choice_forced_optimal_probability = null,
+            motor_choice_is_forced = false,
+            motor_choice_forced_set = null,
+            motor_choice_forced_probability = 0f,
             distal_advice_visible = false,
             distal_advice_reliable = false,
             distal_advice_choice = null,
@@ -172,6 +194,12 @@ public class FlowController : MonoBehaviour
         if (State == null || State.current_phase != GamePhase.AdvisorChoice)
             return;
 
+        if (State.meta_choice_is_forced && type != FlowValueConverters.ToAdvisorType(State.meta_choice_forced_value))
+        {
+            Debug.Log($"[FlowController] Advisor ignore: choix forced={State.meta_choice_forced_value}, recu={type}.");
+            return;
+        }
+
         State.advisor_choice = type;
         AdvanceToPhase(GamePhase.DistalChoice);
     }
@@ -180,6 +208,12 @@ public class FlowController : MonoBehaviour
     {
         if (State == null || State.current_phase != GamePhase.DistalChoice)
             return;
+
+        if (State.distal_choice_is_forced && scanChoice != State.distal_choice_forced_scan_side)
+        {
+            Debug.Log($"[FlowController] Distal choice ignore: choix forced={State.distal_choice_forced_scan_side}, recu={scanChoice}.");
+            return;
+        }
 
         State.distal_scan_choice = scanChoice;
         State.valley_choice = ResolveValleyFromDistalScanChoice(scanChoice);
@@ -322,6 +356,7 @@ public class FlowController : MonoBehaviour
         State.advisor_choice = AdvisorType.None;
         State.valley_choice = ValleyChoice.None;
         State.distal_scan_choice = null;
+        ResetForcedChoiceState();
         ResetDistalAdviceState();
         State.last_trial_response_id = null;
         CurrentBlockSeed = 0;
@@ -343,8 +378,14 @@ public class FlowController : MonoBehaviour
         if (State == null)
             return;
 
+        if (next == GamePhase.AdvisorChoice)
+            RollMetaForcedForCurrentBlock();
+
         if (next == GamePhase.DistalChoice)
             RollDistalAdviceForCurrentBlock();
+
+        if (next == GamePhase.Proximal)
+            RollTrialForcedChoicesForCurrentTrial();
 
         State.current_phase = next;
         OnPhaseChanged?.Invoke(next);
@@ -407,8 +448,99 @@ public class FlowController : MonoBehaviour
         if (string.IsNullOrWhiteSpace(config.session_template_id))
             config.session_template_id = "debug-session-template";
 
+        for (int i = 0; i < config.blocks.Count; i++)
+            SanitizeBlockConfig(config.blocks[i]);
+
         config.blocks.Sort((a, b) => a.block_order.CompareTo(b.block_order));
         return config;
+    }
+
+    void SanitizeBlockConfig(BlockConfig block)
+    {
+        if (block == null)
+            return;
+
+        block.distal_forced_optimal_probability = Mathf.Clamp01(block.distal_forced_optimal_probability);
+        block.proximal_forced_probability = Mathf.Clamp01(block.proximal_forced_probability);
+        block.proximal_forced_optimal_probability = Mathf.Clamp01(block.proximal_forced_optimal_probability);
+        block.motor_forced_probability = Mathf.Clamp01(block.motor_forced_probability);
+        block.advisor_forced_value = FlowValueConverters.ToApiValue(FlowValueConverters.ToAdvisorType(block.advisor_forced_value));
+        block.motor_forced_set = FlowValueConverters.ToApiValue(FlowValueConverters.ToMotorKeySet(block.motor_forced_set));
+    }
+
+    void RollMetaForcedForCurrentBlock()
+    {
+        ResetForcedChoiceState();
+
+        var block = CurrentBlock;
+        if (State == null || block == null || block.is_tutorial || !block.advisor_forced)
+            return;
+
+        State.meta_choice_is_forced = true;
+        State.meta_choice_forced_value = FlowValueConverters.ToApiValue(
+            FlowValueConverters.ToAdvisorType(block.advisor_forced_value));
+
+        Debug.Log($"[FlowController] Meta forced: advisor={State.meta_choice_forced_value}.");
+    }
+
+    void RollTrialForcedChoicesForCurrentTrial()
+    {
+        ResetTrialForcedChoiceState();
+
+        var block = CurrentBlock;
+        if (State == null || block == null || block.is_tutorial)
+            return;
+
+        var rng = CreateCurrentTrialRandom(nameof(RollTrialForcedChoicesForCurrentTrial));
+
+        float proximalProbability = Mathf.Clamp01(block.proximal_forced_probability);
+        State.proximal_choice_forced_probability = proximalProbability;
+        State.proximal_choice_is_forced = rng.NextDouble() < proximalProbability;
+        if (State.proximal_choice_is_forced)
+        {
+            float optimalProbability = Mathf.Clamp01(block.proximal_forced_optimal_probability);
+            State.proximal_choice_forced_optimal_probability = optimalProbability;
+            State.proximal_choice_forced_was_optimal = rng.NextDouble() < optimalProbability;
+        }
+
+        float motorProbability = Mathf.Clamp01(block.motor_forced_probability);
+        State.motor_choice_forced_probability = motorProbability;
+        State.motor_choice_is_forced = rng.NextDouble() < motorProbability;
+        State.motor_choice_forced_set = State.motor_choice_is_forced
+            ? FlowValueConverters.ToApiValue(FlowValueConverters.ToMotorKeySet(block.motor_forced_set))
+            : null;
+
+        Debug.Log(
+            $"[FlowController] Forced trial state: proximal={State.proximal_choice_is_forced}, " +
+            $"proximalWasOptimal={State.proximal_choice_forced_was_optimal}, " +
+            $"motor={State.motor_choice_is_forced}, motorSet={State.motor_choice_forced_set}.");
+    }
+
+    public void ResolveProximalForcedCloud(string bestCloudSide)
+    {
+        if (State == null || !State.proximal_choice_is_forced || string.IsNullOrWhiteSpace(bestCloudSide))
+            return;
+
+        bool forcedWasOptimal = State.proximal_choice_forced_was_optimal == true;
+        State.proximal_choice_forced_value = forcedWasOptimal
+            ? bestCloudSide
+            : DistalScanSide.Opposite(bestCloudSide);
+
+        Debug.Log($"[FlowController] Proximal forced: cloud={State.proximal_choice_forced_value}, optimal={forcedWasOptimal}.");
+    }
+
+    public bool IsAdvisorChoiceAllowed(AdvisorType type)
+    {
+        return State == null ||
+               !State.meta_choice_is_forced ||
+               type == FlowValueConverters.ToAdvisorType(State.meta_choice_forced_value);
+    }
+
+    public bool IsDistalScanChoiceAllowed(string scanChoice)
+    {
+        return State == null ||
+               !State.distal_choice_is_forced ||
+               scanChoice == State.distal_choice_forced_scan_side;
     }
 
     // Le conseil distal est determine aleatoirement a chaque fois que le joueur arrive sur la scene de choix distal, en fonction du bloc en cours et de l'advisor choisi.
@@ -420,10 +552,12 @@ public class FlowController : MonoBehaviour
         if (State == null || block == null)
             return;
 
-        var rng = CreateCurrentBlockRandom(0);
-        State.distal_best_valley = rng.NextDouble() < 0.5
+        var bestRng = CreateCurrentBlockRandom(0);
+        State.distal_best_valley = bestRng.NextDouble() < 0.5
             ? DistalScanSide.Left
             : DistalScanSide.Right;
+
+        RollDistalForcedForCurrentBlock(block);
 
         if (State.advisor_choice == AdvisorType.None)
         {
@@ -433,24 +567,62 @@ public class FlowController : MonoBehaviour
 
         float visibleProbability = Mathf.Clamp01(block.distal_advice_visible_probability);
         float reliableProbability = Mathf.Clamp01(block.distal_advice_reliable_probability);
+        var adviceRng = CreateCurrentBlockRandom(4);
 
-        State.distal_advice_visible = rng.NextDouble() < visibleProbability;
+        State.distal_advice_visible = adviceRng.NextDouble() < visibleProbability;
         if (!State.distal_advice_visible)
         {
             Debug.Log($"[FlowController] Distal advice visible=false (prob={visibleProbability:0.###}).");
             return;
         }
 
-        State.distal_advice_reliable = rng.NextDouble() < reliableProbability;
-        State.distal_advice_choice = State.distal_advice_reliable
-            ? State.distal_best_valley
-            : DistalScanSide.Opposite(State.distal_best_valley);
+        if (State.distal_choice_is_forced)
+        {
+            State.distal_advice_choice = State.distal_choice_forced_scan_side;
+            State.distal_advice_reliable = State.distal_choice_forced_was_optimal == true;
+        }
+        else
+        {
+            State.distal_advice_reliable = adviceRng.NextDouble() < reliableProbability;
+            State.distal_advice_choice = State.distal_advice_reliable
+                ? State.distal_best_valley
+                : DistalScanSide.Opposite(State.distal_best_valley);
+        }
 
         Debug.Log(
             $"[FlowController] Distal advice visible=true (prob={visibleProbability:0.###}), " +
             $"reliable={State.distal_advice_reliable} (prob={reliableProbability:0.###}), " +
             $"bestScan={State.distal_best_valley}, " +
             $"advisor_choice={State.distal_advice_choice}.");
+    }
+
+    void RollDistalForcedForCurrentBlock(BlockConfig block)
+    {
+        State.distal_choice_is_forced = false;
+        State.distal_choice_forced_scan_side = null;
+        State.distal_choice_forced_value = null;
+        State.distal_choice_forced_was_optimal = null;
+        State.distal_choice_forced_optimal_probability = null;
+
+        if (block == null || block.is_tutorial || !block.distal_forced)
+            return;
+
+        float optimalProbability = Mathf.Clamp01(block.distal_forced_optimal_probability);
+        bool forcedWasOptimal = CreateCurrentBlockRandom(3).NextDouble() < optimalProbability;
+        string forcedScanSide = forcedWasOptimal
+            ? State.distal_best_valley
+            : DistalScanSide.Opposite(State.distal_best_valley);
+
+        State.distal_choice_is_forced = true;
+        State.distal_choice_forced_scan_side = forcedScanSide;
+        State.distal_choice_forced_was_optimal = forcedWasOptimal;
+        State.distal_choice_forced_optimal_probability = optimalProbability;
+        State.distal_choice_forced_value = FlowValueConverters.ToApiValue(
+            ResolveValleyFromDistalScanChoice(forcedScanSide));
+
+        Debug.Log(
+            $"[FlowController] Distal forced: scan={forcedScanSide}, " +
+            $"valley={State.distal_choice_forced_value}, optimal={forcedWasOptimal}.");
     }
 
     void ResetDistalAdviceState()
@@ -463,6 +635,40 @@ public class FlowController : MonoBehaviour
         State.distal_advice_choice = null;
         State.distal_best_valley = null;
         State.distal_scan_choice = null;
+    }
+
+    void ResetForcedChoiceState()
+    {
+        if (State == null)
+            return;
+
+        State.meta_choice_is_forced = false;
+        State.meta_choice_forced_value = null;
+        State.distal_choice_is_forced = false;
+        State.distal_choice_forced_scan_side = null;
+        State.distal_choice_forced_value = null;
+        State.distal_choice_forced_was_optimal = null;
+        State.distal_choice_forced_optimal_probability = null;
+        ResetTrialForcedChoiceState();
+    }
+
+    void ResetTrialForcedChoiceState()
+    {
+        if (State == null)
+            return;
+
+        State.proximal_choice_is_forced = false;
+        State.proximal_choice_forced_value = null;
+        State.proximal_choice_forced_was_optimal = null;
+        State.proximal_choice_forced_probability = CurrentBlock != null && !CurrentBlock.is_tutorial
+            ? Mathf.Clamp01(CurrentBlock.proximal_forced_probability)
+            : 0f;
+        State.proximal_choice_forced_optimal_probability = null;
+        State.motor_choice_is_forced = false;
+        State.motor_choice_forced_set = null;
+        State.motor_choice_forced_probability = CurrentBlock != null && !CurrentBlock.is_tutorial
+            ? Mathf.Clamp01(CurrentBlock.motor_forced_probability)
+            : 0f;
     }
 
     ValleyChoice ResolveValleyFromDistalScanChoice(string scanChoice)
@@ -480,6 +686,16 @@ public class FlowController : MonoBehaviour
     {
         long seed = ResolveDistalSeedForCurrentBlock();
         int intSeed = (int)(DeriveTrialSeed(seed, salt) & 0x7FFFFFFF);
+        if (intSeed == 0)
+            intSeed = 1;
+
+        return new System.Random(intSeed);
+    }
+
+    System.Random CreateCurrentTrialRandom(string scope)
+    {
+        long seed = CurrentTrialSeed != 0 ? CurrentTrialSeed : DeriveTrialSeed(ResolveBlockSeedForCurrentBlock(), State?.current_trial_index ?? 0);
+        int intSeed = DeriveScopedSeed(seed, scope);
         if (intSeed == 0)
             intSeed = 1;
 
@@ -522,6 +738,30 @@ public class FlowController : MonoBehaviour
             hash ^= (byte)(raw & 0xFF);
             hash *= prime;
             raw >>= 8;
+        }
+    }
+
+    static int DeriveScopedSeed(long seed, string scope)
+    {
+        unchecked
+        {
+            const ulong offset = 1469598103934665603UL;
+            const ulong prime = 1099511628211UL;
+
+            ulong h = offset;
+            MixLong(ref h, prime, seed);
+
+            if (!string.IsNullOrEmpty(scope))
+            {
+                for (int i = 0; i < scope.Length; i++)
+                {
+                    h ^= (byte)scope[i];
+                    h *= prime;
+                }
+            }
+
+            int intSeed = (int)(h & 0x7FFFFFFF);
+            return intSeed == 0 ? 1 : intSeed;
         }
     }
 

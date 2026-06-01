@@ -33,8 +33,8 @@ public class BugCloud : MonoBehaviour
 
         Debug.Log("[BugCloud] Collecte déclenchée !");
 
-        if (GameManager.Instance != null)
-            GameManager.Instance.OnCloudCollected(this);
+        if (GameManager.Instance != null && !GameManager.Instance.OnCloudCollected(this))
+            return;
 
         Destroy(gameObject);
     }
@@ -52,6 +52,38 @@ public class BugCloud : MonoBehaviour
     public void AddBugs(int delta)
     {
         totalBugs = Mathf.Max(0, totalBugs + delta);
+    }
+
+    public void SetVisible(bool visible)
+    {
+        var renderers = GetComponentsInChildren<Renderer>(true);
+        foreach (var renderer in renderers)
+        {
+            if (renderer != null)
+                renderer.enabled = visible;
+        }
+
+        var particles = GetComponentsInChildren<ParticleSystem>(true);
+        foreach (var particle in particles)
+        {
+            if (particle == null)
+                continue;
+
+            if (visible)
+                particle.Play(true);
+            else
+                particle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+    }
+
+    public void SetCollectable(bool collectable)
+    {
+        var colliders = GetComponentsInChildren<Collider>(true);
+        foreach (var collider in colliders)
+        {
+            if (collider != null)
+                collider.enabled = collectable;
+        }
     }
 
     //Méthode appelée par le spawner pour configuer les particules

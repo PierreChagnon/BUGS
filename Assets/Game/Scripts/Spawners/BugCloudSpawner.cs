@@ -123,6 +123,12 @@ public class BugCloudSpawner : MonoBehaviour
         cloudB.totalBugs = sampleB.totalBugs;
         cloudB.greenRatio = sampleB.greenRatio;
 
+        string bestCloudSide = leftSample.GreenBugCount >= rightSample.GreenBugCount
+            ? DistalScanSide.Left
+            : DistalScanSide.Right;
+        FlowController.Instance?.ResolveProximalForcedCloud(bestCloudSide);
+        SessionManager.Instance?.RefreshForcedValuesFromFlow();
+
         // ─────────────────────────────────────────────────────────────────────────────────
         // INITIALISATION DES SYSTÈMES DE PARTICULES
         // ─────────────────────────────────────────────────────────────────────────────────

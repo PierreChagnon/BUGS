@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class AdvisorChoiceUI : MonoBehaviour
 {
@@ -64,6 +65,7 @@ public class AdvisorChoiceUI : MonoBehaviour
 
             string rawValue = i < _advisorOptions.Length ? _advisorOptions[i] : $"option_{i + 1}";
             _optionLabels[i].text = rawValue.ToUpperInvariant();
+            SetOptionState(_optionLabels[i], flow, rawValue);
         }
     }
 
@@ -73,6 +75,23 @@ public class AdvisorChoiceUI : MonoBehaviour
             return;
 
         AdvisorType type = FlowValueConverters.ToAdvisorType(_advisorOptions[index]);
+        if (FlowController.Instance != null && !FlowController.Instance.IsAdvisorChoiceAllowed(type))
+            return;
+
         FlowController.Instance?.OnAdvisorChosen(type);
+    }
+
+    static void SetOptionState(TMP_Text label, FlowController flow, string rawValue)
+    {
+        if (label == null)
+            return;
+
+        AdvisorType type = FlowValueConverters.ToAdvisorType(rawValue);
+        bool allowed = flow == null || flow.IsAdvisorChoiceAllowed(type);
+        label.alpha = allowed ? 1f : 0.35f;
+
+        var button = label.GetComponentInParent<Button>();
+        if (button != null)
+            button.interactable = allowed;
     }
 }

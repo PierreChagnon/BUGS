@@ -76,6 +76,8 @@ public class TrialManager : MonoBehaviour
         if (_currentTrialRow == null)
             _currentTrialRow = BuildBaseRow();
 
+        ApplyForcedChoiceState(_currentTrialRow);
+
         _currentTrialRow.proximal_choice = playerChoice;
         _currentTrialRow.choice_correct = correct;
         _currentTrialRow.true_cloud = trueCloud;
@@ -237,7 +239,7 @@ public class TrialManager : MonoBehaviour
             ? flow.State.participant_id
             : Guid.NewGuid().ToString();
 
-        return new TrialResponseRow
+        var row = new TrialResponseRow
         {
             participant_id = participantId,
             session_template_id = flow != null && flow.State != null
@@ -278,6 +280,37 @@ public class TrialManager : MonoBehaviour
             max_suboptimal_traps = session != null ? session.maxSuboptimalTraps : map?.max_suboptimal_traps ?? 0,
             started_at = _startedAtIsoUtc
         };
+
+        ApplyForcedChoiceState(row);
+        return row;
+    }
+
+    static void ApplyForcedChoiceState(TrialResponseRow row)
+    {
+        if (row == null)
+            return;
+
+        var flow = FlowController.Instance;
+        if (flow == null || flow.State == null)
+            return;
+
+        row.meta_choice_is_forced = flow.State.meta_choice_is_forced;
+        row.meta_choice_forced_value = flow.State.meta_choice_forced_value;
+        row.distal_choice_is_forced = flow.State.distal_choice_is_forced;
+        row.distal_choice_forced_value = flow.State.distal_choice_forced_value;
+        row.distal_choice_forced_was_optimal = flow.State.distal_choice_forced_was_optimal;
+        row.distal_choice_forced_optimal_probability = flow.State.distal_choice_forced_optimal_probability;
+        row.proximal_choice_is_forced = flow.State.proximal_choice_is_forced;
+        row.proximal_choice_forced_value = flow.State.proximal_choice_forced_value;
+        row.proximal_choice_forced_was_optimal = flow.State.proximal_choice_forced_was_optimal;
+        row.proximal_choice_forced_probability = flow.State.proximal_choice_forced_probability;
+        row.proximal_choice_forced_optimal_probability = flow.State.proximal_choice_forced_optimal_probability;
+        row.motor_choice_is_forced = flow.State.motor_choice_is_forced;
+        row.motor_choice_forced_set = flow.State.motor_choice_forced_set;
+        row.motor_choice_forced_probability = flow.State.motor_choice_forced_probability;
+
+        if (MotorAdviceController.Instance != null)
+            row.motor_choice_active_config = FlowValueConverters.ToApiValue(MotorAdviceController.Instance.ActiveSet);
     }
 
     void EnsureCurrentTrialRow()

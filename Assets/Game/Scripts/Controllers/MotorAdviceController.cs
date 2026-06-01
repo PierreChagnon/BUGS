@@ -38,10 +38,12 @@ public class MotorAdviceController : MonoBehaviour
     void Start()
     {
         var rng = CreateRng();
-
-        ActiveSet = (MotorKeySet)rng.Next(0, 3);
-
         var session = SessionManager.Instance;
+
+        ActiveSet = session != null && session.MotorChoiceIsForced
+            ? FlowValueConverters.ToMotorKeySet(session.MotorChoiceForcedSet)
+            : (MotorKeySet)rng.Next(0, 3);
+
         float visibleProb = session != null ? session.motorAdviceVisibleProbability : 1f;
         float reliableProb = session != null ? session.motorAdviceReliableProbability : 1f;
         bool hasAdvisor = session == null || session.HasAdvisor;
@@ -59,8 +61,16 @@ public class MotorAdviceController : MonoBehaviour
             return;
         }
 
-        AdviceReliable = rng.NextDouble() < reliableProb;
-        DisplayedSet = AdviceReliable ? ActiveSet : PickOtherSet(rng, ActiveSet);
+        if (session != null && session.MotorChoiceIsForced)
+        {
+            AdviceReliable = true;
+            DisplayedSet = ActiveSet;
+        }
+        else
+        {
+            AdviceReliable = rng.NextDouble() < reliableProb;
+            DisplayedSet = AdviceReliable ? ActiveSet : PickOtherSet(rng, ActiveSet);
+        }
 
         OnAdviceChanged?.Invoke();
     }

@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using System.Collections.Generic;
 
 public class DistalChoiceUI : MonoBehaviour
@@ -32,6 +33,8 @@ public class DistalChoiceUI : MonoBehaviour
     [SerializeField] private DistalValleyScanView _valleyBScanView;
     [SerializeField] private GameObject _valleyAAdviceIndicator;
     [SerializeField] private GameObject _valleyBAdviceIndicator;
+    [SerializeField] private Button _valleyAButton;
+    [SerializeField] private Button _valleyBButton;
 
     public bool AdviceVisible { get; private set; }
     public bool AdviceReliable { get; private set; }
@@ -81,6 +84,7 @@ public class DistalChoiceUI : MonoBehaviour
         UpdateAdviceIndicators();
         ApplyValleyScan(LeftScanData, _valleyAScanView, ref _autoValleyAScan);
         ApplyValleyScan(RightScanData, _valleyBScanView, ref _autoValleyBScan);
+        ApplyForcedChoiceButtons(flow);
     }
 
     static float ComputeExpectedGreenBugs(MapGenConfig config)
@@ -283,11 +287,64 @@ public class DistalChoiceUI : MonoBehaviour
 
     public void OnChooseValleyA()
     {
+        if (FlowController.Instance != null && !FlowController.Instance.IsDistalScanChoiceAllowed(DistalScanSide.Left))
+            return;
+
         FlowController.Instance?.OnValleyChosen(DistalScanSide.Left);
     }
 
     public void OnChooseValleyB()
     {
+        if (FlowController.Instance != null && !FlowController.Instance.IsDistalScanChoiceAllowed(DistalScanSide.Right))
+            return;
+
         FlowController.Instance?.OnValleyChosen(DistalScanSide.Right);
+    }
+
+    void ApplyForcedChoiceButtons(FlowController flow)
+    {
+        bool forced = flow != null && flow.State != null && flow.State.distal_choice_is_forced;
+        string forcedSide = forced ? flow.State.distal_choice_forced_scan_side : null;
+
+        if (_valleyAButton == null)
+            _valleyAButton = FindButtonForMethod(nameof(OnChooseValleyA));
+        if (_valleyBButton == null)
+            _valleyBButton = FindButtonForMethod(nameof(OnChooseValleyB));
+
+        SetButtonState(_valleyAButton, !forced || forcedSide == DistalScanSide.Left);
+        SetButtonState(_valleyBButton, !forced || forcedSide == DistalScanSide.Right);
+    }
+
+    Button FindButtonForMethod(string methodName)
+    {
+        var buttons = GetComponentsInChildren<Button>(true);
+        foreach (var button in buttons)
+        {
+            if (button == null)
+                continue;
+
+            for (int i = 0; i < button.onClick.GetPersistentEventCount(); i++)
+            {
+                if (button.onClick.GetPersistentMethodName(i) == methodName)
+                    return button;
+            }
+        }
+
+        return null;
+    }
+
+    static void SetButtonState(Button button, bool enabled)
+    {
+        if (button == null)
+            return;
+
+        button.interactable = enabled;
+
+        var group = button.GetComponent<CanvasGroup>();
+        if (group == null)
+            group = button.gameObject.AddComponent<CanvasGroup>();
+
+        group.alpha = enabled ? 1f : 0.35f;
+        group.interactable = enabled;
     }
 }

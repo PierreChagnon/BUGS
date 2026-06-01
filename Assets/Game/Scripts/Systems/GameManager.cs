@@ -47,6 +47,7 @@ public class GameManager : MonoBehaviour
 
     BugCloud _leftCloud;
     BugCloud _rightCloud;
+    BugCloud _forcedCollectableCloud;
     readonly HashSet<Vector2Int> _advisorPath = new();
 
     [Serializable]
@@ -134,6 +135,8 @@ public class GameManager : MonoBehaviour
             _rightCloud = a;
         }
 
+        ApplyProximalForcedCloud();
+
         if (trialManager != null && LevelRegistry.Instance != null)
         {
             var registry = LevelRegistry.Instance;
@@ -174,7 +177,8 @@ public class GameManager : MonoBehaviour
         steps++;
 
         LevelRegistry.Instance?.MarkVisited(cell);
-        FogController.Instance?.RevealCell(cell);
+        if (!IsHiddenForcedCloudCell(cell))
+            FogController.Instance?.RevealCell(cell);
 
         if (_advisorPath.Count > 0 && !_advisorPath.Contains(cell))
             followedAdvisorPath = false;
@@ -213,6 +217,9 @@ public class GameManager : MonoBehaviour
             cloudToCollect = _rightCloud;
 
         if (cloudToCollect == null)
+            return;
+
+        if (_forcedCollectableCloud != null && cloudToCollect != _forcedCollectableCloud)
             return;
 
         Debug.Log("[GameManager] Nuage détecté sur la cellule du joueur : collecte forcée (fallback grille).");
@@ -257,10 +264,16 @@ public class GameManager : MonoBehaviour
         Debug.Log("[GameManager] Touche invalide ! Penalite -2 bugs sur chaque nuage.");
     }
 
-    public void OnCloudCollected(BugCloud cloud)
+    public bool OnCloudCollected(BugCloud cloud)
     {
         if (_roundOver)
-            return;
+            return false;
+
+        if (_forcedCollectableCloud != null && cloud != _forcedCollectableCloud)
+        {
+            Debug.Log("[GameManager] Collecte ignoree: cloud non impose sur un trial proximal forced.");
+            return false;
+        }
 
         _roundOver = true;
         inputLocked = true;
@@ -322,6 +335,8 @@ public class GameManager : MonoBehaviour
             rightCloudGreenBugs = _rightCloud ? Mathf.RoundToInt(_rightCloud.totalBugs * _rightCloud.greenRatio) : 0,
             optimalPathVisible = _advisorPathVisible
         });
+
+        return true;
     }
 
     public BugCloud GetBestCloud()
@@ -333,5 +348,43 @@ public class GameManager : MonoBehaviour
             return null;
 
         return _leftCloud.greenRatio > _rightCloud.greenRatio ? _leftCloud : _rightCloud;
+    }
+
+    void ApplyProximalForcedCloud()
+    {
+        _forcedCollectableCloud = null;
+
+        var flow = FlowController.Instance;
+        if (flow == null || flow.State == null || !flow.State.proximal_choice_is_forced)
+        {
+            SetCloudVisibility(_leftCloud, true);
+            SetCloudVisibility(_rightCloud, true);
+            return;
+        }
+
+        _forcedCollectableCloud = flow.State.proximal_choice_forced_value == DistalScanSide.Right
+            ? _rightCloud
+            : _leftCloud;
+
+        SetCloudVisibility(_leftCloud, _forcedCollectableCloud == _leftCloud);
+        SetCloudVisibility(_rightCloud, _forcedCollectableCloud == _rightCloud);
+    }
+
+    bool IsHiddenForcedCloudCell(Vector2Int cell)
+    {
+        if (_forcedCollectableCloud == null || LevelRegistry.Instance == null)
+            return false;
+
+        BugCloud hiddenCloud = _forcedCollectableCloud == _leftCloud ? _rightCloud : _leftCloud;
+        return hiddenCloud != null && LevelRegistry.Instance.WorldToCell(hiddenCloud.transform.position) == cell;
+    }
+
+    static void SetCloudVisibility(BugCloud cloud, bool visible)
+    {
+        if (cloud == null)
+            return;
+
+        cloud.SetVisible(visible);
+        cloud.SetCollectable(visible);
     }
 }

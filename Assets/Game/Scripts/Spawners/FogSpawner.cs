@@ -57,7 +57,8 @@ public class FogSpawner : MonoBehaviour
 
         // Tirage : brouillard actif ce round ?
         var rng = reg.CreateRng(nameof(FogSpawner));
-        if (rng.NextDouble() >= session.fogProbability)
+        bool forceFog = session.ProximalChoiceIsForced;
+        if (!forceFog && rng.NextDouble() >= session.fogProbability)
         {
             Debug.Log("[FogSpawner] Pas de brouillard ce round (fogProbability=" +
                       session.fogProbability + ").");
