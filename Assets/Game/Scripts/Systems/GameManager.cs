@@ -28,6 +28,7 @@ public class GameManager : MonoBehaviour
     public int trapsHit;
     public int overtimeSteps;
     public int bugsCollected;
+    public int bugsEscaped;
     public bool followedAdvisorPath = true;
 
     [Header("Audio")]
@@ -54,6 +55,8 @@ public class GameManager : MonoBehaviour
     public struct RoundEndInfo
     {
         public int bugsCollected;
+        public int bugsEscaped;
+        public bool choiceCorrect;
         public int trapsHit;
         public int overtimeSteps;
         public int steps;
@@ -79,6 +82,7 @@ public class GameManager : MonoBehaviour
     public void BeginFirstRound()
     {
         inputLocked = true;
+        bugsEscaped = 0;
         trialManager.StartNewTrial();
         StartCoroutine(GetReadySequence());
     }
@@ -232,8 +236,8 @@ public class GameManager : MonoBehaviour
             return;
 
         overtimeSteps++;
-        _leftCloud?.AddBugs(-2);
-        _rightCloud?.AddBugs(-2);
+        _leftCloud?.AddBugs(-1);
+        _rightCloud?.AddBugs(-1);
 
         Debug.Log($"[GameManager] Depassement du budget de pas ! overtimeSteps={overtimeSteps}");
     }
@@ -244,8 +248,8 @@ public class GameManager : MonoBehaviour
             return;
 
         trapsHit++;
-        _leftCloud?.AddBugs(-2);
-        _rightCloud?.AddBugs(-2);
+        _leftCloud?.AddBugs(-1);
+        _rightCloud?.AddBugs(-1);
 
         if (_sfxTrap != null)
             AudioManager.Instance?.PlaySfx(_sfxTrap);
@@ -258,10 +262,10 @@ public class GameManager : MonoBehaviour
         if (_roundOver)
             return;
 
-        _leftCloud?.AddBugs(-2);
-        _rightCloud?.AddBugs(-2);
+        _leftCloud?.AddBugs(-1);
+        _rightCloud?.AddBugs(-1);
 
-        Debug.Log("[GameManager] Touche invalide ! Penalite -2 bugs sur chaque nuage.");
+        Debug.Log("[GameManager] Touche invalide ! Penalite -1 bug vert sur chaque nuage.");
     }
 
     public bool OnCloudCollected(BugCloud cloud)
@@ -286,8 +290,12 @@ public class GameManager : MonoBehaviour
         FogController.Instance?.RevealAll();
 
         bugsCollected = cloud != null
-            ? Mathf.Max(0, Mathf.RoundToInt(cloud.totalBugs * cloud.greenRatio))
+            ? cloud.greenBugs
             : 0;
+        bugsEscaped = cloud != null ? cloud.bugsEscaped : 0;
+
+        BugCloud bestCloud = GetBestCloud();
+        bool correct = cloud == bestCloud;
 
         if (trialManager != null)
         {
@@ -297,8 +305,6 @@ public class GameManager : MonoBehaviour
                     ? "right"
                     : "unknown";
 
-            BugCloud bestCloud = GetBestCloud();
-            bool correct = bestCloud != null && cloud == bestCloud;
             string trueCloud = bestCloud == _leftCloud
                 ? "left"
                 : bestCloud == _rightCloud
@@ -327,12 +333,14 @@ public class GameManager : MonoBehaviour
         OnRoundEnded?.Invoke(new RoundEndInfo
         {
             bugsCollected = bugsCollected,
+            bugsEscaped = bugsEscaped,
+            choiceCorrect = correct,
             trapsHit = trapsHit,
             overtimeSteps = overtimeSteps,
             steps = steps,
             followedAdvisorPath = followedAdvisorPath,
-            leftCloudGreenBugs = _leftCloud ? Mathf.RoundToInt(_leftCloud.totalBugs * _leftCloud.greenRatio) : 0,
-            rightCloudGreenBugs = _rightCloud ? Mathf.RoundToInt(_rightCloud.totalBugs * _rightCloud.greenRatio) : 0,
+            leftCloudGreenBugs = _leftCloud ? _leftCloud.greenBugs : 0,
+            rightCloudGreenBugs = _rightCloud ? _rightCloud.greenBugs : 0,
             optimalPathVisible = _advisorPathVisible
         });
 
@@ -344,10 +352,7 @@ public class GameManager : MonoBehaviour
         if (_leftCloud == null || _rightCloud == null)
             return null;
 
-        if (Mathf.Approximately(_leftCloud.greenRatio, _rightCloud.greenRatio))
-            return null;
-
-        return _leftCloud.greenRatio > _rightCloud.greenRatio ? _leftCloud : _rightCloud;
+        return _leftCloud.greenBugs > _rightCloud.greenBugs ? _leftCloud : _rightCloud;
     }
 
     void ApplyProximalForcedCloud()

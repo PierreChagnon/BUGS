@@ -141,8 +141,8 @@ public class BugCloudSpawner : MonoBehaviour
         // LOG DE DEBUG : Affichage des valeurs tirées pour validation
         // ─────────────────────────────────────────────────────────────────────────────────
         Debug.Log($"[BugCloudSpawner] Trial setup: totalBugs={cloudA.totalBugs}, " +
-                  $"cloudA greenRatio={cloudA.greenRatio:F2} ({Mathf.RoundToInt(cloudA.totalBugs * cloudA.greenRatio)} verts), " +
-                  $"cloudB greenRatio={cloudB.greenRatio:F2} ({Mathf.RoundToInt(cloudB.totalBugs * cloudB.greenRatio)} verts), " +
+                  $"cloudA greenRatio={cloudA.greenRatio:F2} ({cloudA.greenBugs} verts), " +
+                  $"cloudB greenRatio={cloudB.greenRatio:F2} ({cloudB.greenBugs} verts), " +
                   $"gap={cloudPair.ratioGap:F2}");
 
 

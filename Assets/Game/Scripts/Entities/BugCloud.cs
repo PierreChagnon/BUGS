@@ -11,6 +11,10 @@ public class BugCloud : MonoBehaviour
     [Header("Butin")]
     [Tooltip("Nombre total d'insectes remis à la collecte.")]
     public int totalBugs = 20;
+    [Tooltip("Nombre courant d'insectes verts remis à la collecte.")]
+    public int greenBugs;
+    [Tooltip("Nombre d'insectes verts perdus à cause des pénalités.")]
+    public int bugsEscaped;
 
     [Range(0f, 1f)]
     [Tooltip("Proportion de verts (le reste sera rouge).")]
@@ -51,7 +55,17 @@ public class BugCloud : MonoBehaviour
 
     public void AddBugs(int delta)
     {
-        totalBugs = Mathf.Max(0, totalBugs + delta);
+        if (delta >= 0)
+        {
+            totalBugs += delta;
+            return;
+        }
+
+        int penalty = -delta;
+        int greenBugsLost = Mathf.Min(penalty, totalBugs, greenBugs);
+        totalBugs -= greenBugsLost;
+        greenBugs -= greenBugsLost;
+        bugsEscaped += greenBugsLost;
     }
 
     public void SetVisible(bool visible)
@@ -89,21 +103,24 @@ public class BugCloud : MonoBehaviour
     //Méthode appelée par le spawner pour configuer les particules
     public void InitializeParticlesQty()
     {
-        if (greenBugsParticles == null || redBugsParticles == null)
-        {
-            Debug.LogWarning("[BugCloud] Systèmes de particules manquants !");
-            return;
-        }
-
         var sample = new BugCloudSample
         {
             totalBugs = totalBugs,
             greenRatio = greenRatio
         };
 
+        greenBugs = Mathf.Clamp(sample.GreenBugCount, 0, totalBugs);
+        bugsEscaped = 0;
+
+        if (greenBugsParticles == null || redBugsParticles == null)
+        {
+            Debug.LogWarning("[BugCloud] Systèmes de particules manquants !");
+            return;
+        }
+
         BugCloudParticleUtility.Apply(greenBugsParticles, redBugsParticles, sample);
 
-        Debug.Log($"[BugCloud] Initialisé: {sample.GreenBugCount} verts, {sample.RedBugCount} rouges (total={totalBugs};ratio={greenRatio})");
+        Debug.Log($"[BugCloud] Initialisé: {greenBugs} verts, {sample.RedBugCount} rouges (total={totalBugs};ratio={greenRatio})");
     }
 
 }

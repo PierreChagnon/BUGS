@@ -12,11 +12,10 @@ public class RoundUI : MonoBehaviour
 {
     [Header("Game Over")]
     [SerializeField] private GameObject _gameOverPanel;
-    [SerializeField] private TMP_Text _gameOverStats;
     [SerializeField] private TMP_Text _greenBugsCollected;
-    [SerializeField] private TMP_Text _trapsHit;
-    [SerializeField] private TMP_Text _overtimeSteps;
-    [SerializeField] private TMP_Text _steps;
+    [SerializeField] private TMP_Text _greenBugsEscaped;
+    [SerializeField] private GameObject _successPanel;
+    [SerializeField] private GameObject _failurePanel;
 
     public event Action OnContinueFromReport;
 
@@ -40,19 +39,16 @@ public class RoundUI : MonoBehaviour
         if (_gameOverPanel != null)
             _gameOverPanel.SetActive(true);
 
-        if (_gameOverStats != null)
-        {
-            _gameOverStats.text =
-                $"Pieges touches : {info.trapsHit}\n" +
-                $"Pas en trop : {info.overtimeSteps}\n" +
-                $"Pas : {info.steps}\n" +
-                $"Chemin conseille suivi : {(info.followedAdvisorPath ? "Oui" : "Non")}\n" +
-                $"Chemin visible : {(info.optimalPathVisible ? "Oui" : "Non")}\n" +
-                $"Bugs nuage G : {info.leftCloudGreenBugs}  |  D : {info.rightCloudGreenBugs}";
-        }
-
         if (_greenBugsCollected != null)
-            _greenBugsCollected.text = $"Bugs collectes : {info.bugsCollected}";
+            _greenBugsCollected.text = $"{info.bugsCollected}";
+        if (_greenBugsEscaped != null)
+            _greenBugsEscaped.text = $"{info.bugsEscaped}";
+
+        if (_successPanel != null)
+            _successPanel.SetActive(info.choiceCorrect);
+
+        if (_failurePanel != null)
+            _failurePanel.SetActive(!info.choiceCorrect);
     }
 
     public void Hide()
