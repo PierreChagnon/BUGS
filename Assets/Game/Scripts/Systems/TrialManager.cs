@@ -76,6 +76,7 @@ public class TrialManager : MonoBehaviour
         if (_currentTrialRow == null)
             _currentTrialRow = BuildBaseRow();
 
+        FlowController.Instance?.FinalizeCurrentExplanationTimers();
         ApplyForcedChoiceState(_currentTrialRow);
 
         _currentTrialRow.proximal_choice = playerChoice;
@@ -94,6 +95,7 @@ public class TrialManager : MonoBehaviour
         _currentTrialRow.player_path_log = FlowSerializationUtility.ToPlayerStepsJson(_playerPathSteps);
         _currentTrialRow.started_at = _startedAtIsoUtc;
         _currentTrialRow.ended_at = DateTime.UtcNow.ToString("o");
+        FlowController.Instance?.ApplyCurrentExplanationStatesToRow(_currentTrialRow);
 
         Debug.Log("[TrialManager] Trial termine: envoi en attente des reponses questionnaire.");
     }
@@ -282,6 +284,7 @@ public class TrialManager : MonoBehaviour
         };
 
         ApplyForcedChoiceState(row);
+        flow?.ApplyCurrentExplanationStatesToRow(row);
         return row;
     }
 

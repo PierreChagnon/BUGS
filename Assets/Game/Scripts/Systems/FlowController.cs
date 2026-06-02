@@ -35,12 +35,15 @@ public class FlowController : MonoBehaviour
     public long CurrentTrialSeed { get; private set; }
     public int BlockScore { get; private set; }
     public string BuildVersion => _buildVersion;
+    public ExplanationRuntimeState DistalAdviceExplanation { get; private set; } = ExplanationRuntimeState.None();
+    public ExplanationRuntimeState ProximalAdviceExplanation { get; private set; } = ExplanationRuntimeState.None();
+    public ExplanationRuntimeState MotorAdviceExplanation { get; private set; } = ExplanationRuntimeState.None();
 
     public BlockConfig CurrentBlock
     {
         get
         {
-            if (!HasLoadedConfig)
+            if (!HasLoadedConfig || State == null)
                 return null;
 
             if (State.current_block_index < 0 || State.current_block_index >= Config.blocks.Count)
@@ -154,6 +157,7 @@ public class FlowController : MonoBehaviour
         BlockScore = 0;
         CurrentBlockSeed = 0;
         CurrentTrialSeed = 0;
+        ResetAllExplanationStates();
     }
 
     public void OnConsentGiven()
@@ -215,6 +219,7 @@ public class FlowController : MonoBehaviour
             return;
         }
 
+        RecordExplanationHidden(AdviceLevel.Distal);
         State.distal_scan_choice = scanChoice;
         State.valley_choice = ResolveValleyFromDistalScanChoice(scanChoice);
         CurrentBlockSeed = ResolveBlockSeedForCurrentBlock();
@@ -358,6 +363,7 @@ public class FlowController : MonoBehaviour
         State.distal_scan_choice = null;
         ResetForcedChoiceState();
         ResetDistalAdviceState();
+        ResetAllExplanationStates();
         State.last_trial_response_id = null;
         CurrentBlockSeed = 0;
         CurrentTrialSeed = 0;
@@ -485,6 +491,7 @@ public class FlowController : MonoBehaviour
     void RollTrialForcedChoicesForCurrentTrial()
     {
         ResetTrialForcedChoiceState();
+        ResetTrialExplanationStates();
 
         var block = CurrentBlock;
         if (State == null || block == null || block.is_tutorial)
@@ -528,6 +535,62 @@ public class FlowController : MonoBehaviour
         Debug.Log($"[FlowController] Proximal forced: cloud={State.proximal_choice_forced_value}, optimal={forcedWasOptimal}.");
     }
 
+    public void ResolveProximalExplanationForCurrentTrial(bool adviceVisible)
+    {
+        ProximalAdviceExplanation = ExplanationResolver.Resolve(
+            CurrentBlock,
+            AdviceLevel.Proximal,
+            State != null ? State.advisor_choice : AdvisorType.None,
+            adviceVisible);
+    }
+
+    public void ResolveMotorExplanationForCurrentTrial(bool adviceVisible)
+    {
+        MotorAdviceExplanation = ExplanationResolver.Resolve(
+            CurrentBlock,
+            AdviceLevel.Motor,
+            State != null ? State.advisor_choice : AdvisorType.None,
+            adviceVisible);
+    }
+
+    public ExplanationRuntimeState GetExplanationState(AdviceLevel level)
+    {
+        return level switch
+        {
+            AdviceLevel.Distal => DistalAdviceExplanation,
+            AdviceLevel.Proximal => ProximalAdviceExplanation,
+            AdviceLevel.Motor => MotorAdviceExplanation,
+            _ => ExplanationRuntimeState.None()
+        };
+    }
+
+    public void RecordExplanationDisplayed(AdviceLevel level)
+    {
+        GetExplanationState(level)?.MarkDisplayed(Time.realtimeSinceStartup);
+    }
+
+    public void RecordExplanationHidden(AdviceLevel level)
+    {
+        GetExplanationState(level)?.MarkHidden(Time.realtimeSinceStartup);
+    }
+
+    public void FinalizeCurrentExplanationTimers()
+    {
+        RecordExplanationHidden(AdviceLevel.Distal);
+        RecordExplanationHidden(AdviceLevel.Proximal);
+        RecordExplanationHidden(AdviceLevel.Motor);
+    }
+
+    public void ApplyCurrentExplanationStatesToRow(TrialResponseRow row)
+    {
+        if (row == null)
+            return;
+
+        FlowSerializationUtility.ApplyExplanationState(row, AdviceLevel.Distal, DistalAdviceExplanation);
+        FlowSerializationUtility.ApplyExplanationState(row, AdviceLevel.Proximal, ProximalAdviceExplanation);
+        FlowSerializationUtility.ApplyExplanationState(row, AdviceLevel.Motor, MotorAdviceExplanation);
+    }
+
     public bool IsAdvisorChoiceAllowed(AdvisorType type)
     {
         return State == null ||
@@ -549,7 +612,10 @@ public class FlowController : MonoBehaviour
 
         var block = CurrentBlock;
         if (State == null || block == null)
+        {
+            ResolveDistalExplanationForCurrentBlock();
             return;
+        }
 
         var bestRng = CreateCurrentBlockRandom(0);
         State.distal_best_valley = bestRng.NextDouble() < 0.5
@@ -561,6 +627,7 @@ public class FlowController : MonoBehaviour
         if (State.advisor_choice == AdvisorType.None)
         {
             Debug.Log("[FlowController] Distal advice masque car advisor_choice=none.");
+            ResolveDistalExplanationForCurrentBlock();
             return;
         }
 
@@ -572,6 +639,7 @@ public class FlowController : MonoBehaviour
         if (!State.distal_advice_visible)
         {
             Debug.Log($"[FlowController] Distal advice visible=false (prob={visibleProbability:0.###}).");
+            ResolveDistalExplanationForCurrentBlock();
             return;
         }
 
@@ -593,6 +661,16 @@ public class FlowController : MonoBehaviour
             $"reliable={State.distal_advice_reliable} (prob={reliableProbability:0.###}), " +
             $"bestScan={State.distal_best_valley}, " +
             $"advisor_choice={State.distal_advice_choice}.");
+        ResolveDistalExplanationForCurrentBlock();
+    }
+
+    void ResolveDistalExplanationForCurrentBlock()
+    {
+        DistalAdviceExplanation = ExplanationResolver.Resolve(
+            CurrentBlock,
+            AdviceLevel.Distal,
+            State != null ? State.advisor_choice : AdvisorType.None,
+            State != null && State.distal_advice_visible);
     }
 
     void RollDistalForcedForCurrentBlock(BlockConfig block)
@@ -634,6 +712,7 @@ public class FlowController : MonoBehaviour
         State.distal_advice_choice = null;
         State.distal_best_valley = null;
         State.distal_scan_choice = null;
+        DistalAdviceExplanation = ExplanationRuntimeState.None();
     }
 
     void ResetForcedChoiceState()
@@ -668,6 +747,18 @@ public class FlowController : MonoBehaviour
         State.motor_choice_forced_probability = CurrentBlock != null && !CurrentBlock.is_tutorial
             ? Mathf.Clamp01(CurrentBlock.motor_forced_probability)
             : 0f;
+    }
+
+    void ResetAllExplanationStates()
+    {
+        DistalAdviceExplanation = ExplanationRuntimeState.None();
+        ResetTrialExplanationStates();
+    }
+
+    void ResetTrialExplanationStates()
+    {
+        ProximalAdviceExplanation = ExplanationRuntimeState.None();
+        MotorAdviceExplanation = ExplanationRuntimeState.None();
     }
 
     ValleyChoice ResolveValleyFromDistalScanChoice(string scanChoice)

@@ -171,6 +171,7 @@ public class GameManager : MonoBehaviour
     public void SetAdvisorPathVisible(bool isVisible)
     {
         _advisorPathVisible = isVisible;
+        FlowController.Instance?.ResolveProximalExplanationForCurrentTrial(isVisible);
     }
 
     public void OnPlayerStep(Vector2Int cell)

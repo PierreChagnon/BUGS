@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -231,7 +232,7 @@ public class ApiClient : MonoBehaviour
             yield break;
         }
 
-        SessionConfig config = JsonUtility.FromJson<SessionConfig>(request.downloadHandler.text);
+        SessionConfig config = JsonConvert.DeserializeObject<SessionConfig>(request.downloadHandler.text);
         if (config == null)
         {
             onError?.Invoke("JSON de SessionConfig invalide");
@@ -474,7 +475,8 @@ public class ApiClient : MonoBehaviour
         for (int i = 0; i < fields.Length; i++)
         {
             object value = fields[i].GetValue(source);
-            if (value == null)
+            bool shouldIncludeNull = Attribute.IsDefined(fields[i], typeof(IncludeNullInJsonAttribute));
+            if (value == null && !shouldIncludeNull)
                 continue;
 
             if (hasPreviousField)
@@ -482,7 +484,11 @@ public class ApiClient : MonoBehaviour
 
             AppendJsonString(builder, fields[i].Name);
             builder.Append(':');
-            AppendJsonValue(builder, value);
+            if (value == null)
+                builder.Append("null");
+            else
+                AppendJsonValue(builder, value);
+
             hasPreviousField = true;
         }
 
