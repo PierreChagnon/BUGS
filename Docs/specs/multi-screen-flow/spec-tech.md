@@ -286,14 +286,14 @@ public class SessionConfig
     public string session_template_id;
     public string consent_text;
     public bool tutorial_enabled;
-    public List<BlockConfig> blocks;         // inclut le bloc tuto (is_tutorial=true) si actif
+    public List<BlockConfig> blocks;         // déjà triés par le backend (block_order ASC)
 }
 
 [Serializable]
 public class BlockConfig
 {
     public string block_template_id;
-    public int block_order;
+    public int block_order;                  // ordre backend, conservé pour logs/debug
     public int trial_count;
     public bool is_tutorial;                 // true = bloc tuto (pas d'envoi API, config hardcodée)
     public string[] advisor_options;

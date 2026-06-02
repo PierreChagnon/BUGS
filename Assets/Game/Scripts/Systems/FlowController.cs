@@ -451,7 +451,6 @@ public class FlowController : MonoBehaviour
         for (int i = 0; i < config.blocks.Count; i++)
             SanitizeBlockConfig(config.blocks[i]);
 
-        config.blocks.Sort((a, b) => a.block_order.CompareTo(b.block_order));
         return config;
     }
 

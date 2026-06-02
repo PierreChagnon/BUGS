@@ -2118,7 +2118,7 @@ public class FlowController : MonoBehaviour
 | AdvanceToPhase(GamePhase)                   | void (privé)            | Met à jour State.current_phase, émet OnPhaseChanged, lance TransitionToScene        |
 | AdvanceToNextBlockOrEnd()                   | void (privé)            | Reset score/choices, incrémente block_index, → AdvisorChoice ou EndSession          |
 | TransitionToScene(string)                   | IEnumerator (privé)     | FadeOut → LoadScene → FadeIn                                                        |
-| PrepareConfig(SessionConfig)                | SessionConfig (privé)   | EnsureTutorialBlock, cleanup nulls, sort by block_order                             |
+| PrepareConfig(SessionConfig)                | SessionConfig (privé)   | EnsureTutorialBlock, cleanup nulls, sanitize blocks                                 |
 | GetSceneName(GamePhase)                     | string (privé)          | Mapping phase → nom de scène (configurable via SerializeField)                     |
 | ExtractSessionIdFromAbsoluteUrl(string, string) | string (static)    | Parse query parameter depuis Application.absoluteURL                                |
 | GenerateTrialSeed()                         | long (static)           | `(DateTime.UtcNow.Ticks << 1) ^ Guid.NewGuid().GetHashCode()` (unchecked)          |
@@ -2167,7 +2167,7 @@ BlockScore          += trialScore à chaque OnTrialComplete (sauf tutorial)
 green_bugs_accumulated = BlockScore (reset à 0 entre blocs)
 Tutorial skip       = si CurrentBlock.is_tutorial → score non compté, envoi réseau ignoré
 Session complete    = ApiClient.CompleteSession après dernier bloc
-PrepareConfig       = EnsureTutorialBlock + cleanup nulls + sort by block_order
+PrepareConfig       = EnsureTutorialBlock + cleanup nulls + sanitize blocks
 ```
 
 ### 4.9.6 Points d'attention
@@ -2631,7 +2631,7 @@ Configuration d'un bloc dans la session. Chaque bloc contient N trials + un ques
 | Champ              | Type                   | Description                                           |
 | :----------------- | :--------------------- | :---------------------------------------------------- |
 | block_template_id  | string                 | ID du template de bloc                                 |
-| block_order        | int                    | Ordre de tri des blocs dans la session                  |
+| block_order        | int                    | Ordre backend des blocs; le payload est déjà trié        |
 | trial_count        | int (défaut 1)         | Nombre de trials dans le bloc                           |
 | is_tutorial        | bool                   | Si `true`, scores non comptés, envoi réseau ignoré      |
 | valley_a / valley_b| MapGenConfig           | Configuration de génération pour chaque vallée          |
