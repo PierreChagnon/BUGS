@@ -288,7 +288,7 @@ ParticleSystem:
     startSize:
       serializedVersion: 2
       minMaxState: 3
-      scalar: 0.4
+      scalar: 0.45
       minScalar: 0.25
       maxCurve:
         serializedVersion: 2
@@ -4934,7 +4934,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &176624939707363649
 Transform:
   m_ObjectHideFlags: 0
