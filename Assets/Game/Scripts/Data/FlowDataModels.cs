@@ -71,7 +71,7 @@ public class BlockConfig
     public DistalSceneConfig distal_scene = new();
     public MapGenConfig valley_a = new();
     public MapGenConfig valley_b = new();
-    public ExplanationsConfig explanations = new();
+    public ExplanationsConfig explanations;
     public float distal_advice_visible_probability = 1f;
     public float distal_advice_reliable_probability = 1f;
 
@@ -94,7 +94,7 @@ public class BlockConfig
             distal_scene = distal_scene != null ? distal_scene.DeepClone() : new DistalSceneConfig(),
             valley_a = valley_a != null ? valley_a.DeepClone() : new MapGenConfig(),
             valley_b = valley_b != null ? valley_b.DeepClone() : new MapGenConfig(),
-            explanations = explanations != null ? explanations.DeepClone() : new ExplanationsConfig(),
+            explanations = explanations != null ? explanations.DeepClone() : null,
             distal_advice_visible_probability = distal_advice_visible_probability,
             distal_advice_reliable_probability = distal_advice_reliable_probability
         };
