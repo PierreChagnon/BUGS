@@ -103,6 +103,11 @@ Thumbs.db
 # Python venv
 .venv/
 
+
+
+# Agentic AI
+AGENTS.md
+
 # Google credentials & secrets
 cosmic-envoy-487711-i4-a8e723205126.json
 token.json

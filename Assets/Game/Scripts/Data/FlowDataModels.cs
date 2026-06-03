@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using UnityEngine;
 
 public enum GamePhase
@@ -20,6 +21,13 @@ public enum AdvisorType
     None,
     Human,
     Robot
+}
+
+public enum AdviceLevel
+{
+    Distal,
+    Proximal,
+    Motor
 }
 
 public enum ValleyChoice
@@ -63,6 +71,7 @@ public class BlockConfig
     public DistalSceneConfig distal_scene = new();
     public MapGenConfig valley_a = new();
     public MapGenConfig valley_b = new();
+    public ExplanationsConfig explanations;
     public float distal_advice_visible_probability = 1f;
     public float distal_advice_reliable_probability = 1f;
 
@@ -85,6 +94,7 @@ public class BlockConfig
             distal_scene = distal_scene != null ? distal_scene.DeepClone() : new DistalSceneConfig(),
             valley_a = valley_a != null ? valley_a.DeepClone() : new MapGenConfig(),
             valley_b = valley_b != null ? valley_b.DeepClone() : new MapGenConfig(),
+            explanations = explanations != null ? explanations.DeepClone() : null,
             distal_advice_visible_probability = distal_advice_visible_probability,
             distal_advice_reliable_probability = distal_advice_reliable_probability
         };
@@ -165,6 +175,146 @@ public class MapGenConfig
     }
 }
 
+public static class ExplanationDisplayMode
+{
+    public const string Forced = "forced";
+    public const string OptIn = "opt-in";
+    public const string None = "none";
+}
+
+public static class ExplanationContentVariant
+{
+    public const string Short = "short";
+    public const string Long = "long";
+}
+
+[Serializable]
+public class ExplanationsConfig
+{
+    public AdviceExplanationConfig distal = new();
+    public AdviceExplanationConfig proximal = new();
+    public AdviceExplanationConfig motor = new();
+
+    public AdviceExplanationConfig GetConfig(AdviceLevel level)
+    {
+        return level switch
+        {
+            AdviceLevel.Distal => distal,
+            AdviceLevel.Proximal => proximal,
+            AdviceLevel.Motor => motor,
+            _ => null
+        };
+    }
+
+    public ExplanationsConfig DeepClone()
+    {
+        return new ExplanationsConfig
+        {
+            distal = distal != null ? distal.DeepClone() : new AdviceExplanationConfig(),
+            proximal = proximal != null ? proximal.DeepClone() : new AdviceExplanationConfig(),
+            motor = motor != null ? motor.DeepClone() : new AdviceExplanationConfig()
+        };
+    }
+}
+
+[Serializable]
+public class AdviceExplanationConfig
+{
+    public string display_mode = ExplanationDisplayMode.None;
+    public string content_variant = ExplanationContentVariant.Short;
+    public ExplanationCorpus corpus = new();
+
+    public ExplanationText GetText(AdvisorType advisorType, string variant)
+    {
+        ExplanationVariantSet variants = corpus != null ? corpus.GetVariantSet(advisorType) : null;
+        return variants != null ? variants.GetText(variant) : null;
+    }
+
+    public AdviceExplanationConfig DeepClone()
+    {
+        return new AdviceExplanationConfig
+        {
+            display_mode = display_mode,
+            content_variant = content_variant,
+            corpus = corpus != null ? corpus.DeepClone() : new ExplanationCorpus()
+        };
+    }
+}
+
+[Serializable]
+public class ExplanationCorpus
+{
+    [JsonProperty("human-bot")]
+    public ExplanationVariantSet humanBot = new();
+
+    [JsonProperty("bot-bot")]
+    public ExplanationVariantSet botBot = new();
+
+    public ExplanationVariantSet GetVariantSet(AdvisorType advisorType)
+    {
+        return advisorType switch
+        {
+            AdvisorType.Human => humanBot,
+            AdvisorType.Robot => botBot,
+            _ => null
+        };
+    }
+
+    public ExplanationCorpus DeepClone()
+    {
+        return new ExplanationCorpus
+        {
+            humanBot = humanBot != null ? humanBot.DeepClone() : new ExplanationVariantSet(),
+            botBot = botBot != null ? botBot.DeepClone() : new ExplanationVariantSet()
+        };
+    }
+}
+
+[Serializable]
+public class ExplanationVariantSet
+{
+    [JsonProperty("short")]
+    public ExplanationText shortText = new();
+
+    [JsonProperty("long")]
+    public ExplanationText longText = new();
+
+    public ExplanationText GetText(string variant)
+    {
+        return variant switch
+        {
+            ExplanationContentVariant.Short => shortText,
+            ExplanationContentVariant.Long => longText,
+            _ => null
+        };
+    }
+
+    public ExplanationVariantSet DeepClone()
+    {
+        return new ExplanationVariantSet
+        {
+            shortText = shortText != null ? shortText.DeepClone() : new ExplanationText(),
+            longText = longText != null ? longText.DeepClone() : new ExplanationText()
+        };
+    }
+}
+
+[Serializable]
+public class ExplanationText
+{
+    public string id = "";
+    public string text = "";
+
+    public ExplanationText DeepClone()
+    {
+        return new ExplanationText
+        {
+            id = id,
+            text = text
+        };
+    }
+}
+
 [Serializable]
 public class QuestionConfig
 {
@@ -236,6 +386,11 @@ public class PlayerSessionState
     public int green_bugs_accumulated;
 }
 
+[AttributeUsage(AttributeTargets.Field)]
+public sealed class IncludeNullInJsonAttribute : Attribute
+{
+}
+
 [Serializable]
 public class TrialResponseRow
 {
@@ -247,21 +402,14 @@ public class TrialResponseRow
     public int trial_count;
     public string advisor_choice;
     public string valley_choice;
-    public bool meta_choice_is_forced;
-    public string meta_choice_forced_value;
-    public bool distal_choice_is_forced;
-    public string distal_choice_forced_value;
-    public bool? distal_choice_forced_was_optimal;
-    public float? distal_choice_forced_optimal_probability;
-    public bool proximal_choice_is_forced;
-    public string proximal_choice_forced_value;
-    public bool? proximal_choice_forced_was_optimal;
-    public float proximal_choice_forced_probability;
-    public float? proximal_choice_forced_optimal_probability;
-    public bool motor_choice_is_forced;
-    public string motor_choice_forced_set;
-    public float motor_choice_forced_probability;
-    public string motor_choice_active_config;
+    public bool advisor_forced;
+    public string advisor_forced_value;
+    public bool distal_forced;
+    public float distal_forced_optimal_probability;
+    public float proximal_forced_probability;
+    public float proximal_forced_optimal_probability;
+    public float motor_forced_probability;
+    public string motor_forced_set;
     public float distal_advice_visible_probability;
     public float distal_advice_reliable_probability;
     public bool distal_advice_visible;
@@ -269,6 +417,11 @@ public class TrialResponseRow
     public string distal_advice_choice;
     public string distal_best_valley;
     public string distal_scan_choice;
+    public string distal_advice_explanation_display_mode = ExplanationDisplayMode.None;
+    [IncludeNullInJson] public string distal_advice_explanation_content_variant;
+    [IncludeNullInJson] public string distal_advice_explanation_text_id;
+    [IncludeNullInJson] public bool? distal_advice_explanation_clicked;
+    [IncludeNullInJson] public int? distal_advice_explanation_display_duration_ms;
     public DistalSceneConfig distal_scene;
     public int trap_count;
     public int min_distance;
@@ -286,6 +439,11 @@ public class TrialResponseRow
     public float detour_probability;
     public float motor_advice_visible_probability;
     public float motor_advice_reliable_probability;
+    public string motor_advice_explanation_display_mode = ExplanationDisplayMode.None;
+    [IncludeNullInJson] public string motor_advice_explanation_content_variant;
+    [IncludeNullInJson] public string motor_advice_explanation_text_id;
+    [IncludeNullInJson] public bool? motor_advice_explanation_clicked;
+    [IncludeNullInJson] public int? motor_advice_explanation_display_duration_ms;
     public float suboptimal_trap_probability;
     public int min_suboptimal_traps;
     public int max_suboptimal_traps;
@@ -295,6 +453,11 @@ public class TrialResponseRow
     public bool optimal_path_visible;
     public bool path_is_suboptimal;
     public string proximal_choice;
+    public string proximal_advice_explanation_display_mode = ExplanationDisplayMode.None;
+    [IncludeNullInJson] public string proximal_advice_explanation_content_variant;
+    [IncludeNullInJson] public string proximal_advice_explanation_text_id;
+    [IncludeNullInJson] public bool? proximal_advice_explanation_clicked;
+    [IncludeNullInJson] public int? proximal_advice_explanation_display_duration_ms;
     public bool choice_correct;
     public string true_cloud;
     public int green_bugs_collected;

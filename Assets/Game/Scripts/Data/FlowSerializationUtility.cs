@@ -70,6 +70,44 @@ public static class FlowSerializationUtility
         }
     }
 
+    public static void ApplyExplanationState(
+        TrialResponseRow row,
+        AdviceLevel level,
+        ExplanationRuntimeState state)
+    {
+        if (row == null)
+            return;
+
+        state ??= ExplanationRuntimeState.None();
+
+        switch (level)
+        {
+            case AdviceLevel.Distal:
+                row.distal_advice_explanation_display_mode = state.display_mode;
+                row.distal_advice_explanation_content_variant = state.content_variant;
+                row.distal_advice_explanation_text_id = state.text_id;
+                row.distal_advice_explanation_clicked = state.clicked;
+                row.distal_advice_explanation_display_duration_ms = state.display_duration_ms;
+                break;
+
+            case AdviceLevel.Proximal:
+                row.proximal_advice_explanation_display_mode = state.display_mode;
+                row.proximal_advice_explanation_content_variant = state.content_variant;
+                row.proximal_advice_explanation_text_id = state.text_id;
+                row.proximal_advice_explanation_clicked = state.clicked;
+                row.proximal_advice_explanation_display_duration_ms = state.display_duration_ms;
+                break;
+
+            case AdviceLevel.Motor:
+                row.motor_advice_explanation_display_mode = state.display_mode;
+                row.motor_advice_explanation_content_variant = state.content_variant;
+                row.motor_advice_explanation_text_id = state.text_id;
+                row.motor_advice_explanation_clicked = state.clicked;
+                row.motor_advice_explanation_display_duration_ms = state.display_duration_ms;
+                break;
+        }
+    }
+
     public static string BuildQuestionnaireDebugSummary(IReadOnlyList<QuestionResponse> responses)
     {
         if (responses == null || responses.Count == 0)

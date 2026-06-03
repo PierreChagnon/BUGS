@@ -57,6 +57,7 @@ public class MotorAdviceController : MonoBehaviour
         {
             AdviceReliable = false;
             DisplayedSet = MotorKeySet.None;
+            FlowController.Instance?.ResolveMotorExplanationForCurrentTrial(false);
             OnAdviceChanged?.Invoke();
             return;
         }
@@ -72,6 +73,7 @@ public class MotorAdviceController : MonoBehaviour
             DisplayedSet = AdviceReliable ? ActiveSet : PickOtherSet(rng, ActiveSet);
         }
 
+        FlowController.Instance?.ResolveMotorExplanationForCurrentTrial(true);
         OnAdviceChanged?.Invoke();
     }
 
