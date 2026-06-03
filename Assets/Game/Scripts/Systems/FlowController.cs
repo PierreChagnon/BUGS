@@ -541,7 +541,7 @@ public class FlowController : MonoBehaviour
             CurrentBlock,
             AdviceLevel.Proximal,
             State != null ? State.advisor_choice : AdvisorType.None,
-            adviceVisible);
+            adviceVisible && IsFirstTrialInCurrentBlock());
     }
 
     public void ResolveMotorExplanationForCurrentTrial(bool adviceVisible)
@@ -550,7 +550,12 @@ public class FlowController : MonoBehaviour
             CurrentBlock,
             AdviceLevel.Motor,
             State != null ? State.advisor_choice : AdvisorType.None,
-            adviceVisible);
+            adviceVisible && IsFirstTrialInCurrentBlock());
+    }
+
+    bool IsFirstTrialInCurrentBlock()
+    {
+        return State != null && State.current_trial_index == 0;
     }
 
     public ExplanationRuntimeState GetExplanationState(AdviceLevel level)

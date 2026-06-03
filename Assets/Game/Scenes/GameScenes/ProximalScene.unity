@@ -13272,7 +13272,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8279021522861775828, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8354130321933860553, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: _advisorRobot
@@ -13316,7 +13316,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9076606462790786989, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
@@ -14532,7 +14532,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 173ac7ee81e340b18a70d41aefe5357b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProximalExplanationUI
-  _explanationRoot: {fileID: 1388644567}
+  _explanationRoot: {fileID: 1699332797}
   _explanationText: {fileID: 1388644566}
   _showButton: {fileID: 0}
   _showButtonRoot: {fileID: 0}
@@ -15948,6 +15948,11 @@ Transform:
 Transform:
   m_CorrespondingSourceObject: {fileID: 1310028211529153949, guid: c8ca65ecdf242ce43bbcc052a0064679, type: 3}
   m_PrefabInstance: {fileID: 2010888584}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &1699332797 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8151229644018881256, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
+  m_PrefabInstance: {fileID: 1445343096}
   m_PrefabAsset: {fileID: 0}
 --- !u!1 &1716181367
 GameObject:
