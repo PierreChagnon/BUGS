@@ -168,6 +168,14 @@ public class FlowController : MonoBehaviour
         AdvanceToPhase(GamePhase.Intro);
     }
 
+    public void OnConsentDeclined()
+    {
+        if (State == null || State.current_phase != GamePhase.Consent)
+            return;
+
+        AdvanceToPhase(GamePhase.Welcome);
+    }
+
     public void OnPhaseComplete()
     {
         if (State == null)

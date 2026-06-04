@@ -32,5 +32,7 @@ public class ConsentUI : MonoBehaviour
     {
         if (_statusText != null)
             _statusText.text = "Vous avez refuse le consentement. La session s'arrete ici.";
+
+        FlowController.Instance?.OnConsentDeclined();
     }
 }
