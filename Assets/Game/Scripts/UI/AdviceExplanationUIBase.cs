@@ -17,6 +17,7 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
     [SerializeField] private GameObject _advisorRobotBadge;
 
     protected abstract AdviceLevel Level { get; }
+    protected virtual bool ShowAdvisorBadgesFromExplanation => true;
 
     ExplanationRuntimeState _state;
     bool _hasLoggedDebugState;
@@ -153,9 +154,13 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
 
     void SetAdvisorBadgesVisible(bool explanationVisible)
     {
+        if (!ShowAdvisorBadgesFromExplanation)
+            return;
+
+        bool badgesVisible = explanationVisible;
         AdvisorType advisorType = GetAdvisorType();
-        bool showHuman = explanationVisible && advisorType == AdvisorType.Human;
-        bool showRobot = explanationVisible && advisorType == AdvisorType.Robot;
+        bool showHuman = badgesVisible && advisorType == AdvisorType.Human;
+        bool showRobot = badgesVisible && advisorType == AdvisorType.Robot;
 
         if (_advisorHumanMaleBadge != null)
             _advisorHumanMaleBadge.SetActive(showHuman && _showHumanMaleBadge);

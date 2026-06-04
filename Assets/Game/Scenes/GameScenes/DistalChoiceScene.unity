@@ -23237,6 +23237,9 @@ MonoBehaviour:
   _valleyBScanView: {fileID: 0}
   _valleyAAdviceIndicator: {fileID: 718610085}
   _valleyBAdviceIndicator: {fileID: 1546222665}
+  _advisorSelectedHumanMale: {fileID: 2133730930}
+  _advisorSelectedHumanFemale: {fileID: 795932738}
+  _advisorSelectedRobot: {fileID: 1481419205}
   _valleyAButton: {fileID: 0}
   _valleyBButton: {fileID: 0}
 --- !u!224 &1321052569502223470 stripped
@@ -23261,9 +23264,9 @@ MonoBehaviour:
   _showButton: {fileID: 1365705900}
   _showButtonRoot: {fileID: 1365705898}
   _closeButton: {fileID: 1193112435}
-  _advisorHumanMaleBadge: {fileID: 2133730930}
-  _advisorHumanFemaleBadge: {fileID: 795932738}
-  _advisorRobotBadge: {fileID: 1481419205}
+  _advisorHumanMaleBadge: {fileID: 0}
+  _advisorHumanFemaleBadge: {fileID: 0}
+  _advisorRobotBadge: {fileID: 0}
 --- !u!1001 &7571023101918162471
 PrefabInstance:
   m_ObjectHideFlags: 0

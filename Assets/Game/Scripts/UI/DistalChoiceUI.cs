@@ -25,16 +25,11 @@ public class DistalChoiceUI : MonoBehaviour
         }
     }
 
-    [SerializeField] private TMP_Text _titleText;
-    [SerializeField] private TMP_Text _advisorChoiceText;
-    [SerializeField] private TMP_Text _valleyAText;
-    [SerializeField] private TMP_Text _valleyBText;
-    [SerializeField] private DistalValleyScanView _valleyAScanView;
-    [SerializeField] private DistalValleyScanView _valleyBScanView;
     [SerializeField] private GameObject _valleyAAdviceIndicator;
     [SerializeField] private GameObject _valleyBAdviceIndicator;
-    [SerializeField] private Button _valleyAButton;
-    [SerializeField] private Button _valleyBButton;
+    [SerializeField] private GameObject _advisorSelectedHumanMale;
+    [SerializeField] private GameObject _advisorSelectedHumanFemale;
+    [SerializeField] private GameObject _advisorSelectedRobot;
 
     public bool AdviceVisible { get; private set; }
     public bool AdviceReliable { get; private set; }
@@ -64,27 +59,29 @@ public class DistalChoiceUI : MonoBehaviour
         AdviceReliable = flow.State != null && flow.State.distal_advice_reliable;
         AdvisedScanSide = flow.State != null ? flow.State.distal_advice_choice : null;
         BestScanSide = flow.State != null ? flow.State.distal_best_valley : null;
+        AdvisorType advisorType = flow.State != null ? flow.State.advisor_choice : AdvisorType.None;
         BugCloudPairData distalScans = flow.GenerateCurrentDistalScans();
         LeftScanData = distalScans.firstCloud;
         RightScanData = distalScans.secondCloud;
 
-
-        if (_titleText != null)
-            _titleText.text = "Choix distal";
-
-        if (_advisorChoiceText != null)
-            _advisorChoiceText.text = $"Advisor choisi: {FlowValueConverters.ToApiValue(flow.State.advisor_choice)}";
-
-        if (_valleyAText != null)
-            _valleyAText.text = "Scan gauche";
-
-        if (_valleyBText != null)
-            _valleyBText.text = "Scan droit";
-
-        UpdateAdviceIndicators();
-        ApplyValleyScan(LeftScanData, _valleyAScanView, ref _autoValleyAScan);
-        ApplyValleyScan(RightScanData, _valleyBScanView, ref _autoValleyBScan);
+        UpdateAdviceIndicators(advisorType);
+        SetSelectedAdvisorBadge(AdviceVisible, advisorType);
+        ApplyValleyScan(LeftScanData, ref _autoValleyAScan);
+        ApplyValleyScan(RightScanData, ref _autoValleyBScan);
         ApplyForcedChoiceButtons(flow);
+    }
+
+    void SetSelectedAdvisorBadge(bool adviceVisible, AdvisorType advisorType)
+    {
+        bool showHuman = adviceVisible && advisorType == AdvisorType.Human;
+        bool showRobot = adviceVisible && advisorType == AdvisorType.Robot;
+
+        if (_advisorSelectedHumanMale != null)
+            _advisorSelectedHumanMale.SetActive(showHuman && _showHumanMale);
+        if (_advisorSelectedHumanFemale != null)
+            _advisorSelectedHumanFemale.SetActive(showHuman && !_showHumanMale);
+        if (_advisorSelectedRobot != null)
+            _advisorSelectedRobot.SetActive(showRobot);
     }
 
     static float ComputeExpectedGreenBugs(MapGenConfig config)
@@ -97,26 +94,16 @@ public class DistalChoiceUI : MonoBehaviour
         return averageTotalBugs * averageGreenRatio;
     }
 
-    void ApplyValleyScan(
-        BugCloudSample scanData,
-        DistalValleyScanView explicitScanView,
-        ref RuntimeCloudScanBinding automaticScanBinding)
+    void ApplyValleyScan(BugCloudSample scanData, ref RuntimeCloudScanBinding automaticScanBinding)
     {
-        if (explicitScanView != null)
-        {
-            explicitScanView.Apply(scanData);
-            return;
-        }
-
         EnsureAutomaticScanBindings();
         automaticScanBinding.Apply(scanData);
     }
 
-    void UpdateAdviceIndicators()
+    void UpdateAdviceIndicators(AdvisorType advisorType)
     {
         bool showValleyAIndicator = AdviceVisible && AdvisedScanSide == DistalScanSide.Left;
         bool showValleyBIndicator = AdviceVisible && AdvisedScanSide == DistalScanSide.Right;
-        AdvisorType advisorType = GetAdvisorType();
 
         if (_valleyAAdviceIndicator != null)
             _valleyAAdviceIndicator.SetActive(showValleyAIndicator);
@@ -161,16 +148,6 @@ public class DistalChoiceUI : MonoBehaviour
         }
 
         return null;
-    }
-
-    AdvisorType GetAdvisorType()
-    {
-        var flow = FlowController.Instance;
-        if (flow != null && flow.State != null)
-            return flow.State.advisor_choice;
-
-        var session = SessionManager.Instance;
-        return session == null || session.HasAdvisor ? AdvisorType.Human : AdvisorType.None;
     }
 
     void EnsureAutomaticScanBindings()
@@ -306,13 +283,11 @@ public class DistalChoiceUI : MonoBehaviour
         bool forced = flow != null && flow.State != null && flow.State.distal_choice_is_forced;
         string forcedSide = forced ? flow.State.distal_choice_forced_scan_side : null;
 
-        if (_valleyAButton == null)
-            _valleyAButton = FindButtonForMethod(nameof(OnChooseValleyA));
-        if (_valleyBButton == null)
-            _valleyBButton = FindButtonForMethod(nameof(OnChooseValleyB));
+        Button valleyAButton = FindButtonForMethod(nameof(OnChooseValleyA));
+        Button valleyBButton = FindButtonForMethod(nameof(OnChooseValleyB));
 
-        SetButtonState(_valleyAButton, !forced || forcedSide == DistalScanSide.Left);
-        SetButtonState(_valleyBButton, !forced || forcedSide == DistalScanSide.Right);
+        SetButtonState(valleyAButton, !forced || forcedSide == DistalScanSide.Left);
+        SetButtonState(valleyBButton, !forced || forcedSide == DistalScanSide.Right);
     }
 
     Button FindButtonForMethod(string methodName)
