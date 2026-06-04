@@ -25,6 +25,8 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
 
     void Awake()
     {
+        ProximalForcedExplanationSequence.EnsureSceneContext();
+
         _showHumanMaleBadge = Random.value < 0.5f;
 
         if (_explanationRoot == null)
@@ -63,6 +65,8 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
 
     public void Refresh()
     {
+        ProximalForcedExplanationSequence.EnsureSceneContext();
+
         _state = FlowController.Instance != null
             ? FlowController.Instance.GetExplanationState(Level)
             : ExplanationRuntimeState.None();
@@ -84,6 +88,14 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
         {
             SetExplanationVisible(false);
             SetShowButtonVisible(_state.clicked != true);
+            return;
+        }
+
+        bool isForced = !_state.IsNone && !_state.IsOptIn;
+        if (isForced && ShouldHideForcedExplanation())
+        {
+            SetExplanationVisible(false);
+            SetShowButtonVisible(false);
             return;
         }
 
@@ -127,9 +139,19 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
 
     void HandleCloseClicked()
     {
+        bool isForced = _state != null && !_state.IsNone && !_state.IsOptIn;
+
         FlowController.Instance?.RecordExplanationHidden(Level);
         SetExplanationVisible(false);
         SetShowButtonVisible(false);
+
+        if (isForced)
+            ProximalForcedExplanationSequence.OnForcedClosed(Level);
+    }
+
+    bool ShouldHideForcedExplanation()
+    {
+        return ProximalForcedExplanationSequence.ShouldHideForced(Level, FlowController.Instance);
     }
 
     void SetExplanationVisible(bool visible)
