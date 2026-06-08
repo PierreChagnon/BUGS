@@ -191,12 +191,20 @@
 - **Mise à jour 2026-05-29 (étape 2 — scaffold d'intégration) :** prefab + composant `InContextTutorialSceneBinder` posés dans les 3 scènes (`AdvisorChoiceScene`, `DistalChoiceScene`, `ProximalScene`) sous un Canvas dédié `InContextTutorialCanvas` (Overlay, sortingOrder 50). Le binder réalise **pour de vrai** le gating (`is_tutorial`, 1er trial Proximal via `current_trial_index`) + le verrou input Proximal (`GameManager.SetInputLocked`) + un self-test éditeur. **Contenu via placeholder sérialisé + seam `LoadContent()` (// TODO)** — décision : on **n'étend PAS `BlockConfig`** ici, le collègue garde la main sur le modèle de données backend. Reste au collègue : étendre `BlockConfig`, brancher `LoadContent()`, coordonner le verrou input Proximal avec `GameManager.GetReadySequence`. Cf. `integration-guide.md` §0/§4.
 - **Statut :** ACTIF
 
+### DEC-021 — Feedback visuel de perte de bugs : architecture événementielle
+- **Date :** 2026-06-08
+- **Tag :** [TECH]
+- **Décision :** En ProximalScene, chaque perte réelle de bugs verts (piège, dépassement du budget de pas, touche de direction invalide) fait jaillir un petit nombre rouge (« -N ») au-dessus du nuage concerné. Architecture événementielle : `BugCloud` expose un **event statique** `OnBugsLost(BugCloud, int)` déclenché dans `AddBugs()` **uniquement si la perte réelle est > 0**. Un composant de scène `PenaltyFeedbackController` (présentation seule) s'y abonne, filtre sur `BugCloud.IsVisible` (ne pas trahir un nuage masqué) et instancie un prefab world-space `FloatingPenaltyNumber` (TMP 3D billboard, montée + fondu par coroutine, auto-destruction). Un nombre indépendant par événement (cascade autorisée).
+- **Raison :** `AddBugs()` est le seul point qui connaît la perte réellement appliquée (après clamp) → déclencher l'event ici garantit la justesse sans coordination. Event statique car les nuages sont spawnés au runtime (abonnement unique, pas de câblage par instance). Séparation donnée (`BugCloud`) / présentation (`PenaltyFeedbackController`) conforme aux principes du rôle archi. Continuité avec le pattern d'event existant (`OnRoundEnded`) et les coroutines maison (`FadeTransition`/`GridMover`, pas de DOTween).
+- **Impact :** `BugCloud.cs` : +event statique `OnBugsLost`, +propriété `IsVisible` (positionnée dans `SetVisible`), invoke dans `AddBugs`. Nouveaux : `Assets/Game/Scripts/UI/FloatingPenaltyNumber.cs`, `Assets/Game/Scripts/UI/PenaltyFeedbackController.cs`, prefab `Assets/Game/Prefabs/UI/FloatingPenaltyNumber.prefab`. GameObject `PenaltyFeedbackController` ajouté en ProximalScene. Validé en Play Mode (trap → 2 nombres ; nuage vide → 0 ; nuage masqué → 0, perte tout de même appliquée). **Reste à faire (visuel, hors portée logique) :** réglage fin de la taille/placement du nombre et du tri de rendu vs brouillard (cf. [[fog-path-transparent-sorting]] — option `ZTest Always` / render queue dédiée) à l'œil dans l'éditeur ; tous les paramètres sont exposés sur le contrôleur + fontSize sur le prefab.
+- **Statut :** ACTIF
+
 ---
 
 ## Index par tag
 
 - **[SCOPE]** : DEC-004, DEC-005, DEC-008
 - **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019
-- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020
+- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021
 - **[PLANNING]** : _(aucune pour l'instant)_
 - **[CLIENT]** : _(aucune pour l'instant)_

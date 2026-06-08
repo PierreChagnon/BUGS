@@ -1,7 +1,18 @@
+using System;
 using UnityEngine;
 
 public class BugCloud : MonoBehaviour
 {
+    // Déclenché quand le nuage perd réellement des bugs verts (pénalité appliquée, perte > 0).
+    // Statique : les nuages sont instanciés au runtime par BugCloudSpawner ; un event statique
+    // permet à un contrôleur de feedback de s'abonner une seule fois, sans câblage par instance.
+    // Arguments : (nuage concerné, nombre de bugs verts réellement perdus).
+    public static event Action<BugCloud, int> OnBugsLost;
+
+    // Vrai tant que le nuage est rendu visible au joueur. Utilisé par le feedback de pénalité
+    // pour ne pas trahir la position d'un nuage masqué.
+    public bool IsVisible { get; private set; } = true;
+
     [Header("Références Particules")]
     [SerializeField]
     private ParticleSystem greenBugsParticles;
@@ -66,10 +77,16 @@ public class BugCloud : MonoBehaviour
         totalBugs -= greenBugsLost;
         greenBugs -= greenBugsLost;
         bugsEscaped += greenBugsLost;
+
+        // Ne signaler que les pertes réelles : un nuage déjà vide ne déclenche aucun feedback.
+        if (greenBugsLost > 0)
+            OnBugsLost?.Invoke(this, greenBugsLost);
     }
 
     public void SetVisible(bool visible)
     {
+        IsVisible = visible;
+
         var renderers = GetComponentsInChildren<Renderer>(true);
         foreach (var renderer in renderers)
         {
