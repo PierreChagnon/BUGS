@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 3667636703025149831}
   - component: {fileID: 6237249980533176196}
   - component: {fileID: 3356493542246617732}
+  - component: {fileID: 2755408866716723044}
   m_Layer: 0
   m_Name: PlayerPrefab
   m_TagString: Player
@@ -48,7 +49,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridMoverNewInput
   cellSize: 1
-  moveDuration: 0.15
+  moveDuration: 0.45
   rotateToDirection: 1
   _sfxStep: {fileID: 11400000, guid: 3cc1955af46e9404f8e4c4daefb2484d, type: 2}
   _sfxWallBump: {fileID: 11400000, guid: 5692b3c94a410447da8bc977f8e1f95c, type: 2}
@@ -102,6 +103,20 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!114 &2755408866716723044
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7532722886283897293}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7b0e4c4ac59d4f6da92b710af7f99ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimator
+  _animator: {fileID: 0}
+  _jumpClipName: Forward_Jump_Hop
 --- !u!1001 &1076932032645683841
 PrefabInstance:
   m_ObjectHideFlags: 0

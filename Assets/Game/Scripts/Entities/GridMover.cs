@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
@@ -33,6 +34,13 @@ public class GridMover : MonoBehaviour
 
     bool _isMoving = false;
 
+    // ── Events (écoutés par PlayerAnimator) ────────────────────────
+    // Le gameplay émet ces signaux ; il ne pilote pas l'Animator lui-même.
+    // Le bool d'OnStepStarted = la case cible contient un piège (lookahead),
+    // pour caler la réaction au piège dans la fenêtre du saut.
+    public event Action<bool> OnStepStarted; // un pas valide démarre (saut)
+    public event Action OnBlocked;           // mouvement rejeté (mur / hors grille)
+
     void Start()
     {
         SnapToGrid();
@@ -62,19 +70,26 @@ public class GridMover : MonoBehaviour
 
         var reg = LevelRegistry.Instance;
         Vector3 targetPos;
+        bool targetHasTrap = false;
 
         if (reg != null)
         {
             var curCell = reg.WorldToCell(transform.position);
             var targetCell = curCell + step;
-            if (!reg.InBounds(targetCell)) return;
+            if (!reg.InBounds(targetCell))
+            {
+                OnBlocked?.Invoke();
+                return;
+            }
             if (!reg.IsWalkable(targetCell))
             {
                 if (_sfxWallBump != null)
                     AudioManager.Instance?.PlaySfx(_sfxWallBump);
+                OnBlocked?.Invoke();
                 return;
             }
             targetPos = reg.CellToWorld(targetCell, transform.position.y);
+            targetHasTrap = reg.HasTrap(targetCell);
         }
         else
         {
@@ -84,6 +99,7 @@ public class GridMover : MonoBehaviour
         if (rotateToDirection && dir != Vector3.zero)
             transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
 
+        OnStepStarted?.Invoke(targetHasTrap);
         StartCoroutine(MoveToCoroutine(targetPos, moveDuration));
     }
 
