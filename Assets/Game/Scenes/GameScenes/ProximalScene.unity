@@ -14121,7 +14121,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8279021522861775828, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8354130321933860553, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: _advisorRobot
