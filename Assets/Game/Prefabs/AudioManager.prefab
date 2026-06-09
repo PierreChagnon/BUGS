@@ -50,7 +50,7 @@ MonoBehaviour:
   _sfxGameplayGroup: {fileID: 2568336454187460365, guid: b7f572f3f1b484563bdc5fc2396914a0, type: 2}
   _sfxUiGroup: {fileID: -7061818672434861577, guid: b7f572f3f1b484563bdc5fc2396914a0, type: 2}
   _sfxPoolSize: 8
-  _defaultMaster: 1
+  _defaultMaster: 0.5
   _defaultMusic: 0.8
   _defaultAmbience: 0.7
   _defaultSfxGameplay: 1

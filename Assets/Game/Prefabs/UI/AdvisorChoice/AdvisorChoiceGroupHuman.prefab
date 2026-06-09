@@ -420,8 +420,29 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8245016428171796747, guid: 128e20e1059247246826768e84465a03, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8617765262997052233}
   m_SourcePrefab: {fileID: 100100000, guid: 128e20e1059247246826768e84465a03, type: 3}
+--- !u!1 &5653231010461069014 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8245016428171796747, guid: 128e20e1059247246826768e84465a03, type: 3}
+  m_PrefabInstance: {fileID: 4330318136922443741}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &8617765262997052233
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5653231010461069014}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7553bcf33b0b44b0cada764331859496, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIButtonSound
+  _clickSound: {fileID: 11400000, guid: c93182c5a6f594056a3fbcdef3f25870, type: 2}
 --- !u!224 &5653231010461069015 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 8245016428171796746, guid: 128e20e1059247246826768e84465a03, type: 3}

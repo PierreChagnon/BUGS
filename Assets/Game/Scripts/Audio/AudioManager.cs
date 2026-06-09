@@ -47,7 +47,7 @@ public class AudioManager : MonoBehaviour
     [Min(1)] [SerializeField] private int _sfxPoolSize = 8;
 
     [Header("Volumes par défaut (linéaire 0-1)")]
-    [Range(0f, 1f)] [SerializeField] private float _defaultMaster = 1f;
+    [Range(0f, 1f)] [SerializeField] private float _defaultMaster = 0.5f;
     [Range(0f, 1f)] [SerializeField] private float _defaultMusic = 0.8f;
     [Range(0f, 1f)] [SerializeField] private float _defaultAmbience = 0.7f;
     [Range(0f, 1f)] [SerializeField] private float _defaultSfxGameplay = 1f;
@@ -221,6 +221,14 @@ public class AudioManager : MonoBehaviour
         if (_mixer == null) return 1f;
         if (!_mixer.GetFloat(mixerParam, out float db)) return 1f;
         return db <= -80f ? 0f : Mathf.Pow(10f, db / 20f);
+    }
+
+    // Règle d'un coup les deux groupes SFX (gameplay + UI) depuis une seule valeur de slider.
+    // Garde SFX_Gameplay et SFX_UI synchronisés et persiste les deux.
+    public void SetSfxVolume(float linear01)
+    {
+        SetGroupVolume(SFX_GAMEPLAY_VOLUME, linear01);
+        SetGroupVolume(SFX_UI_VOLUME, linear01);
     }
 
     // -------------------------

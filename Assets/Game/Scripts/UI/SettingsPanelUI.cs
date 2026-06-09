@@ -4,6 +4,7 @@ using UnityEngine.UI;
 public class SettingsPanelUI : MonoBehaviour
 {
     [SerializeField] private GameObject _root;
+    [SerializeField] private Slider _masterSlider;
     [SerializeField] private Slider _musicSlider;
     [SerializeField] private Slider _sfxSlider;
     [SerializeField] private Button _resumeButton;
@@ -13,10 +14,14 @@ public class SettingsPanelUI : MonoBehaviour
     {
         _resumeButton.onClick.AddListener(Close);
         _quitButton.onClick.AddListener(Quit);
+        if (_masterSlider != null)
+            _masterSlider.onValueChanged.AddListener(v =>
+                AudioManager.Instance?.SetGroupVolume(AudioManager.MASTER_VOLUME, v));
         _musicSlider.onValueChanged.AddListener(v =>
             AudioManager.Instance?.SetGroupVolume(AudioManager.MUSIC_VOLUME, v));
+        // Le slider SFX pilote les deux groupes SFX (gameplay + UI) via SetSfxVolume.
         _sfxSlider.onValueChanged.AddListener(v =>
-            AudioManager.Instance?.SetGroupVolume(AudioManager.SFX_GAMEPLAY_VOLUME, v));
+            AudioManager.Instance?.SetSfxVolume(v));
         _root.SetActive(false);
     }
 
@@ -24,8 +29,12 @@ public class SettingsPanelUI : MonoBehaviour
     {
         if (AudioManager.Instance != null)
         {
+            if (_masterSlider != null)
+                _masterSlider.SetValueWithoutNotify(
+                    AudioManager.Instance.GetGroupVolume(AudioManager.MASTER_VOLUME));
             _musicSlider.SetValueWithoutNotify(
                 AudioManager.Instance.GetGroupVolume(AudioManager.MUSIC_VOLUME));
+            // SFX_Gameplay est représentatif : il reste synchronisé avec SFX_UI.
             _sfxSlider.SetValueWithoutNotify(
                 AudioManager.Instance.GetGroupVolume(AudioManager.SFX_GAMEPLAY_VOLUME));
         }

@@ -5940,6 +5940,19 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7a48faaaca031d14ba84a3fbe91bfac3, type: 3}
+--- !u!114 &1030095975
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1321052569502223468}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7553bcf33b0b44b0cada764331859496, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIButtonSound
+  _clickSound: {fileID: 11400000, guid: c93182c5a6f594056a3fbcdef3f25870, type: 2}
 --- !u!1001 &1032762273
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -14797,7 +14810,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6702984870884630340, guid: 85c08e1d6a0e8480e93ae3c3b20db070, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1193112439}
   m_SourcePrefab: {fileID: 100100000, guid: 85c08e1d6a0e8480e93ae3c3b20db070, type: 3}
 --- !u!224 &1193112434 stripped
 RectTransform:
@@ -14809,7 +14825,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 5136476545648821788, guid: 85c08e1d6a0e8480e93ae3c3b20db070, type: 3}
   m_PrefabInstance: {fileID: 1193112433}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 1193112438}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
@@ -14831,6 +14847,24 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 1186139823439278891, guid: 85c08e1d6a0e8480e93ae3c3b20db070, type: 3}
   m_PrefabInstance: {fileID: 1193112433}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1193112438 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6702984870884630340, guid: 85c08e1d6a0e8480e93ae3c3b20db070, type: 3}
+  m_PrefabInstance: {fileID: 1193112433}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1193112439
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1193112438}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7553bcf33b0b44b0cada764331859496, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIButtonSound
+  _clickSound: {fileID: 11400000, guid: c93182c5a6f594056a3fbcdef3f25870, type: 2}
 --- !u!1 &1214819387
 GameObject:
   m_ObjectHideFlags: 0
@@ -16397,7 +16431,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8245016428171796747, guid: 128e20e1059247246826768e84465a03, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1365705901}
   m_SourcePrefab: {fileID: 100100000, guid: 128e20e1059247246826768e84465a03, type: 3}
 --- !u!1 &1365705898 stripped
 GameObject:
@@ -16420,6 +16457,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1365705901
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1365705898}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7553bcf33b0b44b0cada764331859496, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIButtonSound
+  _clickSound: {fileID: 11400000, guid: c93182c5a6f594056a3fbcdef3f25870, type: 2}
 --- !u!1001 &1377506777
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -17901,6 +17951,19 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f7b5d67221c061548bff78795a8abcce, type: 3}
+--- !u!114 &1628389666
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1321052569502223469}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7553bcf33b0b44b0cada764331859496, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIButtonSound
+  _clickSound: {fileID: 11400000, guid: c93182c5a6f594056a3fbcdef3f25870, type: 2}
 --- !u!1001 &1657717191
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -22620,12 +22683,30 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8126728153032879126, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1321052569502223471}
+    - targetCorrespondingSourceObject: {fileID: 4591911465008465391, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1321052569502223479}
+    - targetCorrespondingSourceObject: {fileID: 8723491716025248737, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1321052569502223478}
+    - targetCorrespondingSourceObject: {fileID: 860993111399497439, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1321052569502223477}
+    - targetCorrespondingSourceObject: {fileID: 100250108174409839, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1321052569502223476}
     - targetCorrespondingSourceObject: {fileID: 5127393017841639724, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       insertIndex: -1
       addedObject: {fileID: 328898812}
     - targetCorrespondingSourceObject: {fileID: 2212212418169651862, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       insertIndex: -1
       addedObject: {fileID: 785651700}
+    - targetCorrespondingSourceObject: {fileID: 2007163199848886394, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1628389666}
+    - targetCorrespondingSourceObject: {fileID: 7672756682581650659, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1030095975}
   m_SourcePrefab: {fileID: 100100000, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
 --- !u!1 &1321052569502223466 stripped
 GameObject:
@@ -22649,6 +22730,16 @@ MonoBehaviour:
   _advisorSelectedHumanMale: {fileID: 2133730930}
   _advisorSelectedHumanFemale: {fileID: 795932738}
   _advisorSelectedRobot: {fileID: 1481419205}
+--- !u!1 &1321052569502223468 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7672756682581650659, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+  m_PrefabInstance: {fileID: 1321052569502223465}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &1321052569502223469 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2007163199848886394, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+  m_PrefabInstance: {fileID: 1321052569502223465}
+  m_PrefabAsset: {fileID: 0}
 --- !u!224 &1321052569502223470 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 1391591269541483942, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
@@ -22674,6 +22765,78 @@ MonoBehaviour:
   _advisorHumanMaleBadge: {fileID: 0}
   _advisorHumanFemaleBadge: {fileID: 0}
   _advisorRobotBadge: {fileID: 0}
+--- !u!1 &1321052569502223472 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 100250108174409839, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+  m_PrefabInstance: {fileID: 1321052569502223465}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &1321052569502223473 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 860993111399497439, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+  m_PrefabInstance: {fileID: 1321052569502223465}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &1321052569502223474 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8723491716025248737, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+  m_PrefabInstance: {fileID: 1321052569502223465}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &1321052569502223475 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4591911465008465391, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+  m_PrefabInstance: {fileID: 1321052569502223465}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1321052569502223476
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1321052569502223472}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7553bcf33b0b44b0cada764331859496, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIButtonSound
+  _clickSound: {fileID: 11400000, guid: c93182c5a6f594056a3fbcdef3f25870, type: 2}
+--- !u!114 &1321052569502223477
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1321052569502223473}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7553bcf33b0b44b0cada764331859496, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIButtonSound
+  _clickSound: {fileID: 11400000, guid: c93182c5a6f594056a3fbcdef3f25870, type: 2}
+--- !u!114 &1321052569502223478
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1321052569502223474}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7553bcf33b0b44b0cada764331859496, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIButtonSound
+  _clickSound: {fileID: 11400000, guid: c93182c5a6f594056a3fbcdef3f25870, type: 2}
+--- !u!114 &1321052569502223479
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1321052569502223475}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7553bcf33b0b44b0cada764331859496, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIButtonSound
+  _clickSound: {fileID: 11400000, guid: c93182c5a6f594056a3fbcdef3f25870, type: 2}
 --- !u!1001 &2004160899678406538
 PrefabInstance:
   m_ObjectHideFlags: 0
