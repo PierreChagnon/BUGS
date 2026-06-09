@@ -31,6 +31,12 @@ public class AudioManager : MonoBehaviour
     const string PREF_AMBIENCE = "audio.ambience";
     const string PREF_SFX_GAMEPLAY = "audio.sfx_gameplay";
     const string PREF_SFX_UI = "audio.sfx_ui";
+    const string PREF_DEFAULTS_VERSION = "audio.defaults_version";
+
+    // Version des volumes par défaut. Bumper cette valeur ré-impose les _default* à tous
+    // (éditeur + builds), en écrasant une fois les prefs existantes. Indispensable car sinon
+    // une pref sauvegardée (ex : un glissement de slider) masque définitivement le défaut.
+    const int DEFAULTS_VERSION = 1;
 
     // Volume linéaire minimum avant de passer en -80 dB (silence total)
     const float MIN_LINEAR = 0.0001f;
@@ -82,6 +88,16 @@ public class AudioManager : MonoBehaviour
 
         BuildAudioSources();
         LoadVolumesFromPrefs();
+        // L'AudioMixer n'accepte pas SetFloat tant qu'il n'est pas "réveillé" : un SetFloat
+        // appelé en Awake (ordre -350, première scène) ne prend pas. On ré-applique donc les
+        // volumes après une frame, quand le mixer est initialisé.
+        StartCoroutine(ApplyVolumesDeferred());
+    }
+
+    IEnumerator ApplyVolumesDeferred()
+    {
+        yield return null;
+        ReapplyVolumesFromPrefs();
     }
 
     void OnDestroy()
@@ -317,6 +333,38 @@ public class AudioManager : MonoBehaviour
     // -------------------------
 
     void LoadVolumesFromPrefs()
+    {
+        // Si la version des défauts a changé (ou première exécution), on ré-impose les
+        // _default* par-dessus d'éventuelles prefs périmées, puis on les persiste pour
+        // repartir d'une base saine. Sinon, on charge les réglages sauvegardés par l'utilisateur.
+        bool resetToDefaults = PlayerPrefs.GetInt(PREF_DEFAULTS_VERSION, 0) != DEFAULTS_VERSION;
+
+        ApplyResolvedVolume(MASTER_VOLUME, PREF_MASTER, _defaultMaster, resetToDefaults);
+        ApplyResolvedVolume(MUSIC_VOLUME, PREF_MUSIC, _defaultMusic, resetToDefaults);
+        ApplyResolvedVolume(AMBIENCE_VOLUME, PREF_AMBIENCE, _defaultAmbience, resetToDefaults);
+        ApplyResolvedVolume(SFX_GAMEPLAY_VOLUME, PREF_SFX_GAMEPLAY, _defaultSfxGameplay, resetToDefaults);
+        ApplyResolvedVolume(SFX_UI_VOLUME, PREF_SFX_UI, _defaultSfxUi, resetToDefaults);
+
+        if (resetToDefaults)
+        {
+            PlayerPrefs.SetInt(PREF_DEFAULTS_VERSION, DEFAULTS_VERSION);
+            PlayerPrefs.Save();
+        }
+    }
+
+    // Applique au mixer la valeur du groupe : le défaut si reset demandé, sinon la pref (ou le défaut).
+    // En cas de reset, persiste la valeur appliquée pour écraser proprement l'ancienne pref.
+    void ApplyResolvedVolume(string mixerParam, string prefKey, float defaultValue, bool resetToDefaults)
+    {
+        float value = resetToDefaults ? defaultValue : PlayerPrefs.GetFloat(prefKey, defaultValue);
+        ApplyVolume(mixerParam, value);
+        if (resetToDefaults)
+            PlayerPrefs.SetFloat(prefKey, value);
+    }
+
+    // Ré-applique au mixer les volumes courants (les prefs sont déjà cohérentes après LoadVolumesFromPrefs).
+    // Utilisé en différé d'une frame pour contourner le SetFloat inopérant en Awake.
+    void ReapplyVolumesFromPrefs()
     {
         ApplyVolume(MASTER_VOLUME, PlayerPrefs.GetFloat(PREF_MASTER, _defaultMaster));
         ApplyVolume(MUSIC_VOLUME, PlayerPrefs.GetFloat(PREF_MUSIC, _defaultMusic));
