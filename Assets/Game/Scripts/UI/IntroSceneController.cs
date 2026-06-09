@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -5,25 +6,20 @@ using UnityEngine;
 // IntroSceneController : glue entre le composant agnostique HowToPlayUI
 // et le FlowController du projet, pour la scene IntroScene.
 //
-// Etape 1 d'integration (Question 1 du integration-guide.md) :
-// - Utilise une liste hardcoded de pages serialisees Inspector (_testPages)
-//   au lieu d'aller chercher dans FlowController.Instance.Config.
-// - L'integration complete avec le back-end (Question 2 du guide) viendra
-//   dans un prochain commit : remplacement de _testPages par lecture depuis
-//   FlowController.Instance.Config.intro_pages + DTO HowToPlayPageDto.
+// Affiche les ecrans de regles de la session (Config.rules), recus depuis
+// GET /api/sessions/[id]. Chaque rule = une image + un texte = une page de la modal.
 //
 // Comportement :
-// - Start : recupere les pages, les pousse dans HowToPlayUI, l'abonne a Closed
+// - Start : telecharge les images des rules, construit les pages, ouvre la modal
 // - Closed : appelle FlowController.OnPhaseComplete() (-> AdvisorChoice)
-// - Pas de pages : skip silencieux + OnPhaseComplete direct pour ne pas bloquer
+// - Pas de rules : skip silencieux + OnPhaseComplete direct pour ne pas bloquer
+//
+// Note : le header de la modal n'est pas alimente par les donnees (statique cote scene).
 // -----------------------------
 public class IntroSceneController : MonoBehaviour
 {
     [Header("Refs")]
     [SerializeField] private HowToPlayUI _howToPlay;
-
-    [Header("Pages de test (provisoire — sera remplace par lecture FlowController.Config)")]
-    [SerializeField] private List<HowToPlayPage> _testPages = new List<HowToPlayPage>();
 
     void Start()
     {
@@ -34,35 +30,52 @@ public class IntroSceneController : MonoBehaviour
             return;
         }
 
-        var pages = LoadPages();
-
-        if (pages == null || pages.Count == 0)
+        var rules = FlowController.Instance?.Config?.rules;
+        if (rules == null || rules.Count == 0)
         {
-            Debug.LogWarning("[IntroSceneController] Pas de pages tutorial. Skip phase Intro.");
+            Debug.Log("[IntroSceneController] Aucune regle pour cette session. Skip phase Intro.");
             FlowController.Instance?.OnPhaseComplete();
             return;
         }
 
-        _howToPlay.SetPages(pages);
-        _howToPlay.Closed += OnTutorialClosed;
-        _howToPlay.Open();
+        StartCoroutine(BuildAndShowRules(rules));
     }
 
     void OnDestroy()
     {
-        if (_howToPlay != null) _howToPlay.Closed -= OnTutorialClosed;
+        if (_howToPlay != null) _howToPlay.Closed -= OnRulesClosed;
     }
 
-    private void OnTutorialClosed()
+    private IEnumerator BuildAndShowRules(List<RuleScreen> rules)
+    {
+        var pages = new List<HowToPlayPage>();
+
+        foreach (var rule in rules)
+        {
+            Sprite sprite = null;
+            bool done = false;
+            ApiClient.Instance.FetchImage(
+                rule.image_url,
+                result => { sprite = result; done = true; },
+                error =>
+                {
+                    Debug.LogWarning($"[IntroSceneController] Image non chargee ({rule.image_url}): {error}");
+                    done = true;
+                });
+
+            while (!done)
+                yield return null;
+
+            pages.Add(new HowToPlayPage { image = sprite, header = rule.title, body = rule.text });
+        }
+
+        _howToPlay.SetPages(pages);
+        _howToPlay.Closed += OnRulesClosed;
+        _howToPlay.Open();
+    }
+
+    private void OnRulesClosed()
     {
         FlowController.Instance?.OnPhaseComplete();
-    }
-
-    private IList<HowToPlayPage> LoadPages()
-    {
-        // TODO etape 2 : remplacer par
-        //   var cfg = FlowController.Instance?.Config;
-        //   return cfg?.intro_pages?.Select(dto => new HowToPlayPage { ... }).ToList();
-        return _testPages;
     }
 }

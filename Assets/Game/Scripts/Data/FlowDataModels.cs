@@ -41,6 +41,7 @@ public enum ValleyChoice
 public class SessionConfig
 {
     public string session_template_id;
+    public List<RuleScreen> rules = new();
     public List<BlockConfig> blocks = new();
 
     public SessionConfig DeepClone()
@@ -48,7 +49,28 @@ public class SessionConfig
         return new SessionConfig
         {
             session_template_id = session_template_id,
+            rules = FlowCloneUtility.CloneRules(rules),
             blocks = FlowCloneUtility.CloneBlocks(blocks)
+        };
+    }
+}
+
+// Un ecran de regles affiche au demarrage (apres le consentement) : une image + un texte.
+// L'ordre dans la liste rules = l'ordre d'affichage dans la modal.
+[Serializable]
+public class RuleScreen
+{
+    public string image_url;
+    public string title;
+    public string text;
+
+    public RuleScreen DeepClone()
+    {
+        return new RuleScreen
+        {
+            image_url = image_url,
+            title = title,
+            text = text
         };
     }
 }
@@ -476,6 +498,18 @@ public class TrialResponseRow
 
 public static class FlowCloneUtility
 {
+    public static List<RuleScreen> CloneRules(List<RuleScreen> rules)
+    {
+        var clone = new List<RuleScreen>();
+        if (rules == null)
+            return clone;
+
+        foreach (var rule in rules)
+            clone.Add(rule != null ? rule.DeepClone() : new RuleScreen());
+
+        return clone;
+    }
+
     public static List<BlockConfig> CloneBlocks(List<BlockConfig> blocks)
     {
         var clone = new List<BlockConfig>();

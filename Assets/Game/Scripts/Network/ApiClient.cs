@@ -74,6 +74,18 @@ public class ApiClient : MonoBehaviour
         StartCoroutine(FetchSessionConfigCoroutine(sessionId, onSuccess, onError));
     }
 
+    // Telecharge une image depuis une URL publique (bucket Supabase, sans auth) et la convertit en Sprite.
+    public void FetchImage(string imageUrl, Action<Sprite> onSuccess, Action<string> onError)
+    {
+        if (string.IsNullOrWhiteSpace(imageUrl))
+        {
+            onError?.Invoke("imageUrl vide");
+            return;
+        }
+
+        StartCoroutine(FetchImageCoroutine(imageUrl, onSuccess, onError));
+    }
+
     public void SendTrialResponse(TrialResponseRow row, Action<string> onSuccess, Action<string> onError)
     {
         if (row == null)
@@ -240,6 +252,26 @@ public class ApiClient : MonoBehaviour
         }
 
         onSuccess?.Invoke(config);
+    }
+
+    IEnumerator FetchImageCoroutine(string imageUrl, Action<Sprite> onSuccess, Action<string> onError)
+    {
+        using var request = UnityWebRequestTexture.GetTexture(imageUrl);
+        yield return request.SendWebRequest();
+
+        if (request.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke(BuildRequestError("FetchImage", request));
+            yield break;
+        }
+
+        Texture2D texture = DownloadHandlerTexture.GetContent(request);
+        var sprite = Sprite.Create(
+            texture,
+            new Rect(0f, 0f, texture.width, texture.height),
+            new Vector2(0.5f, 0.5f));
+
+        onSuccess?.Invoke(sprite);
     }
 
     IEnumerator ProcessPendingTrialRequests()
