@@ -96,6 +96,7 @@ public class BlockConfig
     public ExplanationsConfig explanations;
     public float distal_advice_visible_probability = 1f;
     public float distal_advice_reliable_probability = 1f;
+    public InContextTutorialConfig in_context_tutorial = new();
 
     public BlockConfig DeepClone()
     {
@@ -118,9 +119,28 @@ public class BlockConfig
             valley_b = valley_b != null ? valley_b.DeepClone() : new MapGenConfig(),
             explanations = explanations != null ? explanations.DeepClone() : null,
             distal_advice_visible_probability = distal_advice_visible_probability,
-            distal_advice_reliable_probability = distal_advice_reliable_probability
+            distal_advice_reliable_probability = distal_advice_reliable_probability,
+            in_context_tutorial = in_context_tutorial != null ? in_context_tutorial.DeepClone() : new()
         };
     }
+}
+
+[Serializable]
+public class InContextTutorialConfig
+{
+    public string advisor_title;
+    public string advisor_text;
+    public string distal_title;
+    public string distal_text;
+    public string proximal_title;
+    public string proximal_text;
+
+    public InContextTutorialConfig DeepClone() => new InContextTutorialConfig
+    {
+        advisor_title  = advisor_title,  advisor_text  = advisor_text,
+        distal_title   = distal_title,   distal_text   = distal_text,
+        proximal_title = proximal_title, proximal_text = proximal_text
+    };
 }
 
 [Serializable]
@@ -422,6 +442,7 @@ public class TrialResponseRow
     public int block_index;
     public int trial_index;
     public int trial_count;
+    public bool is_tutorial;
     public string advisor_choice;
     public string valley_choice;
     public bool advisor_forced;

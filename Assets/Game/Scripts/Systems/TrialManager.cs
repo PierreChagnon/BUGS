@@ -8,8 +8,8 @@ using UnityEngine;
 // Responsabilités :
 //   - Ouvrir un nouveau trial local au démarrage du gameplay
 //   - Enregistrer les pas du joueur et la config de map
-//   - Assembler la TrialResponseRow complète en fin de trial
-//   - Déléguer l'envoi à ApiClient quand le bloc courant n'est pas un tutoriel
+//   - Assembler la TrialResponseRow complète en fin de trial (blocs tutorial inclus)
+//   - Déléguer l'envoi à ApiClient
 // -----------------------------
 
 public class TrialManager : MonoBehaviour
@@ -115,13 +115,6 @@ public class TrialManager : MonoBehaviour
         }
 
         FlowSerializationUtility.ApplyQuestionnaireResponses(_currentTrialRow, responses);
-
-        if (ShouldSkipNetworkForCurrentBlock())
-        {
-            _currentTrialSubmitted = true;
-            Debug.Log("[TrialManager] Trial de bloc tutoriel termine: donnees locales conservees, envoi reseau ignore.");
-            return;
-        }
 
         if (string.IsNullOrWhiteSpace(_currentTrialRow.acceptability_question) ||
             string.IsNullOrWhiteSpace(_currentTrialRow.sens_of_agency_question))
@@ -251,6 +244,7 @@ public class TrialManager : MonoBehaviour
             block_index = blockIndex,
             trial_index = trialIndex,
             trial_count = block != null ? block.trial_count : 1,
+            is_tutorial = block != null && block.is_tutorial,
             advisor_choice = flow != null && flow.State != null ? FlowValueConverters.ToApiValue(flow.State.advisor_choice) : "none",
             valley_choice = flow != null && flow.State != null ? FlowValueConverters.ToApiValue(flow.State.valley_choice) : null,
             distal_advice_visible_probability = block != null ? block.distal_advice_visible_probability : 0f,
@@ -327,8 +321,4 @@ public class TrialManager : MonoBehaviour
             _currentTrialRow = BuildBaseRow();
     }
 
-    static bool ShouldSkipNetworkForCurrentBlock()
-    {
-        return FlowController.Instance != null && FlowController.Instance.IsCurrentBlockTutorial;
-    }
 }
