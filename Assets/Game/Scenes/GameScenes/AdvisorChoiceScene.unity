@@ -19881,11 +19881,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8266903634752738034, guid: a8f498e6cabd14e80b3554a1188fa59a, type: 3}
       propertyPath: _dummyBody
-      value: 
+      value: zefzefzf
       objectReference: {fileID: 0}
     - target: {fileID: 8266903634752738034, guid: a8f498e6cabd14e80b3554a1188fa59a, type: 3}
       propertyPath: _dummyTitle
-      value: 
+      value: fzezef
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -20222,11 +20222,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::InContextTutorialSceneBinder
   _overlay: {fileID: 2069596056}
   _scene: 0
-  _testTitle: Choix du conseiller
-  _testBody: "Selectionne le type de conseiller pour ce bloc. (Instruction de test
-    \u2014 sera fournie par le backend.)"
   _lockGameplayInputWhileOpen: 1
-  _showTestContentWhenNoFlow: 1
 --- !u!1001 &2091680179
 PrefabInstance:
   m_ObjectHideFlags: 0

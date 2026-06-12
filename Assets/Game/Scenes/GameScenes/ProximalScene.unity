@@ -2009,7 +2009,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &236458672
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2410,11 +2410,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::InContextTutorialSceneBinder
   _overlay: {fileID: 504080546}
   _scene: 2
-  _testTitle: Dans la foret
-  _testBody: "Collecte un maximum de bugs verts en evitant les pieges. Clique sur
-    OK pour commencer. (Instruction de test \u2014 sera fournie par le backend.)"
   _lockGameplayInputWhileOpen: 1
-  _showTestContentWhenNoFlow: 0
 --- !u!4 &297555910 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1310028211529153949, guid: c8ca65ecdf242ce43bbcc052a0064679, type: 3}
