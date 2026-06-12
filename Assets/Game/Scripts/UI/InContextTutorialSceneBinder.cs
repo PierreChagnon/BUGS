@@ -44,7 +44,7 @@ public class InContextTutorialSceneBinder : MonoBehaviour
 
         if (_lockGameplayInputWhileOpen && _scene == SceneKind.Proximal && GameManager.Instance != null)
         {
-            GameManager.Instance.SetInputLocked(true);
+            GameManager.Instance.HoldInputLock();
             _inputLockedByThis = true;
             _overlay.Closed += OnOverlayClosed;
         }
@@ -54,13 +54,15 @@ public class InContextTutorialSceneBinder : MonoBehaviour
     {
         if (_overlay != null)
             _overlay.Closed -= OnOverlayClosed;
+        if (_inputLockedByThis && GameManager.Instance != null)
+            GameManager.Instance.ReleaseInputLock();
     }
 
     private void OnOverlayClosed()
     {
         _overlay.Closed -= OnOverlayClosed;
         if (_inputLockedByThis && GameManager.Instance != null)
-            GameManager.Instance.SetInputLocked(false);
+            GameManager.Instance.ReleaseInputLock();
         _inputLockedByThis = false;
     }
 

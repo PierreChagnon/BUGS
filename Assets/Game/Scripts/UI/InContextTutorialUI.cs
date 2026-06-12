@@ -45,7 +45,7 @@ public class InContextTutorialUI : MonoBehaviour
 
     void Awake()
     {
-        if (_okButton != null) _okButton.onClick.AddListener(OnOkClicked);
+        if (_okButton != null) _okButton.onClick.AddListener(Close);
         else Debug.LogWarning("[InContextTutorialUI] _okButton non assigne — fermeture par clic impossible.");
 
         if (_root != null) _root.SetActive(false);
@@ -148,8 +148,4 @@ public class InContextTutorialUI : MonoBehaviour
         _isOpen = false;
     }
 
-    private void OnOkClicked()
-    {
-        Close();
-    }
 }

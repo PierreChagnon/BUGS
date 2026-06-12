@@ -46,6 +46,11 @@ public class GameManager : MonoBehaviour
     public bool inputLocked { get; private set; }
     public void SetInputLocked(bool value) => inputLocked = value;
 
+    // Verrou externe (ex : overlay tutorial) — GetReadySequence attend sa liberation avant de deverrouiller.
+    private bool _inputLockHeld;
+    public void HoldInputLock() => _inputLockHeld = true;
+    public void ReleaseInputLock() => _inputLockHeld = false;
+
     BugCloud _leftCloud;
     BugCloud _rightCloud;
     BugCloud _forcedCollectableCloud;
@@ -96,6 +101,7 @@ public class GameManager : MonoBehaviour
             _getReadyPanel.SetActive(false);
         }
 
+        while (_inputLockHeld) yield return null;
         inputLocked = false;
     }
 
