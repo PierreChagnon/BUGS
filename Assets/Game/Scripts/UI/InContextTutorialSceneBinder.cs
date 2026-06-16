@@ -32,7 +32,7 @@ public class InContextTutorialSceneBinder : MonoBehaviour
         if (flow == null) return;
 
         var block = flow.CurrentBlock;
-        if (block == null || !block.is_tutorial) return;
+        if (block == null || !block.is_tutorial) { _overlay.SetContent(string.Empty, string.Empty); return; }
 
         // Proximal recharge a chaque trial : n'afficher qu'au 1er trial du bloc
         if (_scene == SceneKind.Proximal && flow.State != null && flow.State.current_trial_index != 0)

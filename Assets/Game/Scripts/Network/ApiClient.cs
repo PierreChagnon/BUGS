@@ -39,6 +39,7 @@ public class ApiClient : MonoBehaviour
     public string supabaseAnonKey;
     [SerializeField] private string _sessionConfigPath = "api/sessions";
     [SerializeField] private string _trialResponsesPath = "api/trial-responses";
+    [SerializeField] private string _participantNotesPath = "api/participant-notes";
     [SerializeField] private int _maxImmediateRetries = 3;
     [SerializeField] private float _retryDelaySeconds = 1f;
 
@@ -227,6 +228,48 @@ public class ApiClient : MonoBehaviour
         RetryPendingTrialUploads();
         FlushPendingQuestionnairePatches();
         Debug.Log($"[ApiClient] Session complete pour participant={participantId}");
+    }
+
+    public void SendParticipantNote(string participantId, string sessionTemplateId, string note, Action onSuccess, Action<string> onError)
+    {
+        if (string.IsNullOrWhiteSpace(note))
+        {
+            onError?.Invoke("note vide");
+            return;
+        }
+
+        StartCoroutine(SendParticipantNoteCoroutine(participantId, sessionTemplateId, note, onSuccess, onError));
+    }
+
+    IEnumerator SendParticipantNoteCoroutine(string participantId, string sessionTemplateId, string note, Action onSuccess, Action<string> onError)
+    {
+        string url = CombineUrl(backendRootUrl, _participantNotesPath);
+        var payload = new ParticipantNotePayload
+        {
+            participant_id = participantId,
+            session_template_id = sessionTemplateId,
+            note = note
+        };
+        string body = ToJsonObjectSkippingNullStrings(payload);
+
+        using var request = BuildJsonRequest(url, "POST", body);
+        yield return request.SendWebRequest();
+
+        if (request.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke(BuildRequestError("SendParticipantNote", request));
+            yield break;
+        }
+
+        onSuccess?.Invoke();
+    }
+
+    [Serializable]
+    class ParticipantNotePayload
+    {
+        public string participant_id;
+        public string session_template_id;
+        public string note;
     }
 
     IEnumerator FetchSessionConfigCoroutine(string sessionId, Action<SessionConfig> onSuccess, Action<string> onError)

@@ -305,6 +305,7 @@ MonoBehaviour:
   supabaseAnonKey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zbHZtenFnaXp5aXF1dndqb291Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMDg3MzMsImV4cCI6MjA3NDg4NDczM30._jIlaU-PkhQZJdbO4ce5QvBgguBEV1aW66nhTHQHrR8
   _sessionConfigPath: api/sessions
   _trialResponsesPath: api/trial-responses
+  _participantNotesPath: api/participant-notes
   _maxImmediateRetries: 3
   _retryDelaySeconds: 1
 --- !u!114 &530388670
@@ -329,7 +330,7 @@ MonoBehaviour:
   _questionnaireSceneName: QuestionnaireScene
   _endSessionSceneName: EndSessionScene
   _buildVersion: 0.3.0-flow
-  _editorSessionId: be392bf6-761c-4d75-9cae-bf68c7902209
+  _editorSessionId: 71366818-cd89-4f81-a410-764ac9f5caed
 --- !u!4 &530388671
 Transform:
   m_ObjectHideFlags: 0
