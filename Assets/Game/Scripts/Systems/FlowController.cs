@@ -486,7 +486,7 @@ public class FlowController : MonoBehaviour
         ResetForcedChoiceState();
 
         var block = CurrentBlock;
-        if (State == null || block == null || block.is_tutorial || !block.advisor_forced)
+        if (State == null || block == null || !block.advisor_forced)
             return;
 
         State.meta_choice_is_forced = true;
@@ -502,7 +502,7 @@ public class FlowController : MonoBehaviour
         ResetTrialExplanationStates();
 
         var block = CurrentBlock;
-        if (State == null || block == null || block.is_tutorial)
+        if (State == null || block == null)
             return;
 
         var rng = CreateCurrentTrialRandom(nameof(RollTrialForcedChoicesForCurrentTrial));
@@ -694,7 +694,7 @@ public class FlowController : MonoBehaviour
         State.distal_choice_forced_was_optimal = null;
         State.distal_choice_forced_optimal_probability = null;
 
-        if (block == null || block.is_tutorial || !block.distal_forced)
+        if (block == null || !block.distal_forced)
             return;
 
         float optimalProbability = Mathf.Clamp01(block.distal_forced_optimal_probability);
@@ -751,13 +751,13 @@ public class FlowController : MonoBehaviour
         State.proximal_choice_is_forced = false;
         State.proximal_choice_forced_value = null;
         State.proximal_choice_forced_was_optimal = null;
-        State.proximal_choice_forced_probability = CurrentBlock != null && !CurrentBlock.is_tutorial
+        State.proximal_choice_forced_probability = CurrentBlock != null
             ? Mathf.Clamp01(CurrentBlock.proximal_forced_probability)
             : 0f;
         State.proximal_choice_forced_optimal_probability = null;
         State.motor_choice_is_forced = false;
         State.motor_choice_forced_set = null;
-        State.motor_choice_forced_probability = CurrentBlock != null && !CurrentBlock.is_tutorial
+        State.motor_choice_forced_probability = CurrentBlock != null
             ? Mathf.Clamp01(CurrentBlock.motor_forced_probability)
             : 0f;
     }
