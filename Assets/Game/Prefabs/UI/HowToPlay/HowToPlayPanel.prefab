@@ -152,7 +152,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2298671289901542141
 RectTransform:
   m_ObjectHideFlags: 0
@@ -309,8 +309,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -100, y: -50}
-  m_SizeDelta: {x: 200, y: 150}
+  m_AnchoredPosition: {x: -130, y: -50}
+  m_SizeDelta: {x: 230, y: 100}
   m_Pivot: {x: 1, y: 1}
 --- !u!222 &8079739119843535149
 CanvasRenderer:
@@ -333,15 +333,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.75, g: 0.9734694, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 7c5843e3b609d154ba693e46d707d7d1, type: 3}
-  m_Type: 1
+  m_Sprite: {fileID: 21300000, guid: 8274fdabd0108294c844c9c48c8c84a9, type: 3}
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -541,8 +541,8 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 2341721795512308754}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.05, y: 0.25}
-  m_AnchorMax: {x: 0.95, y: 0.38}
+  m_AnchorMin: {x: 0.05, y: 0.22}
+  m_AnchorMax: {x: 0.95, y: 0.3}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -813,7 +813,7 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 2341721795512308754}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.05, y: 0.05}
+  m_AnchorMin: {x: 0.05, y: 0.04}
   m_AnchorMax: {x: 0.95, y: 0.22}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
@@ -1167,8 +1167,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 60}
-  m_SizeDelta: {x: 1300, y: 820}
+  m_AnchoredPosition: {x: 0, y: 55}
+  m_SizeDelta: {x: 1700, y: 950}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1495949543846461920
 CanvasRenderer:
@@ -1272,7 +1272,38 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 765c64bb1958f487dbf5d1066aafb423, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HowToPlayUI
-  _dummyPages: []
+  _dummyPages:
+  - image: {fileID: 0}
+    header: "~200 caract\xE8res \u2014 Le d\xE9placement sur grille"
+    body: "Le joueur avance case par case sur une grille : une touche, un pas. Le
+      mouvement fluide d\xE9voile le brouillard autour de lui et marque chaque case
+      visit\xE9e, dessinant sa route vers les nuages de bugs."
+  - image: {fileID: 0}
+    header: "~350 caract\xE8res \u2014 Les nuages de bugs"
+    body: "Au c\u0153ur de chaque niveau se cachent deux nuages de bugs, un \xE0
+      gauche, un \xE0 droite. Chacun m\xEAle des bugs verts, \xE0 collecter, et des
+      bugs rouges, \xE0 \xE9viter, selon un ratio al\xE9atoire. Le nombre total varie
+      de 20 \xE0 80, si bien qu'aucune partie ne ressemble \xE0 la pr\xE9c\xE9dente.
+      Entrer en contact avec un nuage d\xE9clenche la collecte et met fin au round
+      en cours."
+  - image: {fileID: 0}
+    header: "~400 caract\xE8res \u2014 Le brouillard de guerre"
+    body: "Tant que le joueur n'a pas explor\xE9, la grille reste plong\xE9e dans
+      un brouillard de guerre opaque qui dissimule pi\xE8ges et nuages. \xC0 chaque
+      pas, une zone circulaire se d\xE9voile autour de lui, aux bords adoucis par
+      un d\xE9grad\xE9, comme une lampe qui perce l'obscurit\xE9. La carte se r\xE9v\xE8le
+      ainsi progressivement, transformant chaque d\xE9placement en pari : avancer
+      vers l'inconnu en esp\xE9rant \xE9viter les dangers cach\xE9s."
+  - image: {fileID: 0}
+    header: "~450 caract\xE8res \u2014 G\xE9n\xE9ration proc\xE9durale, chemin et
+      pi\xE8ges"
+    body: "Chaque niveau est g\xE9n\xE9r\xE9 proc\xE9duralement : la grille, les
+      couloirs, les murs, les deux nuages et les pi\xE8ges changent \xE0 chaque partie.
+      Un chemin optimal est calcul\xE9 du joueur jusqu'\xE0 chaque nuage, puis \xE9largi
+      en couloirs pour garantir un trajet praticable. Les pi\xE8ges, eux, sont sem\xE9s
+      uniquement sur les cases libres, jamais sur ce chemin id\xE9al ni sur un nuage.
+      Toucher un pi\xE8ge co\xFBte un bug par nuage collect\xE9 : la prudence se
+      paie, mais la cupidit\xE9 aussi."
   _root: {fileID: 7570796274668022653}
   _image: {fileID: 2892960454819055054}
   _headerText: {fileID: 2228665265816518774}
@@ -1362,7 +1393,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: 0, y: 80}
+  m_AnchoredPosition: {x: 0, y: -7.0999756}
   m_SizeDelta: {x: 1300, y: 140}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!222 &6732922150906071839
@@ -1651,8 +1682,8 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 2341721795512308754}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.2, y: 0.42}
-  m_AnchorMax: {x: 0.8, y: 0.95}
+  m_AnchorMin: {x: 0.167, y: 0.29}
+  m_AnchorMax: {x: 0.833, y: 0.96}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -1686,7 +1717,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 0}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1

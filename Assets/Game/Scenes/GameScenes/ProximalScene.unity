@@ -4236,6 +4236,16 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1562281074}
     m_Modifications:
+    - target: {fileID: 198166115861499207, guid: 3184425461fba404fb04e3c2589a3842, type: 3}
+      propertyPath: m_text
+      value: "Chaque pi\xE8ge touch\xE9 vous co\xFBte un bug par nuage r\xE9colt\xE9
+        : foncer droit au but n'est pas payant. Lisez la grille, pesez les risques
+        et tracez la route la plus s\xFBre vers vos bugs.\r"
+      objectReference: {fileID: 0}
+    - target: {fileID: 198166115861499207, guid: 3184425461fba404fb04e3c2589a3842, type: 3}
+      propertyPath: m_margin.z
+      value: 31.183838
+      objectReference: {fileID: 0}
     - target: {fileID: 4052161472210225022, guid: 3184425461fba404fb04e3c2589a3842, type: 3}
       propertyPath: m_IsActive
       value: 1
@@ -13855,6 +13865,10 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 36
       objectReference: {fileID: 0}
+    - target: {fileID: 2484478671036067089, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
+      propertyPath: m_margin.z
+      value: 33.639893
+      objectReference: {fileID: 0}
     - target: {fileID: 2520438850596388084, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_Pivot.x
       value: 1
@@ -14185,7 +14199,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4730743788927116283, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4765204017414603102, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_AnchorMax.y

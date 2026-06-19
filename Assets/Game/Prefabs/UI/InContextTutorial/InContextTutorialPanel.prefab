@@ -226,7 +226,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4294963929
   m_fontColor: {r: 0.85, g: 0.95, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -722,8 +722,13 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Corps de texte de l'instruction. Decris ici le point particulier a illustrer
-    sur cette scene.
+  m_text: "Con\xE7u dans le cadre d'une \xE9tude de recherche, ce jeu transforme
+    chaque partie en terrain d'observation. Le joueur explore une grille plong\xE9e
+    dans le brouillard, o\xF9 deux nuages de bugs l'attendent, l'un \xE0 gauche,
+    l'autre \xE0 droite. \xC0 lui de choisir sa cible, de tracer son chemin et de
+    r\xE9colter un maximum de bugs verts tout en esquivant les rouges et les pi\xE8ges.
+    En coulisses, chaque pas, chaque choix et chaque h\xE9sitation sont enregistr\xE9s
+    puis  transmis \xE0 une API, alimentant l'analyse des comportements."
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
