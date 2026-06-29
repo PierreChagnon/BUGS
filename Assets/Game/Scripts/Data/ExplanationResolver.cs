@@ -47,7 +47,14 @@ public class ExplanationRuntimeState
 
         if (state.IsOptIn)
         {
+            // En opt-in, le clic est attendu : on initialise clicked=false et le chrono a 0.
             state.clicked = false;
+            state.display_duration_ms = 0;
+        }
+        else if (!state.IsNone)
+        {
+            // En forced, l'explanation s'affiche automatiquement : pas de clic a enregistrer (clicked=null),
+            // mais on prepare le chrono a 0 pour mesurer le temps de lecture.
             state.display_duration_ms = 0;
         }
 
@@ -56,10 +63,14 @@ public class ExplanationRuntimeState
 
     public void MarkDisplayed(float realtimeSinceStartup)
     {
-        if (!IsOptIn)
+        // Le chrono de lecture concerne opt-in ET forced (toute explanation reellement affichee).
+        if (IsNone)
             return;
 
-        clicked = true;
+        // Le clic n'a de sens qu'en opt-in ; en forced clicked reste null.
+        if (IsOptIn)
+            clicked = true;
+
         if (!display_duration_ms.HasValue)
             display_duration_ms = 0;
 
@@ -72,7 +83,7 @@ public class ExplanationRuntimeState
 
     public void MarkHidden(float realtimeSinceStartup)
     {
-        if (!IsOptIn || !_isCountingDisplayDuration)
+        if (IsNone || !_isCountingDisplayDuration)
             return;
 
         float elapsedSeconds = Mathf.Max(0f, realtimeSinceStartup - _displayStartedAtRealtimeSeconds);

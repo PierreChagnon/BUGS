@@ -99,6 +99,11 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
             return;
         }
 
+        // En forced, l'explanation apparait automatiquement : on demarre le chrono de lecture des qu'elle devient visible.
+        // MarkDisplayed est idempotent (cas du forced motor qui n'apparait qu'apres fermeture du forced proximal).
+        if (isForced)
+            FlowController.Instance?.RecordExplanationDisplayed(Level);
+
         SetExplanationVisible(true);
         SetShowButtonVisible(false);
     }
