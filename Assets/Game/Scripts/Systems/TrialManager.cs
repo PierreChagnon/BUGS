@@ -249,6 +249,7 @@ public class TrialManager : MonoBehaviour
             valley_choice = flow != null && flow.State != null ? FlowValueConverters.ToApiValue(flow.State.valley_choice) : null,
             distal_advice_visible_probability = block != null ? block.distal_advice_visible_probability : 0f,
             distal_advice_reliable_probability = block != null ? block.distal_advice_reliable_probability : 0f,
+            show_numerical_feedback = block == null || block.show_numerical_feedback,
             distal_advice_visible = flow != null && flow.State != null && flow.State.distal_advice_visible,
             distal_advice_reliable = flow != null && flow.State != null && flow.State.distal_advice_reliable,
             distal_advice_choice = flow != null && flow.State != null ? flow.State.distal_advice_choice : null,

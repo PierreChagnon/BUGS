@@ -96,6 +96,7 @@ public class BlockConfig
     public ExplanationsConfig explanations;
     public float distal_advice_visible_probability = 1f;
     public float distal_advice_reliable_probability = 1f;
+    public bool show_numerical_feedback = true;
     public InContextTutorialConfig in_context_tutorial = new();
 
     public BlockConfig DeepClone()
@@ -120,6 +121,7 @@ public class BlockConfig
             explanations = explanations != null ? explanations.DeepClone() : null,
             distal_advice_visible_probability = distal_advice_visible_probability,
             distal_advice_reliable_probability = distal_advice_reliable_probability,
+            show_numerical_feedback = show_numerical_feedback,
             in_context_tutorial = in_context_tutorial != null ? in_context_tutorial.DeepClone() : new()
         };
     }
@@ -455,6 +457,7 @@ public class TrialResponseRow
     public string motor_forced_set;
     public float distal_advice_visible_probability;
     public float distal_advice_reliable_probability;
+    public bool show_numerical_feedback;
     public bool distal_advice_visible;
     public bool distal_advice_reliable;
     public string distal_advice_choice;

@@ -17,6 +17,10 @@ public class RoundUI : MonoBehaviour
     [SerializeField] private GameObject _successPanel;
     [SerializeField] private GameObject _failurePanel;
 
+    [Header("Feedback numerique")]
+    [Tooltip("GameObject regroupant les valeurs numeriques du rapport de mission. Affiche selon show_numerical_feedback du bloc courant.")]
+    [SerializeField] private GameObject _numericalFeedbackRoot;
+
     public event Action OnContinueFromReport;
 
     void Start()
@@ -49,6 +53,15 @@ public class RoundUI : MonoBehaviour
 
         if (_failurePanel != null)
             _failurePanel.SetActive(!info.choiceCorrect);
+
+        if (_numericalFeedbackRoot != null)
+        {
+            // Les chercheurs pilotent l'affichage des valeurs numeriques par bloc.
+            // En l'absence de bloc (debug/sandbox), on conserve le comportement historique (affiche).
+            var block = FlowController.Instance != null ? FlowController.Instance.CurrentBlock : null;
+            bool showNumericalFeedback = block == null || block.show_numerical_feedback;
+            _numericalFeedbackRoot.SetActive(showNumericalFeedback);
+        }
     }
 
     public void Hide()

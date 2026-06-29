@@ -107,18 +107,12 @@ public class GridMover : MonoBehaviour
 
     Vector2Int ReadStep()
     {
-        if (MotorAdviceController.Instance != null &&
-            MotorAdviceController.Instance.TryGetStep(out var motorStep))
-            return motorStep;
+        // Seul le set actif (MotorAdviceController) pilote le déplacement.
+        // Aucun fallback sur les flèches directionnelles.
+        if (MotorAdviceController.Instance == null) return Vector2Int.zero;
 
-        if (Keyboard.current == null) return Vector2Int.zero;
-
-        if (Keyboard.current.leftArrowKey.wasPressedThisFrame) return new Vector2Int(-1, 0);
-        if (Keyboard.current.rightArrowKey.wasPressedThisFrame) return new Vector2Int(+1, 0);
-        if (Keyboard.current.upArrowKey.wasPressedThisFrame) return new Vector2Int(0, +1);
-        if (Keyboard.current.downArrowKey.wasPressedThisFrame) return new Vector2Int(0, -1);
-
-        return Vector2Int.zero;
+        MotorAdviceController.Instance.TryGetStep(out var motorStep);
+        return motorStep;
     }
 
     bool IsAnyNonActiveMoveKeyPressedThisFrame()
@@ -137,13 +131,11 @@ public class GridMover : MonoBehaviour
 
     bool IsActiveMoveKey(KeyControl key)
     {
-        if (MotorAdviceController.Instance != null)
-            return MotorAdviceController.Instance.IsActiveMoveKey(key);
+        // Seul le set actif est considéré comme touche de déplacement valide.
+        // Sans MotorAdviceController, aucune touche n'est valide (pas de flèches).
+        if (MotorAdviceController.Instance == null) return false;
 
-        return key == Keyboard.current.leftArrowKey
-            || key == Keyboard.current.rightArrowKey
-            || key == Keyboard.current.upArrowKey
-            || key == Keyboard.current.downArrowKey;
+        return MotorAdviceController.Instance.IsActiveMoveKey(key);
     }
 
     // ── Déplacement ────────────────────────────────────────────────
