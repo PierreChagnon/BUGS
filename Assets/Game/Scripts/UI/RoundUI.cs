@@ -21,6 +21,14 @@ public class RoundUI : MonoBehaviour
     [Tooltip("GameObject regroupant les valeurs numeriques du rapport de mission. Affiche selon show_numerical_feedback du bloc courant.")]
     [SerializeField] private GameObject _numericalFeedbackRoot;
 
+    [Header("Badge")]
+    [Tooltip("GameObject regroupant tout ce qui concerne le badge. Recentre quand les valeurs numeriques sont masquees.")]
+    [SerializeField] private RectTransform _badgeSectionRoot;
+    [Tooltip("Position X du badge quand les valeurs numeriques sont affichees (a droite).")]
+    [SerializeField] private float _badgeXWithNumerical = -340f;
+    [Tooltip("Position X du badge quand les valeurs numeriques sont masquees (centre).")]
+    [SerializeField] private float _badgeXCentered = 0f;
+
     public event Action OnContinueFromReport;
 
     void Start()
@@ -61,6 +69,14 @@ public class RoundUI : MonoBehaviour
             var block = FlowController.Instance != null ? FlowController.Instance.CurrentBlock : null;
             bool showNumericalFeedback = block == null || block.show_numerical_feedback;
             _numericalFeedbackRoot.SetActive(showNumericalFeedback);
+
+            // Sans les valeurs numeriques, le badge est recentre car il y a de la place.
+            if (_badgeSectionRoot != null)
+            {
+                Vector2 pos = _badgeSectionRoot.anchoredPosition;
+                pos.x = showNumericalFeedback ? _badgeXWithNumerical : _badgeXCentered;
+                _badgeSectionRoot.anchoredPosition = pos;
+            }
         }
     }
 
