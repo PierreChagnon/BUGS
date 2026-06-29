@@ -21,6 +21,14 @@ public class IntroSceneController : MonoBehaviour
     [Header("Refs")]
     [SerializeField] private HowToPlayUI _howToPlay;
 
+    void Awake()
+    {
+        // Neutralise l'auto-show des dummy pages de HowToPlayUI avant son Start().
+        // Tous les Awake() s'executent avant tous les Start() : la suppression est garantie,
+        // ce qui evite le flash des placeholders pendant le download des images de session.
+        if (_howToPlay != null) _howToPlay.MarkExternallyControlled();
+    }
+
     void Start()
     {
         if (_howToPlay == null)

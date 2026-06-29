@@ -83,6 +83,17 @@ public class HowToPlayUI : MonoBehaviour
     // -----------------------------
 
     /// <summary>
+    /// Declare que le composant est pilote de l'exterieur (ex : IntroSceneController).
+    /// Desactive l'auto-show des _dummyPages au Start, evitant le flash de placeholders
+    /// pendant le chargement asynchrone du contenu de session.
+    /// A appeler depuis un Awake() pour garantir l'ordre avant le Start() de ce composant.
+    /// </summary>
+    public void MarkExternallyControlled()
+    {
+        _externalDataSet = true;
+    }
+
+    /// <summary>
     /// Remplace la liste interne par <paramref name="pages"/>. Reset index a 0 et lastReached a false.
     /// Si null ou vide : log warning + ferme silencieusement le panel s'il etait ouvert.
     /// Si le panel est ouvert, affiche immediatement la page 0 de la nouvelle liste.
