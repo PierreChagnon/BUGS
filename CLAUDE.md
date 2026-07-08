@@ -251,6 +251,15 @@ public event Action OnPlayerDied;
 - **Patterns Singleton** : `LevelRegistry.Instance`, `GameManager.Instance`, `FogController.Instance`
 - **Lifecycle MonoBehaviour** : Méthodes standard (Awake, Start, Update) en respectant l'ordre d'exécution documenté ci-dessus.
 
+### Simplicité par défaut (YAGNI)
+
+Livrer la version minimale qui répond exactement à la demande, sans anticiper des besoins non exprimés.
+
+- Ne pas ajouter d'options, champs sérialisés ou paramètres de configuration qui ne sont pas demandés.
+- Pas de code mort : supprimer les champs, `using`, méthodes et branches inutilisés dès qu'ils le deviennent.
+- Ne pas créer de méthode helper pour un appel unique — l'inliner, sauf si elle doit rester publique pour un usage externe réel.
+- Privilégier `Awake` pour l'init quand la dépendance est garantie prête (ex. singleton `DontDestroyOnLoad` d'une scène antérieure) ; réserver `Start` aux dépendances de la même scène.
+
 ---
 
 ## Notes d'implémentation importantes

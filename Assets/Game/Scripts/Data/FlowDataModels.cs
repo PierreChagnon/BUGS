@@ -41,6 +41,8 @@ public enum ValleyChoice
 public class SessionConfig
 {
     public string session_template_id;
+    // Lien renseigne par les chercheurs, affiche sur l'ecran de fin de session (EndSessionScene).
+    public string platform_url;
     public List<RuleScreen> rules = new();
     public List<BlockConfig> blocks = new();
 
@@ -49,6 +51,7 @@ public class SessionConfig
         return new SessionConfig
         {
             session_template_id = session_template_id,
+            platform_url = platform_url,
             rules = FlowCloneUtility.CloneRules(rules),
             blocks = FlowCloneUtility.CloneBlocks(blocks)
         };

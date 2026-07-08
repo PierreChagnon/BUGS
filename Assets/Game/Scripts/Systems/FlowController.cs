@@ -35,6 +35,7 @@ public class FlowController : MonoBehaviour
     public long CurrentTrialSeed { get; private set; }
     public int BlockScore { get; private set; }
     public string BuildVersion => _buildVersion;
+    public string PlatformUrl => Config != null ? Config.platform_url : null;
     public ExplanationRuntimeState DistalAdviceExplanation { get; private set; } = ExplanationRuntimeState.None();
     public ExplanationRuntimeState ProximalAdviceExplanation { get; private set; } = ExplanationRuntimeState.None();
     public ExplanationRuntimeState MotorAdviceExplanation { get; private set; } = ExplanationRuntimeState.None();
