@@ -11,8 +11,6 @@ public class FlowContinueScreenUI : MonoBehaviour
     }
 
     [SerializeField] private ScreenKind _screenKind;
-    [SerializeField] private TMP_Text _titleText;
-    [SerializeField] private TMP_Text _bodyText;
     [SerializeField] private GameObject _continueButtonRoot;
 
     void Start()
@@ -29,32 +27,9 @@ public class FlowContinueScreenUI : MonoBehaviour
         if (_continueButtonRoot != null)
             _continueButtonRoot.SetActive(_screenKind != ScreenKind.EndSession);
 
-        switch (_screenKind)
-        {
-            case ScreenKind.Welcome:
-                SetTexts(
-                    "Bienvenue",
-                    $"Session: {flow.State.session_template_id}\nParticipant: {flow.State.participant_id}\n\nClique pour commencer.");
-                break;
-
-            case ScreenKind.Intro:
-                SetTexts("Introduction", "Tu vas demarrer les blocs de la session.");
-                break;
-
-            case ScreenKind.EndSession:
-                SetTexts("Session terminee", "Merci pour ta participation.");
-                break;
-        }
+        
     }
 
-    void SetTexts(string title, string body)
-    {
-        if (_titleText != null)
-            _titleText.text = title;
-
-        if (_bodyText != null)
-            _bodyText.text = body;
-    }
 
     public void OnContinueClicked()
     {
