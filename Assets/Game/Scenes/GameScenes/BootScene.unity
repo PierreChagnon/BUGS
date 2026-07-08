@@ -988,8 +988,20 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2260981192873581790, guid: 90e4166e4eef94048a041f8cb94ccdf8, type: 3}
+      propertyPath: _defaultMusic
+      value: 0.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 2260981192873581790, guid: 90e4166e4eef94048a041f8cb94ccdf8, type: 3}
+      propertyPath: _defaultSfxUi
+      value: 0.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 2260981192873581790, guid: 90e4166e4eef94048a041f8cb94ccdf8, type: 3}
       propertyPath: _defaultMaster
-      value: 0.4
+      value: 0.35
+      objectReference: {fileID: 0}
+    - target: {fileID: 2260981192873581790, guid: 90e4166e4eef94048a041f8cb94ccdf8, type: 3}
+      propertyPath: _defaultSfxGameplay
+      value: 0.6
       objectReference: {fileID: 0}
     - target: {fileID: 6618418837846086234, guid: 90e4166e4eef94048a041f8cb94ccdf8, type: 3}
       propertyPath: m_Name

@@ -1306,6 +1306,7 @@ MonoBehaviour:
       paie, mais la cupidit\xE9 aussi."
   _root: {fileID: 7570796274668022653}
   _image: {fileID: 2892960454819055054}
+  _defaultSprite: {fileID: 21300000, guid: 162bec28b7d05cb45a05bf92afaee63a, type: 3}
   _headerText: {fileID: 2228665265816518774}
   _bodyText: {fileID: 6334936069229319709}
   _prevButton: {fileID: 642426414888598813}
@@ -1715,8 +1716,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 0
+  m_Sprite: {fileID: 21300000, guid: 162bec28b7d05cb45a05bf92afaee63a, type: 3}
+  m_Type: 1
   m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4

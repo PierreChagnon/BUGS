@@ -38,15 +38,23 @@ public class SettingsPanelUI : MonoBehaviour
             _sfxSlider.SetValueWithoutNotify(
                 AudioManager.Instance.GetGroupVolume(AudioManager.SFX_GAMEPLAY_VOLUME));
         }
-        Time.timeScale = 0f;
-        GameManager.Instance.SetInputLocked(true);
+        // Pause + verrouillage input uniquement en contexte gameplay.
+        // Sur un ecran de menu (Welcome, etc.) il n'y a pas de GameManager :
+        // on ouvre le panneau sans figer l'ecran.
+        if (GameManager.Instance != null)
+        {
+            Time.timeScale = 0f;
+            GameManager.Instance.SetInputLocked(true);
+        }
         _root.SetActive(true);
     }
 
     public void Close()
     {
+        if (GameManager.Instance != null)
+            GameManager.Instance.SetInputLocked(false);
+        // Toujours restaurer timeScale (no-op si on ne l'avait pas mis a 0).
         Time.timeScale = 1f;
-        GameManager.Instance.SetInputLocked(false);
         _root.SetActive(false);
     }
 

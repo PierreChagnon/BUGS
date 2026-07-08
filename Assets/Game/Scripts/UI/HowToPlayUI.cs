@@ -30,6 +30,8 @@ public class HowToPlayUI : MonoBehaviour
     [Header("Refs vue")]
     [SerializeField] private GameObject _root;
     [SerializeField] private Image _image;
+    [Tooltip("Sprite affiche a la place de l'image quand une page ne fournit pas d'image (page.image == null).")]
+    [SerializeField] private Sprite _defaultSprite;
     [SerializeField] private TMP_Text _headerText;
     [SerializeField] private TMP_Text _bodyText;
     [SerializeField] private Button _prevButton;
@@ -186,7 +188,7 @@ public class HowToPlayUI : MonoBehaviour
         _index = i;
         var page = _pages[i];
 
-        if (_image != null) _image.sprite = page.image;
+        if (_image != null) _image.sprite = (page.image != null) ? page.image : _defaultSprite;
         if (_headerText != null) _headerText.text = page.header ?? string.Empty;
         if (_bodyText != null) _bodyText.text = page.body ?? string.Empty;
 
