@@ -82,85 +82,94 @@ public class MotorAdviceController : MonoBehaviour
         step = Vector2Int.zero;
         if (Keyboard.current == null) return false;
 
-        switch (ActiveSet)
-        {
-            case MotorKeySet.ZQSD:
-                if (Keyboard.current.wKey.wasPressedThisFrame) { step = Vector2Int.up; return true; }
-                if (Keyboard.current.aKey.wasPressedThisFrame) { step = Vector2Int.left; return true; }
-                if (Keyboard.current.sKey.wasPressedThisFrame) { step = Vector2Int.down; return true; }
-                if (Keyboard.current.dKey.wasPressedThisFrame) { step = Vector2Int.right; return true; }
-                return false;
-
-            case MotorKeySet.TFGH:
-                if (Keyboard.current.tKey.wasPressedThisFrame) { step = Vector2Int.up; return true; }
-                if (Keyboard.current.fKey.wasPressedThisFrame) { step = Vector2Int.left; return true; }
-                if (Keyboard.current.gKey.wasPressedThisFrame) { step = Vector2Int.down; return true; }
-                if (Keyboard.current.hKey.wasPressedThisFrame) { step = Vector2Int.right; return true; }
-                return false;
-
-            case MotorKeySet.OKLM:
-                if (Keyboard.current.oKey.wasPressedThisFrame) { step = Vector2Int.up; return true; }
-                if (Keyboard.current.kKey.wasPressedThisFrame) { step = Vector2Int.left; return true; }
-                if (Keyboard.current.lKey.wasPressedThisFrame) { step = Vector2Int.down; return true; }
-                if (Keyboard.current.semicolonKey.wasPressedThisFrame) { step = Vector2Int.right; return true; }
-                return false;
-        }
-
+        if (IsDirectionPressed(ActiveSet, "up")) { step = Vector2Int.up; return true; }
+        if (IsDirectionPressed(ActiveSet, "left")) { step = Vector2Int.left; return true; }
+        if (IsDirectionPressed(ActiveSet, "down")) { step = Vector2Int.down; return true; }
+        if (IsDirectionPressed(ActiveSet, "right")) { step = Vector2Int.right; return true; }
         return false;
     }
 
-    //Renvoie une string representant la touche a presser pour la direction donnee dans le set donne
+    static bool IsDirectionPressed(MotorKeySet set, string direction)
+    {
+        var key = GetKeyControl(set, direction);
+        return key != null && key.wasPressedThisFrame;
+    }
+
+    // Retourne le KeyControl (position PHYSIQUE de la touche, referencee sur le layout US)
+    // pour un set + direction donnes. C'est la position physique qui est lue en input :
+    // le comportement moteur est donc identique quel que soit le layout du clavier.
+    static KeyControl GetKeyControl(MotorKeySet set, string direction)
+    {
+        var kb = Keyboard.current;
+        if (kb == null) return null;
+
+        return set switch
+        {
+            MotorKeySet.ZQSD => direction switch
+            {
+                "up" => kb.wKey,
+                "left" => kb.aKey,
+                "down" => kb.sKey,
+                "right" => kb.dKey,
+                _ => null
+            },
+            MotorKeySet.TFGH => direction switch
+            {
+                "up" => kb.tKey,
+                "left" => kb.fKey,
+                "down" => kb.gKey,
+                "right" => kb.hKey,
+                _ => null
+            },
+            MotorKeySet.OKLM => direction switch
+            {
+                "up" => kb.oKey,
+                "left" => kb.kKey,
+                "down" => kb.lKey,
+                "right" => kb.semicolonKey,
+                _ => null
+            },
+            _ => null
+        };
+    }
+
+    // Renvoie le LABEL a afficher pour la touche a presser dans la direction donnee.
+    // Utilise KeyControl.displayName : Unity interroge l'OS et renvoie l'etiquette reelle
+    // de la touche selon le layout clavier courant (ex: la touche a la position "wKey"
+    // affiche "Z" en AZERTY, "W" en QWERTY). Fallback sur les labels AZERTY si aucun
+    // clavier n'est disponible (hors Play Mode, headless...).
     public static string FormatSet(MotorKeySet set, string direction = null)
     {
-        if (direction == null) { return string.Empty; }
-        ;
+        if (direction == null) return string.Empty;
 
-        switch (set)
+        var key = GetKeyControl(set, direction);
+        if (key != null && !string.IsNullOrEmpty(key.displayName))
+            return key.displayName;
+
+        return FallbackLabel(set, direction);
+    }
+
+    // Labels AZERTY codes en dur, utilises uniquement en fallback quand displayName
+    // n'est pas disponible (pas de Keyboard.current).
+    static string FallbackLabel(MotorKeySet set, string direction)
+    {
+        return set switch
         {
-
-            default: return string.Empty;
-            case MotorKeySet.ZQSD:
-                return direction switch
-                {
-                    "up" => "Z",
-                    "left" => "Q",
-                    "down" => "S",
-                    "right" => "D",
-                    _ => string.Empty
-                };
-            case MotorKeySet.TFGH:
-                return direction switch
-                {
-                    "up" => "T",
-                    "left" => "F",
-                    "down" => "G",
-                    "right" => "H",
-                    _ => string.Empty
-                };
-            case MotorKeySet.OKLM:
-                return direction switch
-                {
-                    "up" => "O",
-                    "left" => "K",
-                    "down" => "L",
-                    "right" => "M",
-                    _ => string.Empty
-                };
-        }
+            MotorKeySet.ZQSD => direction switch { "up" => "Z", "left" => "Q", "down" => "S", "right" => "D", _ => string.Empty },
+            MotorKeySet.TFGH => direction switch { "up" => "T", "left" => "F", "down" => "G", "right" => "H", _ => string.Empty },
+            MotorKeySet.OKLM => direction switch { "up" => "O", "left" => "K", "down" => "L", "right" => "M", _ => string.Empty },
+            _ => string.Empty
+        };
     }
 
     public bool IsActiveMoveKey(KeyControl key)
     {
-        var kb = Keyboard.current;
-        if (kb == null) return false;
+        if (Keyboard.current == null || key == null) return false;
 
-        return ActiveSet switch
-        {
-            MotorKeySet.ZQSD => key == kb.wKey || key == kb.aKey || key == kb.sKey || key == kb.dKey,
-            MotorKeySet.TFGH => key == kb.tKey || key == kb.fKey || key == kb.gKey || key == kb.hKey,
-            MotorKeySet.OKLM => key == kb.oKey || key == kb.kKey || key == kb.lKey || key == kb.semicolonKey,
-            _ => false
-        };
+        return key == GetKeyControl(ActiveSet, "up")
+            || key == GetKeyControl(ActiveSet, "left")
+            || key == GetKeyControl(ActiveSet, "down")
+            || key == GetKeyControl(ActiveSet, "right");
     }
 
     static MotorKeySet PickOtherSet(System.Random rng, MotorKeySet current)

@@ -915,9 +915,12 @@ public enum MotorKeySet
 | AdviceReliable                    | bool (get)         | `true` si le set affiché == set actif (advice fiable)                         |
 | OnAdviceChanged                   | event Action       | Émis après le tirage — `MotorAdviceUI` s'y abonne                            |
 | _Lecture depuis SessionManager.Instance :_ | | `motorAdviceVisibleProbability` (float, 0-1), `motorAdviceReliableProbability` (float, 0-1) — **paramètres recherche** (Singleton, lecture directe) |
-| TryGetStep(out Vector2Int)        | bool               | Lit `wasPressedThisFrame` sur les 4 touches du set actif. Retourne `true` + direction si pressée |
-| IsActiveMoveKey(KeyControl)       | bool               | Retourne `true` si la touche appartient au set actif (switch expression)      |
-| FormatSet(MotorKeySet)            | string (statique)  | Formatte un set en label lisible (ex: "Haut: Z  Gauche: Q  Bas: S  Droite: D") |
+| TryGetStep(out Vector2Int)        | bool               | Teste `wasPressedThisFrame` sur les 4 directions du set actif (via `GetKeyControl` + `IsDirectionPressed`). Retourne `true` + direction si pressée |
+| IsActiveMoveKey(KeyControl)       | bool               | Retourne `true` si la touche appartient au set actif (comparaison aux 4 `GetKeyControl` du set) |
+| FormatSet(MotorKeySet, direction) | string (statique)  | Renvoie le **label à afficher** pour une direction. Utilise `KeyControl.displayName` (libellé réel selon layout OS : "Z" AZERTY / "W" QWERTY). Fallback labels AZERTY si `Keyboard.current` absent |
+| GetKeyControl(set, direction)     | KeyControl (statique privé) | Source de vérité unique set+direction → `KeyControl` (position physique). Utilisé par TryGetStep, IsActiveMoveKey et FormatSet |
+| IsDirectionPressed(set, direction) | bool (statique privé) | `true` si le `KeyControl` de la direction a `wasPressedThisFrame`             |
+| FallbackLabel(set, direction)     | string (statique privé) | Labels AZERTY codés en dur, utilisés uniquement quand `displayName` indisponible |
 | PickOtherSet(rng, current)        | MotorKeySet (statique privé) | Choisit un set différent du set courant (pour advice non fiable)     |
 | CreateRng()                       | System.Random (statique privé) | Crée un RNG seedé via `LevelRegistry.CreateRng("MotorAdviceController")` |
 
@@ -978,16 +981,22 @@ Tirage fiable       = rng.NextDouble() < SessionManager.Instance.motorAdviceReli
 Set affiché         = ActiveSet si fiable, PickOtherSet(rng, ActiveSet) si non fiable, None si invisible
 PickOtherSet        = retire le set courant de la liste [ZQSD, TFGH, OKLM], tire au hasard parmi les 2 restants
 
-Mapping ZQSD : W=Haut, A=Gauche, S=Bas, D=Droite (layout physique, Keyboard.current.wKey/aKey/sKey/dKey)
-Mapping TFGH : T=Haut, F=Gauche, G=Bas, H=Droite
-Mapping OKLM : O=Haut, K=Gauche, L=Bas, ;=Droite (semicolonKey)
+Mapping ZQSD : wKey=Haut, aKey=Gauche, sKey=Bas, dKey=Droite (POSITION PHYSIQUE, réf. layout US)
+Mapping TFGH : tKey=Haut, fKey=Gauche, gKey=Bas, hKey=Droite
+Mapping OKLM : oKey=Haut, kKey=Gauche, lKey=Bas, semicolonKey=Droite
+
+Input   = position physique de la touche → comportement identique quel que soit le layout
+Affichage = KeyControl.displayName → libellé réel selon le layout OS courant
+            ex. wKey.displayName = "Z" (AZERTY) / "W" (QWERTY) / "Z" (QWERTZ)
+            semicolonKey.displayName = "M" (AZERTY) / ";" (QWERTY)
+Fallback  = labels AZERTY codés en dur si Keyboard.current == null (hors Play Mode, headless)
 ```
 
 ### 3.6.6 Points d'attention
 
 - **⚠️ Singleton :** `MotorAdviceController.Instance` peut être `null` si le GameObject n'est pas dans la scène. `GridMover` gère ce cas avec fallback flèches
 - **⚠️ RNG seedé :** Le tirage utilise `LevelRegistry.CreateRng(nameof(MotorAdviceController))` — même seed = même set actif + mêmes tirages visible/fiable. Si `LevelRegistry.Instance` est null, un RNG non seedé est utilisé (warning loggé)
-- **⚠️ Layout AZERTY :** Le set "ZQSD" utilise en réalité `wKey/aKey/sKey/dKey` du New Input System (layout physique QWERTY). Sur un clavier AZERTY physique, les touches physiques correspondent bien à Z/Q/S/D
+- **⚠️ Layout clavier :** Les sets lisent des **positions physiques** (`wKey/aKey/sKey/dKey`...) du New Input System — l'input est donc identique quel que soit le layout. L'**affichage** utilise `KeyControl.displayName` qui renvoie le libellé réel selon le layout OS (Z/Q/S/D en AZERTY, W/A/S/D en QWERTY). Un fallback labels AZERTY est utilisé si `Keyboard.current` est null (hors Play Mode). Les noms d'enum (ZQSD/TFGH/OKLM) restent des **identifiants internes AZERTY-centrés**, sans impact sur l'affichage runtime
 - **⚠️ Advice non fiable :** Si `AdviceReliable == false`, le joueur voit un set différent du set actif. Il doit identifier le bon set par essai — les erreurs déclenchent la pénalité de touche invalide
 - **⚠️ OnAdviceChanged :** Émis une seule fois au Start après tous les tirages. Si l'UI n'est pas encore abonnée (problème de timing), l'affichage ne sera pas mis à jour — en pratique non problématique car `MotorAdviceUI.Start()` appelle aussi `Refresh()` directement
 
@@ -996,6 +1005,7 @@ Mapping OKLM : O=Haut, K=Gauche, L=Bas, ;=Droite (semicolonKey)
 | Date     | Développeur | Note / Décision Technique                                                                     |
 | :------- | :---------- | :-------------------------------------------------------------------------------------------- |
 | 12/03/26 | @auteur     | Création. Singleton Motor Advice : tirage seedé du set actif (ZQSD/TFGH/OKLM), advice visible/fiable configurable via SessionManager. API TryGetStep + IsActiveMoveKey. Event OnAdviceChanged pour MotorAdviceUI. |
+| 08/07/26 | @auteur     | Affichage layout-aware : `FormatSet` renvoie désormais `KeyControl.displayName` (libellé réel selon layout OS) au lieu de labels codés en dur → corrige l'affichage QWERTY. Mapping set+direction centralisé dans `GetKeyControl` (partagé par TryGetStep/IsActiveMoveKey/FormatSet). Fallback labels AZERTY via `FallbackLabel` si `Keyboard.current` absent. |
 
 # 4. Systèmes Core
 
