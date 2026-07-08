@@ -4559,11 +4559,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: cb612a8f04f13374eb2eaab22dec3bf8, type: 3}
---- !u!1 &795932738 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 655599893420111008, guid: b9399966ae58e42429eefb4089f2b5fa, type: 3}
-  m_PrefabInstance: {fileID: 2004160899678406538}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &837229009
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -17086,11 +17081,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: cb612a8f04f13374eb2eaab22dec3bf8, type: 3}
---- !u!1 &1481419205 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 2666986307374176899, guid: b9399966ae58e42429eefb4089f2b5fa, type: 3}
-  m_PrefabInstance: {fileID: 2004160899678406538}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1495304676
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -18979,6 +18969,10 @@ PrefabInstance:
     - target: {fileID: 5342882798650304914, guid: a8f498e6cabd14e80b3554a1188fa59a, type: 3}
       propertyPath: m_Name
       value: InContextTutorialPanel
+      objectReference: {fileID: 0}
+    - target: {fileID: 5342882798650304914, guid: a8f498e6cabd14e80b3554a1188fa59a, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7837175293795594569, guid: a8f498e6cabd14e80b3554a1188fa59a, type: 3}
       propertyPath: m_Pivot.x
@@ -21818,11 +21812,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f7b5d67221c061548bff78795a8abcce, type: 3}
---- !u!1 &2133730930 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 8042040201907575764, guid: b9399966ae58e42429eefb4089f2b5fa, type: 3}
-  m_PrefabInstance: {fileID: 2004160899678406538}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &2144682786
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -22743,9 +22732,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DistalChoiceUI
   _valleyAAdviceIndicator: {fileID: 718610085}
   _valleyBAdviceIndicator: {fileID: 1546222665}
-  _advisorSelectedHumanMale: {fileID: 2133730930}
-  _advisorSelectedHumanFemale: {fileID: 795932738}
-  _advisorSelectedRobot: {fileID: 1481419205}
 --- !u!1 &1321052569502223468 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 7672756682581650659, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
@@ -22944,6 +22930,10 @@ PrefabInstance:
     - target: {fileID: 6442432707799719503, guid: b9399966ae58e42429eefb4089f2b5fa, type: 3}
       propertyPath: m_Name
       value: Container_AdvisorSelectedBadge
+      objectReference: {fileID: 0}
+    - target: {fileID: 6442432707799719503, guid: b9399966ae58e42429eefb4089f2b5fa, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

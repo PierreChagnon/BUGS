@@ -27,9 +27,6 @@ public class DistalChoiceUI : MonoBehaviour
 
     [SerializeField] private GameObject _valleyAAdviceIndicator;
     [SerializeField] private GameObject _valleyBAdviceIndicator;
-    [SerializeField] private GameObject _advisorSelectedHumanMale;
-    [SerializeField] private GameObject _advisorSelectedHumanFemale;
-    [SerializeField] private GameObject _advisorSelectedRobot;
 
     public bool AdviceVisible { get; private set; }
     public bool AdviceReliable { get; private set; }
@@ -65,34 +62,11 @@ public class DistalChoiceUI : MonoBehaviour
         RightScanData = distalScans.secondCloud;
 
         UpdateAdviceIndicators(advisorType);
-        SetSelectedAdvisorBadge(AdviceVisible, advisorType);
         ApplyValleyScan(LeftScanData, ref _autoValleyAScan);
         ApplyValleyScan(RightScanData, ref _autoValleyBScan);
         ApplyForcedChoiceButtons(flow);
     }
 
-    void SetSelectedAdvisorBadge(bool adviceVisible, AdvisorType advisorType)
-    {
-        bool showHuman = adviceVisible && advisorType == AdvisorType.Human;
-        bool showRobot = adviceVisible && advisorType == AdvisorType.Robot;
-
-        if (_advisorSelectedHumanMale != null)
-            _advisorSelectedHumanMale.SetActive(showHuman && _showHumanMale);
-        if (_advisorSelectedHumanFemale != null)
-            _advisorSelectedHumanFemale.SetActive(showHuman && !_showHumanMale);
-        if (_advisorSelectedRobot != null)
-            _advisorSelectedRobot.SetActive(showRobot);
-    }
-
-    static float ComputeExpectedGreenBugs(MapGenConfig config)
-    {
-        if (config == null)
-            return 0f;
-
-        float averageTotalBugs = (config.min_total_bugs + config.max_total_bugs) * 0.5f;
-        float averageGreenRatio = (config.min_green_ratio + config.max_green_ratio) * 0.5f;
-        return averageTotalBugs * averageGreenRatio;
-    }
 
     void ApplyValleyScan(BugCloudSample scanData, ref RuntimeCloudScanBinding automaticScanBinding)
     {
@@ -221,35 +195,6 @@ public class DistalChoiceUI : MonoBehaviour
         return binding;
     }
 
-    static string FormatMapGenConfig(MapGenConfig config)
-    {
-        if (config == null)
-            return "config=null";
-
-        return
-            $"totalBugs={config.min_total_bugs}-{config.max_total_bugs}, " +
-            $"greenRatio={config.min_green_ratio:0.00}-{config.max_green_ratio:0.00}, " +
-            $"gap={config.gap_min:0.00}-{config.gap_max:0.00}, " +
-            $"traps={config.trap_count}, fog={config.fog_probability:0.00}, seed={config.seed}";
-    }
-
-    static string FormatDistalSceneConfig(DistalSceneConfig config)
-    {
-        if (config == null)
-            return "config=null";
-
-        return
-            $"totalBugs={config.min_total_bugs}-{config.max_total_bugs}, " +
-            $"greenRatio={config.min_green_ratio:0.00}-{config.max_green_ratio:0.00}, " +
-            $"gap={config.gap_min:0.00}-{config.gap_max:0.00}";
-    }
-
-    static string FormatSample(BugCloudSample sample)
-    {
-        return
-            $"total={sample.totalBugs}, greenRatio={sample.greenRatio:0.000}, " +
-            $"greenCount={sample.GreenBugCount}, redCount={sample.RedBugCount}";
-    }
 
     static int CountParticleSystems(RectTransform group)
     {
