@@ -29,16 +29,17 @@ public class InContextTutorialSceneBinder : MonoBehaviour
         }
 
         var flow = FlowController.Instance;
-        if (flow == null) return;
+        if (flow == null) return; // scene lancee seule (dev) : on laisse l'overlay a son comportement dummy
 
-        var block = flow.CurrentBlock;
-        if (block == null || !block.is_tutorial) { _overlay.SetContent(string.Empty, string.Empty); return; }
+        // Le binder est l'unique source de verite pour la visibilite de l'overlay.
+        // On (re)force l'etat actif du GameObject a chaque runtime, pour ne PAS dependre
+        // d'une activation/desactivation oubliee en editeur (ex. panneau desactive pour
+        // travailler dans la scene). Actif si on est dans un tuto pour cette scene, sinon inactif.
+        bool shouldShow = ShouldShowForCurrentBlock(flow);
+        _overlay.gameObject.SetActive(shouldShow);
+        if (!shouldShow) return;
 
-        // Proximal recharge a chaque trial : n'afficher qu'au 1er trial du bloc
-        if (_scene == SceneKind.Proximal && flow.State != null && flow.State.current_trial_index != 0)
-            return;
-
-        var (title, body) = LoadContent(block);
+        var (title, body) = LoadContent(flow.CurrentBlock);
         bool shown = _overlay.Show(title, body); // no-op si contenu vide
         if (!shown) return;
 
@@ -64,6 +65,19 @@ public class InContextTutorialSceneBinder : MonoBehaviour
         if (_inputLockedByThis && GameManager.Instance != null)
             GameManager.Instance.ReleaseInputLock();
         _inputLockedByThis = false;
+    }
+
+    // Determine si l'overlay doit etre affiche pour le bloc/scene courant.
+    private bool ShouldShowForCurrentBlock(FlowController flow)
+    {
+        var block = flow.CurrentBlock;
+        if (block == null || !block.is_tutorial) return false;
+
+        // Proximal recharge a chaque trial : n'afficher qu'au 1er trial du bloc
+        if (_scene == SceneKind.Proximal && flow.State != null && flow.State.current_trial_index != 0)
+            return false;
+
+        return true;
     }
 
     private (string title, string body) LoadContent(BlockConfig block)
