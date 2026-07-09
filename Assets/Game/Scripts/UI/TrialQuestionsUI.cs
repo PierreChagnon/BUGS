@@ -87,7 +87,10 @@ public class TrialQuestionsUI : MonoBehaviour
         if (flow == null || flow.CurrentBlock == null)
             return;
 
-        _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestionKey, _acceptabilityQuestion));
+        // La question d'acceptabilite porte sur l'advisor : elle n'a pas de sens si aucun advisor n'a ete choisi (none).
+        if (flow.State.advisor_choice != AdvisorType.None)
+            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestionKey, _acceptabilityQuestion));
+
         _questions.Add(new TrialQuestionItem(FlowSerializationUtility.SensOfAgencyQuestionKey, _senseOfAgencyQuestion));
 
         bool isLastTrial = flow.State.current_trial_index >= flow.CurrentBlock.trial_count - 1;
