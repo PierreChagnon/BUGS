@@ -478,6 +478,8 @@ public class FlowController : MonoBehaviour
         block.proximal_forced_probability = Mathf.Clamp01(block.proximal_forced_probability);
         block.proximal_forced_optimal_probability = Mathf.Clamp01(block.proximal_forced_optimal_probability);
         block.motor_forced_probability = Mathf.Clamp01(block.motor_forced_probability);
+        block.proximal_advice_explanation_probability = Mathf.Clamp01(block.proximal_advice_explanation_probability);
+        block.motor_advice_explanation_probability = Mathf.Clamp01(block.motor_advice_explanation_probability);
         block.advisor_forced_value = FlowValueConverters.ToApiValue(FlowValueConverters.ToAdvisorType(block.advisor_forced_value));
         block.motor_forced_set = FlowValueConverters.ToApiValue(FlowValueConverters.ToMotorKeySet(block.motor_forced_set));
     }
@@ -546,25 +548,35 @@ public class FlowController : MonoBehaviour
 
     public void ResolveProximalExplanationForCurrentTrial(bool adviceVisible)
     {
+        bool showExplanation = adviceVisible && RollExplanationProbability(
+            nameof(ResolveProximalExplanationForCurrentTrial),
+            CurrentBlock != null ? CurrentBlock.proximal_advice_explanation_probability : 0f);
+
         ProximalAdviceExplanation = ExplanationResolver.Resolve(
             CurrentBlock,
             AdviceLevel.Proximal,
             State != null ? State.advisor_choice : AdvisorType.None,
-            adviceVisible && IsFirstTrialInCurrentBlock());
+            showExplanation);
     }
 
     public void ResolveMotorExplanationForCurrentTrial(bool adviceVisible)
     {
+        bool showExplanation = adviceVisible && RollExplanationProbability(
+            nameof(ResolveMotorExplanationForCurrentTrial),
+            CurrentBlock != null ? CurrentBlock.motor_advice_explanation_probability : 0f);
+
         MotorAdviceExplanation = ExplanationResolver.Resolve(
             CurrentBlock,
             AdviceLevel.Motor,
             State != null ? State.advisor_choice : AdvisorType.None,
-            adviceVisible && IsFirstTrialInCurrentBlock());
+            showExplanation);
     }
 
-    bool IsFirstTrialInCurrentBlock()
+    // Tirage independant a chaque trial (remplace l'ancienne restriction "1er trial du bloc uniquement").
+    bool RollExplanationProbability(string scope, float probability)
     {
-        return State != null && State.current_trial_index == 0;
+        var rng = CreateCurrentTrialRandom(scope);
+        return rng.NextDouble() < Mathf.Clamp01(probability);
     }
 
     public ExplanationRuntimeState GetExplanationState(AdviceLevel level)
