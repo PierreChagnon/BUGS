@@ -68,6 +68,9 @@ public class GridMover : MonoBehaviour
 
         Vector3 dir = new(step.x, 0f, step.y);
 
+        if (rotateToDirection)
+            transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+
         var reg = LevelRegistry.Instance;
         Vector3 targetPos;
         bool targetHasTrap = false;
@@ -95,9 +98,6 @@ public class GridMover : MonoBehaviour
         {
             targetPos = GetSnappedPosition(transform.position + dir * cellSize);
         }
-
-        if (rotateToDirection && dir != Vector3.zero)
-            transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
 
         OnStepStarted?.Invoke(targetHasTrap);
         StartCoroutine(MoveToCoroutine(targetPos, moveDuration));

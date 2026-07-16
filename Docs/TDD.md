@@ -754,6 +754,7 @@ Exclusion          = les cellules suboptimalPath sont exclues des candidats norm
 
 - Capturer les inputs clavier via le set de touches actif défini par `MotorAdviceController` (ZQSD, TFGH ou IJKL)
 - Si `MotorAdviceController` est absent, fallback sur les flèches directionnelles
+- Tourner le joueur vers la direction demandée, même si la case cible est bloquée
 - Valider le mouvement cible via LevelRegistry (InBounds, IsWalkable)
 - Interpoler le déplacement du joueur par coroutine avec SmoothStep
 - **Détecter les appuis sur des touches non actives** (itération `Keyboard.current.allKeys`) et signaler la pénalité au GameManager
@@ -817,10 +818,10 @@ graph TD
     I --> J{step == zero ?}
     J -->|Oui| G
     J -->|Non| K["targetCell = curCell + step"]
-    K --> L{InBounds + IsWalkable ?}
-    L -->|Non| G
-    L -->|Oui| M["Rotation vers direction"]
-    M --> N["StartCoroutine MoveTo(targetPos, moveDuration)"]
+    K --> L["Rotation vers direction"]
+    L --> M{"InBounds + IsWalkable ?"}
+    M -->|Non| G
+    M -->|Oui| N["StartCoroutine MoveTo(targetPos, moveDuration)"]
 
     N --> O["_isMoving = true"]
     O --> P["Lerp + SmoothStep sur moveDuration"]
@@ -838,6 +839,7 @@ Mouvement          = 1 case par input, 4 directions cardinales
 Interpolation      = Vector3.Lerp(start, target, SmoothStep(0, 1, t))
                      t += deltaTime / moveDuration
 Validation         = LevelRegistry.InBounds(targetCell) && LevelRegistry.IsWalkable(targetCell)
+Rotation           = appliquee des qu'une direction est demandee, y compris sur tentative bloquee
 Verrouillage       = _isMoving (pendant interpolation) || GameManager.inputLocked (fin de round)
 Signalisation      = OnPlayerStep(cell) → GameManager gère fog, visited, trial log
 Touche invalide    = toute touche de Keyboard.current.allKeys pressée qui n'est PAS dans le set actif
