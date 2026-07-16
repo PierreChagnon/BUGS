@@ -234,7 +234,7 @@ sequenceDiagram
 | **PlayerStart registration** | `PlayerSpawner` → `LevelRegistry.RegisterPlayerStart(cell, world)` → spawners lisent `TryGetPlayerStartCell()` | Les spawners n'ont plus de `Transform player` en Inspector — ils interrogent LevelRegistry. Découple le placement du joueur de la construction de la map |
 | **Research Parameter Pipeline** | `SessionManager.Instance` (Singleton, propriétaire unique) → Spawners `.Start()` (lecture directe) | Distinction claire entre **paramètre de protocole expérimental** (contrôlé par le chercheur, injectable via args CLI `key=value`, possédé par `SessionManager`) et **paramètre de game design** (fixé par le designer, reste sur le script qui l'utilise). Les spawners lisent directement `SessionManager.Instance.paramName` — les paramètres recherche ne transitent plus par LevelRegistry. Voir section 4.3 pour le détail du pipeline CLI |
 | **Step Budget Penalty** | `GameManager.OnPlayerStep` → `OnStepBudgetExceeded`, `LevelRegistry.stepBudget`, `BugCloudSpawner.RegisterStepBudget` | Même pattern que `OnTrapTriggered` : quand le joueur dépasse la distance Manhattan (budget de pas enregistré par BugCloudSpawner), chaque pas supplémentaire retire 1 bug de chaque nuage. La donnée brute `cloud_distance` est transmise aux chercheurs via TrialData |
-| **Motor Advice** | `MotorAdviceController.Instance` (Singleton) → `GridMover.ReadStep()` + `GridMover.IsActiveMoveKey()` | Tirage seedé d'un jeu de touches actif (ZQSD/TFGH/OKLM) avec advice visible/fiable configurable par SessionManager. GridMover délègue la lecture d'input et la validation des touches actives à MotorAdviceController |
+| **Motor Advice** | `MotorAdviceController.Instance` (Singleton) → `GridMover.ReadStep()` + `GridMover.IsActiveMoveKey()` | Tirage seedé d'un jeu de touches actif (ZQSD/TFGH/IJKL) avec advice visible/fiable configurable par SessionManager. GridMover délègue la lecture d'input et la validation des touches actives à MotorAdviceController |
 | **Invalid Key Penalty** | `GridMover.IsAnyNonActiveMoveKeyPressedThisFrame()` → `GameManager.OnInvalidMoveKeyPressed()` | Toute touche pressée hors du set actif déclenche une pénalité renforcée : -2 bugs dans chaque nuage (plus sévère que piège -1). Détection via itération `Keyboard.current.allKeys` |
 | **Suboptimal Trap Placement** | `TrapSpawner.PlaceSuboptimalTraps()` → `SessionManager.Instance` (suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps) | Permet de placer des pièges spécifiquement sur le chemin suboptimal (avant les pièges normaux). Le nombre de pièges suboptimaux est tiré dans [min, max] et compte dans le budget total `trapCount` |
 | **Scene Flow State Machine** | `FlowController.AdvanceToPhase(GamePhase)` — enum `GamePhase` à 10 états (Boot → Welcome → Consent → Intro → Tutorial → AdvisorChoice → DistalChoice → Proximal → Questionnaire → EndSession) | Chaque phase correspond à une scène Unity. `FlowController` est DDOL : il survit aux `LoadScene` et orchestre les transitions. Les scènes UI appellent des callbacks typés (`OnConsentGiven`, `OnAdvisorChosen`, `OnValleyChosen`, `OnQuestionnaireComplete`) sans connaître la logique de séquencement |
@@ -752,7 +752,7 @@ Exclusion          = les cellules suboptimalPath sont exclues des candidats norm
 
 ### 3.5.1 Responsabilités
 
-- Capturer les inputs clavier via le set de touches actif défini par `MotorAdviceController` (ZQSD, TFGH ou OKLM)
+- Capturer les inputs clavier via le set de touches actif défini par `MotorAdviceController` (ZQSD, TFGH ou IJKL)
 - Si `MotorAdviceController` est absent, fallback sur les flèches directionnelles
 - Valider le mouvement cible via LevelRegistry (InBounds, IsWalkable)
 - Interpoler le déplacement du joueur par coroutine avec SmoothStep
@@ -831,7 +831,7 @@ graph TD
 ### 3.5.5 Formules et règles métier
 
 ```
-Input mapping      = Set actif défini par MotorAdviceController (ZQSD, TFGH ou OKLM)
+Input mapping      = Set actif défini par MotorAdviceController (ZQSD, TFGH ou IJKL)
                      Fallback flèches ←→↑↓ si MotorAdviceController absent
                      wasPressedThisFrame → 1 step par appui (pas de repeat)
 Mouvement          = 1 case par input, 4 directions cardinales
@@ -847,7 +847,7 @@ Touche invalide    = toute touche de Keyboard.current.allKeys pressée qui n'est
 
 ### 3.5.6 Points d'attention
 
-- **⚠️ Input :** Le set de touches actif est défini par `MotorAdviceController` (ZQSD, TFGH ou OKLM). Si `MotorAdviceController.Instance` est null, fallback sur les flèches directionnelles
+- **⚠️ Input :** Le set de touches actif est défini par `MotorAdviceController` (ZQSD, TFGH ou IJKL). Si `MotorAdviceController.Instance` est null, fallback sur les flèches directionnelles
 - **⚠️ Pénalité touches invalides :** `IsAnyNonActiveMoveKeyPressedThisFrame()` itère sur `Keyboard.current.allKeys` — TOUTES les touches du clavier (y compris modificateurs Shift, Ctrl, Alt, Space) déclenchent la pénalité. Détection indépendante du mouvement : se produit même si le joueur ne bouge pas
 - **⚠️ Fallback :** Si `LevelRegistry.Instance` est null, le système bascule sur un snap local sans validation de marchabilité — le joueur peut sortir de la grille
 - **⚠️ Séparation des responsabilités :** GridMover ne sait rien du brouillard, des cellules visitées, ni du trial log. Il se contente de déplacer le joueur et signaler le pas au GameManager. C'est un design « entité signale, manager interprète ».
@@ -866,7 +866,7 @@ Touche invalide    = toute touche de Keyboard.current.allKeys pressée qui n'est
 
 ### 3.6.1 Responsabilités
 
-- Singleton gérant le **jeu de touches actif** pour le mouvement joueur (ZQSD, TFGH ou OKLM)
+- Singleton gérant le **jeu de touches actif** pour le mouvement joueur (ZQSD, TFGH ou IJKL)
 - Tirage seedé du set actif au Start (RNG déterministe via `LevelRegistry.CreateRng`)
 - Déterminer si l'**advice est visible** (tirage `rng.NextDouble() < motorAdviceVisibleProbability`)
 - Si visible, déterminer si l'**advice est fiable** (tirage `rng.NextDouble() < motorAdviceReliableProbability`)
@@ -901,7 +901,7 @@ public enum MotorKeySet
 {
     ZQSD,   // W/A/S/D (layout AZERTY → ZQSD)
     TFGH,   // T/F/G/H
-    OKLM,   // O/K/L/; (semicolonKey)
+    IJKL,   // I/J/K/L
     None
 }
 ```
@@ -940,7 +940,7 @@ graph TD
     A1 -->|Non| A3["Instance = this"]
 
     B["Start()"] --> C["CreateRng() → rng seedé (LevelRegistry)"]
-    C --> D["ActiveSet = rng.Next(0, 3) — ZQSD, TFGH ou OKLM"]
+    C --> D["ActiveSet = rng.Next(0, 3) — ZQSD, TFGH ou IJKL"]
     D --> E["Lire motorAdviceVisibleProbability depuis SessionManager"]
     E --> F{"rng.NextDouble() < visibleProb ?"}
     F -->|Non| G["AdviceVisible = false, AdviceReliable = false"]
@@ -957,7 +957,7 @@ graph TD
     subgraph "TryGetStep(out step) — appelé par GridMover.ReadStep()"
         TS1["Switch sur ActiveSet"] --> TS2["ZQSD: W/A/S/D"]
         TS1 --> TS3["TFGH: T/F/G/H"]
-        TS1 --> TS4["OKLM: O/K/L/;"]
+        TS1 --> TS4["IJKL: I/J/K/L"]
         TS2 --> TS5{"wasPressedThisFrame ?"}
         TS3 --> TS5
         TS4 --> TS5
@@ -973,17 +973,17 @@ graph TD
 ### 3.6.5 Formules et règles métier
 
 ```
-Tirage set actif    = rng.Next(0, 3) → index dans {ZQSD=0, TFGH=1, OKLM=2}
+Tirage set actif    = rng.Next(0, 3) → index dans {ZQSD=0, TFGH=1, IJKL=2}
 Tirage visible      = rng.NextDouble() < SessionManager.Instance.motorAdviceVisibleProbability
                       (défaut 1.0 = toujours visible)
 Tirage fiable       = rng.NextDouble() < SessionManager.Instance.motorAdviceReliableProbability
                       (défaut 1.0 = toujours fiable, uniquement si visible)
 Set affiché         = ActiveSet si fiable, PickOtherSet(rng, ActiveSet) si non fiable, None si invisible
-PickOtherSet        = retire le set courant de la liste [ZQSD, TFGH, OKLM], tire au hasard parmi les 2 restants
+PickOtherSet        = retire le set courant de la liste [ZQSD, TFGH, IJKL], tire au hasard parmi les 2 restants
 
 Mapping ZQSD : wKey=Haut, aKey=Gauche, sKey=Bas, dKey=Droite (POSITION PHYSIQUE, réf. layout US)
 Mapping TFGH : tKey=Haut, fKey=Gauche, gKey=Bas, hKey=Droite
-Mapping OKLM : oKey=Haut, kKey=Gauche, lKey=Bas, semicolonKey=Droite
+Mapping IJKL : iKey=Haut, jKey=Gauche, kKey=Bas, lKey=Droite
 
 Input   = position physique de la touche → comportement identique quel que soit le layout
 Affichage = KeyControl.displayName → libellé réel selon le layout OS courant
@@ -996,7 +996,7 @@ Fallback  = labels AZERTY codés en dur si Keyboard.current == null (hors Play M
 
 - **⚠️ Singleton :** `MotorAdviceController.Instance` peut être `null` si le GameObject n'est pas dans la scène. `GridMover` gère ce cas avec fallback flèches
 - **⚠️ RNG seedé :** Le tirage utilise `LevelRegistry.CreateRng(nameof(MotorAdviceController))` — même seed = même set actif + mêmes tirages visible/fiable. Si `LevelRegistry.Instance` est null, un RNG non seedé est utilisé (warning loggé)
-- **⚠️ Layout clavier :** Les sets lisent des **positions physiques** (`wKey/aKey/sKey/dKey`...) du New Input System — l'input est donc identique quel que soit le layout. L'**affichage** utilise `KeyControl.displayName` qui renvoie le libellé réel selon le layout OS (Z/Q/S/D en AZERTY, W/A/S/D en QWERTY). Un fallback labels AZERTY est utilisé si `Keyboard.current` est null (hors Play Mode). Les noms d'enum (ZQSD/TFGH/OKLM) restent des **identifiants internes AZERTY-centrés**, sans impact sur l'affichage runtime
+- **⚠️ Layout clavier :** Les sets lisent des **positions physiques** (`wKey/aKey/sKey/dKey`...) du New Input System — l'input est donc identique quel que soit le layout. L'**affichage** utilise `KeyControl.displayName` qui renvoie le libellé réel selon le layout OS (Z/Q/S/D en AZERTY, W/A/S/D en QWERTY). Un fallback labels AZERTY est utilisé si `Keyboard.current` est null (hors Play Mode). Les noms d'enum (ZQSD/TFGH/IJKL) restent des **identifiants internes AZERTY-centrés**, sans impact sur l'affichage runtime
 - **⚠️ Advice non fiable :** Si `AdviceReliable == false`, le joueur voit un set différent du set actif. Il doit identifier le bon set par essai — les erreurs déclenchent la pénalité de touche invalide
 - **⚠️ OnAdviceChanged :** Émis une seule fois au Start après tous les tirages. Si l'UI n'est pas encore abonnée (problème de timing), l'affichage ne sera pas mis à jour — en pratique non problématique car `MotorAdviceUI.Start()` appelle aussi `Refresh()` directement
 
@@ -1004,7 +1004,7 @@ Fallback  = labels AZERTY codés en dur si Keyboard.current == null (hors Play M
 
 | Date     | Développeur | Note / Décision Technique                                                                     |
 | :------- | :---------- | :-------------------------------------------------------------------------------------------- |
-| 12/03/26 | @auteur     | Création. Singleton Motor Advice : tirage seedé du set actif (ZQSD/TFGH/OKLM), advice visible/fiable configurable via SessionManager. API TryGetStep + IsActiveMoveKey. Event OnAdviceChanged pour MotorAdviceUI. |
+| 12/03/26 | @auteur     | Création. Singleton Motor Advice : tirage seedé du set actif (ZQSD/TFGH/IJKL), advice visible/fiable configurable via SessionManager. API TryGetStep + IsActiveMoveKey. Event OnAdviceChanged pour MotorAdviceUI. |
 | 08/07/26 | @auteur     | Affichage layout-aware : `FormatSet` renvoie désormais `KeyControl.displayName` (libellé réel selon layout OS) au lieu de labels codés en dur → corrige l'affichage QWERTY. Mapping set+direction centralisé dans `GetKeyControl` (partagé par TryGetStep/IsActiveMoveKey/FormatSet). Fallback labels AZERTY via `FallbackLabel` si `Keyboard.current` absent. |
 
 # 4. Systèmes Core

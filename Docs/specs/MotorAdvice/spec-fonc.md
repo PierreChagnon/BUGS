@@ -16,7 +16,7 @@
 Mettre en place un motor advice qui peut indiquer au participant le set de touches actif pour se deplacer sur la grille. Le set actif est tire aleatoirement avant chaque essai. L advice peut etre absent selon une probabilite configurable et peut etre non fiable selon une probabilite configurable.
 
 ### Perimetre IN
-- [x] Tirage du set actif avant chaque essai parmi ZQSD, TFGH, OKLM (equiprobable).
+- [x] Tirage du set actif avant chaque essai parmi ZQSD, TFGH, IJKL (equiprobable).
 - [x] Tirage de l apparition de l advice selon une probabilite configurable.
 - [x] Si l advice apparait, tirage de sa fiabilite selon une probabilite configurable.
 - [x] Affichage du set de touches (advice) en bas a gauche pendant tout l essai.
@@ -53,7 +53,7 @@ Si l advice est actif, un bloc de texte en bas a gauche indique le set complet, 
 Exemples de sets possibles :
 - Haut: Z, Gauche: Q, Bas: S, Droite: D
 - Haut: T, Gauche: F, Bas: G, Droite: H
-- Haut: O, Gauche: K, Bas: L, Droite: M
+- Haut: I, Gauche: J, Bas: K, Droite: L
 
 Si l advice n est pas actif, aucun indicateur n est affiche a cet emplacement.
 
@@ -78,10 +78,10 @@ Si l advice n est pas actif, aucun indicateur n est affiche a cet emplacement.
 #### Donnees collectees
 | Donnee | Colonne CSV V1 | Valeurs possibles | Quand enregistree |
 |:---|:---|:---|:---|
-| Set actif | TBD | ZQSD / TFGH / OKLM | Debut d essai |
+| Set actif | TBD | ZQSD / TFGH / IJKL | Debut d essai |
 | Advice affiche | TBD | true / false | Debut d essai |
 | Advice fiable | TBD | true / false | Debut d essai |
-| Set affiche | TBD | ZQSD / TFGH / OKLM / none | Debut d essai |
+| Set affiche | TBD | ZQSD / TFGH / IJKL / none | Debut d essai |
 
 ---
 
@@ -97,10 +97,10 @@ Si l advice n est pas actif, aucun indicateur n est affiche a cet emplacement.
 
 | Colonne CSV V1 | Ecran / Composant | Comportement source | Valeurs possibles |
 |:---|:---|:---|:---|
-| TBD | Forest Screen / Motor Advice | Enregistrer set actif | ZQSD / TFGH / OKLM |
+| TBD | Forest Screen / Motor Advice | Enregistrer set actif | ZQSD / TFGH / IJKL |
 | TBD | Forest Screen / Motor Advice | Enregistrer advice affiche | true / false |
 | TBD | Forest Screen / Motor Advice | Enregistrer advice fiable | true / false |
-| TBD | Forest Screen / Motor Advice | Enregistrer set affiche | ZQSD / TFGH / OKLM / none |
+| TBD | Forest Screen / Motor Advice | Enregistrer set affiche | ZQSD / TFGH / IJKL / none |
 
 ---
 

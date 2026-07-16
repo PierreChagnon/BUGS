@@ -68,7 +68,7 @@ public enum MotorKeySet
 {
     ZQSD,
     TFGH,
-    OKLM,
+    IJKL,
     None
 }
 
@@ -134,7 +134,7 @@ Vector2Int ReadStep()
 
 - `ZQSD` : Haut=Z, Gauche=Q, Bas=S, Droite=D
 - `TFGH` : Haut=T, Gauche=F, Bas=G, Droite=H
-- `OKLM` : Haut=O, Gauche=K, Bas=L, Droite=M
+- `IJKL` : Haut=I, Gauche=J, Bas=K, Droite=L
 - `None` : aucun set (utilise pour displayedSet quand adviceVisible=false)
 
 ---

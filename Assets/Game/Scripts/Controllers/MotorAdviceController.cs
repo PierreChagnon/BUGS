@@ -8,7 +8,7 @@ public enum MotorKeySet
 {
     ZQSD,
     TFGH,
-    OKLM,
+    IJKL,
     None
 }
 
@@ -121,12 +121,12 @@ public class MotorAdviceController : MonoBehaviour
                 "right" => kb.hKey,
                 _ => null
             },
-            MotorKeySet.OKLM => direction switch
+            MotorKeySet.IJKL => direction switch
             {
-                "up" => kb.oKey,
-                "left" => kb.kKey,
-                "down" => kb.lKey,
-                "right" => kb.semicolonKey,
+                "up" => kb.iKey,
+                "left" => kb.jKey,
+                "down" => kb.kKey,
+                "right" => kb.lKey,
                 _ => null
             },
             _ => null
@@ -157,7 +157,7 @@ public class MotorAdviceController : MonoBehaviour
         {
             MotorKeySet.ZQSD => direction switch { "up" => "Z", "left" => "Q", "down" => "S", "right" => "D", _ => string.Empty },
             MotorKeySet.TFGH => direction switch { "up" => "T", "left" => "F", "down" => "G", "right" => "H", _ => string.Empty },
-            MotorKeySet.OKLM => direction switch { "up" => "O", "left" => "K", "down" => "L", "right" => "M", _ => string.Empty },
+            MotorKeySet.IJKL => direction switch { "up" => "I", "left" => "J", "down" => "K", "right" => "L", _ => string.Empty },
             _ => string.Empty
         };
     }
@@ -174,7 +174,7 @@ public class MotorAdviceController : MonoBehaviour
 
     static MotorKeySet PickOtherSet(System.Random rng, MotorKeySet current)
     {
-        var options = new List<MotorKeySet> { MotorKeySet.ZQSD, MotorKeySet.TFGH, MotorKeySet.OKLM };
+        var options = new List<MotorKeySet> { MotorKeySet.ZQSD, MotorKeySet.TFGH, MotorKeySet.IJKL };
         options.Remove(current);
         return options[rng.Next(0, options.Count)];
     }

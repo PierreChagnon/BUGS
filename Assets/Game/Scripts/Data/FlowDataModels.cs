@@ -604,7 +604,7 @@ public static class FlowValueConverters
         {
             MotorKeySet.ZQSD => "QZD",
             MotorKeySet.TFGH => "FTH",
-            MotorKeySet.OKLM => "KOM",
+            MotorKeySet.IJKL => "JIL",
             _ => null
         };
     }
@@ -622,9 +622,9 @@ public static class FlowValueConverters
             case "FTH":
             case "TFGH":
                 return MotorKeySet.TFGH;
-            case "KOM":
-            case "OKLM":
-                return MotorKeySet.OKLM;
+            case "JIL":
+            case "IJKL":
+                return MotorKeySet.IJKL;
             default:
                 return MotorKeySet.ZQSD;
         }
