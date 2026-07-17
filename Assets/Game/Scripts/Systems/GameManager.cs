@@ -39,9 +39,17 @@ public class GameManager : MonoBehaviour
     [Tooltip("SFX joué à la collecte d'un nuage — partie bugs rouges.")]
     [SerializeField] private SoundEffect _sfxBugRed;
 
+    [Header("Mauvais input")]
+    [Tooltip("Durée pendant laquelle les mauvais inputs suivants sont ignorés, en secondes.")]
+    [SerializeField, Min(0f)] private float _wrongInputCooldownDuration = 1f;
+
     bool _roundOver;
     bool _pathIsSuboptimal;
     bool _advisorPathVisible = true;
+    Coroutine _wrongInputCooldownCoroutine;
+
+    public bool IsWrongInputCooldownActive { get; private set; }
+    public event Action<bool> OnWrongInputCooldownChanged;
 
     public bool inputLocked { get; private set; }
     public void SetInputLocked(bool value) => inputLocked = value;
@@ -266,13 +274,38 @@ public class GameManager : MonoBehaviour
 
     public void OnInvalidMoveKeyPressed()
     {
-        if (_roundOver)
+        if (_roundOver || IsWrongInputCooldownActive)
             return;
 
         _leftCloud?.AddBugs(-1);
         _rightCloud?.AddBugs(-1);
 
         Debug.Log("[GameManager] Touche invalide ! Penalite -1 bug vert sur chaque nuage.");
+
+        StartWrongInputCooldown();
+    }
+
+    void StartWrongInputCooldown()
+    {
+        IsWrongInputCooldownActive = true;
+        OnWrongInputCooldownChanged?.Invoke(true);
+
+        if (_wrongInputCooldownCoroutine != null)
+            StopCoroutine(_wrongInputCooldownCoroutine);
+
+        _wrongInputCooldownCoroutine = StartCoroutine(WrongInputCooldownSequence());
+    }
+
+    IEnumerator WrongInputCooldownSequence()
+    {
+        if (_wrongInputCooldownDuration > 0f)
+            yield return new WaitForSeconds(_wrongInputCooldownDuration);
+        else
+            yield return null;
+
+        _wrongInputCooldownCoroutine = null;
+        IsWrongInputCooldownActive = false;
+        OnWrongInputCooldownChanged?.Invoke(false);
     }
 
     public bool OnCloudCollected(BugCloud cloud)
