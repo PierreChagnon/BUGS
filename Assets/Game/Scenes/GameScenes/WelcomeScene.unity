@@ -17058,6 +17058,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FlowContinueScreenUI
   _screenKind: 0
   _continueButtonRoot: {fileID: 1702951351}
+  _consentDeclinedRoot: {fileID: 3568398}
 --- !u!1001 &1713038051
 PrefabInstance:
   m_ObjectHideFlags: 0

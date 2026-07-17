@@ -99,8 +99,6 @@ public class BlockConfig
     public ExplanationsConfig explanations;
     public float distal_advice_visible_probability = 1f;
     public float distal_advice_reliable_probability = 1f;
-    public float proximal_advice_explanation_probability = 1f;
-    public float motor_advice_explanation_probability = 1f;
     public bool show_numerical_feedback = true;
     public InContextTutorialConfig in_context_tutorial = new();
 
@@ -126,8 +124,6 @@ public class BlockConfig
             explanations = explanations != null ? explanations.DeepClone() : null,
             distal_advice_visible_probability = distal_advice_visible_probability,
             distal_advice_reliable_probability = distal_advice_reliable_probability,
-            proximal_advice_explanation_probability = proximal_advice_explanation_probability,
-            motor_advice_explanation_probability = motor_advice_explanation_probability,
             show_numerical_feedback = show_numerical_feedback,
             in_context_tutorial = in_context_tutorial != null ? in_context_tutorial.DeepClone() : new()
         };
@@ -274,6 +270,7 @@ public class AdviceExplanationConfig
     public string display_mode = ExplanationDisplayMode.None;
     public string content_variant = ExplanationContentVariant.Short;
     public ExplanationCorpus corpus = new();
+    public float display_probability = 1f;
 
     public ExplanationText GetText(AdvisorType advisorType, string variant)
     {
@@ -287,7 +284,8 @@ public class AdviceExplanationConfig
         {
             display_mode = display_mode,
             content_variant = content_variant,
-            corpus = corpus != null ? corpus.DeepClone() : new ExplanationCorpus()
+            corpus = corpus != null ? corpus.DeepClone() : new ExplanationCorpus(),
+            display_probability = display_probability
         };
     }
 }

@@ -36,6 +36,7 @@ public class FlowController : MonoBehaviour
     public int BlockScore { get; private set; }
     public string BuildVersion => _buildVersion;
     public string PlatformUrl => Config != null ? Config.platform_url : null;
+    public bool WasConsentDeclined { get; private set; }
     public ExplanationRuntimeState DistalAdviceExplanation { get; private set; } = ExplanationRuntimeState.None();
     public ExplanationRuntimeState ProximalAdviceExplanation { get; private set; } = ExplanationRuntimeState.None();
     public ExplanationRuntimeState MotorAdviceExplanation { get; private set; } = ExplanationRuntimeState.None();
@@ -158,6 +159,7 @@ public class FlowController : MonoBehaviour
         BlockScore = 0;
         CurrentBlockSeed = 0;
         CurrentTrialSeed = 0;
+        WasConsentDeclined = false;
         ResetAllExplanationStates();
     }
 
@@ -166,6 +168,7 @@ public class FlowController : MonoBehaviour
         if (State == null || State.current_phase != GamePhase.Consent)
             return;
 
+        WasConsentDeclined = false;
         AdvanceToPhase(GamePhase.Intro);
     }
 
@@ -174,6 +177,7 @@ public class FlowController : MonoBehaviour
         if (State == null || State.current_phase != GamePhase.Consent)
             return;
 
+        WasConsentDeclined = true;
         AdvanceToPhase(GamePhase.Welcome);
     }
 
@@ -478,8 +482,18 @@ public class FlowController : MonoBehaviour
         block.proximal_forced_probability = Mathf.Clamp01(block.proximal_forced_probability);
         block.proximal_forced_optimal_probability = Mathf.Clamp01(block.proximal_forced_optimal_probability);
         block.motor_forced_probability = Mathf.Clamp01(block.motor_forced_probability);
-        block.proximal_advice_explanation_probability = Mathf.Clamp01(block.proximal_advice_explanation_probability);
-        block.motor_advice_explanation_probability = Mathf.Clamp01(block.motor_advice_explanation_probability);
+        if (block.explanations?.proximal != null)
+        {
+            block.explanations.proximal.display_probability = Mathf.Clamp01(
+                block.explanations.proximal.display_probability);
+        }
+
+        if (block.explanations?.motor != null)
+        {
+            block.explanations.motor.display_probability = Mathf.Clamp01(
+                block.explanations.motor.display_probability);
+        }
+
         block.advisor_forced_value = FlowValueConverters.ToApiValue(FlowValueConverters.ToAdvisorType(block.advisor_forced_value));
         block.motor_forced_set = FlowValueConverters.ToApiValue(FlowValueConverters.ToMotorKeySet(block.motor_forced_set));
     }
@@ -550,7 +564,9 @@ public class FlowController : MonoBehaviour
     {
         bool showExplanation = adviceVisible && RollExplanationProbability(
             nameof(ResolveProximalExplanationForCurrentTrial),
-            CurrentBlock != null ? CurrentBlock.proximal_advice_explanation_probability : 0f);
+            CurrentBlock?.explanations?.proximal != null
+                ? CurrentBlock.explanations.proximal.display_probability
+                : 0f);
 
         ProximalAdviceExplanation = ExplanationResolver.Resolve(
             CurrentBlock,
@@ -563,7 +579,9 @@ public class FlowController : MonoBehaviour
     {
         bool showExplanation = adviceVisible && RollExplanationProbability(
             nameof(ResolveMotorExplanationForCurrentTrial),
-            CurrentBlock != null ? CurrentBlock.motor_advice_explanation_probability : 0f);
+            CurrentBlock?.explanations?.motor != null
+                ? CurrentBlock.explanations.motor.display_probability
+                : 0f);
 
         MotorAdviceExplanation = ExplanationResolver.Resolve(
             CurrentBlock,
