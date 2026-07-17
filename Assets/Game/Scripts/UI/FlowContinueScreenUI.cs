@@ -38,4 +38,10 @@ public class FlowContinueScreenUI : MonoBehaviour
     {
         FlowController.Instance?.OnPhaseComplete();
     }
+
+    public void CloseConsentDeclinedModal()
+    {
+        if (_consentDeclinedRoot != null)
+            _consentDeclinedRoot.SetActive(false);
+    }
 }

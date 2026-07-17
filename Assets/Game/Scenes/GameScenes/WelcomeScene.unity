@@ -17895,6 +17895,34 @@ PrefabInstance:
       propertyPath: m_Name
       value: Btn02Cyan
       objectReference: {fileID: 0}
+    - target: {fileID: 7427586764836510782, guid: aa099456466b4524eb46f2dac819ff9c, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7427586764836510782, guid: aa099456466b4524eb46f2dac819ff9c, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7427586764836510782, guid: aa099456466b4524eb46f2dac819ff9c, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 1706639600}
+    - target: {fileID: 7427586764836510782, guid: aa099456466b4524eb46f2dac819ff9c, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_CallState
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7427586764836510782, guid: aa099456466b4524eb46f2dac819ff9c, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: CloseConsentDeclinedModal
+      objectReference: {fileID: 0}
+    - target: {fileID: 7427586764836510782, guid: aa099456466b4524eb46f2dac819ff9c, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: FlowContinueScreenUI, Assembly-CSharp
+      objectReference: {fileID: 0}
+    - target: {fileID: 7427586764836510782, guid: aa099456466b4524eb46f2dac819ff9c, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: UnityEngine.Object, UnityEngine
+      objectReference: {fileID: 0}
     - target: {fileID: 7427586764836510783, guid: aa099456466b4524eb46f2dac819ff9c, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
