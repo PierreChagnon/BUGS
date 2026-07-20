@@ -11,7 +11,8 @@ public class ProximalExplanationBlockNoticeUI : MonoBehaviour
             && flow.State != null
             && flow.State.current_trial_index == 0;
         bool shouldShow = isFirstTrial
-            && ExplanationResolver.HasAnyEnabledExplanation(flow.CurrentBlock);
+            && !ExplanationResolver.HasEnabledExplanation(flow.CurrentBlock, AdviceLevel.Distal)
+            && ExplanationResolver.HasEnabledForestExplanation(flow.CurrentBlock);
 
         SetPanelVisible(shouldShow);
     }
