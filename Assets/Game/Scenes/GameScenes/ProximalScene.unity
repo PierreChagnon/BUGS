@@ -18177,6 +18177,7 @@ MonoBehaviour:
   _sfxTrap: {fileID: 11400000, guid: 7ae96af1d8b5248989ec53f652f9e4a3, type: 2}
   _sfxBugGreen: {fileID: 11400000, guid: 88e03e81bb79c4f878ed0281eaa177b1, type: 2}
   _sfxBugRed: {fileID: 11400000, guid: fea8f6c7dffef4173948b4efddb566ea, type: 2}
+  _sfxPlayerMissedKey: {fileID: 11400000, guid: d906c74712ba74b3396356ebbd1b993d, type: 2}
   _wrongInputCooldownDuration: 1
 --- !u!4 &1716181369
 Transform:

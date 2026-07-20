@@ -61,8 +61,9 @@ public class GridMover : MonoBehaviour
 
         bool invalidKeyPressed = IsAnyNonActiveMoveKeyPressedThisFrame();
         Vector2Int step = ReadStep();
-        if (invalidKeyPressed && GameManager.Instance != null)
-            GameManager.Instance.OnInvalidMoveKeyPressed();
+        if (invalidKeyPressed && GameManager.Instance != null
+            && GameManager.Instance.OnInvalidMoveKeyPressed())
+            OnBlocked?.Invoke();   // meme animation de choc que le mur, synchro avec penalite + son
 
         if (step == Vector2Int.zero) return;
 

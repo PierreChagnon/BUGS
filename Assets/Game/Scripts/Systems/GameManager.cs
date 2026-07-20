@@ -38,6 +38,8 @@ public class GameManager : MonoBehaviour
     [SerializeField] private SoundEffect _sfxBugGreen;
     [Tooltip("SFX joué à la collecte d'un nuage — partie bugs rouges.")]
     [SerializeField] private SoundEffect _sfxBugRed;
+    [Tooltip("SFX joué quand le joueur presse une touche hors du set actif (mauvais input).")]
+    [SerializeField] private SoundEffect _sfxPlayerMissedKey;
 
     [Header("Mauvais input")]
     [Tooltip("Durée pendant laquelle les mauvais inputs suivants sont ignorés, en secondes.")]
@@ -272,17 +274,24 @@ public class GameManager : MonoBehaviour
         Debug.Log($"[GameManager] Piege ! trapsHit={trapsHit}");
     }
 
-    public void OnInvalidMoveKeyPressed()
+    // Retourne true si le mauvais input a ete pris en compte (penalite + cooldown declenches),
+    // false s'il est ignore (round termine ou cooldown deja actif) — permet de synchroniser
+    // un feedback (animation) avec la penalite et le son.
+    public bool OnInvalidMoveKeyPressed()
     {
         if (_roundOver || IsWrongInputCooldownActive)
-            return;
+            return false;
 
         _leftCloud?.AddBugs(-1);
         _rightCloud?.AddBugs(-1);
 
+        if (_sfxPlayerMissedKey != null)
+            AudioManager.Instance?.PlaySfx(_sfxPlayerMissedKey);
+
         Debug.Log("[GameManager] Touche invalide ! Penalite -1 bug vert sur chaque nuage.");
 
         StartWrongInputCooldown();
+        return true;
     }
 
     void StartWrongInputCooldown()

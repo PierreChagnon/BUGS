@@ -4429,6 +4429,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MotorAdviceUI
   _root: {fileID: 852306471}
   _advisorPicture: {fileID: 0}
+  _advisorHumanMale: {fileID: 0}
+  _advisorHumanFemale: {fileID: 0}
+  _advisorRobot: {fileID: 0}
   keyUpLabel: {fileID: 0}
   keyLeftLabel: {fileID: 0}
   keyDownLabel: {fileID: 0}
@@ -8464,6 +8467,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FogSpawner
   fogSurfacePrefab: {fileID: 449489812925837503, guid: 688d62e3969902e45b9377349eec24df, type: 3}
   fogY: 0.3
+  borderMarginRatio: 0.05
 --- !u!4 &1540877347 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1310028211529153949, guid: c8ca65ecdf242ce43bbcc052a0064679, type: 3}
@@ -9834,7 +9838,13 @@ MonoBehaviour:
   trapsHit: 0
   overtimeSteps: 0
   bugsCollected: 0
+  bugsEscaped: 0
   followedAdvisorPath: 1
+  _sfxTrap: {fileID: 0}
+  _sfxBugGreen: {fileID: 0}
+  _sfxBugRed: {fileID: 0}
+  _sfxPlayerMissedKey: {fileID: 11400000, guid: d906c74712ba74b3396356ebbd1b993d, type: 2}
+  _wrongInputCooldownDuration: 1
 --- !u!4 &1716181369
 Transform:
   m_ObjectHideFlags: 0
@@ -9967,11 +9977,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoundUI
   _gameOverPanel: {fileID: 1412037740}
-  _gameOverStats: {fileID: 633637178}
   _greenBugsCollected: {fileID: 0}
-  _trapsHit: {fileID: 0}
-  _overtimeSteps: {fileID: 0}
-  _steps: {fileID: 0}
+  _greenBugsEscaped: {fileID: 0}
+  _successPanel: {fileID: 0}
+  _failurePanel: {fileID: 0}
+  _numericalFeedbackRoot: {fileID: 0}
+  _badgeSectionRoot: {fileID: 0}
+  _badgeXWithNumerical: -340
+  _badgeXCentered: 0
 --- !u!1 &1726675677
 GameObject:
   m_ObjectHideFlags: 0
