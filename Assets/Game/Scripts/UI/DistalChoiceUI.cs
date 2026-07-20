@@ -27,6 +27,7 @@ public class DistalChoiceUI : MonoBehaviour
 
     [SerializeField] private GameObject _valleyAAdviceIndicator;
     [SerializeField] private GameObject _valleyBAdviceIndicator;
+    [SerializeField] private GameObject _enteringExplanationBlockPanel;
 
     public bool AdviceVisible { get; private set; }
     public bool AdviceReliable { get; private set; }
@@ -50,7 +51,12 @@ public class DistalChoiceUI : MonoBehaviour
     {
         var flow = FlowController.Instance;
         if (flow == null || flow.CurrentBlock == null)
+        {
+            SetExplanationBlockPanelVisible(false);
             return;
+        }
+
+        SetExplanationBlockPanelVisible(ExplanationResolver.HasAnyEnabledExplanation(flow.CurrentBlock));
 
         AdviceVisible = flow.State != null && flow.State.distal_advice_visible;
         AdviceReliable = flow.State != null && flow.State.distal_advice_reliable;
@@ -67,6 +73,16 @@ public class DistalChoiceUI : MonoBehaviour
         ApplyForcedChoiceButtons(flow);
     }
 
+    void SetExplanationBlockPanelVisible(bool visible)
+    {
+        if (_enteringExplanationBlockPanel != null)
+            _enteringExplanationBlockPanel.SetActive(visible);
+    }
+
+    public void CloseEnteringExplanationBlockPanel()
+    {
+        SetExplanationBlockPanelVisible(false);
+    }
 
     void ApplyValleyScan(BugCloudSample scanData, ref RuntimeCloudScanBinding automaticScanBinding)
     {

@@ -95,6 +95,16 @@ public class ExplanationRuntimeState
 
 public static class ExplanationResolver
 {
+    public static bool HasAnyEnabledExplanation(BlockConfig block)
+    {
+        if (block == null || block.is_tutorial || block.explanations == null)
+            return false;
+
+        return IsExplanationEnabled(block.explanations.distal)
+            || IsExplanationEnabled(block.explanations.proximal)
+            || IsExplanationEnabled(block.explanations.motor);
+    }
+
     public static ExplanationRuntimeState Resolve(
         BlockConfig block,
         AdviceLevel level,
@@ -138,6 +148,16 @@ public static class ExplanationResolver
         }
 
         return ExplanationRuntimeState.Create(displayMode, contentVariant, explanationText);
+    }
+
+    static bool IsExplanationEnabled(AdviceExplanationConfig config)
+    {
+        string displayMode = config != null
+            ? NormalizeDisplayMode(config.display_mode)
+            : null;
+
+        return displayMode == ExplanationDisplayMode.Forced
+            || displayMode == ExplanationDisplayMode.OptIn;
     }
 
     static string NormalizeDisplayMode(string rawValue)
