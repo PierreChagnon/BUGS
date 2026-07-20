@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: Sfx_PlayerMissedKey
   m_EditorClassIdentifier: Assembly-CSharp::SoundEffect
   clips:
-  - {fileID: 8300000, guid: ffb159a21c8a04135a5616979c828fab, type: 3}
+  - {fileID: 8300000, guid: 80e397195ea2940b69ee7bdbded856a5, type: 3}
   channel: 0
-  volumeMin: 0.8
-  volumeMax: 0.9
+  volumeMin: 0.7
+  volumeMax: 0.8
   pitchMin: 0.95
   pitchMax: 1.05
