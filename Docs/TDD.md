@@ -359,7 +359,7 @@ Contrainte placement       = cellA dans indices [0, count/2 - 1], cellB dans ind
 - Réserver les deux chemins dans LevelRegistry (PathLeft, PathRight)
 - **Déterminer si le chemin affiché est suboptimal** (tirage `rng.NextDouble() < suboptimalPathProbability`)
 - **Si suboptimal sans détour** : tracer un chemin Manhattan alternatif (même longueur, tracé différent — pièges possibles)
-- **Si suboptimal avec détour** : construire un chemin en « Z » avec crochet horizontal, retour en sens inverse et séparations verticales — garantit un surplus réel de steps
+- **Si suboptimal avec détour** : construire un chemin en « U » ouvert vers la cible — crochet horizontal à l'opposé du nuage, séparation verticale de 2 cases, retour prolongé jusqu'à l'axe de la cible, puis arrivée verticale. Le tracé garantit un surplus réel de steps et refuse tout contact entre cases non consécutives
 - Visualiser le chemin conseillé (optimal ou suboptimal) avec des quads
 - Communiquer le chemin affiché et son statut (optimal/suboptimal) au GameManager
 - Révéler les cellules joueur + les deux nuages dans le brouillard de guerre (toujours, même si le chemin est caché), et les cellules du chemin affiché si visible
@@ -368,7 +368,7 @@ Contrainte placement       = cellA dans indices [0, count/2 - 1], cellB dans ind
 
 → **PathSpawner.cs** : MonoBehaviour, calcul et réservation des chemins au Start. Ordre d'exécution : `-100`.
 
-> **Note architecture :** Le paramètre `visible` (condition advisor) est lu directement depuis `SessionManager.Instance.pathVisible` (Singleton). Ce script ne possède que `quadPrefab` (game design). Voir pattern **Research Parameter Pipeline** (section 2.3).
+> **Note architecture :** Le paramètre `visible` (condition advisor) est lu directement depuis `SessionManager.Instance.pathVisible` (Singleton). Ce script possède `quadPrefab` ainsi que les bornes de crochet `detourMin`/`detourMax` (game design). Voir pattern **Research Parameter Pipeline** (section 2.3).
 
 ```csharp
 [DefaultExecutionOrder(-100)]
@@ -386,9 +386,9 @@ public class PathSpawner : MonoBehaviour
 | Variable / Méthode | Type       | Description                                                          |
 | :------------------ | :--------- | :------------------------------------------------------------------- |
 | quadPrefab          | GameObject | Prefab quad pour la visualisation du chemin conseillé — **game design** |
-| detourMin           | int        | Taille min du crochet/retour en cases (défaut : 2, min : 1) — **game design** |
-| detourMax           | int        | Taille max du crochet/retour en cases, exclusif (défaut : 5, min : 2) — **game design** |
-| _Lecture depuis SessionManager.Instance :_ | | `pathVisible` (float, 0-1) — probabilité que le chemin soit visible. `suboptimalPathProbability` (float, 0-1) — probabilité que le chemin affiché soit suboptimal. `detourProbability` (float, 0-1) — probabilité que le chemin suboptimal inclue un détour en « Z ». Tirages seeded RNG. **Paramètres recherche** (Singleton, lecture directe) |
+| detourMin           | int        | Taille min du crochet horizontal en cases (défaut : 2, min : 1) — **game design** |
+| detourMax           | int        | Taille max du crochet horizontal en cases, exclusif (défaut : 5, min : 2) — **game design** |
+| _Lecture depuis SessionManager.Instance :_ | | `pathVisible` (float, 0-1) — probabilité que le chemin soit visible. `suboptimalPathProbability` (float, 0-1) — probabilité que le chemin affiché soit suboptimal. `detourProbability` (float, 0-1) — probabilité que le chemin suboptimal inclue un détour en « U ». Tirages seeded RNG. **Paramètres recherche** (Singleton, lecture directe) |
 
 ### 3.2.3 Dépendances
 
@@ -423,7 +423,7 @@ graph TD
     L -->|Non| M["displayPath = optimalCells"]
     L -->|Oui| N{"rng < detourProbability ?"}
     N -->|Non| O["BuildRandomManhattanPath<br/>(même longueur, tracé différent)"]
-    N -->|Oui| P["BuildSuboptimalDetour<br/>(chemin en Z, surplus garanti)"]
+    N -->|Oui| P["BuildSuboptimalDetour<br/>(chemin en U, surplus garanti,<br/>sans contact ambigu)"]
     O --> Q["reg.RegisterSuboptimalPath"]
     P --> Q
     Q --> R["displayPath = suboptimalPath"]
@@ -443,13 +443,15 @@ graph TD
 
 ```mermaid
 graph TD
-    D1["Tirages : detourSize, returnSize ∈ [detourMin, detourMax)<br/>hookDx = ±1 aléatoire, GAP = 2"] --> D2["Phase 1 : normalSteps pas Manhattan vers le nuage"]
-    D2 --> D3["TryVertical(GAP) — séparer du chemin initial"]
+    D1["Tirage : detourSize ∈ [detourMin, detourMax)<br/>hookDx = direction opposée à la cible, GAP = 2"] --> D2["Choisir un préfixe vertical de 0 à 2 cases<br/>hors rangée des nuages"]
+    D2 --> D3["Phase 1 : monter verticalement jusqu'au crochet"]
     D3 --> D4["Phase 2 : TryHorizontal(hookDx, detourSize) — crochet"]
-    D4 --> D5["Phase 3 : TryVertical(GAP) — séparer les 2 segments horiz."]
-    D5 --> D6["Phase 4 : TryHorizontal(-hookDx, returnSize) — retour"]
-    D6 --> D7["Phase 5 : TryVertical(GAP) — séparer du chemin de rejoint"]
-    D7 --> D8["Phase 6 : TryStep en boucle → rejoint le nuage"]
+    D4 --> D5["Phase 3 : TryVertical(GAP) — séparation exacte"]
+    D5 --> D6["Phase 4 : retour horizontal prolongé jusqu'à goal.x"]
+    D6 --> D7["Phase 5 : TryVerticalTowards(goal.y) — arrivée verticale"]
+    D7 --> D8{"Cible atteinte, surplus réel<br/>et aucun contact non consécutif ?"}
+    D8 -->|Oui| D9["Retourner le détour"]
+    D8 -->|Non| D10["Fallback : chemin Manhattan"]
 ```
 
 ### 3.2.5 Formules et règles métier
@@ -458,7 +460,7 @@ graph TD
 Longueur chemin Manhattan  = |playerCell.x - cloudCell.x| + |playerCell.y - cloudCell.y| + 1
 Direction gauche           = currentPos.x-- (décrémente X vers la gauche)
 Direction droite           = currentPos.x++ (incrémente X vers la droite)
-Direction verticale        = currentPos.y++ (toujours vers le haut)
+Direction verticale        = currentPos.y++ pour les chemins Manhattan ; le raccord final du détour peut monter ou descendre vers goal.y
 Randomisation du tracé     = à chaque step, si X != cible.X et Y != cible.Y → 50% chance horizontal/vertical (rng)
 Choix du chemin optimal    = vers GetBestCloud() si non null, sinon 50/50 aléatoire (rng)
 
@@ -471,24 +473,24 @@ Sans détour (BuildRandomManhattanPath) :
   Tracé                    = aléatoire indépendant → non réservé → pièges possibles
   Suboptimalité            = les murs NE protègent PAS ce chemin → pièges peuvent spawn dessus
 
-Avec détour (BuildSuboptimalDetour — chemin en « Z ») :
-  detourSize               = rng.Next(detourMin, detourMax)      // crochet horizontal
-  returnSize               = rng.Next(detourMin, detourMax)      // retour horizontal (tirage INDÉPENDANT)
-  hookDx                   = ±1 (direction aléatoire)
-  GAP                      = 2 (constante — 1 rangée d'écart entre segments horizontaux)
+Avec détour (BuildSuboptimalDetour — chemin en « U » ouvert vers la cible) :
+  detourSize               = min(rng.Next(detourMin, detourMax), espace disponible)
+  hookDx                   = -sign(goal.x - start.x)             // côté opposé à la cible
+  GAP                      = 2                                    // 1 rangée vide
+  normalSteps              = 0 à 2 pas verticaux, hors rangée des nuages
 
-  Phase 1 : normalSteps (2-3) pas Manhattan vers le nuage
-  Phase 2 : TryVertical(GAP) + TryHorizontal(hookDx, detourSize)
-  Phase 3 : TryVertical(GAP) — sépare crochet et retour
-  Phase 4 : TryHorizontal(-hookDx, returnSize) — retour en sens inverse
-  Phase 5 : TryVertical(GAP) — sépare retour et chemin final
-  Phase 6 : TryStep boucle → rejoint le nuage
+  Phase 1 : préfixe uniquement vertical
+  Phase 2 : TryHorizontal(hookDx, detourSize) — crochet opposé à la cible
+  Phase 3 : TryVertical(GAP) — séparation exacte des 2 portions horizontales
+  Phase 4 : retour horizontal sans changement de sens jusqu'à goal.x
+  Phase 5 : TryVerticalTowards(goal.y) — arrivée purement verticale
 
   Garanties :
-  - Le retour (phase 4) crée un surplus de steps réel vs l'optimal
-  - GAP = 2 entre chaque segment horizontal → portions jamais limitrophes
-  - detourSize et returnSize indépendants → formes asymétriques possibles
-  - visited HashSet → jamais de retour sur une case déjà traversée
+  - Le crochet ajoute 2 × detourSize pas au minimum par rapport au Manhattan
+  - Il n'existe que 2 portions horizontales, séparées par GAP = 2
+  - HasNonConsecutiveAdjacentCells refuse tout faux embranchement/raccourci visuel
+  - visited HashSet empêche tout retour sur une case déjà traversée
+  - Toute géométrie impossible ou ambiguë bascule sur BuildRandomManhattanPath
 ```
 
 ### 3.2.6 Points d'attention
@@ -497,9 +499,10 @@ Avec détour (BuildSuboptimalDetour — chemin en « Z ») :
 - **⚠️ Performance :** `FindGameObjectsWithTag("BugCloud")` est utilisé plutôt qu'une référence directe — fonctionne car il n'y a que 2 nuages, mais fragile si d'autres objets portent le même tag
 - **⚠️ Séquencement :** Les deux chemins optimaux sont TOUJOURS réservés dans LevelRegistry (gauche + droite), même si le chemin affiché est suboptimal — c'est voulu pour que CorridorWallsGenerator protège les deux. Le chemin suboptimal est enregistré séparément via `RegisterSuboptimalPath`
 - **⚠️ Fog :** Les cellules joueur et des deux nuages sont **toujours** révélées dans le brouillard (même si le chemin est invisible). Les cellules du chemin ne sont révélées que si le tirage `rng.NextDouble() < pathVisible` est positif. `FogController.Instance` peut être `null` (brouillard désactivé par `FogSpawner`) — les null-checks existants gèrent ce cas
-- **⚠️ Détour en Z :** Le `returnSize` est tiré indépendamment de `detourSize` dans les mêmes bornes `[detourMin, detourMax)` — configurations asymétriques possibles (ex : 3 pas aller, 2 retour ou 2 aller, 4 retour = détour de l'autre côté)
-- **⚠️ GAP constant :** `GAP = 2` est hardcodé — garantit qu'aucune portion horizontale du détour n'est limitrophe avec une autre. Deux pas verticaux = 1 rangée d'écart visuel
-- **⚠️ Bounds safety :** `TryHorizontal` inverse la direction si le bord de grille est atteint. `TryVertical` s'arrête si `y > goal.y` — le détour ne dépasse jamais le nuage cible en Y
+- **⚠️ Détour en U :** Le crochet part toujours à l'opposé de la cible. Le retour peut ainsi continuer sur la même ligne jusqu'à `goal.x`, sans demi-tour supplémentaire ni troisième portion horizontale
+- **⚠️ GAP constant :** `GAP = 2` est hardcodé — garantit une rangée vide entre les deux seules portions horizontales du détour
+- **⚠️ Bounds safety :** `detourSize` est borné par l'espace horizontal disponible et le préfixe par la hauteur de grille. Le détour peut monter au-dessus de la rangée du nuage, puis `TryVerticalTowards` le rejoint verticalement
+- **⚠️ Validation visuelle :** Toute paire de cases adjacentes mais non consécutives invalide le détour. Le générateur utilise alors un chemin Manhattan alternatif et rapporte `détour=false`
 - **⚠️ Suboptimal sans détour :** `BuildRandomManhattanPath` produit un chemin de même longueur Manhattan que l'optimal. La suboptimalité vient du fait qu'il n'est PAS réservé → les pièges et murs peuvent s'y trouver
 
 ### 3.2.7 Journal d'implémentation
@@ -513,6 +516,7 @@ Avec détour (BuildSuboptimalDetour — chemin en « Z ») :
 | 02/03/26 | @auteur     | `pathVisible` passe de bool à float (probabilité 0-1). La visibilité est désormais déterminée par `rng.NextDouble() < pathVisible` (seeded RNG). Permet un contrôle probabiliste de la condition advisor. |
 | 05/03/26 | @auteur     | Feature suboptimal path : ajout branchement suboptimal (`suboptimalPathProbability`) + détour (`detourProbability`) lus depuis SessionManager. `BuildRandomManhattanPath` (même longueur, tracé alternatif) et `BuildSuboptimalDetour` (chemin en « Z » : crochet + retour + GAP). Helpers `TryHorizontal`/`TryVertical` extraits. Champs `detourMin`/`detourMax` (game design) pour borner les tirages. Le retour est tiré indépendamment du crochet (asymétrie possible). GAP=2 entre segments horizontaux (jamais limitrophes). |
 | 09/03/26 | @auteur     | Refacto fog of war : la révélation du brouillard révèle **toujours** playerCell + les 2 cellules nuages (même si le chemin est caché). Les cellules du chemin ne sont ajoutées à la liste de révélation que si `visible == true`. `FogController.Instance` peut être `null` si le fog est désactivé (géré par null-check). |
+| 21/07/26 | @codex      | Correction des contacts visuels tardifs : remplacement du détour à 3 séparations partielles par un « U » à séparation exacte, retour prolongé jusqu'à la cible et arrivée verticale. Ajout d'une validation des contacts entre cases non consécutives avec fallback Manhattan. |
 
 ## 3.3 CorridorWallsGenerator
 

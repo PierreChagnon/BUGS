@@ -192,7 +192,7 @@ public class PathSpawner : MonoBehaviour
             bool withDetour = session.detourProbability > 0f && rng.NextDouble() < session.detourProbability;
 
             if (withDetour)
-                displayPath = BuildSuboptimalDetour(rng, reg, playerCell, bestCloudCell);
+                displayPath = BuildSuboptimalDetour(rng, reg, playerCell, bestCloudCell, out withDetour);
             else
                 displayPath = BuildRandomManhattanPath(rng, reg, playerCell, bestCloudCell);
 
@@ -290,24 +290,56 @@ public class PathSpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// Construit un chemin suboptimal en forme de « Z » :
-    /// 1. Quelques pas normaux vers le nuage
-    /// 2. Crochet horizontal (detourSize pas)
-    /// 3. Montée verticale (≥ GAP, sépare les couloirs)
-    /// 4. Retour horizontal en sens inverse (returnSize pas, tirage indépendant)
-    /// 5. Montée verticale (≥ GAP, sépare du chemin de rejoint)
-    /// 6. Rejoint le nuage en Manhattan
-    /// Le retour (phase 4) garantit un vrai surplus de steps vs le chemin optimal.
-    /// Le chemin ne repasse jamais sur une case déjà visitée.
+    /// Construit un chemin suboptimal en forme de « U » ouvert vers la cible :
+    /// 1. Monte de quelques cases avant le crochet
+    /// 2. Part horizontalement à l'opposé de la cible
+    /// 3. Monte exactement de GAP cases
+    /// 4. Revient horizontalement et continue jusqu'à l'axe X de la cible
+    /// 5. Rejoint la cible uniquement à la verticale
+    /// Les deux seules portions horizontales sont donc séparées par une rangée vide.
+    /// Aucune troisième portion horizontale ne peut longer le retour près de la cible.
     /// </summary>
     List<Vector2Int> BuildSuboptimalDetour(System.Random rng, LevelRegistry reg,
-                                            Vector2Int start, Vector2Int goal)
+                                            Vector2Int start, Vector2Int goal,
+                                            out bool detourBuilt)
     {
-        int normalSteps = rng.Next(1, 3);
-        int detourSize  = rng.Next(detourMin, detourMax);
-        int returnSize  = rng.Next(detourMin, detourMax); // tirage indépendant
-        int hookDx      = (rng.NextDouble() < 0.5) ? +1 : -1;
-        const int GAP   = 2; // pas verticaux entre segments horizontaux (1 rangée d'écart)
+        const int GAP = 2; // une rangée vide entre les deux portions horizontales
+        detourBuilt = false;
+
+        // Le crochet part du côté opposé au nuage. Son retour peut alors être prolongé
+        // jusqu'à goal.x sans changer de sens ni créer une troisième portion horizontale.
+        int goalDx = goal.x - start.x;
+        if (goalDx == 0)
+            return BuildRandomManhattanPath(rng, reg, start, goal);
+
+        int hookDx = -System.Math.Sign(goalDx);
+        int horizontalCapacity = hookDx > 0
+            ? reg.gridSize.x - 1 - start.x
+            : start.x;
+
+        if (horizontalCapacity <= 0)
+            return BuildRandomManhattanPath(rng, reg, start, goal);
+
+        int safeDetourMin = Mathf.Max(1, detourMin);
+        int safeDetourMax = Mathf.Max(safeDetourMin + 1, detourMax);
+        int detourSize = Mathf.Min(rng.Next(safeDetourMin, safeDetourMax), horizontalCapacity);
+
+        // Le crochet ne doit être ni sur la rangée des nuages (il pourrait traverser
+        // l'autre nuage), ni GAP rangées dessous pour la même raison au retour.
+        int maxPrefixSteps = Mathf.Min(2, reg.gridSize.y - 1 - GAP - start.y);
+        var prefixCandidates = new List<int>();
+        for (int steps = 0; steps <= maxPrefixSteps; steps++)
+        {
+            int lowerY = start.y + steps;
+            int upperY = lowerY + GAP;
+            if (lowerY != goal.y && upperY != goal.y)
+                prefixCandidates.Add(steps);
+        }
+
+        if (prefixCandidates.Count == 0)
+            return BuildRandomManhattanPath(rng, reg, start, goal);
+
+        int normalSteps = prefixCandidates[rng.Next(prefixCandidates.Count)];
 
         var visited = new HashSet<Vector2Int>();
         var path = new List<Vector2Int>();
@@ -315,29 +347,34 @@ public class PathSpawner : MonoBehaviour
         path.Add(cur);
         visited.Add(cur);
 
-        // Phase 1 : quelques pas normaux vers le nuage
-        for (int i = 0; i < normalSteps && cur != goal; i++)
-            if (!TryStep(rng, reg, ref cur, goal, visited, path)) break;
+        // Phase 1 : préfixe uniquement vertical. Il ne peut donc pas longer le crochet.
+        if (!TryVertical(reg, ref cur, normalSteps, reg.gridSize.y - 1, visited, path))
+            return BuildRandomManhattanPath(rng, reg, start, goal);
 
-        // Phase 2 : crochet horizontal
-        // On force d'abord un deplacement vertical avant de commencer le crochet, pour éviter d'avoir des portions horizontales limitrophes
-        TryVertical(reg, ref cur, GAP, goal.y, visited, path);
+        // Phase 2 : crochet horizontal à l'opposé de la cible.
         TryHorizontal(reg, ref cur, hookDx, detourSize, visited, path);
 
-        // Phase 3 : montée verticale (séparer les deux segments horizontaux)
-        TryVertical(reg, ref cur, GAP, goal.y, visited, path);
+        // Phase 3 : séparation garantie, jamais tronquée par la hauteur du nuage.
+        if (!TryVertical(reg, ref cur, GAP, reg.gridSize.y - 1, visited, path))
+            return BuildRandomManhattanPath(rng, reg, start, goal);
 
-        // Phase 4 : retour horizontal en sens inverse
-        TryHorizontal(reg, ref cur, -hookDx, returnSize, visited, path);
+        // Phase 4 : retour puis prolongement sur la même ligne jusqu'à la cible.
+        int horizontalToGoal = Mathf.Abs(goal.x - cur.x);
+        TryHorizontal(reg, ref cur, System.Math.Sign(goal.x - cur.x), horizontalToGoal, visited, path);
 
-        // Phase 5 : montée verticale (séparer du chemin de rejoint)
-        TryVertical(reg, ref cur, GAP, goal.y, visited, path);
+        // Phase 5 : arrivée purement verticale, donc aucune nouvelle parallèle horizontale.
+        if (!TryVerticalTowards(reg, ref cur, goal.y, visited, path))
+            return BuildRandomManhattanPath(rng, reg, start, goal);
 
-        // Phase 6 : rejoindre le nuage cible
-        int safety = reg.gridSize.x + reg.gridSize.y + 20;
-        while (cur != goal && safety-- > 0)
-            if (!TryStep(rng, reg, ref cur, goal, visited, path)) break;
+        int directDistance = Mathf.Abs(goal.x - start.x) + Mathf.Abs(goal.y - start.y);
+        bool hasRealDetour = path.Count - 1 > directDistance;
+        if (cur != goal || !hasRealDetour || HasNonConsecutiveAdjacentCells(path))
+        {
+            Debug.LogWarning("[PathSpawner] Crochet invalide ou visuellement ambigu : chemin Manhattan utilisé en fallback.");
+            return BuildRandomManhattanPath(rng, reg, start, goal);
+        }
 
+        detourBuilt = true;
         return path;
     }
 
@@ -361,17 +398,54 @@ public class PathSpawner : MonoBehaviour
     }
 
     /// <summary>Monte de <paramref name="count"/> pas verticaux (y+1) sans dépasser <paramref name="maxY"/>.</summary>
-    static void TryVertical(LevelRegistry reg, ref Vector2Int cur, int count, int maxY,
+    static bool TryVertical(LevelRegistry reg, ref Vector2Int cur, int count, int maxY,
                              HashSet<Vector2Int> visited, List<Vector2Int> path)
     {
         for (int i = 0; i < count; i++)
         {
             var next = new Vector2Int(cur.x, cur.y + 1);
-            if (!reg.InBounds(next) || visited.Contains(next) || next.y > maxY) break;
+            if (!reg.InBounds(next) || visited.Contains(next) || next.y > maxY) return false;
             cur = next;
             path.Add(cur);
             visited.Add(cur);
         }
+
+        return true;
+    }
+
+    /// <summary>Rejoint une rangée en ligne droite, vers le haut ou vers le bas.</summary>
+    static bool TryVerticalTowards(LevelRegistry reg, ref Vector2Int cur, int targetY,
+                                    HashSet<Vector2Int> visited, List<Vector2Int> path)
+    {
+        while (cur.y != targetY)
+        {
+            var next = new Vector2Int(cur.x, cur.y + System.Math.Sign(targetY - cur.y));
+            if (!reg.InBounds(next) || visited.Contains(next)) return false;
+            cur = next;
+            path.Add(cur);
+            visited.Add(cur);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Détecte les contacts entre deux cases du chemin qui ne se suivent pas.
+    /// Un tel contact dessine un faux embranchement ou un raccourci visuel.
+    /// </summary>
+    static bool HasNonConsecutiveAdjacentCells(List<Vector2Int> path)
+    {
+        for (int i = 0; i < path.Count; i++)
+        {
+            for (int j = i + 2; j < path.Count; j++)
+            {
+                int distance = Mathf.Abs(path[i].x - path[j].x) + Mathf.Abs(path[i].y - path[j].y);
+                if (distance == 1)
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Avance d'un pas Manhattan vers la cible sans repasser sur une case visitée.</summary>
