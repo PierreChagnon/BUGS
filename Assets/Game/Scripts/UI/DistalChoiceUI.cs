@@ -56,8 +56,7 @@ public class DistalChoiceUI : MonoBehaviour
             return;
         }
 
-        SetExplanationBlockPanelVisible(
-            ExplanationResolver.HasEnabledExplanation(flow.CurrentBlock, AdviceLevel.Distal));
+        SetExplanationBlockPanelVisible(ExplanationResolver.HasAnyEnabledExplanation(flow.CurrentBlock));
 
         AdviceVisible = flow.State != null && flow.State.distal_advice_visible;
         AdviceReliable = flow.State != null && flow.State.distal_advice_reliable;

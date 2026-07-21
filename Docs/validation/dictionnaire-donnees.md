@@ -14,6 +14,7 @@
 | :-- | :-- | :-- | :-- |
 | `participant_id` | string | UUID | Identifiant participant (généré côté client). Sert de clé de regroupement. |
 | `session_template_id` | string | id | Modèle de session (config chargée depuis l'API). |
+| `session_name` | string | texte | Nom de la session, recopié depuis la clé `label` de la configuration. |
 | `build_version` | string | ex. `0.3.0-flow` | Version du build ayant produit la donnée. |
 | `block_index` | int | ≥ 1 | Numéro du bloc dans la session (1-based). |
 | `trial_index` | int | ≥ 1 | Numéro du trial dans le bloc (1-based). |

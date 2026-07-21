@@ -240,6 +240,7 @@ public class TrialManager : MonoBehaviour
             session_template_id = flow != null && flow.State != null
                 ? flow.State.session_template_id
                 : "debug-session-template",
+            session_name = flow != null && flow.Config != null ? flow.Config.label : null,
             build_version = session != null ? session.buildVersion : (flow != null ? flow.BuildVersion : "debug-build"),
             block_index = blockIndex,
             trial_index = trialIndex,

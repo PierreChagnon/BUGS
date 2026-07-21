@@ -17,6 +17,7 @@
 | :-- | :-- | :-- | :-- | :-: | :-: | :-- |
 | `participant_id` | string | UUID | `BuildBaseRow` (flow.State ou `Guid.NewGuid`) | non | | |
 | `session_template_id` | string | id session | `BuildBaseRow` | non | | |
+| `session_name` | string | nom de la session | `SessionConfig.label` via `BuildBaseRow` | omis si null | | |
 | `build_version` | string | ex. `0.3.0-flow` | `SessionManager`/`FlowController` | non | | |
 | `block_index` | int | ≥ 1 (1-based) | `BuildBaseRow` | non | | |
 | `trial_index` | int | ≥ 1 (1-based) | `BuildBaseRow` | non | | |

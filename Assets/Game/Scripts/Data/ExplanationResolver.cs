@@ -95,18 +95,14 @@ public class ExplanationRuntimeState
 
 public static class ExplanationResolver
 {
-    public static bool HasEnabledExplanation(BlockConfig block, AdviceLevel level)
+    public static bool HasAnyEnabledExplanation(BlockConfig block)
     {
         if (block == null || block.is_tutorial || block.explanations == null)
             return false;
 
-        return IsExplanationEnabled(block.explanations.GetConfig(level));
-    }
-
-    public static bool HasEnabledForestExplanation(BlockConfig block)
-    {
-        return HasEnabledExplanation(block, AdviceLevel.Proximal)
-            || HasEnabledExplanation(block, AdviceLevel.Motor);
+        return IsExplanationEnabled(block.explanations.distal)
+            || IsExplanationEnabled(block.explanations.proximal)
+            || IsExplanationEnabled(block.explanations.motor);
     }
 
     public static ExplanationRuntimeState Resolve(
