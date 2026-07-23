@@ -41,6 +41,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Game/Scenes/GameScenes/EndSessionScene.unity
     guid: 78f7ffdda9f2b42409ad48c01e77a694
+  - enabled: 1
+    path: Assets/Game/Scenes/GameScenes/BreakScene.unity
+    guid: 4cf185da97854cff9fd4d3a669610685
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

@@ -3,7 +3,7 @@
 > Ce fichier est le résumé condensé de l'état du projet.
 > Objectif : un rôle peut comprendre où en est le projet en lisant CE SEUL FICHIER.
 > Mis à jour après chaque session qui fait avancer le projet.
-> Dernière mise à jour : 2026-05-29
+> Dernière mise à jour : 2026-07-23
 
 ---
 
@@ -42,6 +42,8 @@
 | ApiClient (HTTP unique, POST/PATCH) | ✅ Implémenté | — |
 | FadeTransition (DDOL) | ✅ Implémenté | — |
 | TrialManager (assemble + envoi) | ✅ Stable | 02/03/26 |
+| Ordre joué des blocs (randomisation, verrous, tutoriels, fingerprints) | ✅ Implémenté | 23/07/26 |
+| Pauses obligatoires inter-blocs (compteur hors tutoriel, countdown API) | ✅ Implémenté | 23/07/26 |
 | Spec tech multi-écran flow | ✅ Finalisée | 16/03/26 |
 | Data model Supabase (`trial_responses` plate) | ✅ Finalisé | 16/03/26 |
 | Décisions DEC-001 à DEC-016 | ✅ Enregistrées | 12/05/26 |
@@ -58,6 +60,7 @@
 | ProximalScene (forest screen) + RoundUI | ✅ Implémentée |
 | QuestionnaireScene + QuestionnaireUI (DEC-008) | ✅ Implémentée |
 | EndSessionScene | ✅ Créée |
+| BreakScene + countdown et reprise verrouillée | 🟡 Logique prête ; scène/UI à créer et binder |
 
 ### Audio (DEC-016, 12/05/26)
 

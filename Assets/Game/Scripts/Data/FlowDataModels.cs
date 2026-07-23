@@ -13,6 +13,7 @@ public enum GamePhase
     DistalChoice,
     Proximal,
     Questionnaire,
+    Break,
     EndSession
 }
 
@@ -44,6 +45,9 @@ public class SessionConfig
     public string label;
     // Lien renseigne par les chercheurs, affiche sur l'ecran de fin de session (EndSessionScene).
     public string platform_url;
+    public bool randomize_blocks;
+    public int? break_every_trials;
+    public int? break_duration_seconds;
     public List<RuleScreen> rules = new();
     public List<BlockConfig> blocks = new();
 
@@ -54,6 +58,9 @@ public class SessionConfig
             session_template_id = session_template_id,
             label = label,
             platform_url = platform_url,
+            randomize_blocks = randomize_blocks,
+            break_every_trials = break_every_trials,
+            break_duration_seconds = break_duration_seconds,
             rules = FlowCloneUtility.CloneRules(rules),
             blocks = FlowCloneUtility.CloneBlocks(blocks)
         };
@@ -85,6 +92,8 @@ public class BlockConfig
 {
     public string block_template_id;
     public int block_order;
+    public bool is_order_locked;
+    public string config_fingerprint;
     public int trial_count = 1;
     public bool is_tutorial;
     public bool advisor_forced;
@@ -110,6 +119,8 @@ public class BlockConfig
         {
             block_template_id = block_template_id,
             block_order = block_order,
+            is_order_locked = is_order_locked,
+            config_fingerprint = config_fingerprint,
             trial_count = trial_count,
             is_tutorial = is_tutorial,
             advisor_forced = advisor_forced,
@@ -412,6 +423,8 @@ public class PlayerSessionState
     public GamePhase current_phase = GamePhase.Boot;
     public int current_block_index;
     public int current_trial_index;
+    public int completed_non_tutorial_trials;
+    public bool break_pending;
     public AdvisorType advisor_choice = AdvisorType.None;
     public ValleyChoice valley_choice = ValleyChoice.None;
     public bool meta_choice_is_forced;
@@ -449,6 +462,7 @@ public class TrialResponseRow
     public string session_template_id;
     public string session_name;
     public string build_version;
+    public string block_template_id;
     public int block_index;
     public int trial_index;
     public int trial_count;

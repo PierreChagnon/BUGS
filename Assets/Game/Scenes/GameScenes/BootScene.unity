@@ -301,7 +301,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c5327fc2ad967fd4a87bd0b60edb6e1b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ApiClient
-  backendRootUrl: https://backend-bugs.vercel.app
+  backendRootUrl: https://backend-bugs.vercel.app/
   supabaseAnonKey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zbHZtenFnaXp5aXF1dndqb291Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMDg3MzMsImV4cCI6MjA3NDg4NDczM30._jIlaU-PkhQZJdbO4ce5QvBgguBEV1aW66nhTHQHrR8
   _sessionConfigPath: api/sessions
   _trialResponsesPath: api/trial-responses
@@ -328,9 +328,10 @@ MonoBehaviour:
   _distalChoiceSceneName: DistalChoiceScene
   _proximalSceneName: ProximalScene
   _questionnaireSceneName: QuestionnaireScene
+  _breakSceneName: BreakScene
   _endSessionSceneName: EndSessionScene
-  _buildVersion: 0.3.0-flow
-  _editorSessionId: 4859403f-9fe2-4d8c-b504-6815af71813f
+  _buildVersion: 0.4.0
+  _editorSessionId: e5bc5d8f-b5f0-486e-a96c-cd246d814611
 --- !u!4 &530388671
 Transform:
   m_ObjectHideFlags: 0

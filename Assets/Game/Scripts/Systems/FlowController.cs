@@ -19,15 +19,18 @@ public class FlowController : MonoBehaviour
     [SerializeField] private string _distalChoiceSceneName = "DistalChoiceScene";
     [SerializeField] private string _proximalSceneName = "ProximalScene";
     [SerializeField] private string _questionnaireSceneName = "QuestionnaireScene";
+    [SerializeField] private string _breakSceneName = "BreakScene";
     [SerializeField] private string _endSessionSceneName = "EndSessionScene";
 
     [Header("Build")]
-    [SerializeField] private string _buildVersion = "0.3.0-flow";
+    [SerializeField] private string _buildVersion = "0.4.0";
 
     [Header("Editor Test")]
     [SerializeField] private string _editorSessionId;
 
     bool _isBootstrapping;
+    double _breakResumeAllowedAt;
+    bool _breakCountdownStarted;
 
     public SessionConfig Config { get; private set; }
     public PlayerSessionState State { get; private set; }
@@ -72,6 +75,24 @@ public class FlowController : MonoBehaviour
     }
 
     public bool HasLoadedConfig => Config != null && Config.blocks != null && Config.blocks.Count > 0;
+    public bool AreBreaksEnabled =>
+        Config?.break_every_trials > 0 &&
+        Config?.break_duration_seconds > 0;
+    public int BreakRemainingSeconds
+    {
+        get
+        {
+            if (State == null || State.current_phase != GamePhase.Break)
+                return 0;
+
+            if (!_breakCountdownStarted)
+                return Config?.break_duration_seconds ?? 0;
+
+            return Mathf.Max(
+                0,
+                Mathf.CeilToInt((float)(_breakResumeAllowedAt - Time.realtimeSinceStartupAsDouble)));
+        }
+    }
     public bool IsCurrentBlockTutorial => CurrentBlock != null && CurrentBlock.is_tutorial;
     public bool IsLastBlock => HasLoadedConfig && State.current_block_index >= Config.blocks.Count - 1;
     public bool IsLastTrial => CurrentBlock != null && State.current_trial_index >= CurrentBlock.trial_count - 1;
@@ -130,6 +151,8 @@ public class FlowController : MonoBehaviour
             current_phase = GamePhase.Boot,
             current_block_index = 0,
             current_trial_index = 0,
+            completed_non_tutorial_trials = 0,
+            break_pending = false,
             advisor_choice = AdvisorType.None,
             valley_choice = ValleyChoice.None,
             meta_choice_is_forced = false,
@@ -159,6 +182,8 @@ public class FlowController : MonoBehaviour
         BlockScore = 0;
         CurrentBlockSeed = 0;
         CurrentTrialSeed = 0;
+        _breakResumeAllowedAt = 0;
+        _breakCountdownStarted = false;
         WasConsentDeclined = false;
         ResetAllExplanationStates();
     }
@@ -255,6 +280,16 @@ public class FlowController : MonoBehaviour
         BlockScore += trialScore;
         State.green_bugs_accumulated = BlockScore;
 
+        if (!CurrentBlock.is_tutorial)
+        {
+            State.completed_non_tutorial_trials++;
+            if (AreBreaksEnabled &&
+                State.completed_non_tutorial_trials % Config.break_every_trials.Value == 0)
+            {
+                State.break_pending = true;
+            }
+        }
+
         State.current_trial_index++;
 
         if (completedLastTrial)
@@ -291,6 +326,39 @@ public class FlowController : MonoBehaviour
         }
 
         AdvanceToNextBlockOrEnd();
+    }
+
+    public void OnBreakComplete()
+    {
+        if (State == null || State.current_phase != GamePhase.Break)
+            return;
+
+        if (!_breakCountdownStarted || BreakRemainingSeconds > 0)
+        {
+            Debug.LogWarning(
+                $"[FlowController] Reprise refusee: pause obligatoire encore active " +
+                $"({BreakRemainingSeconds}s restantes).");
+            return;
+        }
+
+        State.break_pending = false;
+        AdvanceToPhase(GamePhase.AdvisorChoice);
+    }
+
+    public void StartBreakCountdown()
+    {
+        if (State == null ||
+            State.current_phase != GamePhase.Break ||
+            !AreBreaksEnabled ||
+            _breakCountdownStarted)
+        {
+            return;
+        }
+
+        _breakCountdownStarted = true;
+        _breakResumeAllowedAt =
+            Time.realtimeSinceStartupAsDouble +
+            Config.break_duration_seconds.Value;
     }
 
     public int GetAccumulatedScoreAfterTrial(int trialScore)
@@ -384,6 +452,15 @@ public class FlowController : MonoBehaviour
         if (!IsLastBlock)
         {
             State.current_block_index++;
+
+            if (State.break_pending && AreBreaksEnabled)
+            {
+                _breakCountdownStarted = false;
+                _breakResumeAllowedAt = 0;
+                AdvanceToPhase(GamePhase.Break);
+                return;
+            }
+
             AdvanceToPhase(GamePhase.AdvisorChoice);
             return;
         }
@@ -469,6 +546,26 @@ public class FlowController : MonoBehaviour
 
         for (int i = 0; i < config.blocks.Count; i++)
             SanitizeBlockConfig(config.blocks[i]);
+
+        config.blocks = BlockOrderRandomizer.BuildPlayedOrder(
+            config.blocks,
+            config.randomize_blocks,
+            new System.Random(Guid.NewGuid().GetHashCode()));
+
+        if (config.randomize_blocks &&
+            BlockOrderRandomizer.HasIdenticalConsecutiveBlocks(config.blocks))
+        {
+            Debug.LogWarning(
+                "[FlowController] Aucune permutation sans fingerprints consecutives identiques " +
+                $"trouvee apres {BlockOrderRandomizer.MAX_RANDOMIZATION_ATTEMPTS} tentatives. " +
+                "Utilisation de la permutation fallback.");
+        }
+
+        Debug.Log(
+            $"[FlowController] Ordre des blocs prepare une seule fois " +
+            $"(randomize={config.randomize_blocks}): " +
+            string.Join(", ", config.blocks.ConvertAll(
+                block => $"{block.block_template_id ?? "<sans-id>"}@{block.block_order}")));
 
         return config;
     }
@@ -911,6 +1008,7 @@ public class FlowController : MonoBehaviour
             GamePhase.DistalChoice => _distalChoiceSceneName,
             GamePhase.Proximal => _proximalSceneName,
             GamePhase.Questionnaire => _questionnaireSceneName,
+            GamePhase.Break => _breakSceneName,
             GamePhase.EndSession => _endSessionSceneName,
             _ => _bootSceneName
         };

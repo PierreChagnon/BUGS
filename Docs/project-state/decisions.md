@@ -199,12 +199,20 @@
 - **Impact :** `BugCloud.cs` : +event statique `OnBugsLost`, +propriété `IsVisible` (positionnée dans `SetVisible`), invoke dans `AddBugs`. Nouveaux : `Assets/Game/Scripts/UI/FloatingPenaltyNumber.cs`, `Assets/Game/Scripts/UI/PenaltyFeedbackController.cs`, prefab `Assets/Game/Prefabs/UI/FloatingPenaltyNumber.prefab`. GameObject `PenaltyFeedbackController` ajouté en ProximalScene. Validé en Play Mode (trap → 2 nombres ; nuage vide → 0 ; nuage masqué → 0, perte tout de même appliquée). **Reste à faire (visuel, hors portée logique) :** réglage fin de la taille/placement du nombre et du tri de rendu vs brouillard (cf. [[fog-path-transparent-sorting]] — option `ZTest Always` / render queue dédiée) à l'œil dans l'éditeur ; tous les paramètres sont exposés sur le contrôleur + fontSize sur le prefab.
 - **Statut :** ACTIF
 
+### DEC-022 — Ordre joué randomisé et pauses obligatoires inter-blocs
+- **Date :** 2026-07-23
+- **Tag :** [TECH]
+- **Décision :** L'ordre joué est calculé une seule fois au chargement de la session. Les blocs verrouillés restent à leur `block_order`; les tutoriels non verrouillés occupent les premières positions libres; les autres blocs sont mélangés. Jusqu'à 200 permutations sont tentées pour éviter deux `config_fingerprint` identiques consécutifs, puis une permutation valide vis-à-vis des verrous est acceptée en fallback. Les pauses utilisent un compteur global excluant tous les trials tutoriels. Un seuil atteint au milieu d'un bloc crée une pause en attente, affichée seulement après la fin de ce bloc et jamais après le dernier bloc.
+- **Raison :** Respecter le nouvel ordre expérimental fourni par l'API sans déplacer les positions imposées, tout en empêchant une pause de couper un bloc de trials.
+- **Impact :** `SessionConfig` reçoit `randomize_blocks`, `break_every_trials`, `break_duration_seconds`; `BlockConfig` reçoit `is_order_locked` et `config_fingerprint`. `FlowController` porte l'ordre joué persistant, le compteur hors tutoriel et la phase `Break`. `BreakSceneController` expose les références UI du countdown et du bouton sans créer l'interface ; la scène et son design sont fournis côté Unity par l'équipe. `TrialResponseRow` inclut `block_template_id`; `block_index` reste la position réelle 1-based après randomisation.
+- **Statut :** ACTIF
+
 ---
 
 ## Index par tag
 
 - **[SCOPE]** : DEC-004, DEC-005, DEC-008
 - **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019
-- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021
+- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022
 - **[PLANNING]** : _(aucune pour l'instant)_
 - **[CLIENT]** : _(aucune pour l'instant)_
