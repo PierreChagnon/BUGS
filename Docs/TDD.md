@@ -235,7 +235,7 @@ sequenceDiagram
 | **Research Parameter Pipeline** | `SessionManager.Instance` (Singleton, propriétaire unique) → Spawners `.Start()` (lecture directe) | Distinction claire entre **paramètre de protocole expérimental** (contrôlé par le chercheur, injectable via args CLI `key=value`, possédé par `SessionManager`) et **paramètre de game design** (fixé par le designer, reste sur le script qui l'utilise). Les spawners lisent directement `SessionManager.Instance.paramName` — les paramètres recherche ne transitent plus par LevelRegistry. Voir section 4.3 pour le détail du pipeline CLI |
 | **Step Budget Penalty** | `GameManager.OnPlayerStep` → `OnStepBudgetExceeded`, `LevelRegistry.stepBudget`, `BugCloudSpawner.RegisterStepBudget` | Même pattern que `OnTrapTriggered` : quand le joueur dépasse la distance Manhattan (budget de pas enregistré par BugCloudSpawner), chaque pas supplémentaire retire 1 bug de chaque nuage. La donnée brute `cloud_distance` est transmise aux chercheurs via TrialData |
 | **Motor Advice** | `MotorAdviceController.Instance` (Singleton) → `GridMover.ReadStep()` + `GridMover.IsActiveMoveKey()` | Tirage seedé d'un jeu de touches actif (ZQSD/TFGH/IJKL) avec advice visible/fiable configurable par SessionManager. GridMover délègue la lecture d'input et la validation des touches actives à MotorAdviceController |
-| **Invalid Key Penalty** | `GridMover.IsAnyNonActiveMoveKeyPressedThisFrame()` → `GameManager.OnInvalidMoveKeyPressed()` | Toute touche pressée hors du set actif déclenche une pénalité renforcée : -2 bugs dans chaque nuage (plus sévère que piège -1). Détection via itération `Keyboard.current.allKeys` |
+| **Invalid Key Penalty** | `GridMover.IsAnyNonActiveMoveKeyPressedThisFrame()` → `GameManager.OnInvalidMoveKeyPressed()` | Toute touche pressée hors du set actif déclenche une pénalité de -1 bug vert dans chaque nuage (même barème que le piège). Détection via itération `Keyboard.current.allKeys` |
 | **Suboptimal Trap Placement** | `TrapSpawner.PlaceSuboptimalTraps()` → `SessionManager.Instance` (suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps) | Permet de placer des pièges spécifiquement sur le chemin suboptimal (avant les pièges normaux). Le nombre de pièges suboptimaux est tiré dans [min, max] et compte dans le budget total `trapCount` |
 | **Scene Flow State Machine** | `FlowController.AdvanceToPhase(GamePhase)` — enum `GamePhase` à 10 états (Boot → Welcome → Consent → Intro → Tutorial → AdvisorChoice → DistalChoice → Proximal → Questionnaire → EndSession) | Chaque phase correspond à une scène Unity. `FlowController` est DDOL : il survit aux `LoadScene` et orchestre les transitions. Les scènes UI appellent des callbacks typés (`OnConsentGiven`, `OnAdvisorChosen`, `OnValleyChosen`, `OnQuestionnaireComplete`) sans connaître la logique de séquencement |
 | **DDOL Persistent Layer** | `FlowController`, `ApiClient`, `FadeTransition` — tous `DontDestroyOnLoad` + Singleton avec guard `Destroy(gameObject)` si doublon | Couche persistante qui survit aux transitions de scène. Permet d'accumuler l'état de session (`PlayerSessionState`), de maintenir les connexions API et d'enchaîner les transitions visuelles. Les scènes locales (ProximalScene) ont leurs propres singletons non-DDOL (`GameManager`, `SessionManager`, `LevelRegistry`) |
@@ -720,7 +720,8 @@ Cellule éligible   = IsFreeForTrap(cell) = InBounds && !IsReserved && !IsWall &
                      + cell != playerCell
 Placement          = Fisher-Yates shuffle (seeded RNG) puis N premières cellules valides
 trapCount          = SessionManager.Instance.trapCount (lecture directe du Singleton)
-                     Valeur par défaut : 10, overridable via arg CLI "trapCount=N"
+                     Valeur par défaut : 10, pilotée par la config de session (MapGenConfig)
+                     Aucun override CLI : le seul argument lu est "sessionId=" (FlowController.cs:389)
 Reproductibilité   = seed dérivée via CreateRng("TrapSpawner") — même seed globale → même placement
 
 --- Pièges suboptimaux ---
@@ -751,6 +752,7 @@ Exclusion          = les cellules suboptimalPath sont exclues des candidats norm
 | 27/02/26 | @pierre     | Refacto : suppression champ player (TryGetPlayerStartCell), trapCount lu depuis registry, seeded RNG. |
 | 02/03/26 | @pierre     | Refacto SRP : TrapSpawner lit `trapCount` directement depuis `SessionManager.Instance` (nouveau Singleton). Plus de transit par LevelRegistry pour les paramètres recherche. |
 | 12/03/26 | @auteur     | Feature suboptimal traps : ajout `PlaceSuboptimalTraps()` (tirage probabiliste + bornes min/max). Les pièges suboptimaux comptent dans le budget `trapCount`. Cellules suboptimalPath exclues des candidats normaux. Params lus depuis SessionManager : `suboptimalTrapProbability`, `minSuboptimalTraps`, `maxSuboptimalTraps`. |
+| 28/07/26 | @florian    | **Correction documentaire — aucune modification de code.** Revue de couverture (`Docs/project-state/revue-couverture-2026-07-28.md`, constat N2-K) : §3.4.5 annonçait `trapCount` « overridable via arg CLI "trapCount=N" ». Aucun parsing de cet argument n'existe dans le code — le seul argument lu est `sessionId=`, dans `FlowController.cs:389`. `trapCount` vient de la config de session (`MapGenConfig`) recopiée par `SessionManager.CopyConfigFromFlowController()`. La même erreur subsiste dans `CLAUDE.md:116` (corrigée en parallèle). L'entrée du 17/02/26 ci-dessus est conservée : elle décrit un état initial depuis révisé. |
 
 ## 3.5 GridMover
 
@@ -815,10 +817,10 @@ graph TD
     H -->|Oui| G
     H -->|Non| INV["IsAnyNonActiveMoveKeyPressedThisFrame()"]
     INV --> INV2{Touche invalide détectée ?}
-    INV2 -->|Oui| INV3["GameManager.OnInvalidMoveKeyPressed() — pénalité -2 × 2 nuages"]
+    INV2 -->|Oui| INV3["GameManager.OnInvalidMoveKeyPressed() — pénalité -1 bug vert × 2 nuages"]
     INV2 -->|Non| CONT[Continuer]
     INV3 --> CONT
-    CONT --> I["ReadStep() — MotorAdviceController.TryGetStep() ou flèches"]
+    CONT --> I["ReadStep() — MotorAdviceController.TryGetStep() uniquement"]
     I --> J{step == zero ?}
     J -->|Oui| G
     J -->|Non| K["targetCell = curCell + step"]
@@ -837,7 +839,8 @@ graph TD
 
 ```
 Input mapping      = Set actif défini par MotorAdviceController (ZQSD, TFGH ou IJKL)
-                     Fallback flèches ←→↑↓ si MotorAdviceController absent
+                     Aucun fallback : si MotorAdviceController est absent, ReadStep() renvoie
+                     Vector2Int.zero et aucun déplacement n'est possible (GridMover.cs:109-117)
                      wasPressedThisFrame → 1 step par appui (pas de repeat)
 Mouvement          = 1 case par input, 4 directions cardinales
 Interpolation      = Vector3.Lerp(start, target, SmoothStep(0, 1, t))
@@ -847,7 +850,7 @@ Rotation           = appliquee des qu'une direction est demandee, y compris sur 
 Verrouillage       = _isMoving (pendant interpolation) || GameManager.inputLocked (fin de round)
 Signalisation      = OnPlayerStep(cell) → GameManager gère fog, visited, trial log
 Touche invalide    = toute touche de Keyboard.current.allKeys pressée qui n'est PAS dans le set actif
-                     → GameManager.OnInvalidMoveKeyPressed() appelé (pénalité -2 × 2 nuages)
+                     → GameManager.OnInvalidMoveKeyPressed() appelé (pénalité -1 bug vert × 2 nuages)
                      Détection AVANT ReadStep — la pénalité s'applique même si une touche valide est aussi pressée
 ```
 
@@ -867,6 +870,7 @@ Touche invalide    = toute touche de Keyboard.current.allKeys pressée qui n'est
 | 17/02/26 | @auteur     | Suppression des touches ZQSD/WASD. Seules les flèches directionnelles restent comme contrôles de mouvement. |
 | 27/02/26 | @pierre     | Refacto : renommage GridMoverNewInput→GridMover, suppression champs raycast legacy, fog+visited déplacés vers GameManager.OnPlayerStep. |
 | 12/03/26 | @auteur     | Intégration Motor Advice : `ReadStep()` délègue à `MotorAdviceController.TryGetStep()` (fallback flèches). Ajout `IsAnyNonActiveMoveKeyPressedThisFrame()` (itère `allKeys`), `IsActiveMoveKey()` (délègue à MAC). Pénalité touche invalide via `GameManager.OnInvalidMoveKeyPressed()`. Import `UnityEngine.InputSystem.Controls`. |
+| 28/07/26 | @florian    | **Correction documentaire — aucune modification de code.** Revue de couverture (`Docs/project-state/revue-couverture-2026-07-28.md`, constats N2-L et N2-K). **(1) Barème de pénalité** : §3.5.4 (`:818`) et §3.5.5 (`:850`) annonçaient encore **-2 bugs** sur la touche invalide — deux occurrences que la passe de correction du 28/07 (cf. journal §4.2.7) avait manquées. Le barème réel est **-1 bug vert** par nuage (`GameManager.cs:285-286`). **(2) Fallback flèches inexistant** : §3.5.4 et §3.5.5 décrivaient un repli sur les flèches directionnelles si `MotorAdviceController` est absent. `GridMover.ReadStep()` (`:109-117`) commente explicitement « Aucun fallback sur les flèches directionnelles » et renvoie `Vector2Int.zero` quand `MotorAdviceController.Instance == null` — **le joueur ne peut alors pas se déplacer du tout**, ce qui compte pour qui lance ProximalScene isolément. L'entrée du 12/03/26 ci-dessus est conservée : elle décrit l'intention d'origine, depuis abandonnée en implémentation. |
 
 ## 3.6 MotorAdviceController
 
@@ -1204,9 +1208,9 @@ graph TD
 - Enregistrer les deux nuages du round et déterminer le nuage optimal
 - Orchestrer les callbacks d'entités : `OnPlayerStep` (GridMover), `OnTrapTriggered` (Trap), `OnCloudCollected` (BugCloud), `OnInvalidMoveKeyPressed` (GridMover)
 - À chaque pas joueur : révéler le brouillard, marquer la cellule visitée, vérifier l'adhérence au chemin conseillé, vérifier le dépassement du budget de pas, enregistrer dans le trial
-- Appliquer les pénalités de pièges sur les nuages (-2 bugs par nuage par piège)
-- Appliquer la pénalité de dépassement du budget de pas (-2 bugs par nuage par pas en trop)
-- **Appliquer la pénalité de touche invalide** (-2 bugs par nuage par appui non valide)
+- Appliquer les pénalités de pièges sur les nuages (-1 bug vert par nuage par piège)
+- Appliquer la pénalité de dépassement du budget de pas (-1 bug vert par nuage par pas en trop)
+- **Appliquer la pénalité de touche invalide** (-1 bug vert par nuage par appui non valide)
 - Émettre `OnRoundEnded` pour l'UI (RoundUI) — **pas de référence UI directe**
 - **Déléguer la transition post-round** à `FlowController.OnTrialComplete(score)` via `ContinueAfterRound()` — fallback `RestartRound()` si FlowController absent (mode debug)
 - Coordonner avec TrialManager pour la collecte de données de recherche (transmettre `cloud_distance` via `SetCloudDistance`)
@@ -1277,11 +1281,11 @@ public class GameManager : MonoBehaviour
 | **SetAdvisorPathVisible(bool)**             | void                    | Reçoit de PathSpawner si le chemin conseillé est visible — stocke dans `_advisorPathVisible` |
 | SetPathIsSuboptimal(bool)                   | void                    | Reçoit de PathSpawner si le chemin affiché est suboptimal — stocke dans `_pathIsSuboptimal` |
 | OnPlayerStep(Vector2Int)                    | void                    | Appelé par GridMover — fog, visited, déviation, budget de pas, trial log           |
-| OnTrapTriggered()                           | void                    | Appelé par Trap — trapsHit++, **-2 bugs** sur chaque nuage                       |
-| OnInvalidMoveKeyPressed()                   | void                    | Appelé par GridMover — pénalité : **-2 bugs** sur chaque nuage                   |
-| OnStepBudgetExceeded()                      | void (privé)            | Appelé quand le joueur dépasse le budget de pas — overtimeSteps++, **-2 bugs** sur chaque nuage |
+| OnTrapTriggered()                           | void                    | Appelé par Trap — trapsHit++, **-1 bug vert** sur chaque nuage                   |
+| OnInvalidMoveKeyPressed()                   | void                    | Appelé par GridMover — pénalité : **-1 bug vert** sur chaque nuage               |
+| OnStepBudgetExceeded()                      | void (privé)            | Appelé quand le joueur dépasse le budget de pas — overtimeSteps++, **-1 bug vert** sur chaque nuage |
 | OnCloudCollected(BugCloud)                  | void                    | Fin de round — `FogController.RevealAll()`, calcule bugs verts, détermine trueCloud, transmet cloud_distance, finalise trial (10 params dont overtimeSteps, followedAdvisorPath, _advisorPathVisible, _pathIsSuboptimal), émet OnRoundEnded |
-| GetBestCloud()                              | BugCloud                | Retourne le nuage avec le meilleur `greenRatio`, `null` si égalité                |
+| GetBestCloud()                              | BugCloud                | Retourne le nuage ayant le plus de `greenBugs`. ⚠️ Comparaison stricte `>` : **à égalité, retourne toujours le nuage de droite**, jamais `null` |
 | RestartRound()                              | void                    | Recharge la scène active (mode debug, fallback si FlowController absent)           |
 
 ### 4.2.3 Dépendances
@@ -1322,29 +1326,29 @@ graph TD
     end
 
     subgraph "OnStepBudgetExceeded — pénalité de dépassement"
-        SB1["overtimeSteps++"] --> SB2["leftCloud.AddBugs(-2)"]
-        SB2 --> SB3["rightCloud.AddBugs(-2)"]
+        SB1["overtimeSteps++"] --> SB2["leftCloud.AddBugs(-1)"]
+        SB2 --> SB3["rightCloud.AddBugs(-1)"]
     end
 
     subgraph "OnTrapTriggered — via Trap.OnTriggerEnter"
         T0[Trap] -->|OnTrapTriggered| T1{_roundOver ?}
         T1 -->|Oui| T2[return]
         T1 -->|Non| T3["trapsHit++"]
-        T3 --> T4["leftCloud.AddBugs(-2)"]
-        T4 --> T5["rightCloud.AddBugs(-2)"]
+        T3 --> T4["leftCloud.AddBugs(-1)"]
+        T4 --> T5["rightCloud.AddBugs(-1)"]
     end
 
     subgraph "OnInvalidMoveKeyPressed — via GridMover"
         IK0[GridMover] -->|OnInvalidMoveKeyPressed| IK1{_roundOver ?}
         IK1 -->|Oui| IK2[return]
-        IK1 -->|Non| IK3["leftCloud.AddBugs(-2)"]
-        IK3 --> IK4["rightCloud.AddBugs(-2)"]
+        IK1 -->|Non| IK3["leftCloud.AddBugs(-1)"]
+        IK3 --> IK4["rightCloud.AddBugs(-1)"]
     end
 
     subgraph "Phase Fin de Round — OnCloudCollected via BugCloud"
         P[BugCloud.OnTrigger] -->|OnCloudCollected| Q["_roundOver = true, inputLocked = true"]
         Q --> Q1["FogController.RevealAll()"]
-        Q1 --> R["bugsCollected = max(0, RoundToInt(cloud.totalBugs × cloud.greenRatio))"]
+        Q1 --> R["bugsCollected = cloud.greenBugs (compteur vivant, déjà amputé des pénalités)"]
         R --> R1["trueCloud = best == leftCloud ? 'left' : best == rightCloud ? 'right' : 'none'"]
         R1 --> R1b["TrialManager.SetOptimalPathLength + SetCloudDistance"]
         R1b --> S["TrialManager.EndCurrentTrial(choice, correct, trueCloud, bugsCollected, trapsHit, steps, overtimeSteps, followedAdvisorPath, _advisorPathVisible, _pathIsSuboptimal)"]
@@ -1361,15 +1365,19 @@ graph TD
 ### 4.2.5 Formules et règles métier
 
 ```
-Pénalité piège    = -2 bugs dans CHAQUE nuage (leftCloud + rightCloud) par piège déclenché
-Pénalité budget   = -2 bugs dans CHAQUE nuage (leftCloud + rightCloud) par pas au-delà du budget
-Pénalité invalide = -2 bugs dans CHAQUE nuage (leftCloud + rightCloud) par appui de touche non active
+Pénalité piège    = -1 bug VERT dans CHAQUE nuage (leftCloud + rightCloud) par piège déclenché
+Pénalité budget   = -1 bug VERT dans CHAQUE nuage (leftCloud + rightCloud) par pas au-delà du budget
+Pénalité invalide = -1 bug VERT dans CHAQUE nuage (leftCloud + rightCloud) par appui de touche non active
+                    Seuls les bugs VERTS sont retirés, jamais les rouges, jamais sous zéro (BugCloud.AddBugs).
+                    totalBugs et greenBugs décroissent ensemble ; le champ greenRatio, lui, n'est PAS recalculé.
 Budget de pas     = LevelRegistry.stepBudget (= distance Manhattan joueur→nuages, enregistré par BugCloudSpawner)
 movesMade         = steps - 1 (le premier step est le déplacement initial, pas un dépassement)
 overtimeSteps     = nombre de pas où movesMade > stepBudget
-Bugs collectés    = max(0, RoundToInt(cloud.totalBugs × cloud.greenRatio)) au moment de la collecte
-Meilleur nuage    = celui avec le meilleur greenRatio ; null si égalité (greenRatio invariant même après pénalités)
-Choix correct     = le joueur a collecté le nuage avec le meilleur greenRatio initial (GetBestCloud)
+Bugs collectés    = cloud.greenBugs au moment de la collecte (compteur vivant, déjà amputé des pénalités)
+Meilleur nuage    = celui avec le plus de greenBugs (GameManager.GetBestCloud)
+                    ⚠️ Comparaison stricte `>` : à ÉGALITÉ, c'est TOUJOURS le nuage de droite qui est
+                    retourné — jamais null. Voir point d'attention ci-dessous.
+Choix correct     = le joueur a collecté ce nuage-là
 trueCloud         = "left" si best == leftCloud, "right" si best == rightCloud, "none" si égalité
 followedAdvisorPath = true tant que TOUS les pas du joueur sont dans _advisorPath
 Fog + Visited     = gérés par OnPlayerStep (pas par GridMover)
@@ -1385,7 +1393,8 @@ Accumulated score = FlowController.GetAccumulatedScoreAfterTrial(trialScore) —
 - **⚠️ Budget de pas :** La vérification du dépassement utilise `steps - 1` car le premier step est l'arrivée sur la première case. Si `stepBudget == 0` (non initialisé), la pénalité ne s'applique pas
 - **⚠️ Séquencement :** `RegisterClouds` peut être appelé avant `StartNewTrial` (BugCloudSpawner Start -200 vs GameManager Start 0). Le tampon `pendingMapConfigJson` dans TrialManager gère ce cas
 - **⚠️ ContinueAfterRound :** Vérifie `_roundOver` avant d'agir — empêche les appels prématurés. Délègue à FlowController si présent, sinon fallback `RestartRound()` (mode debug sans flow)
-- **⚠️ Pénalités uniformes :** Toutes les pénalités (piège, budget, touche invalide) sont **-2 bugs** sur chaque nuage — pas de différenciation entre types de pénalité
+- **⚠️ Pénalités uniformes :** Toutes les pénalités (piège, budget, touche invalide) sont **-1 bug vert** sur chaque nuage — pas de différenciation entre types de pénalité. Conforme au GDD (« when a trap is hit both clouds loose 1 green bug »), sign-off chercheur en attente (Q-007)
+- **⚠️ Départage à égalité :** `GetBestCloud()` utilise `_leftCloud.greenBugs > _rightCloud.greenBugs`. Si les deux nuages ont exactement le même nombre de bugs verts, **le nuage de droite est déclaré « correct » par construction**, sans tirage. Les pénalités étant appliquées symétriquement aux deux nuages, une égalité initiale reste une égalité. **Le cas est atteignable** : les pénalités s'arrêtent à zéro, donc dès que les deux nuages sont vidés ils sont à égalité et la droite l'emporte. Avec les défauts (`total = 20`, ratio 0.5 → 10 verts ; `trap_count = 10`), un participant en difficulté y arrive. Le biais se concentre sur les trials les moins bien joués. Arbitrage chercheur ouvert : **Q-TIE-1**
 
 ### 4.2.7 Journal d'implémentation
 
@@ -1400,6 +1409,7 @@ Accumulated score = FlowController.GetAccumulatedScoreAfterTrial(trialScore) —
 | 09/03/26 | @auteur     | Feature suboptimal path : renommage `followedBestPath` → `followedAdvisorPath` partout. Ajout `_pathIsSuboptimal` (bool privé) + `SetPathIsSuboptimal(bool)` (appelé par PathSpawner). `RoundEndInfo` utilise `followedAdvisorPath`. `EndCurrentTrial` passe désormais 8 params (ajout `_pathIsSuboptimal`). |
 | 12/03/26 | @auteur     | Pénalité touche invalide : ajout `OnInvalidMoveKeyPressed()` — appelé par GridMover quand une touche hors du set actif est pressée. Applique -2 bugs sur chaque nuage (pénalité renforcée vs piège -1). Guard `_roundOver`. |
 | 23/03/26 | @pierre     | Intégration FlowController : suppression `_screenCounter`, suppression `StartNewRound`, `BeginFirstRound` appelle directement `trialManager.StartNewTrial()`. Ajout `ContinueAfterRound()` (délègue à FlowController.OnTrialComplete ou fallback RestartRound). Ajout `SetAdvisorPathVisible(bool)` + `_advisorPathVisible`. `OnCloudCollected` appelle `FogController.RevealAll()`, n'utilise plus de tirage probabiliste pour optimalPathVisible (utilise `_advisorPathVisible` directement). `EndCurrentTrial` passe 10 params (ajout overtimeSteps, followedAdvisorPath). Toutes les pénalités uniformisées à -2 (piège et budget étaient -1). |
+| 28/07/26 | @florian    | **Correction documentaire — aucune modification de code.** Revue de complétude (`Docs/project-state/revue-completude-2026-07-28.md`) : les 18 mentions d'une pénalité de **-2 bugs** ne correspondaient plus au code. Le barème réel est **-1 bug vert** par nuage pour les trois pénalités (piège, dépassement de budget, touche invalide), retiré des verts uniquement et jamais sous zéro (`GameManager.cs:256-257,268-269,285-286` + `BugCloud.AddBugs`) — conforme au GDD, sign-off chercheur en attente (Q-007). L'entrée du 23/03/26 ci-dessus est conservée telle quelle : elle décrit un état intermédiaire depuis révisé. Corrigé aussi : `GetBestCloud()` compare `greenBugs` et non `greenRatio`, et **ne retourne jamais `null`** — à égalité, la comparaison stricte `>` désigne toujours le nuage de droite (nouveau point d'attention §4.2.6) ; `bugsCollected` vaut `cloud.greenBugs` et non `totalBugs × greenRatio` (§4.2.4 et §4.2.5). |
 
 ## 4.3 SessionManager
 
@@ -2471,13 +2481,10 @@ public class TrialResponseRow
     public bool followed_advisor_path;
     public string player_path_log;
 
-    // Questionnaire (patchés après par ApiClient)
-    public string q1_text;
-    public string q1_response;
-    public string q2_text;
-    public string q2_response;
-    public string q3_text;
-    public string q3_response;
+    // Questionnaire de fin de trial (renseigné par TrialQuestionsUI, ProximalScene)
+    public string acceptability_question;
+    public string sens_of_agency_question;
+    public string human_likeness_question;   // patché par bloc, pas par trial
 
     // Timestamps
     public string started_at;
@@ -2525,9 +2532,9 @@ public class TrialResponseRow
 | overtime_steps                    | int    | EndCurrentTrial                   | Pas au-delà du budget (steps − cloud_distance, min 0)                             |
 | followed_advisor_path             | bool   | EndCurrentTrial                   | `true` si le joueur a suivi le chemin conseillé                                    |
 | player_path_log                   | string | EndCurrentTrial                   | JSON sérialisé de `List<PlayerStep>` (coordonnées + timestamps)                   |
-| q1_text / q1_response             | string | ApiClient.PatchQuestionnaireResponses | Texte et réponse de la question 1 (patchés après envoi trial)                |
-| q2_text / q2_response             | string | ApiClient.PatchQuestionnaireResponses | Texte et réponse de la question 2                                            |
-| q3_text / q3_response             | string | ApiClient.PatchQuestionnaireResponses | Texte et réponse de la question 3                                            |
+| acceptability_question            | string | TrialQuestionsUI → SubmitCurrentTrialResponses | Réponse 1-5. ⚠️ **Non posée si `advisor_choice == None`** — le champ reste `null` et `TrialManager.cs:119-124` annule alors l'envoi de toute la ligne (divergence D-001) |
+| sens_of_agency_question           | string | TrialQuestionsUI → SubmitCurrentTrialResponses | Réponse 1-5, posée à chaque trial                                    |
+| human_likeness_question           | string | ApiClient.QueueHumanLikenessPatchForBlock | Posée au **dernier trial du bloc** uniquement, puis patchée via `PATCH /api/trial-responses/{id}` sur **tous** les trials du bloc avec la même valeur |
 | started_at                        | string | BuildBaseRow                      | Timestamp ISO 8601 UTC début de trial                                             |
 | ended_at                          | string | EndCurrentTrial                   | Timestamp ISO 8601 UTC fin de trial                                               |
 
@@ -2611,7 +2618,8 @@ Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJso
 ### Points d'attention sur les données
 
 - **⚠️ Flat row :** `TrialResponseRow` est une structure plate (~50 champs) — pas de nested objects — conçue pour insertion directe dans une table Supabase
-- **⚠️ Questionnaire patchés :** Les champs `q1_text/q1_response`, `q2_text/q2_response`, `q3_text/q3_response` sont vides au POST initial — ils sont patchés via `PATCH /api/trial-responses/{id}` après que le questionnaire est complété
+- **⚠️ Questionnaire :** `acceptability_question` et `sens_of_agency_question` sont renseignés **au POST initial** (le questionnaire de fin de trial précède l'envoi). Seul `human_likeness_question` est retiré du payload et patché ensuite via `PATCH /api/trial-responses/{id}`, sur tous les trials du bloc
+- **⚠️ Contrat de noms à vérifier (D-003) :** le schéma SQL de référence (`specs/multi-screen-flow/spec-tech.md:758`) déclare encore `q1_response`/`q2_response`/`q3_response`. Si la table Supabase suit ce schéma, les trois réponses n'atterrissent nulle part. À lever avant toute passation
 - **⚠️ player_path_log :** Sérialisé en string JSON (pas un objet imbriqué) — le backend reçoit la string telle quelle
 - **⚠️ green_bugs_accumulated :** Score accumulé dans le bloc courant (pas la session entière) — reset entre blocs
 - **⚠️ Timestamps :** `started_at` et `ended_at` utilisent `DateTime.UtcNow.ToString("o")` (ISO 8601 UTC)
@@ -3350,11 +3358,18 @@ _Section à compléter._
 
 | Package                                | Version | Usage                    |
 | :------------------------------------- | :------ | :----------------------- |
-| `com.unity.inputsystem`               | 1.17.0  | New Input System         |
-| `com.unity.render-pipelines.universal` | 17.3.0  | Rendu URP                |
-| `com.unity.ai.navigation`             | 2.0.9   | Navigation (non utilisé) |
-| `com.unity.timeline`                   | 1.8.10  | Timeline/animation       |
-| `com.unity.test-framework`            | 1.6.0   | Tests unitaires          |
+| `com.unity.inputsystem`                       | 1.17.0 | New Input System                                                       |
+| `com.unity.render-pipelines.universal`        | 17.3.0 | Rendu URP                                                              |
+| `com.unity.nuget.newtonsoft-json`             | 3.2.2  | **Désérialisation de `SessionConfig` — tout `ApiClient` en dépend**     |
+| `com.unity.cinemachine`                       | 3.1.6  | Caméras de WelcomeScene et AdvisorChoiceScene (`InteractionManagerProto`) |
+| `com.unity.probuilder`                        | 6.0.9  | Prototypage de scènes (sandboxes)                                      |
+| `com.unity.ai.navigation`                     | 2.0.9  | Navigation (non utilisé)                                               |
+| `com.unity.timeline`                          | 1.8.10 | Timeline/animation                                                     |
+| `com.unity.test-framework`                    | 1.6.0  | Tests unitaires (aucun test écrit à ce jour)                           |
+| `com.unity.render-pipelines.high-definition`  | 17.3.0 | ⚠️ **Installé en parallèle d'URP** — non utilisé par le projet, à retirer ou à justifier |
+
+> Inventaire complété le 28/07/26 (revue de couverture, constat N2-M) : le tableau ne listait
+> que 5 packages sur les 19 non-modules de `Packages/manifest.json`.
 
 ## 11.3 Glossaire technique
 

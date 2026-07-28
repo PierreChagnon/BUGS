@@ -113,7 +113,7 @@ Les systèmes utilisent `[DefaultExecutionOrder]` pour garantir l'initialisation
 
 **CorridorWallsGenerator** (Start, -50) : Élargit les chemins réservés en couloirs de largeur configurable. Ajoute des connexions supplémentaires pour réduire les culs-de-sac. Marque les cellules restantes comme murs.
 
-**TrapSpawner** (Start, -10) : Place les pièges sur les cellules passant `LevelRegistry.IsFreeForTrap()`. Count configurable via args de ligne de commande.
+**TrapSpawner** (Start, -10) : Place les pièges sur les cellules passant `LevelRegistry.IsFreeForTrap()`. Count lu depuis `SessionManager.trapCount`, lui-même recopié de la config de session (`MapGenConfig`).
 
 **TilesSpawner** (Awake, -240) : Génère la grille de tuiles au runtime. Calcule `LevelRegistry.originWorld` depuis la position du joueur (le joueur doit être centré en X, à z=0).
 
@@ -123,7 +123,7 @@ Les systèmes utilisent `[DefaultExecutionOrder]` pour garantir l'initialisation
 
 ### Pipeline de données de recherche
 
-**SessionManager** : Parse les args de ligne de commande (`trapCount=N`, `sessionId=X`) et configure les objets de scène au démarrage.
+**SessionManager** : Façade locale de ProximalScene. Recopie la `MapGenConfig` active depuis `FlowController` au `Awake` et pose la seed du trial dans `LevelRegistry`. Ne parse **aucun** argument de ligne de commande. Sans `FlowController`, les valeurs de l'Inspector de la scène font foi (mode dev).
 
 **TrialManager** : Collecte les données de trial (log du chemin joueur, config de la map, choix, justesse). Poste les données de trial en batch vers une API REST (`/api/trials`) avec auth par token.
 
@@ -281,9 +281,10 @@ L'ordre d'exécution est critique : `LevelRegistry` → `FogController` → `Til
 ### Flux de jeu
 
 1. **Chargement de scène** : Les systèmes s'initialisent dans l'ordre d'exécution (Awake puis Start)
-2. **SessionManager.Start()** : Parse les args de ligne de commande, appelle `GameManager.BeginFirstRound()`
-3. **Gameplay** : Steps joueur → valider → déplacer → révéler brouillard → marquer visité → tracker dans TrialManager
-4. **Fin de round** : Collision nuage → verrouiller inputs → calculer récompenses → envoyer données trial → afficher game over UI → rechargement de scène
+2. **FlowController.BootstrapFlow()** (BootScene) : lit le **seul** argument de ligne de commande supporté, `sessionId=<id>` (fallback éditeur `_editorSessionId`), puis `ApiClient.FetchSessionConfig`
+3. **SessionManager.Awake()** (ProximalScene) : recopie la config du trial depuis `FlowController` ; `Start()` appelle `GameManager.BeginFirstRound()`
+4. **Gameplay** : Steps joueur → valider → déplacer → révéler brouillard → marquer visité → tracker dans TrialManager
+5. **Fin de round** : Collision nuage → verrouiller inputs → calculer récompenses → envoyer données trial → questions de fin de trial (`TrialQuestionsUI`) → envoi API → `FlowController.OnTrialComplete` → trial suivant, pause, ou fin de session
 
 ---
 

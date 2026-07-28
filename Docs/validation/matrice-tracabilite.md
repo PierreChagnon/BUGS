@@ -19,6 +19,7 @@
 | `session_template_id` | string | id session | `BuildBaseRow` | non | | |
 | `session_name` | string | nom de la session | `SessionConfig.label` via `BuildBaseRow` | omis si null | | |
 | `build_version` | string | ex. `0.3.0-flow` | `SessionManager`/`FlowController` | non | | |
+| `block_template_id` | string | id template de bloc | `block.block_template_id` (DEC-022) | omis si null | | ⚠️ ajouté au tableau le 28/07/26 (D-014) |
 | `block_index` | int | ≥ 1 (1-based) | `BuildBaseRow` | non | | |
 | `trial_index` | int | ≥ 1 (1-based) | `BuildBaseRow` | non | | |
 | `trial_count` | int | nb trials du bloc | `block.trial_count` | non | | |
@@ -37,7 +38,7 @@
 | `proximal_forced_probability` | float | [0,1] | block/flow.State | non | | |
 | `proximal_forced_optimal_probability` | float | [0,1] | block/flow.State | non | | |
 | `motor_forced_probability` | float | [0,1] | block/flow.State | non | | |
-| `motor_forced_set` | string | `QZD`/`FTH`/`KOM` | block/flow.State | **oui** | | |
+| `motor_forced_set` | string | `QZD`/`FTH`/`JIL` ⚠️ (ex-`KOM`) | block/flow.State | **oui** | | |
 
 ## Config map (paramètres expérimentaux)
 
@@ -139,4 +140,56 @@
 | :- | :-- | :-- | :-- | :-- | :-- |
 | | | | | | |
 
-> Total champs code = **80**. Reporter chaque ligne `❌`/`🔁`/`⚠️` ici et dans `journal-divergences.md`.
+> Total champs code = **82** (décompte vérifié le 28/07/26 sur `FlowDataModels.cs:461-543` ;
+> l'ancienne valeur de 80 précédait l'ajout de `session_name` et `block_template_id`).
+> Reporter chaque ligne `❌`/`🔁`/`⚠️` ici et dans `journal-divergences.md`.
+
+---
+
+## Troisième axe — confrontation au CSV **attendu par le client**
+
+> Ajouté le 28/07/2026. **Cette matrice compare le code au CSV *exporté*. Elle ne comparait
+> pas le code au CSV *attendu*** — c'est-à-dire à `Docs/references/CSV_BUGS_Output_V1.xlsx`,
+> les 76 colonnes demandées par le chercheur. `Docs/roles/analyse-fonctionnelle.md` prévoyait
+> pourtant cette matrice « comportement → colonne CSV V1 » ; elle n'avait jamais été produite.
+
+La confrontation complète **colonne client → champ code** (76 lignes, avec statut
+✅ / 🔁 renommé / ⚠️ dérivable / ❌ absent / 🟢 couvert ailleurs) est dans
+**[`Docs/project-state/revue-couverture-2026-07-28.md` §2](../project-state/revue-couverture-2026-07-28.md)**.
+Elle n'est pas dupliquée ici pour éviter deux sources de vérité divergentes.
+
+**Résultat en un coup d'œil**
+
+| | Nombre |
+| :-- | :-: |
+| Colonnes attendues par le client | 76 |
+| Champs émis par le code | 82 |
+| Correspondances de **nom exact** | 10 |
+| Renommages à équivalence sémantique | ~16 |
+| Colonnes client **absentes** du code | **29** |
+| Champs code **absents** du template client (évolution DEC-017/018/019/022, légitime) | ~30 |
+
+**Les 29 absences, par famille**
+
+| Famille | Colonnes | Réf |
+| :-- | :-: | :-- |
+| `visibility_noise` (feature inexistante) | 7 | F1 / Q-013 |
+| Stimulus distal réalisé (`*_valley_*_bugs_nb`) | 5 | **D-009** / Q-DISTAL-1 |
+| Niveau moteur (set actif, affiché, donné, choix) | 4 | **D-008** / Q-MOTOR-1 |
+| Adhérence au conseil (`*_match_advice`) | 3 | **D-007** |
+| Granularité de ligne (`screen_type`, `screen_id`) | 2 | Q-ROW-1 |
+| Conseil proximal (cible et chemin affichés) | 2 | — |
+| Identification (`username`, `game_session_id`) | 2 | — |
+| Bornes de pièges (`min/max_traps_nb`) | 2 | — |
+| `Trust in Technology Questionnaire` | 1 | **D-010** / Q-TRUST-1 |
+| `proximal_advice_reliability` (paramètre nommé) | 1 | — |
+
+> ⚠️ **Lecture équitable.** Le template CSV V1 date de mars 2026 et précède DEC-017, DEC-018,
+> DEC-019 et DEC-022. Une bonne part de l'écart est une **évolution légitime du design**.
+> Le problème n'est pas que le code diverge — c'est que **l'écart n'a jamais été acté**,
+> ni côté renommages (le chercheur ne sait pas que `final_reward` s'appelle désormais
+> `green_bugs_collected`), ni côté absences.
+
+**À faire en Axe 1 / gate G4** : compléter cette confrontation en même temps que les colonnes
+`CSV ?` / `Statut` ci-dessus, et faire signer au chercheur la table des renommages — c'est
+elle qui rend le CSV lisible sans le code sous les yeux.

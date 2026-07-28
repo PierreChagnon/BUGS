@@ -40,12 +40,12 @@
 ### Q-002 — Quelles colonnes CSV V1 pour le motor advice ?
 - **Posée le :** 2026-03-12
 - **Origine :** Analyse fonctionnelle, chantier Motor Advice
-- **Bloque :** Traçabilite data et spec fonc finale
+- **Bloque :** ~~Traçabilite data et spec fonc finale~~ → 🔴 **requalifiée le 2026-07-28** (revue de couverture, constat N1-B / divergence D-008) : **aucune** des 4 données n'est enregistrée aujourd'hui. Ce n'est pas un sujet de traçabilité mais **une manipulation expérimentale sans mesure** — le niveau moteur est inanalysable. Passe au rang des arbitrages bloquants, aux côtés de Q-010 et Q-011.
 - **Question :** Quelles colonnes CSV exactes doivent enregistrer le set actif, l affichage de l advice, sa fiabilite et le set affiche ?
 - **Options :**
   - A : Ajouter 4 colonnes dediees → impact : mise a jour schema CSV
   - B : Reutiliser colonnes existantes → impact : mapping a clarifier
-- **Statut :** EN ATTENTE
+- **Statut :** EN ATTENTE — **reprise et détaillée dans [Q-MOTOR-1](#q-motor-1--que-faut-il-enregistrer-du-motor-advice-durcit-q-002)** (2026-07-28). Répondre à Q-MOTOR-1 clôt celle-ci.
 - **Réponse :** —
 
 ### Q-003 — Le motor advice doit-il inclure une explanation ?
@@ -200,6 +200,7 @@
   - C : Le chercheur choisit un sous-ensemble parmi lequel tirer → impact : compromis
 - **Statut :** RÉPONDU
 - **Réponse :** **Option A étendue par Note 3** (2026-05-26). `motor_forced_set ∈ {QZD, FTH, KOM}` fixé par le chercheur via dropdown dans le session config panel. **Évolution majeure** : motor passe de block-wise à trial-wise. Le set imposé s'applique **uniquement aux trials forced** du bloc (selon `motor_forced_probability ∈ [0, 1]`) ; les trials free du même bloc conservent le tirage aléatoire par trial. Tranché par DEC-019 et `Docs/specs/free-forced-choices/spec-fonc.md` (§2.4 R17–R20).
+  > ⚠️ **Errata 2026-07-28** — le domaine cité ci-dessus est celui de mai 2026. Le set `OKLM` a depuis été remplacé par `IJKL` (commit `7b3a9e86`) : le domaine réel est **`{QZD, FTH, JIL}`**. Cf. errata de `free-forced-choices/spec-fonc.md`.
 
 ### Q-006 — Explanations associées aux advice (short/long)
 - **Posée le :** 2026-05-12
@@ -217,12 +218,12 @@
 - **Posée le :** 2026-05-12
 - **Origine :** Pilotage, revue d'avancement vs GDD 2.0
 - **Bloque :** Cohérence protocole. Résultats comparables au GDD.
-- **Question :** Le GDD spécifie "When a trap is hit both clouds loose 1 green bug". L'implémentation actuelle décrémente le total de bugs sur les deux clouds et recalcule un ratio en fin de trial. Quel modèle conserve-t-on ?
+- **Question :** ⚠️ **Reformulée le 2026-07-28 — ce n'est plus un arbitrage entre deux modèles, mais un sign-off.** La revue de complétude a établi que le code applique déjà le modèle du GDD : `-1 bug vert par nuage par piège`, sans jamais retirer de bug rouge et sans descendre sous zéro (`GameManager.cs:262-275`, `BugCloud.AddBugs`). La même pénalité de -1 s'applique aussi à deux autres événements non prévus au GDD : chaque pas au-delà du budget (distance de Manhattan joueur→nuages) et chaque appui sur une touche hors du set moteur actif. **Confirmez-vous ce modèle tel qu'implémenté, y compris les deux pénalités additionnelles ?**
 - **Options :**
-  - A : **Aligner sur le GDD** : -1 green bug par cloud par piège → impact : refonte du modèle de pénalité côté GameManager + BugCloud, alignement avec le protocole publié
-  - B : **Conserver l'implémentation actuelle** : décrément du total, recalcul du ratio → impact : mettre à jour le GDD, justifier le choix scientifiquement
+  - A : **Valider en l'état** → impact : aucun changement de code ; on ferme Q-007 et on corrige le TDD, qui décrit encore à tort une pénalité de -2 (18 occurrences)
+  - B : **Valider la pénalité de piège mais revoir les deux autres** (budget de pas, touche invalide) → impact : à cadrer, ces deux mécaniques ne figurent pas au GDD
   - C : **Autre modèle** à préciser → impact : à définir
-- **Statut :** EN ATTENTE
+- **Statut :** EN ATTENTE — le code tranche déjà côté GDD, seul le sign-off manque
 - **Réponse :** —
 
 ### Q-008 — Nombre de paths visibles dans la forêt (2 vs 4)
@@ -478,6 +479,209 @@
 - **Options :**
   - A : Clavier gameplay via `GameManager.inputLocked` (le fond modal bloque déjà la souris)
   - B : + autres systèmes (caméra, scan) si nécessaire
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+---
+
+## Questions ouvertes ajoutées par la revue de complétude (2026-07-28)
+
+> Ces questions existaient déjà ailleurs dans le repo ou ont été découvertes en confrontant le code aux specs.
+> Détail complet : `Docs/project-state/revue-completude-2026-07-28.md`.
+
+### Q-CONSENT-1 — Quel est le texte de consentement réel, et qui doit pouvoir l'éditer ?
+- **Posée le :** 2026-07-28
+- **Origine :** Pilotage, revue de complétude (écran E2)
+- **Bloque :** 🔴 **La conformité éthique de la passation.** Aujourd'hui `ConsentUI.cs:16-20` écrase l'écran par un placeholder codé en dur (« Veuillez accepter le consentement pour demarrer la session. ») et il n'existe **aucun champ `consent_text`** dans la configuration de session. Le vrai texte ne peut donc être affiché ni par la scène, ni par l'API.
+- **Question :** Quel texte doit voir le participant, et doit-il être éditable par le chercheur sans rebuild ?
+- **Options :**
+  - A : Texte fourni une fois et figé dans la scène Unity → impact : simple, mais toute correction impose un rebuild
+  - B : Nouveau champ `consent_text` dans la configuration de session (comme `rules`) → impact : cohérent avec DEC-009, éditable à chaud, ~½ journée de dev
+- **Note annexe :** `ConsentUI.cs:34` annonce « La session s'arrete ici » alors que le refus renvoie vers Welcome. À trancher aussi : que doit-il se passer exactement en cas de refus ?
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-QUEST-1 — QuestionnaireScene : à câbler ou à retirer du flow ?
+- **Posée le :** 2026-07-28
+- **Origine :** Pilotage, revue de complétude (écran E1)
+- **Bloque :** 🔴 Un écran mort dans le flow.
+- **Question :** `QuestionnaireUI.cs:38` force la liste de questions à vide : la scène ne collecte **rien**. Les 3 dimensions sont en réalité collectées par `TrialQuestionsUI` dans ProximalScene, qui fonctionne. Faut-il un questionnaire de fin de bloc **en plus** de celui par trial ?
+- ⚠️ **Portée corrigée le 2026-07-28** (revue de couverture, constat N1-D / divergence D-010). Trois précisions changent l'arbitrage :
+  1. **La scène n'est même jamais chargée** — `AdvanceToPhase(GamePhase.Questionnaire)` n'existe nulle part (12 sites d'appel vérifiés). Elle est activée dans le build mais inatteignable. L'option A ne « économise » donc rien au runtime : elle nettoie du code mort.
+  2. **L'option B n'est pas un branchement.** `BlockConfig.questions` **n'existe pas** : `QuestionConfig` est un type orphelin, référencé par aucun champ de configuration. Vous n'avez aujourd'hui aucun moyen de saisir des questions.
+  3. **La sortie est amputée** : `ApiClient.QueueQuestionnairePatchForTrial:136-147` ne conserve **que** la réponse « ressemblance humaine » et jette les autres. Câbler suppose donc aussi d'étendre le contrat d'envoi.
+- **Options :**
+  - A : Retirer QuestionnaireScene du flow et du build → impact : ~110 lignes de code mort et une scène supprimées ; **le plus économique**
+  - B : La câbler → impact : **extension du modèle de données** (`BlockConfig.questions`) **+ du contrat de PATCH** + saisie côté panneau de configuration. Dépend de Q-011 (quelles questions, quels textes) et de **Q-TRUST-1** (est-ce là que doit passer le questionnaire Trust in Technology ?)
+- **Statut :** EN ATTENTE — à trancher **avec [Q-TRUST-1](#q-trust-1--le-questionnaire-trust-in-technology-est-il-dans-le-jeu-ou-en-dehors)**
+- **Réponse :** —
+
+### Q-FF-12 — Articulation `distal_forced_optimal_probability` vs `distal_advice_reliability`
+- **Posée le :** 2026-05-26 (reportée ici le 2026-07-28 — elle n'existait que dans `specs/free-forced-choices/spec-fonc.md`)
+- **Origine :** Analyse fonctionnelle, chantier free-forced-choices
+- **Bloque :** Rien pour l'instant — résiduelle, non bloquante.
+- **Question :** Comment s'articulent le paramètre d'optimalité du choix distal imposé et la fiabilité de l'advice distal ?
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-FF-13 — Le bloc tutorial doit-il présenter le mode forced ?
+- **Posée le :** 2026-05-26 (reportée ici le 2026-07-28)
+- **Origine :** Analyse fonctionnelle, chantier free-forced-choices
+- **Bloque :** Rien pour l'instant — résiduelle, non bloquante.
+- **Question :** Le tutorial doit-il démontrer le mode forced au participant, ou rester 100 % free (TR4 actuelle) ?
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-BACK-1 — Le retour en arrière doit-il être interdit ?
+- **Posée le :** 2026-07-28
+- **Origine :** Pilotage, revue de complétude (écart F2)
+- **Bloque :** Cohérence protocole.
+- **Question :** `specs-light.md` §4 indique que « le joueur ne peut pas aller sur une case déjà visitée ». Le code ne l'applique pas (`LevelRegistry.cs:266`) : seul le budget de pas (`overtime_steps`) pénalise les trajets non optimaux. Faut-il implémenter l'interdiction, ou acter que le budget de pas la remplace ?
+- **Options :**
+  - A : Acter que le budget de pas remplace l'interdiction → impact : aucun dev, une décision à enregistrer
+  - B : Implémenter l'interdiction → impact : dev court, mais fait potentiellement doublon avec `overtime_steps`
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-DATA-1 — Que doit valoir l'acceptabilité pour un trial joué sans advisor ?
+- **Posée le :** 2026-07-28 · **Reformulée le 2026-07-28** après vérification du code
+- **Origine :** Pilotage, revue de complétude (défaut D1 requalifié, Lot A1)
+- **Bloque :** 🔴 **Lot A1 — priorité absolue.** La formulation initiale (« que faire d'un questionnaire incomplet ») décrivait un aléa de comportement participant. Le vrai problème est systématique : la question d'acceptabilité **n'est délibérément pas posée** quand aucun advisor n'a été choisi (`TrialQuestionsUI.cs:91` — « elle n'a pas de sens si aucun advisor n'a été choisi »). Le champ reste donc vide (`FlowSerializationUtility.cs:45`), et `TrialManager.cs:119-124` **jette la ligne entière**. Résultat : **aucune trial de la condition `advisor = none` — la condition contrôle — n'arrive en base.**
+- **Question :** Pour un trial où le participant n'a pas d'advisor, la question d'acceptabilité n'a pas de sens et n'est pas posée. Que doit contenir la colonne `acceptability_question` dans ce cas ?
+- **Options :**
+  - A : **Vide / `null` assumé** → impact : la ligne part avec le gameplay complet ; dans l'analyse, `null` sur cette colonne signifie « sans advisor » et se déduit de `advisor_choice`
+  - B : **Une valeur « non applicable » explicite** (ex. `"n/a"`) → impact : distingue sans ambiguïté « non applicable » d'une non-réponse d'un participant qui a abandonné en cours de questionnaire
+  - C : **Poser quand même la question sans advisor** (reformulée) → impact : change le protocole, à cadrer côté chercheur
+- **Note :** quelle que soit l'option, le correctif A1 doit aussi couvrir le cas d'un participant qui abandonne réellement en cours de questionnaire — la ligne de gameplay ne doit jamais être perdue.
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-TIE-1 — Quand les deux nuages finissent à égalité, quel choix est « correct » ?
+- **Posée le :** 2026-07-28
+- **Origine :** Pilotage, revue de complétude — vérification du TDD §4.2.5 contre le code
+- **Bloque :** 🟠 Validité de la variable dépendante `choice_correct` (et de `true_cloud`) sur une partie des trials.
+- **Contexte :** Le nuage « correct » est celui qui a le plus de bugs verts au moment de la collecte. Le code écrit `_leftCloud.greenBugs > _rightCloud.greenBugs ? _leftCloud : _rightCloud` (`GameManager.cs:404`) : la comparaison est **stricte**, donc **en cas d'égalité c'est toujours le nuage de droite qui est déclaré correct**, sans tirage aléatoire.
+- **Le cas est-il atteignable ?** **Oui**, et pas par un réglage exotique :
+  - Au spawn, non : les deux nuages partagent le même `totalBugs` et leurs ratios verts sont séparés d'un écart `gap ≥ gap_min` (défaut 0.1), soit au moins 2 bugs verts d'écart. *Sauf si `gap_min` est mis à 0 côté configuration de session — auquel cas l'égalité est immédiate et systématique.*
+  - **En cours de trial, oui.** Chaque pénalité retire 1 bug vert à **chaque** nuage, mais s'arrête à zéro (`BugCloud.AddBugs`). Une fois les deux nuages vidés, ils sont à égalité (0 = 0) et le nuage de droite gagne automatiquement. Avec les valeurs par défaut, le plus riche des deux nuages peut n'avoir que 10 bugs verts (`total = 20`, ratio 0.5) — or `trap_count` vaut 10 par défaut, auxquels s'ajoutent 1 pénalité par pas hors budget et 1 par touche invalide. **Un participant en difficulté atteint donc l'égalité à zéro.**
+  - Conséquence : le biais se concentre précisément sur les trials où le participant a le plus mal performé.
+- **Question :** Dans ce cas d'égalité, que doit valoir `choice_correct` ?
+- **Options :**
+  - A : **Tirage aléatoire du nuage correct** → impact : correctif dans `GetBestCloud()` ; conserve une chance sur deux, mais introduit du bruit non reproductible (à seeder)
+  - B : **`choice_correct` = `null` / trial exclu de l'analyse** → impact : `GetBestCloud()` renvoie `null` (ce que le TDD décrivait à tort déjà), et `true_cloud` vaut `"none"` ; l'analyse doit filtrer ces trials
+  - C : **`choice_correct` = vrai quel que soit le nuage collecté** (les deux valent autant, donc aucun mauvais choix) → impact : sémantiquement défendable, à acter explicitement
+  - D : **Conserver le comportement actuel** (droite gagne) → impact : biais systématique assumé et documenté, à mentionner dans la publication
+- **Note technique :** si l'option retenue n'est pas D, le correctif est de quelques lignes dans `GameManager.GetBestCloud()`. Voir aussi le point d'attention « Départage à égalité » dans `Docs/TDD.md` §4.2.6.
+  ⚠️ **Complément 2026-07-28 (revue de couverture)** : une **seconde convention, contradictoire**, existe dans le codebase — `BugCloudGenerationUtility.BestCloudIndex` (`:27`) désigne le **premier** nuage à égalité, là où `GameManager` désigne celui de droite. Quelle que soit l'option retenue, les deux emplacements doivent être unifiés.
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+---
+
+## Questions ouvertes par la revue de couverture bidirectionnelle (2026-07-28)
+
+> Source : `Docs/project-state/revue-couverture-2026-07-28.md` — confrontation du code au **CSV de référence client** (`Docs/references/CSV_BUGS_Output_V1.xlsx`), confrontation jamais faite jusqu'ici.
+> Ces sept questions portent toutes sur **la donnée de sortie** : le jeu fonctionne, mais une partie de ce que le protocole doit mesurer n'arrive pas en base.
+
+### Q-MOTOR-1 — Que faut-il enregistrer du motor advice ? *(durcit Q-002)*
+- **Posée le :** 2026-07-28
+- **Origine :** Pilotage, revue de couverture (constats N1-A et N1-B, divergences D-007 et D-008)
+- **Bloque :** 🔴 **Toute analyse impliquant le niveau moteur.** Q-002 était classée « traçabilité » depuis le 12/03/26. Après vérification du code, ce n'est pas un sujet de traçabilité : **c'est une manipulation expérimentale sans mesure.**
+- **Contexte :** aujourd'hui, la ligne envoyée ne contient, pour le niveau moteur, que les **probabilités de configuration** (`motor_advice_visible_probability`, `motor_advice_reliable_probability`) et les paramètres de forçage. Ce qui s'est réellement passé sur le trial n'est nulle part : ni le set de touches **actif**, ni le set **affiché** au participant, ni le fait que le conseil ait été affiché, ni qu'il ait été fiable. Ces quatre valeurs existent bien en mémoire (`MotorAdviceController.ActiveSet` / `DisplayedSet` / `AdviceVisible` / `AdviceReliable`) — elles ne sont simplement jamais recopiées dans la ligne.
+- **Conséquences concrètes :** on ne peut pas mesurer si le participant a suivi le conseil moteur ; on ne peut pas distinguer un trial où le conseil était absent d'un trial où il était présent mais trompeur ; la colonne `motor_choice_match_advice` du CSV de référence est donc **impossible à recalculer post-hoc**.
+- **Question :** quelles colonnes le motor advice doit-il produire dans `trial_responses` ?
+- **Options :**
+  - A : **Les 4 valeurs réalisées** — set actif, set affiché, conseil affiché (oui/non), conseil fiable (oui/non) → impact : symétrie complète avec le distal (qui logge déjà `distal_advice_visible` et `distal_advice_reliable`) ; permet de recalculer l'adhérence moteur post-hoc
+  - B : **Les 4 valeurs + une colonne `motor_choice_match_advice` pré-calculée** → impact : le CSV client est servi tel quel, aucun retraitement côté analyse
+  - C : **Le minimum** — seulement « conseil affiché » et « conseil fiable » → impact : on sait quand le conseil est intervenu, mais pas ce que le participant a vu ni ce qu'il a fait ; l'adhérence reste non mesurable
+- **Note :** l'option retenue conditionne aussi Q-002 (qui peut alors être close) et le lot E1/E3 de la revue de couverture.
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-DISTAL-1 — Faut-il enregistrer les valeurs réellement affichées sur l'écran distal ?
+- **Posée le :** 2026-07-28
+- **Origine :** Pilotage, revue de couverture (constat N1-C, divergence D-009)
+- **Bloque :** 🔴 Analyse du choix distal — donc H6 (« higher levels of abstraction ») côté distal.
+- **Contexte :** sur l'écran de scan des deux vallées, le jeu tire et affiche des quantités concrètes de bugs verts et rouges de chaque côté. La ligne enregistrée ne contient que **les bornes de configuration** (min/max total, min/max ratio, écart) et l'indication de la vallée objectivement la meilleure. **Les valeurs effectivement vues par le participant ne sont enregistrées nulle part.** On connaît donc la distribution dans laquelle le stimulus a été tiré, mais pas le stimulus lui-même.
+- **Asymétrie :** côté forêt, les valeurs réelles des deux nuages **sont** bien enregistrées (colonne `map_config`). Le distal semble simplement avoir été oublié.
+- **Question :** faut-il enregistrer, par bloc, les valeurs réellement affichées pour chaque vallée ?
+- **Options :**
+  - A : **Oui, comme pour les nuages** — total, verts et rouges de chaque vallée → impact : aligne le distal sur le proximal, sert les colonnes `left/right_valley_*_bugs_nb` du CSV de référence
+  - B : **Oui, mais sous forme condensée** (un objet JSON par bloc, comme `map_config`) → impact : moins de colonnes, nécessite un parsing côté analyse
+  - C : **Non** — les bornes de configuration suffisent → impact : à acter explicitement, avec la limite correspondante ajoutée au codebook
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-ROW-1 — Une ligne par écran ou une ligne par essai ?
+- **Posée le :** 2026-07-28
+- **Origine :** Pilotage, revue de couverture (§3)
+- **Bloque :** 🟠 Interprétation de tout fichier exporté. Point jamais explicité au chercheur.
+- **Contexte :** le tableau de référence fourni en début de projet (`CSV_BUGS_Output_V1.xlsx`) prévoit **une ligne par écran** — l'écran de choix de vallée a sa propre ligne, distincte de celles des essais en forêt (colonnes `screen_type`, `screen_id`). Le jeu produit **une ligne par essai** : c'est la décision **DEC-011** (table plate, export sans jointure). Les informations du choix de vallée sont donc **recopiées à l'identique sur chaque essai du bloc**.
+- **Conséquence d'analyse :** toute moyenne ou tout comptage effectué naïvement sur les lignes surpondère les variables de niveau bloc (choix de vallée, conseil distal, questionnaire) proportionnellement au nombre d'essais du bloc.
+- **Question :** confirmez-vous le format « une ligne par essai », avec recopie des informations de bloc ?
+- **Options :**
+  - A : **Oui, statu quo** → impact : aucun développement ; on ajoute au codebook un avertissement explicite et la liste des colonnes concernées
+  - B : **Ajouter deux colonnes de repérage** (`screen_type`, `screen_id`) sans changer la granularité → impact : petit développement, facilite le filtrage côté analyse
+  - C : **Revenir à une ligne par écran** → impact : refonte du modèle de données et de l'export ; remet en cause DEC-011
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-TRUST-1 — Le questionnaire « Trust in Technology » est-il dans le jeu ou en dehors ?
+- **Posée le :** 2026-07-28
+- **Origine :** Pilotage, revue de couverture (constat N1-D, divergence D-010)
+- **Bloque :** 🔴 H7 (« Individual traits, such as trust in technology »). Conditionne aussi Q-QUEST-1.
+- **Contexte :** le document de référence liste le *Trust in Technology Questionnaire* parmi les instruments de mesure. **DEC-005** avait tranché que les questionnaires pré/post sont hors périmètre du jeu (passation via Qualtrics, redirection en fin de session). Or il existe dans le jeu une scène « Questionnaire » à moitié construite, qui n'est **jamais atteinte** et dont le mécanisme de configuration n'existe pas. Les trois questions par essai (acceptabilité, contrôle, ressemblance humaine) sont, elles, bien collectées ailleurs et fonctionnent.
+- **Question :** ce questionnaire doit-il être passé dans le jeu, ou reste-t-il hors périmètre ?
+- **Options :**
+  - A : **Hors périmètre, confirmé (DEC-005)** → impact : on retire la scène inutilisée du jeu ; le lien de redirection en fin de session sert déjà à cela. Le plus économique
+  - B : **Dans le jeu, entre les blocs** → impact : développement à chiffrer — il faut créer le moyen pour vous de saisir les questions, l'écran de passation, et l'enregistrement des réponses (rien de tout cela n'existe aujourd'hui)
+  - C : **Dans le jeu, une seule fois en fin de session** → impact : même développement, mais un seul point de passation
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-FREQ-1 — À quelle fréquence poser les trois questions, et sur quelle échelle ?
+- **Posée le :** 2026-07-28
+- **Origine :** Pilotage, revue de couverture (§4)
+- **Bloque :** 🟠 Charge cognitive du participant, durée de passation, et comparabilité avec la littérature.
+- **Contexte :** le document de référence dit « après **certains** essais ». Le jeu pose aujourd'hui **deux questions après chaque essai** (acceptabilité + contrôle) et une troisième au dernier essai du bloc (ressemblance humaine). **Il n'existe aucun réglage de fréquence.** Sur un bloc de 36 essais, cela représente **72 interruptions** par bloc.
+  Deux détails d'implémentation jamais actés : l'échelle comporte **5 niveaux** (« pas du tout d'accord » → « tout à fait d'accord »), et **l'ordre des questions est mélangé** à chaque essai (de façon reproductible).
+- **Question :** à quelle fréquence ces questions doivent-elles être posées, et sur quelle échelle ?
+- **Options (fréquence) :**
+  - A : **Après chaque essai, statu quo** → impact : aucun développement ; charge participant élevée
+  - B : **Sur un sous-ensemble d'essais, réglable par bloc** → impact : développement modéré (un paramètre + un tirage) ; réduit la charge et rapproche du document de référence
+  - C : **Une fois par bloc uniquement** → impact : beaucoup moins de données par participant
+- **Options (échelle) :** 5 niveaux (statu quo) · 7 niveaux · autre — merci de préciser aussi les **libellés** attendus (cf. Q-011).
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-RANDOM-1 — L'ordre des advisors et l'apparence de l'advisor humain doivent-ils être contrôlés ?
+- **Posée le :** 2026-07-28
+- **Origine :** Pilotage, revue de couverture (constat N2-A, divergence D-012)
+- **Bloque :** 🔴 Contrôle d'un confondant sur le méta-choix (H1), et cohérence de la présentation de l'advisor.
+- **Contexte :** deux tirages aléatoires échappent aujourd'hui au mécanisme de reproductibilité du jeu (tout le reste du gameplay est reproductible à partir d'une graine enregistrée) :
+  1. **L'ordre des trois options d'advisor** (aucun / humain / robot) est **remélangé à chaque affichage**. L'ordre présenté n'est ni reproductible, ni enregistré, ni spécifié dans aucun document. Or un effet de position (gauche / milieu / droite) est un biais classique, et il porte ici sur **le choix le plus en amont du protocole**. En l'état, il est **impossible de le vérifier ou de le corriger après coup**.
+  2. **L'apparence de l'advisor humain** (homme ou femme) est tirée à pile ou face **indépendamment par chaque élément d'interface**. Conséquence : sur un même essai, l'indicateur de conseil peut montrer une femme pendant que l'encart d'explication montre un homme. Le document de référence s'interroge explicitement sur les biais liés à l'apparence des advisors.
+- **Question :** que doit-il se passer pour chacun de ces deux points ?
+- **Options (ordre des advisors) :**
+  - A : **Randomisé, mais reproductible et enregistré** → impact : correctif simple ; permet de tester l'effet de position dans l'analyse. **Recommandé**
+  - B : **Ordre fixe pour tous les participants** → impact : supprime la variance, mais installe un effet de position constant
+  - C : **Contrebalancé entre participants** (ordre déterminé par l'identifiant participant) → impact : le plus propre méthodologiquement, développement légèrement supérieur
+- **Options (apparence de l'advisor humain) :**
+  - A : **Un seul genre pour tout le projet** → impact : le plus simple, supprime la variable
+  - B : **Tiré une fois par participant, cohérent partout** → impact : permet de contrôler la variable dans l'analyse ; suppose de l'enregistrer
+  - C : **Tiré une fois par bloc, cohérent partout** → impact : idem, plus proche du comportement actuel
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
+### Q-HL-1 — La réponse « ressemblance humaine » doit-elle figurer sur toutes les lignes du bloc ?
+- **Posée le :** 2026-07-28
+- **Origine :** Pilotage, revue de couverture (constat N2-B, divergence D-011)
+- **Bloque :** 🟠 Interprétation de la colonne `human_likeness_question`. **Ferme le point de vigilance PC-7.**
+- **Contexte :** cette question n'est posée **qu'une fois par bloc** (au dernier essai). Le code recopie ensuite la réponse **sur toutes les lignes du bloc**. **DEC-013** et le dictionnaire de données annoncent au contraire qu'elle n'est renseignée que sur **la dernière ligne**. Le comportement du code est peut-être le bon — il évite d'avoir à faire une jointure pour analyser — mais il n'est écrit nulle part, et une moyenne calculée naïvement sur les lignes compte la réponse autant de fois qu'il y a d'essais dans le bloc.
+- **Question :** quel comportement retenir ?
+- **Options :**
+  - A : **Recopie sur toutes les lignes, statu quo** → impact : aucun développement ; on corrige DEC-013 et le codebook, et on ajoute un avertissement d'analyse
+  - B : **Uniquement sur la dernière ligne du bloc** (conforme à DEC-013) → impact : correctif simple ; l'analyse doit rattacher la réponse au bloc
 - **Statut :** EN ATTENTE
 - **Réponse :** —
 
