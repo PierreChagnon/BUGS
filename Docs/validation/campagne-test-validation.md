@@ -68,7 +68,7 @@ Pyramide de tests « data », dans l'ordre. **On ne monte pas d'un axe tant que 
   - Free vs **forced** (advisor/distal/proximal/motor) × `*_forced_value`
   - **Explanations** : `display_mode` {forced, opt-in, none} × `content_variant` {short, long} × type advisor ; tracking opt-in (`*_explanation_clicked`, `*_explanation_display_duration_ms`)
   - Reliability/visibilité (distal/motor)
-  - Motor sets {QZD, FTH, KOM}
+  - Motor sets {QZD, FTH, JIL} — ⚠️ `JIL` (IJKL) remplace `KOM` (OKLM) depuis le commit `7b3a9e86`. Vérifier qu'aucune config de session Supabase ne porte encore `KOM` : `FlowValueConverters.ToMotorKeySet` la convertirait **silencieusement en ZQSD**.
   - Suboptimal path / detour / fog / suboptimal traps
 - [ ] **Tutorial** : `is_tutorial=true` ⇒ trial **NON envoyé** (DEC-014) — vérifier l'absence de ligne et qu'elle ne crée pas de « trou » mal interprété.
 - [ ] Vérifier la **granularité** (blockwise vs trialwise) conforme aux décisions.
