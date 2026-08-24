@@ -4,7 +4,13 @@ using UnityEngine;
 // InContextTutorialSceneBinder : glue de scene pour l'overlay in-context tutorial.
 // A poser dans AdvisorChoiceScene / DistalChoiceScene / ProximalScene avec _scene regle.
 // Lit BlockConfig.in_context_tutorial pour alimenter l'overlay si le bloc est is_tutorial.
-// Sur Proximal, l'overlay n'est affiche qu'au 1er trial du bloc (current_trial_index == 0).
+//
+// Deux visibilites distinctes, portees par le meme prefab :
+//  - le bandeau persistant (frere de Root dans le prefab) reste affiche pendant TOUT le
+//    bloc tutorial => pilote par l'etat actif du GameObject de l'overlay ;
+//  - la modale d'instructions ne s'ouvre qu'a l'arrivee dans la scene, et sur Proximal
+//    uniquement au 1er trial du bloc (current_trial_index == 0), la scene rechargeant
+//    a chaque trial.
 // -----------------------------
 public class InContextTutorialSceneBinder : MonoBehaviour
 {
@@ -34,12 +40,19 @@ public class InContextTutorialSceneBinder : MonoBehaviour
         // Le binder est l'unique source de verite pour la visibilite de l'overlay.
         // On (re)force l'etat actif du GameObject a chaque runtime, pour ne PAS dependre
         // d'une activation/desactivation oubliee en editeur (ex. panneau desactive pour
-        // travailler dans la scene). Actif si on est dans un tuto pour cette scene, sinon inactif.
-        bool shouldShow = ShouldShowForCurrentBlock(flow);
-        _overlay.gameObject.SetActive(shouldShow);
-        if (!shouldShow) return;
+        // travailler dans la scene). Le panel reste actif pendant tout le bloc tutorial :
+        // c'est lui qui porte le bandeau persistant, qui doit survivre a la fermeture de
+        // la modale et aux trials suivants.
+        var block = flow.CurrentBlock;
+        bool isTutorialBlock = block != null && block.is_tutorial;
+        _overlay.gameObject.SetActive(isTutorialBlock);
+        if (!isTutorialBlock) return;
 
-        var (title, body) = LoadContent(flow.CurrentBlock);
+        // La modale, elle, ne s'ouvre qu'au 1er trial du bloc sur Proximal.
+        if (_scene == SceneKind.Proximal && flow.State != null && flow.State.current_trial_index != 0)
+            return;
+
+        var (title, body) = LoadContent(block);
         bool shown = _overlay.Show(title, body); // no-op si contenu vide
         if (!shown) return;
 
@@ -65,19 +78,6 @@ public class InContextTutorialSceneBinder : MonoBehaviour
         if (_inputLockedByThis && GameManager.Instance != null)
             GameManager.Instance.ReleaseInputLock();
         _inputLockedByThis = false;
-    }
-
-    // Determine si l'overlay doit etre affiche pour le bloc/scene courant.
-    private bool ShouldShowForCurrentBlock(FlowController flow)
-    {
-        var block = flow.CurrentBlock;
-        if (block == null || !block.is_tutorial) return false;
-
-        // Proximal recharge a chaque trial : n'afficher qu'au 1er trial du bloc
-        if (_scene == SceneKind.Proximal && flow.State != null && flow.State.current_trial_index != 0)
-            return false;
-
-        return true;
     }
 
     private (string title, string body) LoadContent(BlockConfig block)
