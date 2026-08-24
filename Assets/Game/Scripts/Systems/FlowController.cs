@@ -579,20 +579,24 @@ public class FlowController : MonoBehaviour
         block.proximal_forced_probability = Mathf.Clamp01(block.proximal_forced_probability);
         block.proximal_forced_optimal_probability = Mathf.Clamp01(block.proximal_forced_optimal_probability);
         block.motor_forced_probability = Mathf.Clamp01(block.motor_forced_probability);
-        if (block.explanations?.proximal != null)
-        {
-            block.explanations.proximal.display_probability = Mathf.Clamp01(
-                block.explanations.proximal.display_probability);
-        }
-
-        if (block.explanations?.motor != null)
-        {
-            block.explanations.motor.display_probability = Mathf.Clamp01(
-                block.explanations.motor.display_probability);
-        }
+        SanitizeExplanationConfig(block.explanations?.distal);
+        SanitizeExplanationConfig(block.explanations?.proximal);
+        SanitizeExplanationConfig(block.explanations?.motor);
 
         block.advisor_forced_value = FlowValueConverters.ToApiValue(FlowValueConverters.ToAdvisorType(block.advisor_forced_value));
         block.motor_forced_set = FlowValueConverters.ToApiValue(FlowValueConverters.ToMotorKeySet(block.motor_forced_set));
+    }
+
+    static void SanitizeExplanationConfig(AdviceExplanationConfig config)
+    {
+        if (config == null)
+            return;
+
+        config.display_probability = Mathf.Clamp01(config.display_probability);
+        config.display_mode_forced_probability = Mathf.Clamp01(
+            config.display_mode_forced_probability);
+        config.content_variant_long_probability = Mathf.Clamp01(
+            config.content_variant_long_probability);
     }
 
     void RollMetaForcedForCurrentBlock()
@@ -669,7 +673,8 @@ public class FlowController : MonoBehaviour
             CurrentBlock,
             AdviceLevel.Proximal,
             State != null ? State.advisor_choice : AdvisorType.None,
-            showExplanation);
+            showExplanation,
+            CreateCurrentTrialRandom(ExplanationMixScope(nameof(ResolveProximalExplanationForCurrentTrial))));
     }
 
     public void ResolveMotorExplanationForCurrentTrial(bool adviceVisible)
@@ -684,7 +689,8 @@ public class FlowController : MonoBehaviour
             CurrentBlock,
             AdviceLevel.Motor,
             State != null ? State.advisor_choice : AdvisorType.None,
-            showExplanation);
+            showExplanation,
+            CreateCurrentTrialRandom(ExplanationMixScope(nameof(ResolveMotorExplanationForCurrentTrial))));
     }
 
     // Tirage independant a chaque trial (remplace l'ancienne restriction "1er trial du bloc uniquement").
@@ -692,6 +698,14 @@ public class FlowController : MonoBehaviour
     {
         var rng = CreateCurrentTrialRandom(scope);
         return rng.NextDouble() < Mathf.Clamp01(probability);
+    }
+
+    // Scope distinct de celui du tirage d'apparition : les valeurs mixtes de
+    // display_mode et content_variant consomment leur propre flux aleatoire, pour
+    // que les sessions sans mode mixte restent rejouables a l'identique.
+    static string ExplanationMixScope(string scope)
+    {
+        return $"{scope}:mix";
     }
 
     public ExplanationRuntimeState GetExplanationState(AdviceLevel level)
@@ -807,11 +821,13 @@ public class FlowController : MonoBehaviour
 
     void ResolveDistalExplanationForCurrentBlock()
     {
+        // Salt 5 : les salts 0 a 4 sont deja pris par les autres tirages de bloc.
         DistalAdviceExplanation = ExplanationResolver.Resolve(
             CurrentBlock,
             AdviceLevel.Distal,
             State != null ? State.advisor_choice : AdvisorType.None,
-            State != null && State.distal_advice_visible);
+            State != null && State.distal_advice_visible,
+            CreateCurrentBlockRandom(5));
     }
 
     void RollDistalForcedForCurrentBlock(BlockConfig block)

@@ -21,8 +21,9 @@ Permettre à chaque advice (distal, proximal, motor) d'être accompagné d'une *
 - [x] Affichage d'une explanation accompagnant un advice **distal**, **proximal** ou **motor**, conditionné à la précondition d'affichage (cf. règle R1).
 - [x] Deux variantes textuelles **short** et **long** stockées et éditées indépendamment pour chaque advice.
 - [x] Deux dimensions orthogonales par advice :
-  - **`display_mode`** ∈ `forced` / `opt-in` / `none` — pilote comment et si l'explanation est présentée
-  - **`content_variant`** ∈ `short` / `long` — pilote quelle variante éditoriale est utilisée quand affichée
+  - **`display_mode`** ∈ `forced` / `opt-in` / `forced/opt-in` / `none` — pilote comment et si l'explanation est présentée
+  - **`content_variant`** ∈ `short` / `long` / `short/long` — pilote quelle variante éditoriale est utilisée quand affichée
+- [x] Valeurs **mixtes** sur les deux dimensions : `forced/opt-in` et `short/long` ne fixent plus le réglage pour tout le bloc, le jeu tire la valeur réelle à chaque affichage (cf. règle R9).
 - [x] Pilotage **blockwise** des deux dimensions via la configuration de session (`SessionConfig` / `BlockConfig`).
 - [x] Édition des contenus short et long par les chercheurs dans le **session config panel**, avec **2 corpora distincts par bloc** indexés par `advisor_type` (`human-bot`, `bot-bot`) → 12 textes par bloc (3 advice × 2 variants × 2 advisor types).
 - [x] Tracking du `display_mode=opt-in` : enregistrement du clic du participant sur le bouton « show explanation » et de la durée d'affichage de l'explication.
@@ -93,6 +94,7 @@ Le texte affiché est sélectionné dans le corpus du bloc indexé par l'`adviso
 
 - **R1 (Précondition d'affichage)** : l'explanation n'est affichée que si **(a)** un advisor a été choisi par le participant (meta-choice ≠ "no advisor") **ET (b)** un advice distal est effectivement donné sur ce bloc. Si l'une des deux conditions manque, `display_mode = none` forcé.
 - **R2** : `display_mode` et `content_variant` sont lus depuis la config du bloc (granularité **blockwise**, cf. TR7).
+- **R9 (Valeurs mixtes)** : `display_mode = forced/opt-in` et `content_variant = short/long` délèguent le choix à un tirage effectué **à chaque affichage**, pas une fois pour le bloc. Les probabilités `display_mode_forced_probability` (probabilité de tirer `forced`, sinon `opt-in`) et `content_variant_long_probability` (probabilité de tirer `long`, sinon `short`) sont lues uniquement quand la dimension correspondante vaut sa valeur mixte. Le tirage est déterministe (dérivé du seed du trial pour proximal/motor, du seed du bloc pour distal) afin que la session reste rejouable. Il intervient **après** `display_probability`, qui reste seul maître de l'apparition de l'explanation proximale ou motor sur le trial. Les valeurs mixtes n'existent qu'en config : les colonnes `trial_responses` enregistrent toujours la valeur tirée (`forced` / `opt-in`, `short` / `long`).
 - **R3** : l'explanation est **indépendante de la fiabilité** de l'advice. Un advice non fiable peut être accompagné d'une explanation.
 - **R4** : pendant le bloc tutorial (`is_tutorial = true`, DEC-014), aucune explanation n'est affichée et aucune ligne n'est envoyée à l'API.
 - **R7 (Tracking opt-in)** : quand `display_mode = opt-in`, le système enregistre **(a)** si le participant a cliqué sur « show explanation » et **(b)** la durée d'affichage de l'explication. Quand `display_mode ≠ opt-in`, les colonnes de tracking sont à `null`.

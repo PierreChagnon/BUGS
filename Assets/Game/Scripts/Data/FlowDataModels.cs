@@ -240,12 +240,20 @@ public static class ExplanationDisplayMode
     public const string Forced = "forced";
     public const string OptIn = "opt-in";
     public const string None = "none";
+
+    // Valeur de config uniquement : le mode reel est tire a l'affichage.
+    // Ne remonte jamais dans trial_responses.
+    public const string ForcedOptIn = "forced/opt-in";
 }
 
 public static class ExplanationContentVariant
 {
     public const string Short = "short";
     public const string Long = "long";
+
+    // Valeur de config uniquement : la variante reelle est tiree a l'affichage.
+    // Ne remonte jamais dans trial_responses.
+    public const string ShortLong = "short/long";
 }
 
 [Serializable]
@@ -285,6 +293,14 @@ public class AdviceExplanationConfig
     public ExplanationCorpus corpus = new();
     public float display_probability = 1f;
 
+    // Lu uniquement quand display_mode vaut "forced/opt-in" : probabilite de tirer
+    // "forced", sinon "opt-in".
+    public float display_mode_forced_probability = 0.5f;
+
+    // Lu uniquement quand content_variant vaut "short/long" : probabilite de tirer
+    // "long", sinon "short".
+    public float content_variant_long_probability = 0.5f;
+
     public ExplanationText GetText(AdvisorType advisorType, string variant)
     {
         ExplanationVariantSet variants = corpus != null ? corpus.GetVariantSet(advisorType) : null;
@@ -298,7 +314,9 @@ public class AdviceExplanationConfig
             display_mode = display_mode,
             content_variant = content_variant,
             corpus = corpus != null ? corpus.DeepClone() : new ExplanationCorpus(),
-            display_probability = display_probability
+            display_probability = display_probability,
+            display_mode_forced_probability = display_mode_forced_probability,
+            content_variant_long_probability = content_variant_long_probability
         };
     }
 }

@@ -105,11 +105,15 @@ public static class ExplanationResolver
             || IsExplanationEnabled(block.explanations.motor);
     }
 
+    // rng sert uniquement a resoudre les valeurs mixtes de display_mode et
+    // content_variant. Il doit etre deterministe (derive du seed du trial ou du
+    // bloc) pour que la session reste rejouable.
     public static ExplanationRuntimeState Resolve(
         BlockConfig block,
         AdviceLevel level,
         AdvisorType advisorType,
-        bool adviceVisible)
+        bool adviceVisible,
+        System.Random rng)
     {
         if (block == null || block.is_tutorial || advisorType == AdvisorType.None || !adviceVisible)
             return ExplanationRuntimeState.None();
@@ -139,6 +143,9 @@ public static class ExplanationResolver
             return ExplanationRuntimeState.None();
         }
 
+        displayMode = DrawDisplayMode(displayMode, config, rng);
+        contentVariant = DrawContentVariant(contentVariant, config, rng);
+
         ExplanationText explanationText = config.GetText(advisorType, contentVariant);
         if (explanationText == null || string.IsNullOrWhiteSpace(explanationText.text))
         {
@@ -157,7 +164,8 @@ public static class ExplanationResolver
             : null;
 
         return displayMode == ExplanationDisplayMode.Forced
-            || displayMode == ExplanationDisplayMode.OptIn;
+            || displayMode == ExplanationDisplayMode.OptIn
+            || displayMode == ExplanationDisplayMode.ForcedOptIn;
     }
 
     static string NormalizeDisplayMode(string rawValue)
@@ -173,6 +181,8 @@ public static class ExplanationResolver
                 return ExplanationDisplayMode.OptIn;
             case ExplanationDisplayMode.None:
                 return ExplanationDisplayMode.None;
+            case ExplanationDisplayMode.ForcedOptIn:
+                return ExplanationDisplayMode.ForcedOptIn;
             default:
                 return null;
         }
@@ -189,9 +199,41 @@ public static class ExplanationResolver
                 return ExplanationContentVariant.Short;
             case ExplanationContentVariant.Long:
                 return ExplanationContentVariant.Long;
+            case ExplanationContentVariant.ShortLong:
+                return ExplanationContentVariant.ShortLong;
             default:
                 return null;
         }
+    }
+
+    // Les valeurs mixtes n'existent qu'en config : elles se resolvent ici en une
+    // valeur reelle, qui est ensuite la seule a remonter dans trial_responses.
+    static string DrawDisplayMode(
+        string normalizedDisplayMode,
+        AdviceExplanationConfig config,
+        System.Random rng)
+    {
+        if (normalizedDisplayMode != ExplanationDisplayMode.ForcedOptIn)
+            return normalizedDisplayMode;
+
+        float forcedProbability = Mathf.Clamp01(config.display_mode_forced_probability);
+        return rng.NextDouble() < forcedProbability
+            ? ExplanationDisplayMode.Forced
+            : ExplanationDisplayMode.OptIn;
+    }
+
+    static string DrawContentVariant(
+        string normalizedContentVariant,
+        AdviceExplanationConfig config,
+        System.Random rng)
+    {
+        if (normalizedContentVariant != ExplanationContentVariant.ShortLong)
+            return normalizedContentVariant;
+
+        float longProbability = Mathf.Clamp01(config.content_variant_long_probability);
+        return rng.NextDouble() < longProbability
+            ? ExplanationContentVariant.Long
+            : ExplanationContentVariant.Short;
     }
 
     static string FormatLevel(AdviceLevel level)
