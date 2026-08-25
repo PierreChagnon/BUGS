@@ -50,6 +50,7 @@
 | `path_visible_probability` | float | [0,1] | Probabilité que le chemin advisor soit visible. |
 | `suboptimal_path_probability` | float | [0,1] | Probabilité d'afficher un chemin suboptimal. |
 | `detour_probability` | float | [0,1] | Probabilité d'un détour. |
+| `proximal_advice_reliable_probability` | float | [0,1] | Probabilité que le chemin advisor désigne le meilleur nuage. Bypassée si proximal forced. Vide sur les lignes antérieures au champ. |
 | `motor_advice_visible_probability` | float | [0,1] | Probabilité que le conseil moteur soit visible. |
 | `motor_advice_reliable_probability` | float | [0,1] | Probabilité que le conseil moteur soit fiable. |
 | `suboptimal_trap_probability` | float | [0,1] | Probabilité de pièges sur chemin suboptimal. |
@@ -90,7 +91,8 @@ Pour chaque advice `X` ∈ {`distal`, `motor`, `proximal`}, 5 colonnes `X_advice
 | :-- | :-- | :-- | :-- |
 | `proximal_choice` | string | `left`/`right`/`unknown` | Nuage effectivement collecté. |
 | `optimal_path_visible` | bool | — | Le chemin optimal était-il visible ? |
-| `path_is_suboptimal` | bool | — | Le chemin **affiché** était-il suboptimal ? |
+| `path_is_suboptimal` | bool | — | Le chemin **affiché** était-il suboptimal ? Vrai aussi quand l'advice non fiable désignait le mauvais nuage. |
+| `proximal_advice_reliable` | bool | — | **Réalisé** : le chemin advisor désignait-il le meilleur nuage ? Si proximal forced : le nuage imposé était-il le meilleur. `false` sans advisor. Vide sur les lignes antérieures au champ. |
 | `choice_correct` | bool | — | Le nuage choisi était-il le meilleur ? (⇔ `proximal_choice == true_cloud`) |
 | `true_cloud` | string | `left`/`right`/`none` | Nuage réellement optimal. |
 | `green_bugs_collected` | int | ≥ 0 | Bugs verts collectés sur ce trial. |

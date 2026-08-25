@@ -200,6 +200,7 @@ public class MapGenConfig
     public float path_visible_probability = 1f;
     public float suboptimal_path_probability;
     public float detour_probability;
+    public float proximal_advice_reliable_probability = 1f;
     public float motor_advice_visible_probability = 1f;
     public float motor_advice_reliable_probability = 1f;
     public float suboptimal_trap_probability;
@@ -224,6 +225,7 @@ public class MapGenConfig
             path_visible_probability = path_visible_probability,
             suboptimal_path_probability = suboptimal_path_probability,
             detour_probability = detour_probability,
+            proximal_advice_reliable_probability = proximal_advice_reliable_probability,
             motor_advice_visible_probability = motor_advice_visible_probability,
             motor_advice_reliable_probability = motor_advice_reliable_probability,
             suboptimal_trap_probability = suboptimal_trap_probability,
@@ -523,6 +525,7 @@ public class TrialResponseRow
     public float path_visible_probability;
     public float suboptimal_path_probability;
     public float detour_probability;
+    public float proximal_advice_reliable_probability;
     public float motor_advice_visible_probability;
     public float motor_advice_reliable_probability;
     public string motor_advice_explanation_display_mode = ExplanationDisplayMode.None;
@@ -538,6 +541,7 @@ public class TrialResponseRow
     public int cloud_distance;
     public bool optimal_path_visible;
     public bool path_is_suboptimal;
+    public bool proximal_advice_reliable;
     public string proximal_choice;
     public string proximal_advice_explanation_display_mode = ExplanationDisplayMode.None;
     [IncludeNullInJson] public string proximal_advice_explanation_content_variant;

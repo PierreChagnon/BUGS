@@ -71,7 +71,8 @@ public class TrialManager : MonoBehaviour
         int overtimeSteps,
         bool followedAdvisorPath,
         bool optimalPathVisible,
-        bool pathIsSuboptimal)
+        bool pathIsSuboptimal,
+        bool proximalAdviceReliable)
     {
         if (_currentTrialRow == null)
             _currentTrialRow = BuildBaseRow();
@@ -95,6 +96,7 @@ public class TrialManager : MonoBehaviour
         _currentTrialRow.followed_advisor_path = followedAdvisorPath;
         _currentTrialRow.optimal_path_visible = optimalPathVisible;
         _currentTrialRow.path_is_suboptimal = pathIsSuboptimal;
+        _currentTrialRow.proximal_advice_reliable = proximalAdviceReliable;
         _currentTrialRow.player_path_log = FlowSerializationUtility.ToPlayerStepsJson(_playerPathSteps);
         _currentTrialRow.started_at = _startedAtIsoUtc;
         _currentTrialRow.ended_at = DateTime.UtcNow.ToString("o");
@@ -275,6 +277,7 @@ public class TrialManager : MonoBehaviour
             path_visible_probability = session != null ? session.pathVisible : map?.path_visible_probability ?? 0f,
             suboptimal_path_probability = session != null ? session.suboptimalPathProbability : map?.suboptimal_path_probability ?? 0f,
             detour_probability = session != null ? session.detourProbability : map?.detour_probability ?? 0f,
+            proximal_advice_reliable_probability = session != null ? session.proximalAdviceReliableProbability : map?.proximal_advice_reliable_probability ?? 0f,
             motor_advice_visible_probability = session != null ? session.motorAdviceVisibleProbability : map?.motor_advice_visible_probability ?? 0f,
             motor_advice_reliable_probability = session != null ? session.motorAdviceReliableProbability : map?.motor_advice_reliable_probability ?? 0f,
             suboptimal_trap_probability = session != null ? session.suboptimalTrapProbability : map?.suboptimal_trap_probability ?? 0f,

@@ -357,7 +357,8 @@ Contrainte placement       = cellA dans indices [0, count/2 - 1], cellB dans ind
 
 - Calculer deux chemins Manhattan les plus courts (joueur → nuage gauche, joueur → nuage droite)
 - Réserver les deux chemins dans LevelRegistry (PathLeft, PathRight)
-- **Déterminer si le chemin affiché est suboptimal** (tirage `rng.NextDouble() < suboptimalPathProbability`)
+- **Tirer la fiabilité de l'advice proximal** (`rng.NextDouble() < proximalAdviceReliableProbability`) : un advice non fiable désigne le mauvais nuage (le moins de bugs verts). Bypassé si proximal forced (fiabilité = le nuage imposé est-il le meilleur). Le tirage réalisé remonte via `GameManager.SetProximalAdviceReliable` → `trial_responses.proximal_advice_reliable`
+- **Déterminer si le chemin affiché est suboptimal** (tirage `rng.NextDouble() < suboptimalPathProbability`) — le tracé suboptimal vise le nuage conseillé (le meilleur si l'advice est fiable)
 - **Si suboptimal sans détour** : tracer un chemin Manhattan alternatif (même longueur, tracé différent — pièges possibles)
 - **Si suboptimal avec détour** : construire un chemin en « U » ouvert vers la cible — crochet horizontal à l'opposé du nuage, séparation verticale de 2 cases, retour prolongé jusqu'à l'axe de la cible, puis arrivée verticale. Le tracé garantit un surplus réel de steps et refuse tout contact entre cases non consécutives
 - Visualiser le chemin conseillé (optimal ou suboptimal) avec des quads
@@ -388,12 +389,12 @@ public class PathSpawner : MonoBehaviour
 | quadPrefab          | GameObject | Prefab quad pour la visualisation du chemin conseillé — **game design** |
 | detourMin           | int        | Taille min du crochet horizontal en cases (défaut : 2, min : 1) — **game design** |
 | detourMax           | int        | Taille max du crochet horizontal en cases, exclusif (défaut : 5, min : 2) — **game design** |
-| _Lecture depuis SessionManager.Instance :_ | | `pathVisible` (float, 0-1) — probabilité que le chemin soit visible. `suboptimalPathProbability` (float, 0-1) — probabilité que le chemin affiché soit suboptimal. `detourProbability` (float, 0-1) — probabilité que le chemin suboptimal inclue un détour en « U ». Tirages seeded RNG. **Paramètres recherche** (Singleton, lecture directe) |
+| _Lecture depuis SessionManager.Instance :_ | | `pathVisible` (float, 0-1) — probabilité que le chemin soit visible. `proximalAdviceReliableProbability` (float, 0-1) — probabilité que le chemin conseillé désigne le meilleur nuage. `suboptimalPathProbability` (float, 0-1) — probabilité que le chemin affiché soit suboptimal. `detourProbability` (float, 0-1) — probabilité que le chemin suboptimal inclue un détour en « U ». Tirages seeded RNG. **Paramètres recherche** (Singleton, lecture directe) |
 
 ### 3.2.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (TryGetPlayerStartCell, WorldToCell, CellToWorld, InBounds, ReservePathLeft, ReservePathRight, RegisterOptimalPath, RegisterSuboptimalPath, CreateRng), `SessionManager.Instance` (**paramètres recherche** : pathVisible, suboptimalPathProbability, detourProbability), `GameManager.Instance` (GetBestCloud, SetChosenPath, SetPathIsSuboptimal), `FogController.Instance` (RevealCells)
-- **Est configuré par :** `SessionManager.Instance` (lecture directe de pathVisible, suboptimalPathProbability, detourProbability — voir section 2.3)
+- **Nécessite :** `LevelRegistry.Instance` (TryGetPlayerStartCell, WorldToCell, CellToWorld, InBounds, ReservePathLeft, ReservePathRight, RegisterOptimalPath, RegisterSuboptimalPath, CreateRng), `SessionManager.Instance` (**paramètres recherche** : pathVisible, proximalAdviceReliableProbability, suboptimalPathProbability, detourProbability), `GameManager.Instance` (GetBestCloud, SetChosenPath, SetPathIsSuboptimal, SetProximalAdviceReliable), `FlowController.Instance` (proximal forced : `proximal_choice_is_forced`, `proximal_choice_forced_value`, `proximal_choice_forced_was_optimal`), `FogController.Instance` (RevealCells)
+- **Est configuré par :** `SessionManager.Instance` (lecture directe de pathVisible, proximalAdviceReliableProbability, suboptimalPathProbability, detourProbability — voir section 2.3)
 - **Communique avec :** Nuages trouvés via `FindGameObjectsWithTag("BugCloud")`
 - **Déclenche :** Réservation de chemins dans LevelRegistry (PathLeft, PathRight + optionnel SuboptimalPath), publication du chemin affiché et de son statut dans GameManager, révélation du brouillard (playerCell + 2 nuages toujours, chemin si visible)
 
@@ -419,16 +420,20 @@ graph TD
     I --> J
     J --> K["reg.RegisterOptimalPath(optimalCells)"]
 
-    K --> L{"rng < suboptimalPathProbability ?"}
-    L -->|Non| M["displayPath = optimalCells"]
+    K --> K2{"rng < proximalAdviceReliableProbability ?"}
+    K2 -->|Oui| K3["advisedCloud = meilleur nuage"]
+    K2 -->|Non| K4["advisedCloud = mauvais nuage"]
+    K3 --> L{"rng < suboptimalPathProbability ?"}
+    K4 --> L
+    L -->|Non| M["displayPath = chemin direct vers advisedCloud"]
     L -->|Oui| N{"rng < detourProbability ?"}
-    N -->|Non| O["BuildRandomManhattanPath<br/>(même longueur, tracé différent)"]
-    N -->|Oui| P["BuildSuboptimalDetour<br/>(chemin en U, surplus garanti,<br/>sans contact ambigu)"]
+    N -->|Non| O["BuildRandomManhattanPath vers advisedCloud<br/>(même longueur, tracé différent)"]
+    N -->|Oui| P["BuildSuboptimalDetour vers advisedCloud<br/>(chemin en U, surplus garanti,<br/>sans contact ambigu)"]
     O --> Q["reg.RegisterSuboptimalPath"]
     P --> Q
     Q --> R["displayPath = suboptimalPath"]
 
-    M --> S["GameManager.SetChosenPath + SetPathIsSuboptimal"]
+    M --> S["GameManager.SetChosenPath + SetPathIsSuboptimal<br/>+ SetProximalAdviceReliable"]
     R --> S
     S --> T{"rng < pathVisible ?"}
     T -->|Non| U["visible = false"]
@@ -463,6 +468,12 @@ Direction droite           = currentPos.x++ (incrémente X vers la droite)
 Direction verticale        = currentPos.y++ pour les chemins Manhattan ; le raccord final du détour peut monter ou descendre vers goal.y
 Randomisation du tracé     = à chaque step, si X != cible.X et Y != cible.Y → 50% chance horizontal/vertical (rng)
 Choix du chemin optimal    = vers GetBestCloud() si non null, sinon 50/50 aléatoire (rng)
+
+--- Fiabilité de l'advice proximal ---
+Tirage fiabilité           = rng.NextDouble() < SessionManager.Instance.proximalAdviceReliableProbability
+Nuage conseillé            = fiable ? meilleur nuage : autre nuage — cible de tous les chemins affichés (direct ou suboptimal)
+path_is_suboptimal         = tracé suboptimal OU advice non fiable
+Proximal forced            = pas de tirage : fiabilité réalisée = proximal_choice_forced_was_optimal
 
 --- Chemin suboptimal ---
 Tirage suboptimal          = rng.NextDouble() < SessionManager.Instance.suboptimalPathProbability
@@ -516,6 +527,7 @@ Avec détour (BuildSuboptimalDetour — chemin en « U » ouvert vers la cible) 
 | 02/03/26 | @auteur     | `pathVisible` passe de bool à float (probabilité 0-1). La visibilité est désormais déterminée par `rng.NextDouble() < pathVisible` (seeded RNG). Permet un contrôle probabiliste de la condition advisor. |
 | 05/03/26 | @auteur     | Feature suboptimal path : ajout branchement suboptimal (`suboptimalPathProbability`) + détour (`detourProbability`) lus depuis SessionManager. `BuildRandomManhattanPath` (même longueur, tracé alternatif) et `BuildSuboptimalDetour` (chemin en « Z » : crochet + retour + GAP). Helpers `TryHorizontal`/`TryVertical` extraits. Champs `detourMin`/`detourMax` (game design) pour borner les tirages. Le retour est tiré indépendamment du crochet (asymétrie possible). GAP=2 entre segments horizontaux (jamais limitrophes). |
 | 09/03/26 | @auteur     | Refacto fog of war : la révélation du brouillard révèle **toujours** playerCell + les 2 cellules nuages (même si le chemin est caché). Les cellules du chemin ne sont ajoutées à la liste de révélation que si `visible == true`. `FogController.Instance` peut être `null` si le fog est désactivé (géré par null-check). |
+| 25/08/26 | @pierre     | Feature proximal advice reliability : tirage `proximalAdviceReliableProbability` (par vallée, backend `valley_a/valley_b`). Non fiable → le chemin affiché (direct ou suboptimal) vise le mauvais nuage et `path_is_suboptimal = true`. Bypassé si proximal forced (fiabilité = `proximal_choice_forced_was_optimal`). Tirage réalisé remonté via `GameManager.SetProximalAdviceReliable` → `TrialManager.EndCurrentTrial` (11 params) → `trial_responses.proximal_advice_reliable`. |
 | 21/07/26 | @codex      | Correction des contacts visuels tardifs : remplacement du détour à 3 séparations partielles par un « U » à séparation exacte, retour prolongé jusqu'à la cible et arrivée verticale. Ajout d'une validation des contacts entre cases non consécutives avec fallback Manhattan. |
 
 ## 3.3 CorridorWallsGenerator
@@ -1264,6 +1276,7 @@ public class GameManager : MonoBehaviour
 | overtimeSteps                               | int                     | Compteur de pas au-delà du budget (distance Manhattan)                           |
 | followedAdvisorPath                         | bool                    | `true` tant que le joueur reste sur le chemin conseillé                           |
 | _pathIsSuboptimal                           | bool (privé)            | `true` si le chemin affiché est suboptimal (reçu de PathSpawner via `SetPathIsSuboptimal`) |
+| _proximalAdviceReliable                     | bool (privé)            | `true` si le chemin conseillé désignait le meilleur nuage (reçu de PathSpawner via `SetProximalAdviceReliable`) |
 | **_advisorPathVisible**                     | bool (privé)            | `true` par défaut — mis à jour via `SetAdvisorPathVisible(bool)` par PathSpawner  |
 | inputLocked                                 | bool (get)              | Verrouille les inputs joueur quand `true` (fin de round)                          |
 | _roundOver                                  | bool (privé)            | Empêche les callbacks d'entités après fin de round                                |
@@ -1276,18 +1289,19 @@ public class GameManager : MonoBehaviour
 | SetChosenPath(IEnumerable\<Vector2Int\>)    | void                    | Reçoit le chemin conseillé de PathSpawner pour détecter les déviations            |
 | **SetAdvisorPathVisible(bool)**             | void                    | Reçoit de PathSpawner si le chemin conseillé est visible — stocke dans `_advisorPathVisible` |
 | SetPathIsSuboptimal(bool)                   | void                    | Reçoit de PathSpawner si le chemin affiché est suboptimal — stocke dans `_pathIsSuboptimal` |
+| SetProximalAdviceReliable(bool)             | void                    | Reçoit de PathSpawner si le chemin conseillé désignait le meilleur nuage — stocke dans `_proximalAdviceReliable` |
 | OnPlayerStep(Vector2Int)                    | void                    | Appelé par GridMover — fog, visited, déviation, budget de pas, trial log           |
 | OnTrapTriggered()                           | void                    | Appelé par Trap — trapsHit++, **-2 bugs** sur chaque nuage                       |
 | OnInvalidMoveKeyPressed()                   | void                    | Appelé par GridMover — pénalité : **-2 bugs** sur chaque nuage                   |
 | OnStepBudgetExceeded()                      | void (privé)            | Appelé quand le joueur dépasse le budget de pas — overtimeSteps++, **-2 bugs** sur chaque nuage |
-| OnCloudCollected(BugCloud)                  | void                    | Fin de round — `FogController.RevealAll()`, calcule bugs verts, détermine trueCloud, transmet cloud_distance, finalise trial (10 params dont overtimeSteps, followedAdvisorPath, _advisorPathVisible, _pathIsSuboptimal), émet OnRoundEnded |
+| OnCloudCollected(BugCloud)                  | void                    | Fin de round — `FogController.RevealAll()`, calcule bugs verts, détermine trueCloud, transmet cloud_distance, finalise trial (11 params dont overtimeSteps, followedAdvisorPath, _advisorPathVisible, _pathIsSuboptimal, _proximalAdviceReliable), émet OnRoundEnded |
 | GetBestCloud()                              | BugCloud                | Retourne le nuage avec le meilleur `greenRatio`, `null` si égalité                |
 | RestartRound()                              | void                    | Recharge la scène active (mode debug, fallback si FlowController absent)           |
 
 ### 4.2.3 Dépendances
 
 - **Nécessite :** `LevelRegistry.Instance` (MarkVisited, optimalPathLength, stepBudget), `FogController.Instance` (RevealCell, **RevealAll**), `TrialManager` (StartNewTrial, RecordMove, SetMapConfig, SetOptimalPathLength, SetCloudDistance, EndCurrentTrial), `FlowController.Instance` (OnTrialComplete — pour ContinueAfterRound), `BugCloud` (nuages du round), `PathSpawner` (chemin conseillé)
-- **Est utilisé par :** `SessionManager` (lance `BeginFirstRound()`), `GridMover` (appelle `OnPlayerStep()`, `OnInvalidMoveKeyPressed()`), `BugCloud` (appelle `OnCloudCollected()`), `Trap` (appelle `OnTrapTriggered()`), `PathSpawner` (appelle `SetChosenPath()`, `SetPathIsSuboptimal()`, `SetAdvisorPathVisible()`), `RoundUI` (appelle `ContinueAfterRound()`)
+- **Est utilisé par :** `SessionManager` (lance `BeginFirstRound()`), `GridMover` (appelle `OnPlayerStep()`, `OnInvalidMoveKeyPressed()`), `BugCloud` (appelle `OnCloudCollected()`), `Trap` (appelle `OnTrapTriggered()`), `PathSpawner` (appelle `SetChosenPath()`, `SetPathIsSuboptimal()`, `SetProximalAdviceReliable()`, `SetAdvisorPathVisible()`), `RoundUI` (appelle `ContinueAfterRound()`)
 - **Communique avec l'UI via :** `event OnRoundEnded` → `RoundUI` (pas de références UI directes)
 - **Communique avec l'UI via :** `event OnRoundEnded` → `RoundUI` (pas de références UI directes)
 
@@ -1500,7 +1514,7 @@ public class SessionManager : MonoBehaviour
 ### 4.3.3 Dépendances
 
 - **Nécessite :** `FlowController.Instance` (ActiveMapConfig, CurrentTrialSeed, BuildVersion, State.current_block_index, IsCurrentBlockTutorial, HasLoadedConfig), `LevelRegistry.Instance` (SetRoundSeed), `GameManager` (appelle `BeginFirstRound()`)
-- **Est utilisé par :** `BugCloudSpawner` (lecture directe : minDistance, maxDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax), `TrapSpawner` (lecture directe : trapCount, suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps), `PathSpawner` (lecture directe : pathVisible, suboptimalPathProbability, detourProbability), `FogSpawner` (lecture directe : fogProbability), `TrialManager` (lecture directe dans BuildBaseRow : tous les paramètres recherche), `MotorAdviceController` (lecture directe : motorAdviceVisibleProbability, motorAdviceReliableProbability)
+- **Est utilisé par :** `BugCloudSpawner` (lecture directe : minDistance, maxDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax), `TrapSpawner` (lecture directe : trapCount, suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps), `PathSpawner` (lecture directe : pathVisible, proximalAdviceReliableProbability, suboptimalPathProbability, detourProbability), `FogSpawner` (lecture directe : fogProbability), `TrialManager` (lecture directe dans BuildBaseRow : tous les paramètres recherche), `MotorAdviceController` (lecture directe : motorAdviceVisibleProbability, motorAdviceReliableProbability)
 - **Pattern :** Backend Config Pipeline — FlowController.ActiveMapConfig → SessionManager.CopyConfigFromFlowController() → Spawners `.Start()` (lecture directe)
 
 ### 4.3.4 Diagramme de flux
@@ -2449,6 +2463,7 @@ public class TrialResponseRow
     public float path_visible_probability;
     public float suboptimal_path_probability;
     public float detour_probability;
+    public float proximal_advice_reliable_probability;
     public float motor_advice_visible_probability;
     public float motor_advice_reliable_probability;
     public float suboptimal_trap_probability;
@@ -2461,6 +2476,7 @@ public class TrialResponseRow
     public int cloud_distance;
     public bool optimal_path_visible;
     public bool path_is_suboptimal;
+    public bool proximal_advice_reliable;
 
     // Résultats joueur
     public string proximal_choice;
@@ -2510,6 +2526,7 @@ public class TrialResponseRow
 | path_visible_probability          | float  | BuildBaseRow (SessionManager)     | Probabilité que le chemin optimal soit visible                                    |
 | suboptimal_path_probability       | float  | BuildBaseRow (SessionManager)     | Probabilité de chemin suboptimal                                                  |
 | detour_probability                | float  | BuildBaseRow (SessionManager)     | Probabilité de détour dans le chemin suboptimal                                   |
+| proximal_advice_reliable_probability | float | BuildBaseRow (SessionManager)   | Probabilité que le chemin conseillé désigne le meilleur nuage                     |
 | motor_advice_visible_probability  | float  | BuildBaseRow (SessionManager)     | Probabilité d'affichage du motor advice                                           |
 | motor_advice_reliable_probability | float  | BuildBaseRow (SessionManager)     | Probabilité que le motor advice soit fiable                                       |
 | suboptimal_trap_probability       | float  | BuildBaseRow (SessionManager)     | Probabilité de pièges sur le chemin suboptimal                                    |
@@ -2519,6 +2536,7 @@ public class TrialResponseRow
 | cloud_distance                    | int    | TrialManager.SetCloudDistance     | Distance Manhattan joueur→nuages (budget de pas)                                  |
 | optimal_path_visible              | bool   | EndCurrentTrial                   | `true` si le chemin optimal était visible pour le joueur                           |
 | path_is_suboptimal                | bool   | EndCurrentTrial                   | `true` si le chemin affiché était suboptimal                                      |
+| proximal_advice_reliable          | bool   | EndCurrentTrial                   | Tirage réalisé : `true` si le chemin conseillé désignait le meilleur nuage (PathSpawner) |
 | proximal_choice                   | string | EndCurrentTrial                   | "left", "right" ou "unknown"                                                      |
 | choice_correct                    | bool   | EndCurrentTrial                   | `true` si le joueur a collecté le nuage optimal                                   |
 | true_cloud                        | string | EndCurrentTrial                   | Nuage objectivement meilleur : "left", "right" ou "none"                          |
@@ -2588,6 +2606,7 @@ Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJso
   "path_visible_probability": 1.0,
   "suboptimal_path_probability": 0.0,
   "detour_probability": 0.0,
+  "proximal_advice_reliable_probability": 1.0,
   "motor_advice_visible_probability": 1.0,
   "motor_advice_reliable_probability": 1.0,
   "suboptimal_trap_probability": 0.0,
@@ -2598,6 +2617,7 @@ Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJso
   "cloud_distance": 12,
   "optimal_path_visible": true,
   "path_is_suboptimal": false,
+  "proximal_advice_reliable": true,
   "proximal_choice": "left",
   "choice_correct": true,
   "true_cloud": "left",
@@ -2673,6 +2693,7 @@ Configuration de génération de map — source de vérité pour les paramètres
 | min_green_ratio / max_green_ratio | float | 0.4 / 0.8 | Range ratio vert par nuage                        |
 | gap_min / gap_max                 | float | 0.1 / 0.3 | Range écart greenRatio entre nuages               |
 | path_visible                      | float | 1.0    | Probabilité que le chemin optimal soit visible         |
+| proximalAdviceReliableProbability | float | 1.0    | Probabilité que le chemin conseillé désigne le meilleur nuage |
 | suboptimal_path_probability       | float | 0      | Probabilité de chemin suboptimal                       |
 | detour_probability                | float | 0      | Probabilité de détour dans le chemin suboptimal        |
 | motor_advice_visible_probability  | float | 1.0    | Probabilité d'affichage du motor advice                |

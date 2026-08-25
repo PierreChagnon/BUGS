@@ -59,6 +59,7 @@
 | `path_visible_probability` | float | [0,1] | session/map | non | | |
 | `suboptimal_path_probability` | float | [0,1] | session/map | non | | |
 | `detour_probability` | float | [0,1] | session/map | non | | |
+| `proximal_advice_reliable_probability` | float | [0,1] | session/map | non | | |
 | `motor_advice_visible_probability` | float | [0,1] | session/map | non | | |
 | `motor_advice_reliable_probability` | float | [0,1] | session/map | non | | |
 | `suboptimal_trap_probability` | float | [0,1] | session/map | non | | |

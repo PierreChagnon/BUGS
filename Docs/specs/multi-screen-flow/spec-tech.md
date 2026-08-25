@@ -322,6 +322,7 @@ public class MapGenConfig
     public float path_visible;
     public float suboptimal_path_probability;
     public float detour_probability;
+    public float proximal_advice_reliable_probability;
     public float motor_advice_visible_probability;
     public float motor_advice_reliable_probability;
     public float suboptimal_trap_probability;
@@ -419,6 +420,7 @@ public class TrialResponseRow
     public float path_visible_probability;
     public float suboptimal_path_probability;
     public float detour_probability;
+    public float proximal_advice_reliable_probability;
     public float motor_advice_visible_probability;
     public float motor_advice_reliable_probability;
     public float suboptimal_trap_probability;
@@ -730,6 +732,7 @@ CREATE TABLE trial_responses (
     path_visible_probability            REAL,
     suboptimal_path_probability         REAL,
     detour_probability                  REAL,
+    proximal_advice_reliable_probability REAL,
     motor_advice_visible_probability    REAL,
     motor_advice_reliable_probability   REAL,
     suboptimal_trap_probability         REAL,
@@ -803,6 +806,7 @@ Chaque ligne est auto-suffisante. Aucune jointure nécessaire.
     "path_visible_probability": 1.0,
     "suboptimal_path_probability": 0.0,
     "detour_probability": 0.0,
+    "proximal_advice_reliable_probability": 1.0,
     "motor_advice_visible_probability": 1.0,
     "motor_advice_reliable_probability": 1.0,
     "suboptimal_trap_probability": 0.0,

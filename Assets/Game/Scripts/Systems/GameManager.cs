@@ -47,6 +47,7 @@ public class GameManager : MonoBehaviour
 
     bool _roundOver;
     bool _pathIsSuboptimal;
+    bool _proximalAdviceReliable;
     bool _advisorPathVisible = true;
     Coroutine _wrongInputCooldownCoroutine;
 
@@ -182,6 +183,11 @@ public class GameManager : MonoBehaviour
     public void SetPathIsSuboptimal(bool isSuboptimal)
     {
         _pathIsSuboptimal = isSuboptimal;
+    }
+
+    public void SetProximalAdviceReliable(bool isReliable)
+    {
+        _proximalAdviceReliable = isReliable;
     }
 
     public void SetAdvisorPathVisible(bool isVisible)
@@ -376,7 +382,8 @@ public class GameManager : MonoBehaviour
                 overtimeSteps,
                 followedAdvisorPath,
                 _advisorPathVisible,
-                _pathIsSuboptimal);
+                _pathIsSuboptimal,
+                _proximalAdviceReliable);
         }
 
         OnRoundEnded?.Invoke(new RoundEndInfo
