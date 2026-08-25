@@ -59,6 +59,7 @@ Pyramide de tests « data », dans l'ordre. **On ne monte pas d'un axe tant que 
   - `choice_correct` ⇔ `proximal_choice == true_cloud`
   - `followed_advisor_path` cohérent avec `player_path_log` vs chemin affiché
   - `green_bugs_accumulated` monotone croissant dans le bloc
+  - `green_bugs_session_total` monotone croissant sur toute la session, jamais remis à 0 entre blocs, et plat sur les lignes `is_tutorial = true`
   - `block_index`/`trial_index` continus ; nb de lignes/bloc == `trial_count`
   - `overtime_steps` cohérent avec `steps` et `cloud_distance`
   - `started_at` ≤ 1er `t` de `player_path_log` ≤ `ended_at`

@@ -115,6 +115,7 @@
 | `true_cloud` | string | `left`/`right`/`none` | `EndCurrentTrial` | non | | |
 | `green_bugs_collected` | int | ≥ 0 | `EndCurrentTrial` | non | | |
 | `green_bugs_accumulated` | int | ≥ 0 (cumul bloc) | `FlowController.GetAccumulatedScoreAfterTrial` | non | | |
+| `green_bugs_session_total` | int | ≥ 0 (cumul session, tutoriels exclus) | `FlowController.GetSessionScoreAfterTrial` | non | | |
 | `traps_hit` | int | ≥ 0 | `EndCurrentTrial` | non | | |
 | `steps` | int | ≥ 0 | `EndCurrentTrial` | non | | |
 | `overtime_steps` | int | ≥ 0 | `EndCurrentTrial` | non | | |

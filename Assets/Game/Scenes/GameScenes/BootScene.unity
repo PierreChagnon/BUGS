@@ -331,7 +331,7 @@ MonoBehaviour:
   _breakSceneName: BreakScene
   _endSessionSceneName: EndSessionScene
   _buildVersion: 0.4.0
-  _editorSessionId: e5bc5d8f-b5f0-486e-a96c-cd246d814611
+  _editorSessionId: 85869403-2c6c-458a-af16-e10598478df4
 --- !u!4 &530388671
 Transform:
   m_ObjectHideFlags: 0

@@ -37,6 +37,8 @@ public class FlowController : MonoBehaviour
     public long CurrentBlockSeed { get; private set; }
     public long CurrentTrialSeed { get; private set; }
     public int BlockScore { get; private set; }
+    // Total de bugs verts collectes sur la session, blocs tutoriels exclus : jamais remis a zero entre les blocs.
+    public int SessionScore { get; private set; }
     public string BuildVersion => _buildVersion;
     public string PlatformUrl => Config != null ? Config.platform_url : null;
     public bool WasConsentDeclined { get; private set; }
@@ -180,6 +182,7 @@ public class FlowController : MonoBehaviour
         };
 
         BlockScore = 0;
+        SessionScore = 0;
         CurrentBlockSeed = 0;
         CurrentTrialSeed = 0;
         _breakResumeAllowedAt = 0;
@@ -282,6 +285,7 @@ public class FlowController : MonoBehaviour
 
         if (!CurrentBlock.is_tutorial)
         {
+            SessionScore += trialScore;
             State.completed_non_tutorial_trials++;
             if (AreBreaksEnabled &&
                 State.completed_non_tutorial_trials % Config.break_every_trials.Value == 0)
@@ -364,6 +368,13 @@ public class FlowController : MonoBehaviour
     public int GetAccumulatedScoreAfterTrial(int trialScore)
     {
         return BlockScore + trialScore;
+    }
+
+    // Le trial courant n'est pas encore comptabilise dans SessionScore au moment ou le
+    // TrialManager assemble la ligne : on projette la valeur post-trial ici.
+    public int GetSessionScoreAfterTrial(int trialScore)
+    {
+        return IsCurrentBlockTutorial ? SessionScore : SessionScore + trialScore;
     }
 
     public void RegisterLastTrialResponse(string trialResponseId)

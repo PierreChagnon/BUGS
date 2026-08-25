@@ -86,6 +86,9 @@ public class TrialManager : MonoBehaviour
         _currentTrialRow.green_bugs_accumulated = FlowController.Instance != null
             ? FlowController.Instance.GetAccumulatedScoreAfterTrial(greenBugsCollected)
             : greenBugsCollected;
+        _currentTrialRow.green_bugs_session_total = FlowController.Instance != null
+            ? FlowController.Instance.GetSessionScoreAfterTrial(greenBugsCollected)
+            : greenBugsCollected;
         _currentTrialRow.traps_hit = trapsHit;
         _currentTrialRow.steps = steps;
         _currentTrialRow.overtime_steps = overtimeSteps;

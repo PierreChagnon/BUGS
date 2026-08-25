@@ -1729,7 +1729,7 @@ public class TrialManager : MonoBehaviour
 | _pendingMapConfigJson                                 | string (privé)            | Tampon pour la config map reçue avant que le trial ne soit créé                          |
 | StartNewTrial()                                       | void                      | Crée une TrialResponseRow via `BuildBaseRow()`, applique le tampon map_config si présent |
 | RecordMove(Vector2Int)                                | void                      | Ajoute un PlayerStep (position + timestamp ISO) au trial courant                         |
-| EndCurrentTrial(string, bool, string, int, int, int, **int, bool, bool, bool**) | void | Finalise la row : choix, justesse, trueCloud, greenBugs, trapsHit, steps, **overtimeSteps, followedAdvisorPath**, optimalPathVisible, pathIsSuboptimal. Calcule `green_bugs_accumulated` via FlowController. Sérialise `player_path_log` via FlowSerializationUtility. Envoie via ApiClient (sauf tutorial) |
+| EndCurrentTrial(string, bool, string, int, int, int, **int, bool, bool, bool**) | void | Finalise la row : choix, justesse, trueCloud, greenBugs, trapsHit, steps, **overtimeSteps, followedAdvisorPath**, optimalPathVisible, pathIsSuboptimal. Calcule `green_bugs_accumulated` et `green_bugs_session_total` via FlowController. Sérialise `player_path_log` via FlowSerializationUtility. Envoie via ApiClient (sauf tutorial) |
 | SetOptimalPathLength(int)                             | void                      | Enregistre la longueur du chemin optimal dans la row courante                            |
 | SetCloudDistance(int)                                 | void                      | Enregistre la distance Manhattan joueur→nuages (`cloud_distance`) dans la row courante   |
 | SetMapConfig(gridSize, leftCell, leftBugs, leftGreenRatio, rightCell, rightBugs, rightGreenRatio) | void | API structurée — construit le JSON MiniMapCfg en interne |
@@ -1766,7 +1766,7 @@ graph TD
     N["GameManager.OnCloudCollected"] -->|"SetOptimalPathLength(n)"| O["_currentTrialRow.optimal_path_length = n"]
     N -->|"SetCloudDistance(d)"| O2["_currentTrialRow.cloud_distance = d"]
     N -->|"EndCurrentTrial(10 params)"| P["Remplir proximal_choice, choice_correct, etc."]
-    P --> P1["green_bugs_accumulated = FlowController.GetAccumulatedScoreAfterTrial(score)"]
+    P --> P1["green_bugs_accumulated = FlowController.GetAccumulatedScoreAfterTrial(score)<br/>green_bugs_session_total = FlowController.GetSessionScoreAfterTrial(score)"]
     P1 --> P2["player_path_log = FlowSerializationUtility.ToPlayerStepsJson(steps)"]
     P2 --> P3{"FlowController.IsCurrentBlockTutorial ?"}
     P3 -->|Oui| P4["Log: tutorial, skip envoi"]
@@ -1792,6 +1792,7 @@ graph TD
 - **⚠️ Séquencement :** `SetMapConfig` peut être appelé avant `StartNewTrial` (BugCloudSpawner Start -200 vs GameManager Start 0). Le tampon `_pendingMapConfigJson` gère ce cas
 - **⚠️ BuildBaseRow fallbacks :** Si FlowController est absent, `participant_id` est un GUID aléatoire, `session_template_id` = "debug-session-template", `block_index` = SessionManager.blockId ou 1
 - **⚠️ Accumulated score :** `green_bugs_accumulated` est calculé via `FlowController.GetAccumulatedScoreAfterTrial()` et inclut le score du trial courant. Si FlowController absent, = greenBugsCollected seul
+- **⚠️ Session total :** `green_bugs_session_total` est calculé via `FlowController.GetSessionScoreAfterTrial()` — cumul sur toute la session, jamais remis à 0 entre blocs. Sur un bloc tutorial la valeur reste plate (le score n'est pas compté), contrairement à `green_bugs_accumulated`
 - **⚠️ Envoi asynchrone :** Le `trialResponseId` est récupéré dans le callback `onSuccess` et enregistré dans FlowController — utilisé ensuite par le questionnaire pour le PATCH
 
 ### 4.5.7 Journal d'implémentation
@@ -2181,6 +2182,8 @@ stateDiagram-v2
 ActiveMapConfig     = clone de valley_a (si ValleyChoice.A ou None) ou valley_b (si B) + injection seed
 BlockScore          += trialScore à chaque OnTrialComplete (sauf tutorial)
 green_bugs_accumulated = BlockScore (reset à 0 entre blocs)
+SessionScore        += trialScore à chaque OnTrialComplete (sauf tutorial), jamais reset
+green_bugs_session_total = SessionScore (cumul session, tutoriels exclus)
 Tutorial skip       = si CurrentBlock.is_tutorial → score non compté, envoi réseau ignoré
 Session complete    = ApiClient.CompleteSession après dernier bloc
 PrepareConfig       = EnsureTutorialBlock + cleanup nulls + sanitize blocks
@@ -2465,6 +2468,7 @@ public class TrialResponseRow
     public string true_cloud;
     public int green_bugs_collected;
     public int green_bugs_accumulated;
+    public int green_bugs_session_total;
     public int traps_hit;
     public int steps;
     public int overtime_steps;
@@ -2520,6 +2524,7 @@ public class TrialResponseRow
 | true_cloud                        | string | EndCurrentTrial                   | Nuage objectivement meilleur : "left", "right" ou "none"                          |
 | green_bugs_collected              | int    | EndCurrentTrial                   | Bugs verts collectés (totalBugs × greenRatio après pénalités)                     |
 | green_bugs_accumulated            | int    | EndCurrentTrial                   | Score accumulé dans le bloc (FlowController.GetAccumulatedScoreAfterTrial)         |
+| green_bugs_session_total          | int    | EndCurrentTrial                   | Score accumulé sur toute la session, tutoriels exclus (FlowController.GetSessionScoreAfterTrial) |
 | traps_hit                         | int    | EndCurrentTrial                   | Nombre de pièges déclenchés                                                        |
 | steps                             | int    | EndCurrentTrial                   | Nombre total de pas du joueur                                                      |
 | overtime_steps                    | int    | EndCurrentTrial                   | Pas au-delà du budget (steps − cloud_distance, min 0)                             |
@@ -2598,6 +2603,7 @@ Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJso
   "true_cloud": "left",
   "green_bugs_collected": 28,
   "green_bugs_accumulated": 72,
+  "green_bugs_session_total": 214,
   "traps_hit": 2,
   "steps": 14,
   "overtime_steps": 2,
@@ -2614,6 +2620,7 @@ Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJso
 - **⚠️ Questionnaire patchés :** Les champs `q1_text/q1_response`, `q2_text/q2_response`, `q3_text/q3_response` sont vides au POST initial — ils sont patchés via `PATCH /api/trial-responses/{id}` après que le questionnaire est complété
 - **⚠️ player_path_log :** Sérialisé en string JSON (pas un objet imbriqué) — le backend reçoit la string telle quelle
 - **⚠️ green_bugs_accumulated :** Score accumulé dans le bloc courant (pas la session entière) — reset entre blocs
+- **⚠️ green_bugs_session_total :** Score accumulé sur toute la session — jamais reset entre blocs, et les blocs tutoriels n'y contribuent pas (valeur plate sur une ligne `is_tutorial`)
 - **⚠️ Timestamps :** `started_at` et `ended_at` utilisent `DateTime.UtcNow.ToString("o")` (ISO 8601 UTC)
 - **⚠️ Tutorial skip :** Si `FlowController.IsCurrentBlockTutorial`, le trial n'est PAS envoyé au backend (skip dans TrialManager)
 

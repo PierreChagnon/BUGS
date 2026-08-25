@@ -95,6 +95,7 @@ Pour chaque advice `X` ∈ {`distal`, `motor`, `proximal`}, 5 colonnes `X_advice
 | `true_cloud` | string | `left`/`right`/`none` | Nuage réellement optimal. |
 | `green_bugs_collected` | int | ≥ 0 | Bugs verts collectés sur ce trial. |
 | `green_bugs_accumulated` | int | ≥ 0 | Score vert cumulé dans le bloc (monotone croissant). |
+| `green_bugs_session_total` | int | ≥ 0 | Score vert cumulé sur toute la session, blocs tutoriels exclus (monotone croissant, jamais remis à zéro entre les blocs). |
 | `traps_hit` | int | ≥ 0 | Nombre de pièges déclenchés. |
 | `steps` | int | ≥ 0 | Nombre de pas effectués. |
 | `overtime_steps` | int | ≥ 0 | Pas au-delà du budget (`cloud_distance`). |

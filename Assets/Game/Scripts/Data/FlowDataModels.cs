@@ -548,6 +548,7 @@ public class TrialResponseRow
     public string true_cloud;
     public int green_bugs_collected;
     public int green_bugs_accumulated;
+    public int green_bugs_session_total;
     public int traps_hit;
     public int steps;
     public int overtime_steps;
