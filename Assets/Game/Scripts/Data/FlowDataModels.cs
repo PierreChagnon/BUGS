@@ -558,6 +558,7 @@ public class TrialResponseRow
     public int overtime_steps;
     public bool followed_advisor_path;
     public string player_path_log;
+    [IncludeNullInJson] public string advisor_path_config;
     public string acceptability_question;
     public string sens_of_agency_question;
     public string human_likeness_question;

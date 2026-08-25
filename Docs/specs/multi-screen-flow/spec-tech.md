@@ -446,6 +446,7 @@ public class TrialResponseRow
     public int overtime_steps;
     public bool followed_advisor_path;
     public string player_path_log;          // JSONB sérialisé: [{x,y,t}, ...]
+    public string advisor_path_config;      // JSONB sérialisé: [{x,y}, ...] — cases du chemin advisor affiché, null si non visible
     
     // ── Questionnaire post-bloc (rempli uniquement sur le dernier essai du bloc) ──
     public string q1_text;
@@ -758,6 +759,7 @@ CREATE TABLE trial_responses (
     overtime_steps                      INT,
     followed_advisor_path               BOOLEAN,
     player_path_log                     JSONB,              -- [{x, y, t}, ...]
+    advisor_path_config                 JSONB,              -- [{x, y}, ...] — cases du chemin advisor affiché, NULL si non visible
     
     -- ═══ Questionnaire post-bloc (NULL sauf dernier essai du bloc) ═══
     q1_text                             TEXT,

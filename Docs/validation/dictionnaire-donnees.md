@@ -103,6 +103,7 @@ Pour chaque advice `X` ∈ {`distal`, `motor`, `proximal`}, 5 colonnes `X_advice
 | `overtime_steps` | int | ≥ 0 | Pas au-delà du budget (`cloud_distance`). |
 | `followed_advisor_path` | bool | — | A suivi le chemin **affiché** (⚠️ pas forcément optimal — voir §Limites). |
 | `player_path_log` | JSON array | `[{x,y,t}]` | Trajectoire complète, `t` = timestamp ISO UTC par pas. |
+| `advisor_path_config` | JSON array | `[{x,y}]` ou ∅ | Cases ordonnées du chemin advisor **affiché** (même forme que `player_path_log`, sans timestamps). Vide quand `optimal_path_visible` est faux ou sur les lignes de builds antérieurs au champ. À croiser avec `player_path_log` pour repérer les cases parcourues hors du chemin conseillé. |
 
 ## Questionnaire & horodatage
 

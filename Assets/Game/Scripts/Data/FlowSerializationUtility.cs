@@ -14,6 +14,12 @@ public static class FlowSerializationUtility
         public PlayerStep[] items;
     }
 
+    [System.Serializable]
+    private class PathCellsWrapper
+    {
+        public PathCell[] items;
+    }
+
     public static string ToPlayerStepsJson(IReadOnlyList<PlayerStep> steps)
     {
         if (steps == null || steps.Count == 0)
@@ -26,6 +32,27 @@ public static class FlowSerializationUtility
 
         for (int i = 0; i < steps.Count; i++)
             wrapper.items[i] = steps[i];
+
+        string wrapped = JsonUtility.ToJson(wrapper);
+        const string prefix = "{\"items\":";
+        if (!wrapped.StartsWith(prefix))
+            return "[]";
+
+        return wrapped.Substring(prefix.Length, wrapped.Length - prefix.Length - 1);
+    }
+
+    public static string ToPathCellsJson(IReadOnlyList<Vector2Int> cells)
+    {
+        if (cells == null || cells.Count == 0)
+            return "[]";
+
+        var wrapper = new PathCellsWrapper
+        {
+            items = new PathCell[cells.Count]
+        };
+
+        for (int i = 0; i < cells.Count; i++)
+            wrapper.items[i] = new PathCell(cells[i]);
 
         string wrapped = JsonUtility.ToJson(wrapper);
         const string prefix = "{\"items\":";

@@ -1743,7 +1743,7 @@ public class TrialManager : MonoBehaviour
 | _pendingMapConfigJson                                 | string (privé)            | Tampon pour la config map reçue avant que le trial ne soit créé                          |
 | StartNewTrial()                                       | void                      | Crée une TrialResponseRow via `BuildBaseRow()`, applique le tampon map_config si présent |
 | RecordMove(Vector2Int)                                | void                      | Ajoute un PlayerStep (position + timestamp ISO) au trial courant                         |
-| EndCurrentTrial(string, bool, string, int, int, int, **int, bool, bool, bool**) | void | Finalise la row : choix, justesse, trueCloud, greenBugs, trapsHit, steps, **overtimeSteps, followedAdvisorPath**, optimalPathVisible, pathIsSuboptimal. Calcule `green_bugs_accumulated` et `green_bugs_session_total` via FlowController. Sérialise `player_path_log` via FlowSerializationUtility. Envoie via ApiClient (sauf tutorial) |
+| EndCurrentTrial(string, bool, string, int, int, int, **int, bool, IReadOnlyList\<Vector2Int\>, bool, bool, bool**) | void | Finalise la row : choix, justesse, trueCloud, greenBugs, trapsHit, steps, **overtimeSteps, followedAdvisorPath, advisorPathCells**, optimalPathVisible, pathIsSuboptimal. Calcule `green_bugs_accumulated` et `green_bugs_session_total` via FlowController. Sérialise `player_path_log` via FlowSerializationUtility, et `advisor_path_config` via `ToPathCellsJson` si le chemin était visible (`null` sinon). Envoie via ApiClient (sauf tutorial) |
 | SetOptimalPathLength(int)                             | void                      | Enregistre la longueur du chemin optimal dans la row courante                            |
 | SetCloudDistance(int)                                 | void                      | Enregistre la distance Manhattan joueur→nuages (`cloud_distance`) dans la row courante   |
 | SetMapConfig(gridSize, leftCell, leftBugs, leftGreenRatio, rightCell, rightBugs, rightGreenRatio) | void | API structurée — construit le JSON MiniMapCfg en interne |
@@ -1779,9 +1779,9 @@ graph TD
 
     N["GameManager.OnCloudCollected"] -->|"SetOptimalPathLength(n)"| O["_currentTrialRow.optimal_path_length = n"]
     N -->|"SetCloudDistance(d)"| O2["_currentTrialRow.cloud_distance = d"]
-    N -->|"EndCurrentTrial(10 params)"| P["Remplir proximal_choice, choice_correct, etc."]
+    N -->|"EndCurrentTrial(12 params)"| P["Remplir proximal_choice, choice_correct, etc."]
     P --> P1["green_bugs_accumulated = FlowController.GetAccumulatedScoreAfterTrial(score)<br/>green_bugs_session_total = FlowController.GetSessionScoreAfterTrial(score)"]
-    P1 --> P2["player_path_log = FlowSerializationUtility.ToPlayerStepsJson(steps)"]
+    P1 --> P2["player_path_log = FlowSerializationUtility.ToPlayerStepsJson(steps)<br/>advisor_path_config = visible ? ToPathCellsJson(advisorPathCells) : null"]
     P2 --> P3{"FlowController.IsCurrentBlockTutorial ?"}
     P3 -->|Oui| P4["Log: tutorial, skip envoi"]
     P3 -->|Non| P5{"ApiClient.Instance != null ?"}
@@ -1819,6 +1819,7 @@ graph TD
 | 02/03/26 | @pierre     | Ajout `SetCloudDistance(int)`. |
 | 09/03/26 | @auteur     | `EndCurrentTrial` passe à 8 params (ajout `pathIsSuboptimal`). |
 | 23/03/26 | @pierre     | Réécriture complète. Suppression `apiBaseUrl`, `studyToken`, `gameSessionId` — délégation totale à ApiClient. `StartNewTrial()` sans params (BuildBaseRow lit FlowController + SessionManager). `EndCurrentTrial` passe à 10 params (ajout `overtimeSteps`, `followedAdvisorPath`). Utilise `TrialResponseRow` au lieu de `TrialData`. `green_bugs_accumulated` calculé via `FlowController.GetAccumulatedScoreAfterTrial()`. `player_path_log` sérialisé via `FlowSerializationUtility.ToPlayerStepsJson()`. Tutorial skip si `IsCurrentBlockTutorial`. `trialResponseId` enregistré via `FlowController.RegisterLastTrialResponse()`. |
+| 25/08/26 | @pierre     | `EndCurrentTrial` passe à 12 params (ajout `advisorPathCells`). Nouveau champ `advisor_path_config` : cases ordonnées du chemin advisor affiché, sérialisées via `FlowSerializationUtility.ToPathCellsJson()` (`[{x,y}]`, sans timestamps) quand `optimal_path_visible` est vrai, `null` sinon. |
 
 ## 4.6 TilesSpawner
 
@@ -2490,6 +2491,7 @@ public class TrialResponseRow
     public int overtime_steps;
     public bool followed_advisor_path;
     public string player_path_log;
+    public string advisor_path_config;
 
     // Questionnaire (patchés après par ApiClient)
     public string q1_text;
@@ -2548,6 +2550,7 @@ public class TrialResponseRow
 | overtime_steps                    | int    | EndCurrentTrial                   | Pas au-delà du budget (steps − cloud_distance, min 0)                             |
 | followed_advisor_path             | bool   | EndCurrentTrial                   | `true` si le joueur a suivi le chemin conseillé                                    |
 | player_path_log                   | string | EndCurrentTrial                   | JSON sérialisé de `List<PlayerStep>` (coordonnées + timestamps)                   |
+| advisor_path_config               | string | EndCurrentTrial                   | Cases ordonnées du chemin advisor affiché, JSON `[{x,y}]` sans timestamps — `null` si le chemin n'était pas visible |
 | q1_text / q1_response             | string | ApiClient.PatchQuestionnaireResponses | Texte et réponse de la question 1 (patchés après envoi trial)                |
 | q2_text / q2_response             | string | ApiClient.PatchQuestionnaireResponses | Texte et réponse de la question 2                                            |
 | q3_text / q3_response             | string | ApiClient.PatchQuestionnaireResponses | Texte et réponse de la question 3                                            |
@@ -2629,6 +2632,7 @@ Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJso
   "overtime_steps": 2,
   "followed_advisor_path": true,
   "player_path_log": "[{\"x\":5,\"y\":0,\"t\":\"2026-02-17T14:30:01.000Z\"},{\"x\":5,\"y\":1,\"t\":\"2026-02-17T14:30:01.500Z\"}]",
+  "advisor_path_config": "[{\"x\":5,\"y\":0},{\"x\":5,\"y\":1}]",
   "started_at": "2026-02-17T14:30:00.000Z",
   "ended_at": "2026-02-17T14:30:15.000Z"
 }
@@ -2639,6 +2643,7 @@ Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJso
 - **⚠️ Flat row :** `TrialResponseRow` est une structure plate (~50 champs) — pas de nested objects — conçue pour insertion directe dans une table Supabase
 - **⚠️ Questionnaire patchés :** Les champs `q1_text/q1_response`, `q2_text/q2_response`, `q3_text/q3_response` sont vides au POST initial — ils sont patchés via `PATCH /api/trial-responses/{id}` après que le questionnaire est complété
 - **⚠️ player_path_log :** Sérialisé en string JSON (pas un objet imbriqué) — le backend reçoit la string telle quelle
+- **⚠️ advisor_path_config :** Même principe (string JSON `[{x,y}]`, sans timestamps) pour les cases du chemin advisor affiché — explicitement `null` quand `optimal_path_visible` est faux
 - **⚠️ green_bugs_accumulated :** Score accumulé dans le bloc courant (pas la session entière) — reset entre blocs
 - **⚠️ green_bugs_session_total :** Score accumulé sur toute la session — jamais reset entre blocs, et les blocs tutoriels n'y contribuent pas (valeur plate sur une ligne `is_tutorial`)
 - **⚠️ Timestamps :** `started_at` et `ended_at` utilisent `DateTime.UtcNow.ToString("o")` (ISO 8601 UTC)

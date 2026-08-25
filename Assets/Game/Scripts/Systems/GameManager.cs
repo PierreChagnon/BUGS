@@ -66,6 +66,8 @@ public class GameManager : MonoBehaviour
     BugCloud _rightCloud;
     BugCloud _forcedCollectableCloud;
     readonly HashSet<Vector2Int> _advisorPath = new();
+    // Version ordonnée du chemin advisor, pour l'archivage advisor_path_config.
+    readonly List<Vector2Int> _advisorPathCells = new();
 
     [Serializable]
     public struct RoundEndInfo
@@ -171,10 +173,14 @@ public class GameManager : MonoBehaviour
     public void SetChosenPath(IEnumerable<Vector2Int> cells)
     {
         _advisorPath.Clear();
+        _advisorPathCells.Clear();
         if (cells != null)
         {
             foreach (var cell in cells)
-                _advisorPath.Add(cell);
+            {
+                if (_advisorPath.Add(cell))
+                    _advisorPathCells.Add(cell);
+            }
         }
 
         followedAdvisorPath = true;
@@ -381,6 +387,7 @@ public class GameManager : MonoBehaviour
                 steps,
                 overtimeSteps,
                 followedAdvisorPath,
+                _advisorPathCells,
                 _advisorPathVisible,
                 _pathIsSuboptimal,
                 _proximalAdviceReliable);

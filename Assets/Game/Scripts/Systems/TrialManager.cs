@@ -70,6 +70,7 @@ public class TrialManager : MonoBehaviour
         int steps,
         int overtimeSteps,
         bool followedAdvisorPath,
+        IReadOnlyList<Vector2Int> advisorPathCells,
         bool optimalPathVisible,
         bool pathIsSuboptimal,
         bool proximalAdviceReliable)
@@ -98,6 +99,9 @@ public class TrialManager : MonoBehaviour
         _currentTrialRow.path_is_suboptimal = pathIsSuboptimal;
         _currentTrialRow.proximal_advice_reliable = proximalAdviceReliable;
         _currentTrialRow.player_path_log = FlowSerializationUtility.ToPlayerStepsJson(_playerPathSteps);
+        _currentTrialRow.advisor_path_config = optimalPathVisible
+            ? FlowSerializationUtility.ToPathCellsJson(advisorPathCells)
+            : null;
         _currentTrialRow.started_at = _startedAtIsoUtc;
         _currentTrialRow.ended_at = DateTime.UtcNow.ToString("o");
         FlowController.Instance?.ApplyCurrentExplanationStatesToRow(_currentTrialRow);
