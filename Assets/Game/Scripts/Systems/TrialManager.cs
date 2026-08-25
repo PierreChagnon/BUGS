@@ -30,13 +30,27 @@ public class TrialManager : MonoBehaviour
         public int gridHeight;
         public CloudInfo leftCloud;
         public CloudInfo rightCloud;
+        public List<CellState> cells;
+    }
+
+    [Serializable]
+    struct CellState
+    {
+        public int x;
+        public int y;
+        public bool trap;
+        public bool path;   // PathLeft ou PathRight (les deux chemins optimaux sont réservés avant les pièges)
+        public bool wall;
+        public bool cloud;
+        public bool suboptimalPath; // tracé affiché quand le chemin proposé est un détour (ni PathLeft ni PathRight)
+        public bool playerStart;
     }
 
     readonly List<PlayerStep> _playerPathSteps = new();
 
     TrialResponseRow _currentTrialRow;
     string _startedAtIsoUtc;
-    string _pendingMapConfigJson;
+    MiniMapCfg? _pendingMapCfg;
     bool _currentTrialSubmitted;
 
     public void StartNewTrial()
@@ -46,10 +60,10 @@ public class TrialManager : MonoBehaviour
         _currentTrialRow = BuildBaseRow();
         _currentTrialSubmitted = false;
 
-        if (!string.IsNullOrWhiteSpace(_pendingMapConfigJson))
+        if (_pendingMapCfg.HasValue)
         {
-            _currentTrialRow.map_config = _pendingMapConfigJson;
-            _pendingMapConfigJson = null;
+            _currentTrialRow.map_config = BuildMapConfigJson(_pendingMapCfg.Value);
+            _pendingMapCfg = null;
         }
     }
 
@@ -210,24 +224,46 @@ public class TrialManager : MonoBehaviour
             }
         };
 
-        SetMapConfigJson(JsonUtility.ToJson(cfg));
-    }
-
-    public void SetMapConfigJson(string json)
-    {
-        if (string.IsNullOrWhiteSpace(json) || json == "{}")
-        {
-            Debug.LogWarning("[TrialManager] map_config vide, ignoree.");
-            return;
-        }
-
         if (_currentTrialRow != null)
         {
-            _currentTrialRow.map_config = json;
+            _currentTrialRow.map_config = BuildMapConfigJson(cfg);
             return;
         }
 
-        _pendingMapConfigJson = json;
+        _pendingMapCfg = cfg;
+    }
+
+    // Sérialise la config de map en y ajoutant l'état de chaque cellule de la grille.
+    // Ne doit être appelé qu'une fois la génération terminée (paths, murs, pièges posés),
+    // c'est-à-dire au plus tôt dans StartNewTrial (SessionManager.Start, ordre 0).
+    string BuildMapConfigJson(MiniMapCfg cfg)
+    {
+        cfg.cells = new List<CellState>();
+
+        var registry = LevelRegistry.Instance;
+        if (registry != null)
+        {
+            for (int y = 0; y < registry.gridSize.y; y++)
+            {
+                for (int x = 0; x < registry.gridSize.x; x++)
+                {
+                    var flags = registry.GetFlags(new Vector2Int(x, y));
+                    cfg.cells.Add(new CellState
+                    {
+                        x = x,
+                        y = y,
+                        trap = (flags & LevelRegistry.CellFlags.Trap) != 0,
+                        path = (flags & (LevelRegistry.CellFlags.PathLeft | LevelRegistry.CellFlags.PathRight)) != 0,
+                        wall = (flags & LevelRegistry.CellFlags.Wall) != 0,
+                        cloud = (flags & LevelRegistry.CellFlags.BugCloud) != 0,
+                        suboptimalPath = (flags & LevelRegistry.CellFlags.SuboptimalPath) != 0,
+                        playerStart = (flags & LevelRegistry.CellFlags.PlayerStart) != 0,
+                    });
+                }
+            }
+        }
+
+        return JsonUtility.ToJson(cfg);
     }
 
     TrialResponseRow BuildBaseRow()
