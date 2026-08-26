@@ -168,8 +168,9 @@ public class PathSpawner : MonoBehaviour
         }
 
 
-        // ------ TIRAGE : CHEMIN SUBOPTIMAL ? ------
+        // ------ TIRAGES : ADVICE FIABLE ? CHEMIN SUBOPTIMAL ? ------
         bool isSuboptimal = false;
+        bool proximalAdviceReliable = false; // valeur réalisée, remontée dans trial_responses
         List<Vector2Int> displayPath; // chemin qui sera affiché au joueur
         bool hasAdvisor = session != null && session.HasAdvisor;
         bool proximalForced = FlowController.Instance != null &&
@@ -182,24 +183,44 @@ public class PathSpawner : MonoBehaviour
         {
             displayPath = new List<Vector2Int>(forcedIsLeft ? pathToLeftCloud : pathToRightCloud);
             isSuboptimal = bestKnown && forcedIsLeft != bestIsLeft;
+            // Comme au niveau distal : l'advice imposé est fiable ssi le nuage imposé est le meilleur.
+            proximalAdviceReliable = FlowController.Instance.State.proximal_choice_forced_was_optimal == true;
         }
-        else if (hasAdvisor && session.suboptimalPathProbability > 0f && rng.NextDouble() < session.suboptimalPathProbability)
+        else if (hasAdvisor)
         {
-            isSuboptimal = true;
-            Vector2Int bestCloudCell = bestIsLeft ? leftCloudCell : rightCloudCell;
+            // Tirage fiabilité : un advice non fiable désigne le mauvais nuage
+            // (celui avec le moins de bugs verts).
+            proximalAdviceReliable = rng.NextDouble() < session.proximalAdviceReliableProbability;
+            bool optimalIsLeft = optimalPath == pathToLeftCloud;
+            bool advisedIsLeft = proximalAdviceReliable ? optimalIsLeft : !optimalIsLeft;
+            Vector2Int advisedCloudCell = advisedIsLeft ? leftCloudCell : rightCloudCell;
 
-            // Détour (crochet) ou simple chemin Manhattan alternatif ?
-            bool withDetour = session.detourProbability > 0f && rng.NextDouble() < session.detourProbability;
+            bool routeSuboptimal = session.suboptimalPathProbability > 0f && rng.NextDouble() < session.suboptimalPathProbability;
+            if (routeSuboptimal)
+            {
+                // Détour (crochet) ou simple chemin Manhattan alternatif ?
+                bool withDetour = session.detourProbability > 0f && rng.NextDouble() < session.detourProbability;
 
-            if (withDetour)
-                displayPath = BuildSuboptimalDetour(rng, reg, playerCell, bestCloudCell, out withDetour);
+                if (withDetour)
+                    displayPath = BuildSuboptimalDetour(rng, reg, playerCell, advisedCloudCell, out withDetour);
+                else
+                    displayPath = BuildRandomManhattanPath(rng, reg, playerCell, advisedCloudCell);
+
+                // Enregistrer dans LevelRegistry pour que les murs ne bloquent pas le chemin
+                reg.RegisterSuboptimalPath(displayPath);
+
+                Debug.Log($"[PathSpawner] Chemin SUBOPTIMAL généré : {displayPath.Count} cases (détour={withDetour}, optimal={optimalPath.Length}).");
+            }
             else
-                displayPath = BuildRandomManhattanPath(rng, reg, playerCell, bestCloudCell);
+            {
+                displayPath = new List<Vector2Int>(advisedIsLeft ? pathToLeftCloud : pathToRightCloud);
+            }
 
-            // Enregistrer dans LevelRegistry pour que les murs ne bloquent pas le chemin
-            reg.RegisterSuboptimalPath(displayPath);
+            // Tracé rallongé ou mauvais nuage désigné : dans les deux cas le chemin affiché n'est pas l'optimal.
+            isSuboptimal = routeSuboptimal || !proximalAdviceReliable;
 
-            Debug.Log($"[PathSpawner] Chemin SUBOPTIMAL généré : {displayPath.Count} cases (détour={withDetour}, optimal={optimalPath.Length}).");
+            if (!proximalAdviceReliable)
+                Debug.Log($"[PathSpawner] Advice proximal NON FIABLE (prob={session.proximalAdviceReliableProbability:0.###}) : chemin vers le nuage {(advisedIsLeft ? "gauche" : "droit")}.");
         }
         else
         {
@@ -211,6 +232,7 @@ public class PathSpawner : MonoBehaviour
         {
             GameManager.Instance.SetChosenPath(hasAdvisor ? displayPath : null);
             GameManager.Instance.SetPathIsSuboptimal(isSuboptimal);
+            GameManager.Instance.SetProximalAdviceReliable(proximalAdviceReliable);
         }
 
         bool visible = hasAdvisor && rng.NextDouble() < session.pathVisible;

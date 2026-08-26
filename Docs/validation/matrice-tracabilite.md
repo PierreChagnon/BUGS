@@ -60,6 +60,7 @@
 | `path_visible_probability` | float | [0,1] | session/map | non | | |
 | `suboptimal_path_probability` | float | [0,1] | session/map | non | | |
 | `detour_probability` | float | [0,1] | session/map | non | | |
+| `proximal_advice_reliable_probability` | float | [0,1] | session/map | non | | |
 | `motor_advice_visible_probability` | float | [0,1] | session/map | non | | |
 | `motor_advice_reliable_probability` | float | [0,1] | session/map | non | | |
 | `suboptimal_trap_probability` | float | [0,1] | session/map | non | | |
@@ -116,6 +117,7 @@
 | `true_cloud` | string | `left`/`right`/`none` | `EndCurrentTrial` | non | | |
 | `green_bugs_collected` | int | ≥ 0 | `EndCurrentTrial` | non | | |
 | `green_bugs_accumulated` | int | ≥ 0 (cumul bloc) | `FlowController.GetAccumulatedScoreAfterTrial` | non | | |
+| `green_bugs_session_total` | int | ≥ 0 (cumul session, tutoriels exclus) | `FlowController.GetSessionScoreAfterTrial` | non | | |
 | `traps_hit` | int | ≥ 0 | `EndCurrentTrial` | non | | |
 | `steps` | int | ≥ 0 | `EndCurrentTrial` | non | | |
 | `overtime_steps` | int | ≥ 0 | `EndCurrentTrial` | non | | |

@@ -42,6 +42,7 @@ public class SessionManager : MonoBehaviour
     public float pathVisible = 1f;
     [Range(0f, 1f)] public float suboptimalPathProbability;
     [Range(0f, 1f)] public float detourProbability;
+    [Range(0f, 1f)] public float proximalAdviceReliableProbability = 1f;
     [Range(0f, 1f)] public float motorAdviceVisibleProbability = 1f;
     [Range(0f, 1f)] public float motorAdviceReliableProbability = 1f;
     [Range(0f, 1f)] public float suboptimalTrapProbability;
@@ -126,6 +127,7 @@ public class SessionManager : MonoBehaviour
         pathVisible = map.path_visible_probability;
         suboptimalPathProbability = map.suboptimal_path_probability;
         detourProbability = map.detour_probability;
+        proximalAdviceReliableProbability = map.proximal_advice_reliable_probability;
         motorAdviceVisibleProbability = map.motor_advice_visible_probability;
         motorAdviceReliableProbability = map.motor_advice_reliable_probability;
         suboptimalTrapProbability = map.suboptimal_trap_probability;

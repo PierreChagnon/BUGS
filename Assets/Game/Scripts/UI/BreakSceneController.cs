@@ -8,6 +8,7 @@ using UnityEngine.UI;
 // Ce composant ne cree aucun element d'interface. Il doit etre ajoute a un objet
 // de la scene de pause creee par l'equipe, puis recevoir dans l'Inspector :
 //   - le TMP_Text qui affiche le countdown ;
+//   - le TMP_Text qui affiche le total de bugs verts collectes sur la session ;
 //   - le Button utilise pour reprendre la session.
 //
 // La duree vient exclusivement de break_duration_seconds dans la config API.
@@ -22,6 +23,9 @@ public class BreakSceneController : MonoBehaviour
 
     [Tooltip("Bouton de reprise, desactive jusqu'a la fin du countdown.")]
     [SerializeField] private Button _resumeButton;
+
+    [Tooltip("Texte TextMeshPro qui affiche le total de bugs verts collectes depuis le debut de la session.")]
+    [SerializeField] private TMP_Text _totalBugsText;
 
     int _lastDisplayedSeconds = -1;
 
@@ -54,6 +58,9 @@ public class BreakSceneController : MonoBehaviour
             enabled = false;
             return;
         }
+
+        if (_totalBugsText != null)
+            _totalBugsText.text = flow.SessionScore.ToString();
 
         flow.StartBreakCountdown();
         RefreshCountdown(force: true);

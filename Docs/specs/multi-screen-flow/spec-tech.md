@@ -67,7 +67,7 @@ graph TD
 
 | Composant | Type | Scène | Rôle | Ce qu'il NE FAIT PAS |
 |:--|:--|:--|:--|:--|
-| **FlowController** | Nouveau — Singleton DDOL | BootScene | Porte `SessionConfig` + `PlayerSessionState`. Orchestre transitions inter-scènes. Calcule `ActiveMapConfig`. Accumule `green_bugs_accumulated`. | Pas de gameplay, pas de HTTP |
+| **FlowController** | Nouveau — Singleton DDOL | BootScene | Porte `SessionConfig` + `PlayerSessionState`. Orchestre transitions inter-scènes. Calcule `ActiveMapConfig`. Accumule `green_bugs_accumulated` (par bloc) et `green_bugs_session_total` (sur la session, tutoriels exclus). | Pas de gameplay, pas de HTTP |
 | **ApiClient** | Nouveau — Singleton DDOL | BootScene | Point unique HTTP : fetch config, POST trial, PATCH questionnaire, retry, auth. | Ne sait pas assembler les données |
 | **FadeTransition** | Nouveau — MonoBehaviour DDOL | BootScene | Fade to/from black (DEC-002) | — |
 | **SessionManager** | Modifié | ProximalScene | Façade locale. Copie `FlowController.ActiveMapConfig` dans ses champs en Awake. Les spawners lisent `SessionManager.Instance`. Lance `GameManager.BeginFirstRound()`. | Plus de parsing CLI (sauf fallback debug), plus de HTTP |
@@ -97,6 +97,7 @@ graph TD
 | Orchestre transitions inter-scènes | **✓** | | | | |
 | Calcule ActiveMapConfig | **✓** | | | | |
 | Accumule green_bugs_accumulated | **✓** | | | | |
+| Accumule green_bugs_session_total | **✓** | | | | |
 | Stocke last_trial_response_id (PATCH) | **✓** | | | | |
 | Génère participant_id (UUID) | **✓** | | | | |
 | HTTP : fetch config | | **✓** | | | |
@@ -321,6 +322,7 @@ public class MapGenConfig
     public float path_visible;
     public float suboptimal_path_probability;
     public float detour_probability;
+    public float proximal_advice_reliable_probability;
     public float motor_advice_visible_probability;
     public float motor_advice_reliable_probability;
     public float suboptimal_trap_probability;
@@ -418,6 +420,7 @@ public class TrialResponseRow
     public float path_visible_probability;
     public float suboptimal_path_probability;
     public float detour_probability;
+    public float proximal_advice_reliable_probability;
     public float motor_advice_visible_probability;
     public float motor_advice_reliable_probability;
     public float suboptimal_trap_probability;
@@ -437,11 +440,13 @@ public class TrialResponseRow
     public string true_cloud;               // "left" | "right" | "none"
     public int green_bugs_collected;        // bugs verts sur CET essai
     public int green_bugs_accumulated;      // score cumulé du bloc APRÈS cet essai
+    public int green_bugs_session_total;    // score cumulé de la session APRÈS cet essai (tutoriels exclus)
     public int traps_hit;
     public int steps;
     public int overtime_steps;
     public bool followed_advisor_path;
     public string player_path_log;          // JSONB sérialisé: [{x,y,t}, ...]
+    public string advisor_path_config;      // JSONB sérialisé: [{x,y}, ...] — cases du chemin advisor affiché, null si non visible
     
     // ── Questionnaire post-bloc (rempli uniquement sur le dernier essai du bloc) ──
     public string q1_text;
@@ -510,7 +515,7 @@ sequenceDiagram
         PRX->>PRX: SessionManager lit FC.ActiveMapConfig
         PRX->>PRX: Gameplay...
         PRX->>FC: OnTrialComplete(score)
-        FC->>FC: green_bugs_accumulated += score, trial_index++
+        FC->>FC: green_bugs_accumulated += score, green_bugs_session_total += score (sauf tutorial), trial_index++
         FC->>API: SendTrialResponse(row)
         Note right of API: 1 ligne complète par essai
     end
@@ -520,7 +525,7 @@ sequenceDiagram
     QST->>FC: OnQuestionnaireComplete(q1, q2, q3)
     FC->>API: PatchQuestionnaireResponses(last_trial_response_id, q1..q3)
     Note right of API: PATCH sur la dernière ligne déjà en base (DEC-013)
-    FC->>FC: block_index++, green_bugs_accumulated=0, reset choices
+    FC->>FC: block_index++, green_bugs_accumulated=0 (session_total conservé), reset choices
 ```
 
 ### 5.3 Propagation des choix du joueur
@@ -728,6 +733,7 @@ CREATE TABLE trial_responses (
     path_visible_probability            REAL,
     suboptimal_path_probability         REAL,
     detour_probability                  REAL,
+    proximal_advice_reliable_probability REAL,
     motor_advice_visible_probability    REAL,
     motor_advice_reliable_probability   REAL,
     suboptimal_trap_probability         REAL,
@@ -747,11 +753,13 @@ CREATE TABLE trial_responses (
     true_cloud                          TEXT,               -- 'left' | 'right' | 'none'
     green_bugs_collected                INT,                -- score de CET essai
     green_bugs_accumulated              INT,                -- score cumulé du bloc APRÈS cet essai
+    green_bugs_session_total            INT NOT NULL DEFAULT 0, -- score cumulé de la session APRÈS cet essai (tutoriels exclus)
     traps_hit                           INT,
     steps                               INT,
     overtime_steps                      INT,
     followed_advisor_path               BOOLEAN,
     player_path_log                     JSONB,              -- [{x, y, t}, ...]
+    advisor_path_config                 JSONB,              -- [{x, y}, ...] — cases du chemin advisor affiché, NULL si non visible
     
     -- ═══ Questionnaire post-bloc (NULL sauf dernier essai du bloc) ═══
     q1_text                             TEXT,
@@ -800,6 +808,7 @@ Chaque ligne est auto-suffisante. Aucune jointure nécessaire.
     "path_visible_probability": 1.0,
     "suboptimal_path_probability": 0.0,
     "detour_probability": 0.0,
+    "proximal_advice_reliable_probability": 1.0,
     "motor_advice_visible_probability": 1.0,
     "motor_advice_reliable_probability": 1.0,
     "suboptimal_trap_probability": 0.0,

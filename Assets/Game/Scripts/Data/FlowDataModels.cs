@@ -200,6 +200,7 @@ public class MapGenConfig
     public float path_visible_probability = 1f;
     public float suboptimal_path_probability;
     public float detour_probability;
+    public float proximal_advice_reliable_probability = 1f;
     public float motor_advice_visible_probability = 1f;
     public float motor_advice_reliable_probability = 1f;
     public float suboptimal_trap_probability;
@@ -224,6 +225,7 @@ public class MapGenConfig
             path_visible_probability = path_visible_probability,
             suboptimal_path_probability = suboptimal_path_probability,
             detour_probability = detour_probability,
+            proximal_advice_reliable_probability = proximal_advice_reliable_probability,
             motor_advice_visible_probability = motor_advice_visible_probability,
             motor_advice_reliable_probability = motor_advice_reliable_probability,
             suboptimal_trap_probability = suboptimal_trap_probability,
@@ -240,12 +242,20 @@ public static class ExplanationDisplayMode
     public const string Forced = "forced";
     public const string OptIn = "opt-in";
     public const string None = "none";
+
+    // Valeur de config uniquement : le mode reel est tire a l'affichage.
+    // Ne remonte jamais dans trial_responses.
+    public const string ForcedOptIn = "forced/opt-in";
 }
 
 public static class ExplanationContentVariant
 {
     public const string Short = "short";
     public const string Long = "long";
+
+    // Valeur de config uniquement : la variante reelle est tiree a l'affichage.
+    // Ne remonte jamais dans trial_responses.
+    public const string ShortLong = "short/long";
 }
 
 [Serializable]
@@ -285,6 +295,14 @@ public class AdviceExplanationConfig
     public ExplanationCorpus corpus = new();
     public float display_probability = 1f;
 
+    // Lu uniquement quand display_mode vaut "forced/opt-in" : probabilite de tirer
+    // "forced", sinon "opt-in".
+    public float display_mode_forced_probability = 0.5f;
+
+    // Lu uniquement quand content_variant vaut "short/long" : probabilite de tirer
+    // "long", sinon "short".
+    public float content_variant_long_probability = 0.5f;
+
     public ExplanationText GetText(AdvisorType advisorType, string variant)
     {
         ExplanationVariantSet variants = corpus != null ? corpus.GetVariantSet(advisorType) : null;
@@ -298,7 +316,9 @@ public class AdviceExplanationConfig
             display_mode = display_mode,
             content_variant = content_variant,
             corpus = corpus != null ? corpus.DeepClone() : new ExplanationCorpus(),
-            display_probability = display_probability
+            display_probability = display_probability,
+            display_mode_forced_probability = display_mode_forced_probability,
+            content_variant_long_probability = content_variant_long_probability
         };
     }
 }
@@ -505,6 +525,7 @@ public class TrialResponseRow
     public float path_visible_probability;
     public float suboptimal_path_probability;
     public float detour_probability;
+    public float proximal_advice_reliable_probability;
     public float motor_advice_visible_probability;
     public float motor_advice_reliable_probability;
     public string motor_advice_explanation_display_mode = ExplanationDisplayMode.None;
@@ -520,6 +541,7 @@ public class TrialResponseRow
     public int cloud_distance;
     public bool optimal_path_visible;
     public bool path_is_suboptimal;
+    public bool proximal_advice_reliable;
     public string proximal_choice;
     public string proximal_advice_explanation_display_mode = ExplanationDisplayMode.None;
     [IncludeNullInJson] public string proximal_advice_explanation_content_variant;
@@ -530,11 +552,13 @@ public class TrialResponseRow
     public string true_cloud;
     public int green_bugs_collected;
     public int green_bugs_accumulated;
+    public int green_bugs_session_total;
     public int traps_hit;
     public int steps;
     public int overtime_steps;
     public bool followed_advisor_path;
     public string player_path_log;
+    [IncludeNullInJson] public string advisor_path_config;
     public string acceptability_question;
     public string sens_of_agency_question;
     public string human_likeness_question;

@@ -17,6 +17,12 @@ public class RoundUI : MonoBehaviour
     [SerializeField] private GameObject _successPanel;
     [SerializeField] private GameObject _failurePanel;
 
+    [Header("Trial proximal forced")]
+    [Tooltip("Remplace _successPanel quand le trial est proximal forced et que le nuage impose etait le meilleur.")]
+    [SerializeField] private GameObject _forcedSuccessPanel;
+    [Tooltip("Remplace _failurePanel quand le trial est proximal forced et que le nuage impose n'etait pas le meilleur.")]
+    [SerializeField] private GameObject _forcedFailurePanel;
+
     [Header("Feedback numerique")]
     [Tooltip("GameObject regroupant les valeurs numeriques du rapport de mission. Affiche selon show_numerical_feedback du bloc courant.")]
     [SerializeField] private GameObject _numericalFeedbackRoot;
@@ -56,11 +62,23 @@ public class RoundUI : MonoBehaviour
         if (_greenBugsEscaped != null)
             _greenBugsEscaped.text = $"{info.bugsEscaped}";
 
+        // En trial proximal forced, un seul nuage est presente au joueur : les panels
+        // dedies remplacent les panels standards (pas de choix a feliciter/blamer).
+        bool isForcedTrial = FlowController.Instance != null
+            && FlowController.Instance.State != null
+            && FlowController.Instance.State.proximal_choice_is_forced;
+
         if (_successPanel != null)
-            _successPanel.SetActive(info.choiceCorrect);
+            _successPanel.SetActive(!isForcedTrial && info.choiceCorrect);
 
         if (_failurePanel != null)
-            _failurePanel.SetActive(!info.choiceCorrect);
+            _failurePanel.SetActive(!isForcedTrial && !info.choiceCorrect);
+
+        if (_forcedSuccessPanel != null)
+            _forcedSuccessPanel.SetActive(isForcedTrial && info.choiceCorrect);
+
+        if (_forcedFailurePanel != null)
+            _forcedFailurePanel.SetActive(isForcedTrial && !info.choiceCorrect);
 
         if (_numericalFeedbackRoot != null)
         {

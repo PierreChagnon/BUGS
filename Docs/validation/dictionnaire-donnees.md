@@ -51,6 +51,7 @@
 | `path_visible_probability` | float | [0,1] | Probabilité que le chemin advisor soit visible. |
 | `suboptimal_path_probability` | float | [0,1] | Probabilité d'afficher un chemin suboptimal. |
 | `detour_probability` | float | [0,1] | Probabilité d'un détour. |
+| `proximal_advice_reliable_probability` | float | [0,1] | Probabilité que le chemin advisor désigne le meilleur nuage. Bypassée si proximal forced. Vide sur les lignes antérieures au champ. |
 | `motor_advice_visible_probability` | float | [0,1] | Probabilité que le conseil moteur soit visible. |
 | `motor_advice_reliable_probability` | float | [0,1] | Probabilité que le conseil moteur soit fiable. |
 | `suboptimal_trap_probability` | float | [0,1] | Probabilité de pièges sur chemin suboptimal. |
@@ -102,16 +103,19 @@ Pour chaque advice `X` ∈ {`distal`, `motor`, `proximal`}, 5 colonnes `X_advice
 | :-- | :-- | :-- | :-- |
 | `proximal_choice` | string | `left`/`right`/`unknown` | Nuage effectivement collecté. |
 | `optimal_path_visible` | bool | — | Le chemin optimal était-il visible ? |
-| `path_is_suboptimal` | bool | — | Le chemin **affiché** était-il suboptimal ? |
+| `path_is_suboptimal` | bool | — | Le chemin **affiché** était-il suboptimal ? Vrai aussi quand l'advice non fiable désignait le mauvais nuage. |
+| `proximal_advice_reliable` | bool | — | **Réalisé** : le chemin advisor désignait-il le meilleur nuage ? Si proximal forced : le nuage imposé était-il le meilleur. `false` sans advisor. Vide sur les lignes antérieures au champ. |
 | `choice_correct` | bool | — | Le nuage choisi était-il le meilleur ? (⇔ `proximal_choice == true_cloud`) |
 | `true_cloud` | string | `left`/`right`/`none` | Nuage réellement optimal. |
 | `green_bugs_collected` | int | ≥ 0 | Bugs verts collectés sur ce trial. |
 | `green_bugs_accumulated` | int | ≥ 0 | Score vert cumulé dans le bloc (monotone croissant). |
+| `green_bugs_session_total` | int | ≥ 0 | Score vert cumulé sur toute la session, blocs tutoriels exclus (monotone croissant, jamais remis à zéro entre les blocs). |
 | `traps_hit` | int | ≥ 0 | Nombre de pièges déclenchés. |
 | `steps` | int | ≥ 0 | Nombre de pas effectués. |
 | `overtime_steps` | int | ≥ 0 | Pas au-delà du budget (`cloud_distance`). |
 | `followed_advisor_path` | bool | — | A suivi le chemin **affiché** (⚠️ pas forcément optimal — voir §Limites). |
 | `player_path_log` | JSON array | `[{x,y,t}]` | Trajectoire complète, `t` = timestamp ISO UTC par pas. |
+| `advisor_path_config` | JSON array | `[{x,y}]` ou ∅ | Cases ordonnées du chemin advisor **affiché** (même forme que `player_path_log`, sans timestamps). Vide quand `optimal_path_visible` est faux ou sur les lignes de builds antérieurs au champ. À croiser avec `player_path_log` pour repérer les cases parcourues hors du chemin conseillé. |
 
 ## Questionnaire & horodatage
 
