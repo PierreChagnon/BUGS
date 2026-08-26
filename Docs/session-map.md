@@ -5,85 +5,40 @@
 
 ---
 
-## Feature en cours
+## ✅ Aucune session en cours
 
-**Nom :** Motor Advice
+**Dernière session close :** Motor Advice — clôturée le 2026-07-28.
+
+---
+
+## Session close — Motor Advice
+
 **Objectif :** Tirer un set de touches par essai et afficher un advice probabiliste pour guider le joueur.
-**Démarrée le :** 2026-03-12
-
----
-
-## Progression
+**Démarrée le :** 2026-03-12 · **Clôturée le :** 2026-07-28
 
 ```
-[░░░░░░░░░░] 0/5 tâches complétées
+[██████████] 5/5 tâches complétées
 ```
 
----
-
-## Tâches
-
-| # | Symbole | Tâche | État |
-|---|---------|-------|------|
-| 1 | 🤖 | Ajouter params motor advice dans SessionManager + parsing CLI | ⬜ À faire |
-| 2 | 🤖 | Ajouter MotorAdviceController (tirage set + mapping input) | ⬜ À faire |
-| 3 | 🤖 | Adapter GridMover pour lire le set actif | ⬜ À faire |
-| 4 | 👤 | Creer UI motor advice (TMP_Text) + hook scene | ⬜ À faire |
-| 5 | 👁️ | Validation manuelle (3 cas de proba) | ⬜ À faire |
+| # | Symbole | Tâche | État | Livré dans |
+|---|---------|-------|------|------------|
+| 1 | 🤖 | Params motor advice dans SessionManager + parsing CLI | ✅ Fait | `SessionManager.cs` (`motorAdviceVisibleProbability`, `motorAdviceReliableProbability`) |
+| 2 | 🤖 | MotorAdviceController (tirage set + mapping input) | ✅ Fait | `Assets/Game/Scripts/Controllers/MotorAdviceController.cs` |
+| 3 | 🤖 | Adapter GridMover pour lire le set actif | ✅ Fait | `GridMover.cs:113` — aucun fallback flèches |
+| 4 | 👤 | Créer UI motor advice + hook scène | ✅ Fait | `Assets/Game/Scripts/UI/MotorAdviceUI.cs` |
+| 5 | 👁️ | Validation manuelle (3 cas de proba) | ✅ Fait | — |
 
 **Légende états :** ⬜ À faire · 🔄 En cours · ✅ Fait · ⏸️ En attente · ❌ Bloqué
 
----
+### Écarts constatés à la clôture
 
-## Position actuelle
-
-```
-← ON EST ICI →  [Tache #1: params SessionManager]
-```
-
-**Prochaine action IA :** Donner le plan et les snippets pour implementer les taches #1-#3.
-**Prochaine action développeur :** Valider le plan et implementer les changements code.
-
----
-
-## Gates ouverts
-
-### ⏸️ GATE #N — [Titre]
-- [ ] Action 1
-- [ ] Action 2
-
-*Bloquant pour :* tâche #X
-
----
-
-## Hypothèses actives
-
-> Hypothèses que l'IA a faites sur la structure du projet. À valider ou corriger.
-
-- [ ] Un Canvas UI existe dans la scene forest pour y ajouter le bloc motor advice.
-- [ ] TextMeshPro est deja configure (TMP_Text utilise par RoundUI).
-
----
-
-## Décisions prises cette session
-
-| Sujet | Décision | Par qui |
-|-------|----------|---------|
-| <!-- ex: Architecture UI --> | <!-- ex: UI Toolkit choisi plutôt que uGUI --> | 🧠 Dev |
-
----
-
-## Log de session
-
-```
-[HH:MM] PLAN genere — 5 taches identifiees
-```
+- Les sets sont **ZQSD / TFGH / IJKL** (et non QZD/FTH/KOM comme dans `free-forced-choices/spec-fonc.md`) — le set OKLM a été remplacé par IJKL au commit `7b3a9e86`. Valeurs API : `QZD` / `FTH` / `JIL`.
+- `MotorAdviceController` a été placé dans `Controllers/` (comme le prévoyait `multi-screen-flow/spec-tech.md`) et non dans `Systems/` (comme le prévoyait `MotorAdvice/spec-tech.md:183`).
+- **Reste ouvert :** Q-002 (colonnes CSV motor advice, toujours `TBD` dans `MotorAdvice/spec-fonc.md:81-84`) et Q-004 (format d'affichage imposé du set).
 
 ---
 
 ## Contexte à transmettre à la prochaine session
 
-> Rempli en fin de session par l'IA
-
-- 
-- 
+- L'état réel du projet est décrit dans `Docs/project-state/revue-completude-2026-07-28.md` et `Docs/project-state/avancement.md`.
+- Prochain chantier prioritaire : **Lot A — fiabilisation du pipeline de données** (cf. revue §7).

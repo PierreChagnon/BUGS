@@ -4945,11 +4945,17 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3947555874872854613, guid: 110b7ba871ab97c409601b33c05415ba, type: 3}
       propertyPath: m_text
-      value: "This game is part of a study on metacognition\u2014that is, how we
-        reflect on our own thinking. By playing this game, you\u2019re helping us
-        deepen our understanding of the human mind.\n\nYou've landed on a newly discovered
-        planet. Explore your surroundings and complete the missions available to
-        you."
+      value: 'Cosmic Harvest is a game designed for scientific research. It enables
+        researchers to investigate cognitive and metacognitive processes and gain
+        a better understanding of human thought and behavior.
+
+
+        You have
+        landed on a newly discovered planet. Your mission is to collect bugs that
+        live in its forests. A space base has already been established on the planet,
+        where crew members and robots are available to join you on bug-catching missions.
+
+'
       objectReference: {fileID: 0}
     - target: {fileID: 3947555874872854613, guid: 110b7ba871ab97c409601b33c05415ba, type: 3}
       propertyPath: m_margin.x
@@ -5073,7 +5079,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3947555875788159754, guid: 110b7ba871ab97c409601b33c05415ba, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 360
+      value: 491.3378
       objectReference: {fileID: 0}
     - target: {fileID: 3947555875788159754, guid: 110b7ba871ab97c409601b33c05415ba, type: 3}
       propertyPath: m_LocalPosition.x
@@ -5109,7 +5115,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3947555875788159754, guid: 110b7ba871ab97c409601b33c05415ba, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 45
+      value: 95.331055
       objectReference: {fileID: 0}
     - target: {fileID: 3947555875788159754, guid: 110b7ba871ab97c409601b33c05415ba, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x

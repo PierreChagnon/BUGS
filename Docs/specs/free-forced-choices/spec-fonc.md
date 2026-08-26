@@ -4,10 +4,20 @@
 > Décrit le QUOI et le POURQUOI. Jamais le COMMENT technique.
 
 **Date initiale :** 2026-05-20
-**Dernière mise à jour :** 2026-05-26 (consolidation post-arbitrage chercheur — Q-FF-1 à Q-FF-11 résolues, Notes 1/2/3 intégrées)
-**Statut :** `validé`
+**Dernière mise à jour :** 2026-07-28 (correction du domaine `motor_forced_set` — cf. errata ci-dessous. Le corps fonctionnel reste celui validé le 2026-05-26 : Q-FF-1 à Q-FF-11 résolues, Notes 1/2/3 intégrées)
+**Statut :** `validé` — **implémenté**, mais sans spec tech
 **Chantier :** Free / Forced choices
-**Spec tech associée :** `Docs/specs/free-forced-choices/spec-tech.md` (à produire)
+**Spec tech associée :** `Docs/specs/free-forced-choices/spec-tech.md` — ❌ **jamais produite**
+
+---
+
+## ⚠️ Errata — 2026-07-28
+
+**1. Domaine de `motor_forced_set`.** Cette spec annonçait `{QZD, FTH, KOM}`. Le set `OKLM` a été remplacé par `IJKL` au commit `7b3a9e86`, et le domaine réel émis par le code est **`{QZD, FTH, JIL}`** (`FlowDataModels.cs:620-629`). Les trois valeurs encodent les touches gauche-haut-droite des sets `ZQSD` / `TFGH` / `IJKL`. Le texte ci-dessous a été corrigé en conséquence.
+
+> Attention : `FlowValueConverters.ToMotorKeySet` (`FlowDataModels.cs:631-650`) convertit **silencieusement** toute valeur inconnue en `ZQSD`. Une configuration de session encore renseignée en `"KOM"` produirait donc du ZQSD sans aucune alerte.
+
+**2. Spec tech manquante.** Le chantier a été **implémenté sans spec technique** (`FlowController.cs:99-171`, `239-256`). Les tie-breakers « vallée optimale » (R6, §2.2) et « cloud optimal » (R15, §2.3) sont renvoyés par cette spec à un document qui n'existe pas — la règle de départage réellement appliquée n'est donc écrite nulle part. Voir `Docs/project-state/revue-completude-2026-07-28.md` §5.2.
 
 ---
 
@@ -63,7 +73,7 @@ Brique nécessaire à la validité des hypothèses **H1 à H8** du GDD (sense of
     - **meta** : toggle déterministe `advisor_forced` + dropdown explicite `advisor_forced_value ∈ {none, human, robot}`.
     - **distal** : toggle déterministe `distal_forced` + valeur binaire `distal_forced_optimal_probability ∈ {0, 1}` (0 → vallée imposée toujours sous-optimale, 1 → toujours optimale).
     - **proximal** : **proba trial-wise** `proximal_forced_probability ∈ [0, 1]` (proportion des trials forced dans le bloc, tirage Bernoulli par trial) + valeur binaire `proximal_forced_optimal_probability ∈ {0, 1}` (0 → cloud imposé toujours sous-optimal, 1 → toujours optimal). Mix free/forced autorisé dans un bloc.
-    - **motor** : **proba trial-wise** `motor_forced_probability ∈ [0, 1]` (proportion des trials forced dans le bloc) + `motor_forced_set ∈ {QZD, FTH, KOM}` fixé par le chercheur. Le set imposé s'applique **uniquement aux trials forced** ; les trials free du même bloc conservent le tirage aléatoire par trial (comportement actuel). Mix free/forced autorisé dans un bloc.
+    - **motor** : **proba trial-wise** `motor_forced_probability ∈ [0, 1]` (proportion des trials forced dans le bloc) + `motor_forced_set ∈ {QZD, FTH, JIL}` fixé par le chercheur. Le set imposé s'applique **uniquement aux trials forced** ; les trials free du même bloc conservent le tirage aléatoire par trial (comportement actuel). Mix free/forced autorisé dans un bloc.
 
 - **Récap config `BlockConfig` (8 champs) :**
 
@@ -72,7 +82,7 @@ Brique nécessaire à la validité des hypothèses **H1 à H8** du GDD (sense of
   | meta | `advisor_forced: bool`, `advisor_forced_value ∈ {none, human, robot}` |
   | distal | `distal_forced: bool`, `distal_forced_optimal_probability ∈ [0, 1]` |
   | proximal | `proximal_forced_probability ∈ [0, 1]`, `proximal_forced_optimal_probability ∈ [0, 1]` |
-  | motor | `motor_forced_probability ∈ [0, 1]`, `motor_forced_set ∈ {QZD, FTH, KOM}` |
+  | motor | `motor_forced_probability ∈ [0, 1]`, `motor_forced_set ∈ {QZD, FTH, JIL}` |
 
 ### Dépendances
 
@@ -234,8 +244,8 @@ Brique nécessaire à la validité des hypothèses **H1 à H8** du GDD (sense of
 
 #### Ce qui est affiché
 
-- Si **trial = free** (issue du tirage) : le set actif est **tiré aléatoirement parmi `{QZD, FTH, KOM}`** (comportement actuel inchangé). Le participant doit découvrir le set actif ou se reposer sur le motor-advice.
-- Si **trial = forced** (issue du tirage) : le set actif est `motor_forced_set ∈ {QZD, FTH, KOM}` (fixé par le chercheur dans `BlockConfig`).
+- Si **trial = free** (issue du tirage) : le set actif est **tiré aléatoirement parmi `{QZD, FTH, JIL}`** (comportement actuel inchangé). Le participant doit découvrir le set actif ou se reposer sur le motor-advice.
+- Si **trial = forced** (issue du tirage) : le set actif est `motor_forced_set ∈ {QZD, FTH, JIL}` (fixé par le chercheur dans `BlockConfig`).
 
 L'UI ne change pas entre free et forced (le set actif n'est pas affiché de base ; seul le motor-advice peut le révéler).
 
@@ -249,7 +259,7 @@ L'UI ne change pas entre free et forced (le set actif n'est pas affiché de base
 #### Règles métier
 
 - **R17** : `motor_forced_probability ∈ [0, 1]` est lu depuis `BlockConfig` (proportion attendue de trials forced dans le bloc). Tirage Bernoulli de paramètre `p` effectué **au début de chaque trial**. Mix free/forced autorisé. Valeurs 0 et 1 autorisées (bloc entièrement free ou entièrement forced).
-- **R18** : `motor_forced_set ∈ {QZD, FTH, KOM}` est fixé par le chercheur via dropdown dans le session config panel (Q-FF-9 résolu : option A, 2026-05-26). Le set s'applique **uniquement aux trials forced**. Sur les trials free du même bloc, le tirage aléatoire par trial reste actif. Si `motor_forced_probability > 0` et `motor_forced_set` non spécifié → erreur de validation côté config.
+- **R18** : `motor_forced_set ∈ {QZD, FTH, JIL}` est fixé par le chercheur via dropdown dans le session config panel (Q-FF-9 résolu : option A, 2026-05-26). Le set s'applique **uniquement aux trials forced**. Sur les trials free du même bloc, le tirage aléatoire par trial reste actif. Si `motor_forced_probability > 0` et `motor_forced_set` non spécifié → erreur de validation côté config.
 - **R19** : pendant le bloc tutorial, `motor_forced_probability` est ignoré (tirage par trial systématique, cf. TR4).
 - **R20** : interaction avec le motor-advice — sur les trials forced, le motor-advice (s'il est affiché) **suit obligatoirement le set imposé** (Note 1 / TR3 réécrite, strict même en unreliable). Sur les trials free, le motor-advice suit ses propres règles de visibilité/fiabilité. La reliability ne s'exprime que sur les trials free.
 
@@ -257,14 +267,14 @@ L'UI ne change pas entre free et forced (le set actif n'est pas affiché de base
 
 - **free** vs **forced** (tirage trial-wise selon `motor_forced_probability`).
 - Quand forced : set imposé = `motor_forced_set`.
-- Quand free : set tiré aléatoirement par trial parmi `{QZD, FTH, KOM}`.
+- Quand free : set tiré aléatoirement par trial parmi `{QZD, FTH, JIL}`.
 
 #### Données collectées
 
 | Donnée | Colonne CSV V1 | Valeurs possibles | Quand enregistrée |
 |:---|:---|:---|:---|
 | Mode motor forced ce trial | `motor_choice_is_forced` | `true` / `false` | Au début du trial |
-| Set imposé (si forced) | `motor_choice_forced_set` | `QZD` / `FTH` / `KOM` / `null` (si free) | Au début du trial |
+| Set imposé (si forced) | `motor_choice_forced_set` | `QZD` / `FTH` / `JIL` / `null` (si free) | Au début du trial |
 | Proportion forced du bloc (audit) | `motor_choice_forced_probability` | `[0, 1]` | Au début du trial (recopie config bloc) |
 
 > La colonne existante `motor_choice_active_config` reste le **set actif sur ce trial** (égale à `motor_forced_set` quand forced, et au tirage aléatoire par trial en free).
@@ -299,7 +309,7 @@ L'UI ne change pas entre free et forced (le set actif n'est pas affiché de base
 | `proximal_choice_forced_probability` | ProximalScene | Enregistrer la proportion forced du bloc (audit) | `[0, 1]` |
 | `proximal_choice_forced_optimal_probability` | ProximalScene | Enregistrer le paramètre d'optimalité utilisé (audit) | `0` / `1` / `null` |
 | `motor_choice_is_forced` | ProximalScene (motor) | Enregistrer si le motor-choice est imposé ce trial | `true` / `false` |
-| `motor_choice_forced_set` | ProximalScene (motor) | Enregistrer le set imposé (si forced) | `QZD` / `FTH` / `KOM` / `null` |
+| `motor_choice_forced_set` | ProximalScene (motor) | Enregistrer le set imposé (si forced) | `QZD` / `FTH` / `JIL` / `null` |
 | `motor_choice_forced_probability` | ProximalScene (motor) | Enregistrer la proportion forced du bloc (audit) | `[0, 1]` |
 
 **Correspondance avec le GDD V1** : aucune des **14 nouvelles colonnes** ci-dessus n'existe dans le CSV V1 actuel. Elles sont **nouvelles**, motivées par les hypothèses H1–H8 du GDD qui requièrent de tracer la modalité free/forced indépendamment du résultat du choix (déjà tracé dans `advisor_type`, `valley_choice`, `proximal_choice_target`, `motor_choice_active_config`, etc.).
@@ -326,7 +336,7 @@ L'UI ne change pas entre free et forced (le set actif n'est pas affiché de base
 | Q-FF-6 | Motor forced × motor-advice : cohérence | ✅ **Option A étendue par Note 1** — Motor-advice cohérent avec le set imposé sur les trials forced, strict même en unreliable. La reliability ne s'exprime que sur les trials free. Cf. R20 §2.4 et TR3. |
 | Q-FF-7 | Validation choix imposés (advisor/distal) | ✅ **Option A** — Clic explicite requis sur l'option imposée. Pas d'auto-validation par timer. Cf. §2.1 et §2.2. |
 | Q-FF-8 | Feedback explicite "imposé" | ✅ **Hybride** — Pas de bandeau textuel générique. **Exception** : si trial forced + advisor=none → overlay diégétique « Equipment failure ». Cf. TR6 réécrite. |
-| Q-FF-9 | Motor forced : comment définir le set imposé | ✅ **Option A étendue par Note 3** — `motor_forced_set` fixé par chercheur via dropdown `{QZD, FTH, KOM}`, appliqué uniquement aux trials forced du bloc. Motor passe block-wise → trial-wise via `motor_forced_probability`. Cf. R18 §2.4. |
+| Q-FF-9 | Motor forced : comment définir le set imposé | ✅ **Option A étendue par Note 3** — `motor_forced_set` fixé par chercheur via dropdown `{QZD, FTH, JIL}`, appliqué uniquement aux trials forced du bloc. Motor passe block-wise → trial-wise via `motor_forced_probability`. Cf. R18 §2.4. |
 
 ### Côté équipe (résolues 2026-05-26)
 

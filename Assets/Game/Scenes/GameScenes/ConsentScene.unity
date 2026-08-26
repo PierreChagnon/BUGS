@@ -519,7 +519,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 1960222442}
   m_Direction: 2
   m_Value: 1
-  m_Size: 0.38560435
+  m_Size: 0.4943341
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -1947,55 +1947,47 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'Discover Your Gaming Preferences
-
-    Dive into our questionnaire designed
-    to assess your gaming preferences. By navigating through these 20 questions,
-    you can also contribute to a pioneering research project in the field of video
-    games!
+  m_text: '<b>Please read the following information carefully.</b>
 
 
-    Contribute to Gaming Research
-
-    This is not just a survey of
-    your gamer profile, but also an opportunity to take part in an innovative citizen
-    science project. By participating, you are helping us to better understand the
-    diversity of the gaming community. Your anonymous responses will be invaluable
-    in refining our model and better understanding the wide variety of player preferences.
-    Remember, your privacy is our priority, and your data will only be used for research
-    purposes by our team.
+    Before continuing,
+    make sure that a <b>computer mouse and keyboard</b> is connected and ready to
+    use. The game <u>cannot</u> be played using a touchpad or a similar device.
 
 
-    Risk and Data Usage
-
-    There''s absolutely no risk
-    involved in taking part in this study. Your only task will be to answer a short
-    series of questions, which generally takes between 10 and 15 minutes. Feel free
-    to pause or leave the questionnaire whenever you like. If you leave the questionnaire
-    before the end, you will not receive the test results. In addition, if you wish
-    to withdraw from the study, even after it has been completed, simply send us
-    an email (email addresses can be found on our "About us" page). You can also
-    request the results of the study via these email addresses.
+    <b>If
+    you do not have a computer mouse, please close your browser and cancel the session.</b>
 
 
-    Why Your Input
-    is Crucial
-
-    Every player is unique, and this uniqueness is reflected in the
-    myriad ways in which games are played. The more responses we collect, the more
-    robust and inclusive our model becomes, allowing us to better represent the wide
-    range of gaming styles. Your participation is essential to help us develop our
-    theory and understanding of what makes video games so special.
+    You
+    are invited to play the game on this website. The game generates data for scientific
+    research, so you must provide your <b>informed consent</b> before participating.
 
 
-    Consent
+    All
+    data generated through the game will be <b>anonymized</b>. Your privacy will
+    be protected in all published and unpublished reports resulting from this research.
+
+
+    There
+    are <b>no known risks</b> associated with playing the game.
+
+
+    Participation
+    is <b>entirely voluntary</b>. You may choose not to participate or stop at any
+    time, without any negative consequences, simply by closing your browser. You
+    may also contact the researchers to request that your data be withdrawn from
+    any ongoing or future studies by emailing <color=#00E4FF><u>Agency.IJN@gmail.com</u></color>.
+
 
     By
-    ticking YES below, you certify that you have read this form and agree to participate
-    in accordance with the above conditions. If you choose not to participate by
-    selecting "NO", you can still access your gaming profile without any data being
-    collected. If you are under the age of 18, please ensure you have parental consent
-    to share your data with us.'
+    selecting <b><color=#00E4FF>"Accept"</color></b>, you confirm that you have read
+    and understood this consent information and agree to participate under the conditions
+    described above.
+
+
+    If you have any questions or concerns about your participation,
+    please contact the <b>IJN.Agency</b> research group at <color=#00E4FF><u>Agency.IJN@gmail.com</u></color>.'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

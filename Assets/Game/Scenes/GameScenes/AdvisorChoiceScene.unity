@@ -11609,6 +11609,10 @@ PrefabInstance:
       propertyPath: m_RenderMode
       value: 2
       objectReference: {fileID: 0}
+    - target: {fileID: 8615970257502042992, guid: 12f1b16a5614747b7ab242280f17b2af, type: 3}
+      propertyPath: m_text
+      value: Select an advisor to assist you on your mission.
+      objectReference: {fileID: 0}
     - target: {fileID: 8615970258146707135, guid: 12f1b16a5614747b7ab242280f17b2af, type: 3}
       propertyPath: m_SizeDelta.y
       value: 1100

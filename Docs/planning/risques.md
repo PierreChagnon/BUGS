@@ -1,7 +1,22 @@
 # Matrice de risques
 
+> # ⚠️ DOCUMENT ARCHIVÉ — gelé au 03/03/2026
+>
+> **Ne reflète plus l'état du projet.** R1 à R4 sont obsolètes :
+> R1 (state leaking) est couvert par la spec tech multi-écran · R2 (`GetCommandLineArgs` en WebGL)
+> est résolu par DEC-009 · R4 (complexité FlowController) est levé, le composant est livré.
+> R3 (perte de trials à la fermeture du navigateur) reste **réel et non corrigé** — il est repris
+> en Lot A dans la revue de complétude.
+>
+> **Source de vérité actuelle :** section « Risques actifs » de `Docs/project-state/avancement.md`,
+> détaillée dans `Docs/project-state/revue-completude-2026-07-28.md`.
+>
+> Conservé pour l'historique. Ne pas mettre à jour.
+
+---
+
 > Mis à jour par le Rôle 4 (Planification) et le Rôle 1 (Pilotage).
-> Dernière mise à jour : 2026-03-03
+> Dernière mise à jour : 2026-03-03 — **ARCHIVÉ le 28/07/2026**
 
 ---
 
