@@ -48,7 +48,6 @@ public class FogController : MonoBehaviour
     public event Action RevealedCellsChanged;
 
     public bool IsInitialized => _buffer != null;
-    public bool IsAllRevealed => _allRevealed;
 
     /// <summary>Marge en world units sur l'axe X (utilisée par FogSpawner pour scaler le quad).</summary>
     public float MarginWorldX =>

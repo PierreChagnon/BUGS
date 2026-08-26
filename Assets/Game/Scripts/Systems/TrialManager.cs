@@ -164,9 +164,6 @@ public class TrialManager : MonoBehaviour
             _currentTrialRow,
             trialResponseId =>
             {
-                if (FlowController.Instance != null)
-                    FlowController.Instance.RegisterLastTrialResponse(trialResponseId);
-
                 Debug.Log($"[TrialManager] Trial envoye avec succes (id={trialResponseId}).");
 
                 if (!string.IsNullOrWhiteSpace(humanLikenessQuestion))

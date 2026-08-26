@@ -439,7 +439,6 @@ public class PlayerSessionState
 {
     public string participant_id;
     public string session_template_id;
-    public string last_trial_response_id;
     public GamePhase current_phase = GamePhase.Boot;
     public int current_block_index;
     public int current_trial_index;
@@ -467,7 +466,6 @@ public class PlayerSessionState
     public string distal_advice_choice;
     public string distal_best_valley;
     public string distal_scan_choice;
-    public int green_bugs_accumulated;
 }
 
 [AttributeUsage(AttributeTargets.Field)]

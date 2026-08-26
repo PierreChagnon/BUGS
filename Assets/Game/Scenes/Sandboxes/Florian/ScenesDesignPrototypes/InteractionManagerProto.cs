@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using NUnit.Framework.Internal;
 using Unity.Cinemachine;
 using UnityEngine;
 

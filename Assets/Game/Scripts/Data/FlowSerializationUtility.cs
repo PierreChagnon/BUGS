@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Text;
 using UnityEngine;
 
 public static class FlowSerializationUtility
@@ -135,22 +134,4 @@ public static class FlowSerializationUtility
         }
     }
 
-    public static string BuildQuestionnaireDebugSummary(IReadOnlyList<QuestionResponse> responses)
-    {
-        if (responses == null || responses.Count == 0)
-            return "Aucune réponse";
-
-        var builder = new StringBuilder();
-        for (int i = 0; i < responses.Count; i++)
-        {
-            if (i > 0)
-                builder.Append(" | ");
-
-            builder.Append(responses[i]?.order ?? i + 1);
-            builder.Append(": ");
-            builder.Append(responses[i]?.response);
-        }
-
-        return builder.ToString();
-    }
 }

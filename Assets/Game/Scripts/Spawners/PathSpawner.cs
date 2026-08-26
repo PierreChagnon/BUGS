@@ -271,7 +271,6 @@ public class PathSpawner : MonoBehaviour
         }
 
         // Instancier les quads le long du chemin affiché
-        int spawned = 0;
         foreach (var cell in displayPath)
         {
             var pos = reg.CellToWorld(cell, 0.11f);
@@ -280,7 +279,6 @@ public class PathSpawner : MonoBehaviour
             quad.transform.SetParent(transform, true);
 
             if (!quad.activeSelf) quad.SetActive(true);
-            spawned++;
         }
 
     }

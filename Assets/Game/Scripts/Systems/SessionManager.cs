@@ -18,7 +18,6 @@ public class SessionManager : MonoBehaviour
     public static SessionManager Instance { get; private set; }
 
     [Header("Références")]
-    public TrialManager trialManager;
     public GameManager gameManager;
 
     [Header("Session")]

@@ -52,9 +52,7 @@ public class LevelRegistry : MonoBehaviour
     readonly Dictionary<Vector2Int, CellFlags> _cells = new();
 
     bool _hasPlayerStart;
-    bool _hasPlayerStartWorld;
     Vector2Int _playerStartCell;
-    Vector3 _playerStartWorld;
 
     void Awake()
     {
@@ -66,12 +64,6 @@ public class LevelRegistry : MonoBehaviour
     {
         _roundSeed = seed;
         _hasRoundSeed = true;
-    }
-
-    public bool TryGetRoundSeed(out long seed)
-    {
-        seed = _roundSeed;
-        return _hasRoundSeed;
     }
 
     public System.Random CreateRng(string scope)
@@ -139,35 +131,18 @@ public class LevelRegistry : MonoBehaviour
 
     public void MarkVisited(Vector2Int c) => AddFlags(c, CellFlags.Visited);
 
-    public void RegisterPlayerStart(Vector2Int c, Vector3 world)
+    public void RegisterPlayerStart(Vector2Int c)
     {
         if (!InBounds(c)) return;
         _hasPlayerStart = true;
         _playerStartCell = c;
         AddFlags(c, CellFlags.PlayerStart | CellFlags.Reserved);
-        _hasPlayerStartWorld = true;
-        _playerStartWorld = world;
-    }
-
-    public void UnregisterPlayerStart(Vector2Int c)
-    {
-        RemoveFlags(c, CellFlags.PlayerStart | CellFlags.Reserved);
-        _hasPlayerStart = false;
-        _hasPlayerStartWorld = false;
-        _playerStartCell = default;
-        _playerStartWorld = default;
     }
 
     public bool TryGetPlayerStartCell(out Vector2Int cell)
     {
         cell = _playerStartCell;
         return _hasPlayerStart;
-    }
-
-    public bool TryGetPlayerStartWorld(out Vector3 world)
-    {
-        world = _playerStartWorld;
-        return _hasPlayerStartWorld;
     }
 
     public void RegisterBugCloud(Vector2Int c)
@@ -232,25 +207,11 @@ public class LevelRegistry : MonoBehaviour
     {
         foreach (var c in cells) AddFlags(c, CellFlags.PathRight | CellFlags.Reserved);
     }
-    public void ClearPathReservations()
-    {
-        // Retire PathLeft/PathRight/Reserved (mais laisse BugCloud/Trap/Visited intacts)
-        var keys = new List<Vector2Int>(_cells.Keys);
-        foreach (var k in keys)
-        {
-            var f = _cells[k];
-            var nf = f & ~(CellFlags.PathLeft | CellFlags.PathRight | CellFlags.Reserved);
-            if ((f & (CellFlags.PathLeft | CellFlags.PathRight)) != 0)
-                SetFlags(k, nf);
-        }
-    }
-
     // Helpers lecture
     public bool HasBugCloud(Vector2Int c) => (GetFlags(c) & CellFlags.BugCloud) != 0;
     public bool HasTrap(Vector2Int c) => (GetFlags(c) & CellFlags.Trap) != 0;
     public bool IsOnAnyPath(Vector2Int c) => (GetFlags(c) & (CellFlags.PathLeft | CellFlags.PathRight)) != 0;
     public bool IsReserved(Vector2Int c) => (GetFlags(c) & CellFlags.Reserved) != 0;
-    public bool IsVisited(Vector2Int c) => (GetFlags(c) & CellFlags.Visited) != 0;
     public bool IsWall(Vector2Int c) => (GetFlags(c) & CellFlags.Wall) != 0;
     public bool IsOnSuboptimalPath(Vector2Int c) => (GetFlags(c) & CellFlags.SuboptimalPath) != 0;
 

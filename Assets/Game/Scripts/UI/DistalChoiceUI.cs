@@ -30,9 +30,7 @@ public class DistalChoiceUI : MonoBehaviour
     [SerializeField] private GameObject _enteringExplanationBlockPanel;
 
     public bool AdviceVisible { get; private set; }
-    public bool AdviceReliable { get; private set; }
     public string AdvisedScanSide { get; private set; }
-    public string BestScanSide { get; private set; }
     public BugCloudSample LeftScanData { get; private set; }
     public BugCloudSample RightScanData { get; private set; }
 
@@ -59,9 +57,7 @@ public class DistalChoiceUI : MonoBehaviour
         SetExplanationBlockPanelVisible(ExplanationResolver.HasAnyEnabledExplanation(flow.CurrentBlock));
 
         AdviceVisible = flow.State != null && flow.State.distal_advice_visible;
-        AdviceReliable = flow.State != null && flow.State.distal_advice_reliable;
         AdvisedScanSide = flow.State != null ? flow.State.distal_advice_choice : null;
-        BestScanSide = flow.State != null ? flow.State.distal_best_valley : null;
         AdvisorType advisorType = flow.State != null ? flow.State.advisor_choice : AdvisorType.None;
         BugCloudPairData distalScans = flow.GenerateCurrentDistalScans();
         LeftScanData = distalScans.firstCloud;

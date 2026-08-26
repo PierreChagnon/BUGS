@@ -91,13 +91,6 @@ public class TilesSpawner : MonoBehaviour
         }
     }
 
-    /// <summary>Méthode publique pour l'éditeur (MapGenerator) — fait les deux étapes.</summary>
-    public void Spawn()
-    {
-        InitOriginWorld();
-        SpawnTiles();
-    }
-
     void EnsureRoot()
     {
         var go = new GameObject("TilesRootRuntime");

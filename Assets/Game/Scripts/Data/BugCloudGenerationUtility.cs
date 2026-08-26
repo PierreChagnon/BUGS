@@ -17,16 +17,6 @@ public struct BugCloudPairData
     public BugCloudSample firstCloud;
     public BugCloudSample secondCloud;
     public float ratioGap;
-
-    public int BestCloudIndex
-    {
-        get
-        {
-            int firstGreenBugs = firstCloud.GreenBugCount;
-            int secondGreenBugs = secondCloud.GreenBugCount;
-            return secondGreenBugs > firstGreenBugs ? 1 : 0;
-        }
-    }
 }
 
 public static class BugCloudGenerationUtility

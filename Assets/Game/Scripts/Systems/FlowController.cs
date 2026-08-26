@@ -97,7 +97,6 @@ public class FlowController : MonoBehaviour
     }
     public bool IsCurrentBlockTutorial => CurrentBlock != null && CurrentBlock.is_tutorial;
     public bool IsLastBlock => HasLoadedConfig && State.current_block_index >= Config.blocks.Count - 1;
-    public bool IsLastTrial => CurrentBlock != null && State.current_trial_index >= CurrentBlock.trial_count - 1;
     public bool IsAnyChoiceForcedThisTrial => State != null && (
         State.meta_choice_is_forced ||
         State.distal_choice_is_forced ||
@@ -122,19 +121,11 @@ public class FlowController : MonoBehaviour
 
     void Start()
     {
-        SubscribeToApiClient();
-
         if (_isBootstrapping || HasLoadedConfig)
             return;
 
         _isBootstrapping = true;
         StartCoroutine(BootstrapFlow());
-    }
-
-    void OnDestroy()
-    {
-        if (ApiClient.Instance != null)
-            ApiClient.Instance.OnTrialResponseStored -= HandleTrialResponseStored;
     }
 
     public void Initialize(SessionConfig config)
@@ -176,9 +167,7 @@ public class FlowController : MonoBehaviour
             distal_advice_reliable = false,
             distal_advice_choice = null,
             distal_best_valley = null,
-            distal_scan_choice = null,
-            green_bugs_accumulated = 0,
-            last_trial_response_id = null
+            distal_scan_choice = null
         };
 
         BlockScore = 0;
@@ -281,7 +270,6 @@ public class FlowController : MonoBehaviour
         bool completedLastTrial = State.current_trial_index >= CurrentBlock.trial_count - 1;
 
         BlockScore += trialScore;
-        State.green_bugs_accumulated = BlockScore;
 
         if (!CurrentBlock.is_tutorial)
         {
@@ -377,14 +365,6 @@ public class FlowController : MonoBehaviour
         return IsCurrentBlockTutorial ? SessionScore : SessionScore + trialScore;
     }
 
-    public void RegisterLastTrialResponse(string trialResponseId)
-    {
-        if (State == null)
-            return;
-
-        State.last_trial_response_id = trialResponseId;
-    }
-
     public BugCloudPairData GenerateCurrentDistalScans()
     {
         return BugCloudGenerationUtility.GenerateDistalScanPair(
@@ -448,7 +428,6 @@ public class FlowController : MonoBehaviour
     void AdvanceToNextBlockOrEnd()
     {
         BlockScore = 0;
-        State.green_bugs_accumulated = 0;
         State.current_trial_index = 0;
         State.advisor_choice = AdvisorType.None;
         State.valley_choice = ValleyChoice.None;
@@ -456,7 +435,6 @@ public class FlowController : MonoBehaviour
         ResetForcedChoiceState();
         ResetDistalAdviceState();
         ResetAllExplanationStates();
-        State.last_trial_response_id = null;
         CurrentBlockSeed = 0;
         CurrentTrialSeed = 0;
 
@@ -517,26 +495,6 @@ public class FlowController : MonoBehaviour
 
         if (FadeTransition.Instance != null)
             yield return FadeTransition.Instance.FadeIn();
-    }
-
-    void SubscribeToApiClient()
-    {
-        if (ApiClient.Instance == null)
-            return;
-
-        ApiClient.Instance.OnTrialResponseStored -= HandleTrialResponseStored;
-        ApiClient.Instance.OnTrialResponseStored += HandleTrialResponseStored;
-    }
-
-    void HandleTrialResponseStored(TrialResponseRow row, string trialResponseId)
-    {
-        if (row == null || State == null)
-            return;
-
-        if (!string.Equals(row.participant_id, State.participant_id, StringComparison.OrdinalIgnoreCase))
-            return;
-
-        RegisterLastTrialResponse(trialResponseId);
     }
 
     SessionConfig PrepareConfig(SessionConfig source)

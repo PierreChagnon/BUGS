@@ -31,7 +31,7 @@ public class PlayerSpawner : MonoBehaviour
         if (registry != null)
         {
             Vector2Int spawnCell = registry.WorldToCell(spawnTransform.position);
-            registry.RegisterPlayerStart(spawnCell, spawnTransform.position);
+            registry.RegisterPlayerStart(spawnCell);
         }
     }
 }

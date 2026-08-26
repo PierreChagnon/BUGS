@@ -9,7 +9,7 @@ using UnityEngine.UI;
 // Version simplifiee de HowToPlayUI (panneau unique, non pagine, sans image).
 //
 // API publique : Show(title, body) / Show() / SetContent(title, body) / Close()
-//                + proprietes IsOpen / HasContent + events Shown / Closed.
+//                + propriete HasContent + events Shown / Closed.
 // Mode dev : auto-show des dummy (_dummyTitle / _dummyBody) au Start si aucun
 //            pilotage externe n'a eu lieu.
 //
@@ -39,7 +39,6 @@ public class InContextTutorialUI : MonoBehaviour
     private bool _isOpen;
     private bool _externalDataSet;
 
-    public bool IsOpen => _isOpen;
     public bool HasContent =>
         !string.IsNullOrWhiteSpace(_title) || !string.IsNullOrWhiteSpace(_body);
 

@@ -50,8 +50,6 @@ public class ApiClient : MonoBehaviour
     bool _isProcessingTrialQueue;
     bool _isFlushingQuestionnairePatches;
 
-    public event Action<TrialResponseRow, string> OnTrialResponseStored;
-
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -103,26 +101,6 @@ public class ApiClient : MonoBehaviour
         });
 
         RetryPendingTrialUploads();
-    }
-
-    public void PatchHumanLikenessQuestion(
-        string trialResponseId,
-        string humanLikenessQuestion,
-        Action onSuccess,
-        Action<string> onError)
-    {
-        if (string.IsNullOrWhiteSpace(trialResponseId))
-        {
-            onError?.Invoke("trialResponseId vide");
-            return;
-        }
-
-        var payload = new QuestionnairePatchPayload
-        {
-            human_likeness_question = humanLikenessQuestion
-        };
-
-        StartCoroutine(PatchQuestionnaireCoroutine(trialResponseId, payload, onSuccess, onError));
     }
 
     public void QueueQuestionnairePatchForTrial(
@@ -360,7 +338,6 @@ public class ApiClient : MonoBehaviour
                 _storedTrialIdsByKey[trialKey] = rowId;
 
             request.onSuccess?.Invoke(rowId);
-            OnTrialResponseStored?.Invoke(request.row, rowId);
 
             if (_pendingQuestionnairePatches.ContainsKey(trialKey))
                 FlushPendingQuestionnairePatches();

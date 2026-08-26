@@ -100,7 +100,6 @@ public class CorridorWallsGenerator : MonoBehaviour
         }
 
         // Tout ce qui n'est pas couloir devient un mur.
-        int wallsPlaced = 0;
         for (int y = 0; y < reg.gridSize.y; y++)
         {
             for (int x = 0; x < reg.gridSize.x; x++)
@@ -116,7 +115,6 @@ public class CorridorWallsGenerator : MonoBehaviour
                 reg.RegisterWall(c);
                 PaintTileAsWall(c);
                 SpawnWallVisual(reg, c);
-                wallsPlaced++;
             }
         }
 
@@ -217,7 +215,6 @@ public class CorridorWallsGenerator : MonoBehaviour
         }
 
         int attempts = 0;
-        int added = 0;
         while (attempts < extraConnections && deadEnds.Count > 0)
         {
             attempts++;
@@ -231,7 +228,6 @@ public class CorridorWallsGenerator : MonoBehaviour
             CarveLPath(from, to, carved);
             var inflated = Inflate(carved, corridorWidth, reg);
             foreach (var c in inflated) walkable.Add(c);
-            added++;
         }
     }
 
