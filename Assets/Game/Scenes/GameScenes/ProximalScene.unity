@@ -435,7 +435,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 686109322781651494, guid: 4800c183bbd67844c83a66e9fc8e9498, type: 3}
       propertyPath: m_text
-      value: Show Explanations
+      value: Show explanation
       objectReference: {fileID: 0}
     - target: {fileID: 686109322781651494, guid: 4800c183bbd67844c83a66e9fc8e9498, type: 3}
       propertyPath: m_TextStyleHashCode
@@ -3909,9 +3909,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6271b7986998c43b4945891b83456584, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrialQuestionsUI
-  _acceptabilityQuestion: Question d'acceptabilite (a definir)
-  _senseOfAgencyQuestion: Question de sens d'agentivite (a definir)
-  _humanLikenessQuestion: Question de ressemblance humaine (a definir)
+  _acceptabilityQuestion: How helpful did you find your advisor?
+  _senseOfAgencyQuestion: How much control did you feel you had over the outcome
+    of the mission?
+  _humanLikenessQuestion: How human-like did you find your advisor?
   _panel: {fileID: 425631500}
   _questionText: {fileID: 612934718}
   _progressText: {fileID: 1819093337}
@@ -14513,11 +14514,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2520438850596388084, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 229.39221
+      value: 229.3922
       objectReference: {fileID: 0}
     - target: {fileID: 2520438850596388084, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 467.2125
+      value: 503.181
       objectReference: {fileID: 0}
     - target: {fileID: 2520438850596388084, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -14536,12 +14537,20 @@ PrefabInstance:
       value: 24
       objectReference: {fileID: 0}
     - target: {fileID: 2719213639005364795, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
+      propertyPath: m_text
+      value: Suggested controls
+      objectReference: {fileID: 0}
+    - target: {fileID: 2719213639005364795, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_fontSize
       value: 26
       objectReference: {fileID: 0}
     - target: {fileID: 2719213639005364795, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_fontSizeBase
       value: 26
+      objectReference: {fileID: 0}
+    - target: {fileID: 2719213639005364795, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
+      propertyPath: m_VerticalAlignment
+      value: 512
       objectReference: {fileID: 0}
     - target: {fileID: 2827267277415008779, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_LocalPosition.z
@@ -15125,7 +15134,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7129919469942057608, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 73.454
+      value: 96.0022
       objectReference: {fileID: 0}
     - target: {fileID: 7129919469942057608, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -15133,7 +15142,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7129919469942057608, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 189
+      value: 188.97096
       objectReference: {fileID: 0}
     - target: {fileID: 7231915410458369494, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -21111,7 +21120,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 686109322781651494, guid: 4800c183bbd67844c83a66e9fc8e9498, type: 3}
       propertyPath: m_text
-      value: Show Explanations
+      value: Show explanation
       objectReference: {fileID: 0}
     - target: {fileID: 686109322781651494, guid: 4800c183bbd67844c83a66e9fc8e9498, type: 3}
       propertyPath: m_TextStyleHashCode

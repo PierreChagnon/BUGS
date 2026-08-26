@@ -22018,9 +22018,9 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5585412407873109302, guid: ce36a9b2c96e9489295c02444027d888, type: 3}
       propertyPath: m_text
-      value: 'This area seems to have lots
+      value: 'This valley seems to have
 
-        of bugs.'
+        the most bugs'
       objectReference: {fileID: 0}
     - target: {fileID: 5585412407873109302, guid: ce36a9b2c96e9489295c02444027d888, type: 3}
       propertyPath: m_fontSize
@@ -22242,6 +22242,10 @@ PrefabInstance:
     - target: {fileID: 2007163199848886276, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
       value: UnityEngine.Object, UnityEngine
+      objectReference: {fileID: 0}
+    - target: {fileID: 2007163200625597813, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      propertyPath: m_text
+      value: Explore Valley
       objectReference: {fileID: 0}
     - target: {fileID: 2170019354697003283, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       propertyPath: lengthInSec
@@ -22759,9 +22763,17 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: -39.7
       objectReference: {fileID: 0}
+    - target: {fileID: 7672756684035736044, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      propertyPath: m_text
+      value: Explore Valley
+      objectReference: {fileID: 0}
     - target: {fileID: 8126728153032879126, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
       propertyPath: m_Name
       value: ValleyCanvas
+      objectReference: {fileID: 0}
+    - target: {fileID: 8723491717369854924, guid: f706096c45fce4863b4bfb098e1475b9, type: 3}
+      propertyPath: m_text
+      value: Select a valley to explore
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
@@ -23344,9 +23356,9 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8404126376861460503, guid: 18b5f7265c1b84e4abc29bbd039f8e60, type: 3}
       propertyPath: m_text
-      value: 'This area seems to have lots
+      value: 'This valley seems to have
 
-        of bugs.'
+        the most bugs'
       objectReference: {fileID: 0}
     - target: {fileID: 8404126376861460503, guid: 18b5f7265c1b84e4abc29bbd039f8e60, type: 3}
       propertyPath: m_fontSize
