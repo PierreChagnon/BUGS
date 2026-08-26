@@ -535,8 +535,10 @@ public class TrialResponseRow
     public int min_suboptimal_traps;
     public int max_suboptimal_traps;
     public string map_config;
-    public int optimal_path_length;
-    public int cloud_distance;
+    // Nullables : null = jamais mesure sur ce trial, omis du payload — un vrai 0
+    // et une absence de mesure doivent rester distinguables dans l'export.
+    public int? optimal_path_length;
+    public int? cloud_distance;
     public bool optimal_path_visible;
     public bool path_is_suboptimal;
     public bool proximal_advice_reliable;

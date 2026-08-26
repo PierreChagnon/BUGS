@@ -139,8 +139,9 @@ public class TrialManager : MonoBehaviour
 
         FlowSerializationUtility.ApplyQuestionnaireResponses(_currentTrialRow, responses);
 
-        if (string.IsNullOrWhiteSpace(_currentTrialRow.acceptability_question) ||
-            string.IsNullOrWhiteSpace(_currentTrialRow.sens_of_agency_question))
+        // L'acceptabilite n'est pas posee sans advisor (advisor_choice = none) :
+        // le trial part quand meme, le champ reste null et est omis du payload.
+        if (string.IsNullOrWhiteSpace(_currentTrialRow.sens_of_agency_question))
         {
             Debug.LogWarning("[TrialManager] Reponses questionnaire incompletes: envoi du trial annule.");
             return;

@@ -134,11 +134,10 @@ public class SessionManager : MonoBehaviour
         maxSuboptimalTraps = map.max_suboptimal_traps;
         fogProbability = map.fog_probability;
 
-        if (!HasAdvisor)
-        {
-            pathVisible = 0f;
-            motorAdviceVisibleProbability = 0f;
-        }
+        // Le miroir doit rester une copie fidele de la config : TrialManager
+        // remonte ces valeurs dans trial_responses. La regle "pas d'advisor =>
+        // pas de chemin conseille ni de legende moteur" est portee par les
+        // consommateurs (PathSpawner, MotorAdviceController) via HasAdvisor.
 
         blockId = flow.State.current_block_index + 1;
         IsTutorialBlock = flow.IsCurrentBlockTutorial;
