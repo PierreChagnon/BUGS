@@ -5367,7 +5367,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -143.03}
+  m_AnchoredPosition: {x: 0, y: -159.03}
   m_SizeDelta: {x: 524.9937, y: 45.6421}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &513944048
@@ -10562,7 +10562,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: da5c5ca99cf60bc469e52e5729e4315c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SessionManager
-  trialManager: {fileID: 1504752461}
   gameManager: {fileID: 1716181368}
   randomizationSeed: 0
   buildVersion: 1.0.0
@@ -17335,7 +17334,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 10}
   m_SizeDelta: {x: 250, y: 250}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1552324432
