@@ -89,7 +89,7 @@ public class DistalChoiceUI : MonoBehaviour
         _enteringExplanationBlockText.text = quality switch
         {
             CommunicationQuality.Perfect => hasAdvisor
-                ? "Your advisor can give you advice, and communicate freely with you and provide explanations."
+                ? "Radio reception is excellent in this area.Your advisor can give you advice, and communicate freely with you and provide explanations."
                 : "Radio reception is excellent in this area. However, you do not have an advisor to communicate with you.",
             CommunicationQuality.None => hasAdvisor
                 ? "Radio reception is terrible in this area. Your advisor can give you advice, but cannot communicate with you and provide explanations."
