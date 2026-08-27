@@ -198,13 +198,13 @@ Le texte affiché est sélectionné dans le corpus du bloc indexé par l'`adviso
 Le texte est choisi selon 2 axes : la **qualité de communication du bloc** (3 cas) et le **choix d'advisor** du participant (advisor choisi vs `none`). La qualité est dérivée des réglages du bloc :
 
 - **Visibilité des advisors** : `distal_advice_visible_probability` (niveau bloc), `path_visible_probability` et `motor_advice_visible_probability` (niveau vallée). La visibilité de l'advisor est **maîtresse** : elle conditionne l'apparition des explanations en amont.
-- **Apparition des explanations** : `display_probability` des explanations proximale et motrice, `display_mode` de l'explanation distale (`none` = jamais ; toute autre valeur = une explanation apparaît). Le `display_probability` de la distale n'est **pas** consulté — il n'est jamais tiré au runtime (cf. D-013).
+- **Apparition des explanations** : pour proximal et motor, `display_mode` **puis** `display_probability` — le `display_mode` est **maître** : s'il vaut `none`, l'explanation est désactivée et la probabilité n'est pas consultée. Pour la distale, `display_mode` seul (`none` = jamais ; toute autre valeur = une explanation apparaît) : son `display_probability` n'est **pas** consulté — il n'est jamais tiré au runtime, l'écran distal ne s'affichant qu'une fois par bloc (cf. D-013).
 
 | Cas | Condition | Advisor | Texte affiché |
 |:---|:---|:---|:---|
-| **3 — Nulle** *(évalué en premier)* | Les 3 probabilités de visibilité d'advisor = 0, **OU** (`display_probability` proximal = motor = 0 **ET** `display_mode` distal = `none`) | Choisi | "Radio reception is terrible in this area. Your advisor can give you advice, but cannot communicate with you and provide explanations." |
+| **3 — Nulle** *(évalué en premier)* | Les 3 probabilités de visibilité d'advisor = 0, **OU** aucune des 3 explanations ne peut apparaître (proximal et motor : `display_mode` = `none` **ou** `display_probability` = 0 ; distal : `display_mode` = `none`) | Choisi | "Radio reception is terrible in this area. Your advisor can give you advice, but cannot communicate with you and provide explanations." |
 | | | `none` | "Radio reception is terrible in this area. If you had an advisor, they would not be able to communicate with you." |
-| **1 — Parfaite** | Les 3 probabilités de visibilité d'advisor = 1, **ET** `display_probability` proximal = motor = 1, **ET** `display_mode` distal ≠ `none` | Choisi | "Your advisor can give you advice, and communicate freely with you and provide explanations." |
+| **1 — Parfaite** | Les 3 probabilités de visibilité d'advisor = 1, **ET** les 3 explanations apparaissent à coup sûr (proximal et motor : `display_mode` ≠ `none` **et** `display_probability` = 1 ; distal : `display_mode` ≠ `none`) | Choisi | "Your advisor can give you advice, and communicate freely with you and provide explanations." |
 | | | `none` | "Radio reception is excellent in this area. However, you do not have an advisor to communicate with you." |
 | **2 — Partielle** | Tous les autres cas (au moins une probabilité intermédiaire) | Choisi | "Radio reception is disrupted but partially functional in this area." |
 | | | `none` | "Radio reception is disrupted but partially functional in this area. However, you do not have an advisor to communicate with you." |
@@ -214,6 +214,7 @@ Le texte est choisi selon 2 axes : la **qualité de communication du bloc** (3 c
 - **R10 (Affichage inconditionnel)** : le Communication Report est présenté à chaque entrée dans la DistalChoiceScene, sans condition — y compris quand aucune explanation n'est configurée sur le bloc.
 - **R11 (Ordre d'évaluation)** : le cas 3 est évalué en premier — la non-visibilité des advisors prime, car elle contrôle l'apparition des explanations en amont de leurs propres probabilités. Puis le cas 1 ; sinon cas 2.
 - **R12 (Symétrie des vallées)** : les probabilités par vallée (`path_visible_probability`, `motor_advice_visible_probability`) sont vérifiées sur **les deux** vallées du bloc — « = 1 » (resp. « = 0 ») exige que les deux vallées soient à 1 (resp. 0).
+- **R13 (`display_mode` maître)** : pour proximal et motor, le `display_mode` de l'explanation est vérifié **avant** sa `display_probability` — `none` désactive l'explanation quelle que soit la probabilité configurée. Un `display_mode` invalide est traité comme `none` (cohérent avec le runtime).
 
 #### Données collectées
 

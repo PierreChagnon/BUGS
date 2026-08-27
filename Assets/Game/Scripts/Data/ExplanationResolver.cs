@@ -121,16 +121,21 @@ public static class ExplanationResolver
         float motorAdviceProbabilityA = Mathf.Clamp01(block.valley_a?.motor_advice_visible_probability ?? 0f);
         float motorAdviceProbabilityB = Mathf.Clamp01(block.valley_b?.motor_advice_visible_probability ?? 0f);
 
+        // display_mode est maitre sur display_probability : en "none" (ou invalide)
+        // l'explanation est desactivee quelle que soit sa probabilite.
+        bool proximalExplanationEnabled = IsExplanationEnabled(block.explanations?.proximal);
+        bool motorExplanationEnabled = IsExplanationEnabled(block.explanations?.motor);
+        bool distalExplanationEnabled = IsExplanationEnabled(block.explanations?.distal);
+
         float proximalExplanationProbability = Mathf.Clamp01(block.explanations?.proximal?.display_probability ?? 0f);
         float motorExplanationProbability = Mathf.Clamp01(block.explanations?.motor?.display_probability ?? 0f);
-        bool distalExplanationEnabled = IsExplanationEnabled(block.explanations?.distal);
 
         bool advisorsNeverVisible = distalAdviceProbability <= 0f
             && proximalAdviceProbabilityA <= 0f && proximalAdviceProbabilityB <= 0f
             && motorAdviceProbabilityA <= 0f && motorAdviceProbabilityB <= 0f;
 
-        bool explanationsNeverShown = proximalExplanationProbability <= 0f
-            && motorExplanationProbability <= 0f
+        bool explanationsNeverShown = (!proximalExplanationEnabled || proximalExplanationProbability <= 0f)
+            && (!motorExplanationEnabled || motorExplanationProbability <= 0f)
             && !distalExplanationEnabled;
 
         if (advisorsNeverVisible || explanationsNeverShown)
@@ -140,8 +145,8 @@ public static class ExplanationResolver
             && proximalAdviceProbabilityA >= 1f && proximalAdviceProbabilityB >= 1f
             && motorAdviceProbabilityA >= 1f && motorAdviceProbabilityB >= 1f;
 
-        bool explanationsAlwaysShown = proximalExplanationProbability >= 1f
-            && motorExplanationProbability >= 1f
+        bool explanationsAlwaysShown = proximalExplanationEnabled && proximalExplanationProbability >= 1f
+            && motorExplanationEnabled && motorExplanationProbability >= 1f
             && distalExplanationEnabled;
 
         return advisorsAlwaysVisible && explanationsAlwaysShown

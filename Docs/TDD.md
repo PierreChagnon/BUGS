@@ -2847,10 +2847,10 @@ graph TD
     H -->|OK| I["Create : opt-in → clicked=false + chrono 0<br/>forced → chrono 0"]
 ```
 
-`GetCommunicationQuality()` (DEC-023) — 3 tests successifs, dans cet ordre :
+`GetCommunicationQuality()` (DEC-023) — 3 tests successifs, dans cet ordre. Pour proximal et motor, le `display_mode` de l'explanation est maître sur sa `display_probability` (`none` ou invalide désactive, la probabilité n'est pas consultée) ; le distal ne dépend que de son `display_mode` :
 
-1. **None** si les 3 probabilités de visibilité d'advisor = 0 (`distal_advice_visible_probability` au niveau bloc, `path_visible_probability` et `motor_advice_visible_probability` des **deux** vallées), **OU** si `display_probability` proximal = motor = 0 **ET** `display_mode` distal = `none`
-2. **Perfect** si toutes ces probabilités = 1 **ET** `display_mode` distal ≠ `none`
+1. **None** si les 3 probabilités de visibilité d'advisor = 0 (`distal_advice_visible_probability` au niveau bloc, `path_visible_probability` et `motor_advice_visible_probability` des **deux** vallées), **OU** si aucune des 3 explanations ne peut apparaître (proximal et motor : `display_mode` = `none` **ou** `display_probability` = 0 ; distal : `display_mode` = `none`)
+2. **Perfect** si les probabilités de visibilité d'advisor = 1 **ET** les 3 explanations apparaissent à coup sûr (proximal et motor : `display_mode` ≠ `none` **et** `display_probability` = 1 ; distal : `display_mode` ≠ `none`)
 3. **Partial** sinon
 
 ### 5.3.5 Points d'attention
