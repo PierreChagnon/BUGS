@@ -3,7 +3,7 @@
 > Ce fichier est le résumé condensé de l'état du projet.
 > Objectif : un rôle peut comprendre où en est le projet en lisant CE SEUL FICHIER.
 > Mis à jour après chaque session qui fait avancer le projet.
-> Dernière mise à jour : 2026-07-28 (revue de complétude code vs attendu)
+> Dernière mise à jour : 2026-08-27 (Communication Report DistalChoiceScene — DEC-023)
 
 ---
 
@@ -103,7 +103,7 @@ résidus « −2 » dans `TDD.md:818,850` (N2-L) · inventaire des packages inco
 | **Redirect post-expérience (platform_url)** | ✅ Implémenté — `PlatformUrlDisplay.cs` | 28/07/26 (constaté) |
 | Spec tech multi-écran flow | ✅ Finalisée | 16/03/26 |
 | Data model Supabase (`trial_responses` plate) | ✅ Finalisé | 16/03/26 |
-| Décisions DEC-001 à DEC-022 | ✅ Enregistrées | 23/07/26 |
+| Décisions DEC-001 à DEC-023 | ✅ Enregistrées | 27/08/26 |
 | **Spec tech `free-forced-choices`** | ❌ **Jamais produite** — code livré sans référence technique | — |
 | **Spec tech `explanations-short-long`** | ❌ **Jamais produite** — code livré sans référence technique | — |
 
@@ -115,7 +115,7 @@ résidus « −2 » dans `TDD.md:818,850` (N2-L) · inventaire des packages inco
 | ConsentScene + ConsentUI (gate, DEC-012) | 🔴 Scène OK mais **le texte de consentement réel ne peut pas être affiché** — cf. E2 |
 | WelcomeScene | ✅ Créée |
 | AdvisorChoiceScene + AdvisorChoiceUI + AdvisorOptionButton | 🔴 Fonctionnelle mais **affiche un texte de dev périmé** au participant — cf. E3 |
-| DistalChoiceScene + DistalChoiceUI + DistalValleyScanView | ✅ Implémentées |
+| DistalChoiceScene + DistalChoiceUI + DistalValleyScanView | ✅ Implémentées — Communication Report toujours affiché, texte dynamique 3 cas × advisor (DEC-023, 27/08/26) |
 | ProximalScene (forest screen) + RoundUI + TrialQuestionsUI | ✅ Implémentée — c'est **ici** que les 3 dimensions sont réellement collectées |
 | QuestionnaireScene + QuestionnaireUI (DEC-008) | 🔴 **Coquille vide** — s'auto-enchaîne avec zéro réponse, cf. E1 |
 | EndSessionScene + ParticipantNoteUI + PlatformUrlDisplay | ✅ Implémentée |

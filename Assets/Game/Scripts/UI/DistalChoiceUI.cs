@@ -28,6 +28,7 @@ public class DistalChoiceUI : MonoBehaviour
     [SerializeField] private GameObject _valleyAAdviceIndicator;
     [SerializeField] private GameObject _valleyBAdviceIndicator;
     [SerializeField] private GameObject _enteringExplanationBlockPanel;
+    [SerializeField] private TMP_Text _enteringExplanationBlockText;
 
     public bool AdviceVisible { get; private set; }
     public string AdvisedScanSide { get; private set; }
@@ -47,18 +48,20 @@ public class DistalChoiceUI : MonoBehaviour
 
     void Refresh()
     {
+        // Le Communication Report est toujours presente au joueur : seul son
+        // texte varie selon la config du bloc et le choix d'advisor.
+        SetExplanationBlockPanelVisible(true);
+
         var flow = FlowController.Instance;
         if (flow == null || flow.CurrentBlock == null)
-        {
-            SetExplanationBlockPanelVisible(false);
             return;
-        }
-
-        SetExplanationBlockPanelVisible(ExplanationResolver.HasAnyEnabledExplanation(flow.CurrentBlock));
 
         AdviceVisible = flow.State != null && flow.State.distal_advice_visible;
         AdvisedScanSide = flow.State != null ? flow.State.distal_advice_choice : null;
         AdvisorType advisorType = flow.State != null ? flow.State.advisor_choice : AdvisorType.None;
+
+        UpdateExplanationBlockText(flow.CurrentBlock, advisorType);
+
         BugCloudPairData distalScans = flow.GenerateCurrentDistalScans();
         LeftScanData = distalScans.firstCloud;
         RightScanData = distalScans.secondCloud;
@@ -73,6 +76,28 @@ public class DistalChoiceUI : MonoBehaviour
     {
         if (_enteringExplanationBlockPanel != null)
             _enteringExplanationBlockPanel.SetActive(visible);
+    }
+
+    void UpdateExplanationBlockText(BlockConfig block, AdvisorType advisorType)
+    {
+        if (_enteringExplanationBlockText == null)
+            return;
+
+        CommunicationQuality quality = ExplanationResolver.GetCommunicationQuality(block);
+        bool hasAdvisor = advisorType != AdvisorType.None;
+
+        _enteringExplanationBlockText.text = quality switch
+        {
+            CommunicationQuality.Perfect => hasAdvisor
+                ? "Your advisor can give you advice, and communicate freely with you and provide explanations."
+                : "Radio reception is excellent in this area. However, you do not have an advisor to communicate with you.",
+            CommunicationQuality.None => hasAdvisor
+                ? "Radio reception is terrible in this area. Your advisor can give you advice, but cannot communicate with you and provide explanations."
+                : "Radio reception is terrible in this area. If you had an advisor, they would not be able to communicate with you.",
+            _ => hasAdvisor
+                ? "Radio reception is disrupted but partially functional in this area."
+                : "Radio reception is disrupted but partially functional in this area. However, you do not have an advisor to communicate with you."
+        };
     }
 
     public void CloseEnteringExplanationBlockPanel()

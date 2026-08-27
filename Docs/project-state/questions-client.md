@@ -417,6 +417,18 @@
 - **Statut :** EN ATTENTE
 - **Réponse :** —
 
+### Q-EXP-11 — Communication Report : quel comportement en bloc tutoriel ?
+- **Posée le :** 2026-08-27
+- **Origine :** Support dev, chantier Explanations short/long (DEC-023)
+- **Bloque :** Rien pour l'instant — comportement par défaut implémenté (affichage aussi en tutoriel)
+- **Question :** Le Communication Report (annonce de la qualité de la « réception radio ») est désormais affiché à chaque entrée dans l'écran de choix de vallée, sans condition (DEC-023). Or en bloc tutoriel les explanations sont supprimées (TR4 / DEC-014). Faut-il afficher le report pendant le tutoriel, et si oui avec quel texte ?
+- **Options :**
+  - A : **Afficher comme un bloc normal** (comportement actuel) → simple, mais le texte peut annoncer des explanations qui n'apparaîtront jamais en tutoriel
+  - B : **Masquer en tutoriel** → retour partiel à l'ancienne condition ; un cas particulier de plus
+  - C : **Texte dédié tutoriel** → contenu à fournir par le chercheur
+- **Statut :** EN ATTENTE
+- **Réponse :** —
+
 ### Q-ICT-1 — In-context tutorial : origine de la donnée réelle (titre/texte par scène) ?
 - **Posée le :** 2026-05-29
 - **Origine :** Architecture technique, chantier in-context-tutorial (DEC-020)

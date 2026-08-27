@@ -3,7 +3,7 @@
 > Produit par le Rôle 2 (Analyse Fonctionnelle).
 > Décrit le QUOI et le POURQUOI. Jamais le COMMENT technique.
 
-**Date :** 2026-05-26 *(révisée — consolidation post-échange chercheurs)*
+**Date :** 2026-08-27 *(révisée — ajout §2.4 Communication Report, DEC-023 ; révision précédente : 2026-05-26, consolidation post-échange chercheurs)*
 **Statut :** `draft`
 **Chantier :** Explanations short/long
 **Spec tech associée :** `Docs/specs/explanations-short-long/spec-tech.md` (à produire)
@@ -29,6 +29,7 @@ Permettre à chaque advice (distal, proximal, motor) d'être accompagné d'une *
 - [x] Tracking du `display_mode=opt-in` : enregistrement du clic du participant sur le bouton « show explanation » et de la durée d'affichage de l'explication.
 - [x] Tracé des données dans la table `trial_responses` (table plate dénormalisée, DEC-011) avec colonnes dédiées par advice (5 colonnes par advice, 15 au total).
 - [x] Indépendance vis-à-vis de la fiabilité (`reliability`) de l'advice : un advice non fiable peut porter une explanation.
+- [x] Modal « Communication Report » en DistalChoiceScene : **toujours affichée**, texte dynamique selon la qualité de communication du bloc et le choix d'advisor (cf. §2.4, DEC-023).
 
 ### Périmètre OUT
 
@@ -184,6 +185,43 @@ Le texte affiché est sélectionné dans le corpus du bloc indexé par l'`adviso
 | Id du texte affiché | `motor_advice_explanation_text_id` | id / `null` | Au début du trial |
 | Clic sur « show explanation » | `motor_advice_explanation_clicked` | `true` / `false` / `null` | À la fin du trial |
 | Durée d'affichage de l'explication | `motor_advice_explanation_display_duration_ms` | int (ms) / `null` | À la fin du trial |
+
+---
+
+### 2.4 Communication Report (DistalChoiceScene) — *ajouté 2026-08-27, DEC-023*
+
+**Rôle :** Modal d'entrée de bloc qui annonce au participant, sous forme diégétique (« réception radio »), la qualité de la communication avec son advisor sur le bloc — c'est-à-dire la disponibilité des advices et des explanations.
+**Quand :** À chaque affichage de la DistalChoiceScene. **Toujours affichée, sans condition** — remplace l'ancien comportement où le panneau n'apparaissait que si au moins une explanation du bloc avait un `display_mode ≠ none`.
+
+#### Ce qui est affiché
+
+Le texte est choisi selon 2 axes : la **qualité de communication du bloc** (3 cas) et le **choix d'advisor** du participant (advisor choisi vs `none`). La qualité est dérivée des réglages du bloc :
+
+- **Visibilité des advisors** : `distal_advice_visible_probability` (niveau bloc), `path_visible_probability` et `motor_advice_visible_probability` (niveau vallée). La visibilité de l'advisor est **maîtresse** : elle conditionne l'apparition des explanations en amont.
+- **Apparition des explanations** : `display_probability` des explanations proximale et motrice, `display_mode` de l'explanation distale (`none` = jamais ; toute autre valeur = une explanation apparaît). Le `display_probability` de la distale n'est **pas** consulté — il n'est jamais tiré au runtime (cf. D-013).
+
+| Cas | Condition | Advisor | Texte affiché |
+|:---|:---|:---|:---|
+| **3 — Nulle** *(évalué en premier)* | Les 3 probabilités de visibilité d'advisor = 0, **OU** (`display_probability` proximal = motor = 0 **ET** `display_mode` distal = `none`) | Choisi | "Radio reception is terrible in this area. Your advisor can give you advice, but cannot communicate with you and provide explanations." |
+| | | `none` | "Radio reception is terrible in this area. If you had an advisor, they would not be able to communicate with you." |
+| **1 — Parfaite** | Les 3 probabilités de visibilité d'advisor = 1, **ET** `display_probability` proximal = motor = 1, **ET** `display_mode` distal ≠ `none` | Choisi | "Your advisor can give you advice, and communicate freely with you and provide explanations." |
+| | | `none` | "Radio reception is excellent in this area. However, you do not have an advisor to communicate with you." |
+| **2 — Partielle** | Tous les autres cas (au moins une probabilité intermédiaire) | Choisi | "Radio reception is disrupted but partially functional in this area." |
+| | | `none` | "Radio reception is disrupted but partially functional in this area. However, you do not have an advisor to communicate with you." |
+
+#### Règles métier
+
+- **R10 (Affichage inconditionnel)** : le Communication Report est présenté à chaque entrée dans la DistalChoiceScene, sans condition — y compris quand aucune explanation n'est configurée sur le bloc.
+- **R11 (Ordre d'évaluation)** : le cas 3 est évalué en premier — la non-visibilité des advisors prime, car elle contrôle l'apparition des explanations en amont de leurs propres probabilités. Puis le cas 1 ; sinon cas 2.
+- **R12 (Symétrie des vallées)** : les probabilités par vallée (`path_visible_probability`, `motor_advice_visible_probability`) sont vérifiées sur **les deux** vallées du bloc — « = 1 » (resp. « = 0 ») exige que les deux vallées soient à 1 (resp. 0).
+
+#### Données collectées
+
+Aucune — le Communication Report n'émet aucune colonne `trial_responses`.
+
+#### Question ouverte
+
+- Comportement en bloc tutoriel : l'affichage inconditionnel s'applique aussi en `is_tutorial = true`, alors que TR4 y supprime les explanations. → **Q-EXP-11**.
 
 ---
 

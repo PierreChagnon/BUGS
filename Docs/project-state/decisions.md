@@ -208,12 +208,20 @@
 - **Mise à jour 2026-08-26 (sémantique du fingerprint) :** `config_fingerprint` définit l'égalité de **condition expérimentale**, pas l'égalité byte-à-byte de la config. Le backend le calcule (SHA-256, `lib/mappers/session-config.js` dans backend-bugs) sur tous les paramètres de gameplay du bloc, **en excluant** `block_template_id`, `block_order`, `is_order_locked`, `in_context_tutorial` et la `seed` de `valley_a`/`valley_b`. Raison : une seed ne change que le tirage concret de la carte (position des pièges, des nuages…), pas la condition vécue par le participant ; les textes du tutoriel in-context ne changent pas le gameplay non plus. Deux blocs identiques à la seed (ou aux textes de tutoriel) près partagent donc le même fingerprint, et l'anti-adjacence de `BlockOrderRandomizer` — qui espace les fingerprints **identiques**, pas les différents — évite de les jouer consécutivement. Avant ce correctif, seed et `in_context_tutorial` étaient inclus dans le hash : deux blocs de même condition mais de seeds différentes passaient pour "différents" et l'anti-adjacence était silencieusement neutralisée dès qu'une seed était fixée par bloc. Côté Unity, rien ne change : `BlockOrderRandomizer` compare des chaînes opaques.
 - **Statut :** ACTIF
 
+### DEC-023 — Communication Report toujours affiché, texte dynamique selon la qualité de communication du bloc
+- **Date :** 2026-08-27
+- **Tag :** [FONC]
+- **Décision :** Le panneau « Communication Report » de la DistalChoiceScene (ex-« entering explanation block panel ») est affiché **à chaque entrée dans la scène, sans condition** — il ne dépend plus de la présence d'explanations activées sur le bloc. Son texte devient dynamique : 3 cas de qualité de communication (parfaite / partielle / nulle) × 2 variantes (advisor choisi / `none`), soit 6 textes anglais codés en dur. La qualité est dérivée (a) des probabilités de visibilité des 3 advisors — `distal_advice_visible_probability` au niveau bloc, `path_visible_probability` et `motor_advice_visible_probability` des **deux** vallées — maîtresses car elles conditionnent les explanations en amont, et (b) de l'apparition des explanations — `display_probability` proximal/motor, `display_mode` distal (le `display_probability` distal n'est pas consulté, conformément au runtime qui ne le tire jamais, cf. D-013). Ordre d'évaluation : cas « nulle » d'abord (advisors jamais visibles OU explanations toutes coupées), puis « parfaite » (tout à 1 et distal ≠ `none`), sinon « partielle ».
+- **Raison :** Demande du développeur/chercheur (27/08/26) : le report doit cadrer narrativement **tout** participant sur la qualité de la communication radio du bloc, y compris quand rien ne sera communiqué — la version conditionnelle laissait les blocs sans explanation sans aucun cadre.
+- **Impact :** `DistalChoiceUI` : affichage inconditionnel, nouveau champ `_enteringExplanationBlockText` (TMP_Text, à câbler dans l'éditeur), méthode `UpdateExplanationBlockText()`. `ExplanationResolver` : `HasAnyEnabledExplanation()` supprimée (seul appelant), remplacée par `GetCommunicationQuality(BlockConfig)` → enum `CommunicationQuality {Perfect, Partial, None}`. Spec fonc `explanations-short-long` : nouveau §2.4 (règles R10–R12). Effet de bord : le panneau s'affiche désormais aussi en bloc tutoriel (l'ancienne condition l'y masquait) → Q-EXP-11 posée au chercheur. Aucune colonne `trial_responses` impactée.
+- **Statut :** ACTIF
+
 ---
 
 ## Index par tag
 
 - **[SCOPE]** : DEC-004, DEC-005, DEC-008
-- **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019
+- **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023
 - **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022
 - **[PLANNING]** : _(aucune pour l'instant)_
 - **[CLIENT]** : _(aucune pour l'instant)_

@@ -93,16 +93,60 @@ public class ExplanationRuntimeState
     }
 }
 
+// Qualite de la communication advisor -> joueur pour un bloc, affichee dans le
+// "Communication Report" de la DistalChoiceScene.
+public enum CommunicationQuality
+{
+    Perfect,
+    Partial,
+    None
+}
+
 public static class ExplanationResolver
 {
-    public static bool HasAnyEnabledExplanation(BlockConfig block)
+    // Perfect si advisors et explanations sont garantis a chaque trial, None si
+    // aucune explanation ne peut apparaitre (advisors jamais visibles, ou toutes
+    // les explanations coupees), Partial sinon. La visibilite des advisors est
+    // verifiee en premier : elle conditionne les explanations en amont.
+    // La distal explanation ne depend que de son display_mode : son
+    // display_probability n'est jamais tire par le FlowController.
+    public static CommunicationQuality GetCommunicationQuality(BlockConfig block)
     {
-        if (block == null || block.is_tutorial || block.explanations == null)
-            return false;
+        if (block == null)
+            return CommunicationQuality.None;
 
-        return IsExplanationEnabled(block.explanations.distal)
-            || IsExplanationEnabled(block.explanations.proximal)
-            || IsExplanationEnabled(block.explanations.motor);
+        float distalAdviceProbability = Mathf.Clamp01(block.distal_advice_visible_probability);
+        float proximalAdviceProbabilityA = Mathf.Clamp01(block.valley_a?.path_visible_probability ?? 0f);
+        float proximalAdviceProbabilityB = Mathf.Clamp01(block.valley_b?.path_visible_probability ?? 0f);
+        float motorAdviceProbabilityA = Mathf.Clamp01(block.valley_a?.motor_advice_visible_probability ?? 0f);
+        float motorAdviceProbabilityB = Mathf.Clamp01(block.valley_b?.motor_advice_visible_probability ?? 0f);
+
+        float proximalExplanationProbability = Mathf.Clamp01(block.explanations?.proximal?.display_probability ?? 0f);
+        float motorExplanationProbability = Mathf.Clamp01(block.explanations?.motor?.display_probability ?? 0f);
+        bool distalExplanationEnabled = IsExplanationEnabled(block.explanations?.distal);
+
+        bool advisorsNeverVisible = distalAdviceProbability <= 0f
+            && proximalAdviceProbabilityA <= 0f && proximalAdviceProbabilityB <= 0f
+            && motorAdviceProbabilityA <= 0f && motorAdviceProbabilityB <= 0f;
+
+        bool explanationsNeverShown = proximalExplanationProbability <= 0f
+            && motorExplanationProbability <= 0f
+            && !distalExplanationEnabled;
+
+        if (advisorsNeverVisible || explanationsNeverShown)
+            return CommunicationQuality.None;
+
+        bool advisorsAlwaysVisible = distalAdviceProbability >= 1f
+            && proximalAdviceProbabilityA >= 1f && proximalAdviceProbabilityB >= 1f
+            && motorAdviceProbabilityA >= 1f && motorAdviceProbabilityB >= 1f;
+
+        bool explanationsAlwaysShown = proximalExplanationProbability >= 1f
+            && motorExplanationProbability >= 1f
+            && distalExplanationEnabled;
+
+        return advisorsAlwaysVisible && explanationsAlwaysShown
+            ? CommunicationQuality.Perfect
+            : CommunicationQuality.Partial;
     }
 
     // rng sert uniquement a resoudre les valeurs mixtes de display_mode et

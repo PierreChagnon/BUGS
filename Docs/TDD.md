@@ -2779,6 +2779,94 @@ Réponse du joueur à une question — envoyée dans le PATCH questionnaire.
 - `ToApiValue(ValleyChoice)` → "A" / "B" / null
 - `ToAdvisorType(string)` → None / Human / Robot (case-insensitive)
 
+## 5.3 ExplanationResolver & ExplanationRuntimeState
+
+### 5.3.1 Responsabilités
+
+- **ExplanationResolver** (classe statique) : résoudre l'état runtime d'une explanation pour un advice donné (`Resolve`) — préconditions, normalisation des valeurs de config, tirage des valeurs mixtes, sélection du texte dans le corpus — et classer la qualité de communication d'un bloc (`GetCommunicationQuality`) pour le Communication Report de la DistalChoiceScene (DEC-023)
+- **ExplanationRuntimeState** (sérialisable) : porter l'état d'une explanation résolue (mode, variant, texte) et son tracking (clic opt-in, durée d'affichage cumulée)
+
+### 5.3.2 Composants clés (Data Model)
+
+→ **ExplanationResolver.cs** (`Assets/Game/Scripts/Data/`) : deux types + un enum, pas de MonoBehaviour.
+
+```csharp
+[Serializable]
+public class ExplanationRuntimeState
+{
+    public string display_mode;        // "forced" / "opt-in" / "none" — valeur résolue, jamais mixte
+    public string content_variant;     // "short" / "long" — valeur résolue
+    public string text_id;
+    public string text;
+    public bool? clicked;              // opt-in uniquement, sinon null
+    public int? display_duration_ms;   // cumulé sur tous les affichages réels
+}
+
+public enum CommunicationQuality { Perfect, Partial, None }
+
+public static class ExplanationResolver
+{
+    public static CommunicationQuality GetCommunicationQuality(BlockConfig block);
+    public static ExplanationRuntimeState Resolve(BlockConfig block, AdviceLevel level,
+        AdvisorType advisorType, bool adviceVisible, System.Random rng);
+}
+```
+
+| Variable / Méthode                      | Type                          | Description                                                                                          |
+| :-------------------------------------- | :---------------------------- | :--------------------------------------------------------------------------------------------------- |
+| ExplanationRuntimeState.None()          | ExplanationRuntimeState (static) | État neutre : `display_mode = none`, tout le reste à null                                          |
+| ExplanationRuntimeState.Create(...)     | ExplanationRuntimeState (static) | Initialise le tracking : opt-in → `clicked = false` + chrono 0 ; forced → chrono 0, `clicked` null |
+| MarkDisplayed(realtime)                 | void                          | Démarre le chrono de lecture (idempotent) ; en opt-in pose `clicked = true`                          |
+| MarkHidden(realtime)                    | void                          | Arrête le chrono et cumule le temps écoulé dans `display_duration_ms`                                |
+| Resolve(...)                            | ExplanationRuntimeState (static) | `None()` si bloc null / tutoriel / advisor None / advice non visible / config invalide ; sinon résout mode + variant et sélectionne le texte corpus (advisorType × variant) |
+| GetCommunicationQuality(block)          | CommunicationQuality (static) | Perfect / Partial / None selon visibilité des advisors et apparition des explanations (cf. 5.3.4)    |
+| DrawDisplayMode / DrawContentVariant    | string (privées, static)      | Tirage des valeurs mixtes `forced/opt-in` et `short/long` selon `display_mode_forced_probability` / `content_variant_long_probability` |
+
+### 5.3.3 Dépendances
+
+- **Nécessite :** `BlockConfig` / `ExplanationsConfig` / `AdviceExplanationConfig` / `ExplanationText` (FlowDataModels), constantes `ExplanationDisplayMode` / `ExplanationContentVariant`, `FlowValueConverters.ToApiValue`, un `System.Random` fourni par l'appelant (déterminisme : dérivé du seed du trial pour proximal/motor, du seed du bloc pour distal)
+- **Est utilisé par :** `FlowController` (`ResolveDistalExplanationForCurrentBlock`, `ResolveProximalExplanationForCurrentTrial`, `ResolveMotorExplanationForCurrentTrial` ; relaye `MarkDisplayed`/`MarkHidden` via `GetExplanationState` aux UI `AdviceExplanationUIBase` / `ProximalForcedExplanationSequence`), `DistalChoiceUI` (`GetCommunicationQuality`, DEC-023), `FlowSerializationUtility` (`ApplyExplanationState` → colonnes `*_explanation_*` de `TrialResponseRow`)
+
+### 5.3.4 Diagramme de flux
+
+`Resolve()` :
+
+```mermaid
+graph TD
+    A["Resolve(block, level, advisor, adviceVisible, rng)"] --> B{"block null / is_tutorial /<br/>advisor None / advice non visible ?"}
+    B -->|Oui| Z["ExplanationRuntimeState.None()"]
+    B -->|Non| C["config = explanations.GetConfig(level)"]
+    C --> D{"display_mode normalisé ?"}
+    D -->|Invalide ou none| Z
+    D -->|Valide| E{"content_variant normalisé ?"}
+    E -->|Invalide| Z
+    E -->|Valide| F["DrawDisplayMode : tirage forced/opt-in<br/>si valeur mixte (rng)"]
+    F --> G["DrawContentVariant : tirage short/long<br/>si valeur mixte (rng)"]
+    G --> H["GetText(advisorType, variant)"]
+    H -->|Texte manquant| Z
+    H -->|OK| I["Create : opt-in → clicked=false + chrono 0<br/>forced → chrono 0"]
+```
+
+`GetCommunicationQuality()` (DEC-023) — 3 tests successifs, dans cet ordre :
+
+1. **None** si les 3 probabilités de visibilité d'advisor = 0 (`distal_advice_visible_probability` au niveau bloc, `path_visible_probability` et `motor_advice_visible_probability` des **deux** vallées), **OU** si `display_probability` proximal = motor = 0 **ET** `display_mode` distal = `none`
+2. **Perfect** si toutes ces probabilités = 1 **ET** `display_mode` distal ≠ `none`
+3. **Partial** sinon
+
+### 5.3.5 Points d'attention
+
+- **⚠️ Asymétrie distal vs proximal/motor :** le `display_probability` du distal n'est jamais tiré — seul son `display_mode` gouverne l'apparition (`FlowController` ne tire `display_probability` que pour proximal et motor, cf. D-013). `GetCommunicationQuality` reproduit fidèlement cette asymétrie.
+- **⚠️ rng déterministe requis :** les tirages des valeurs mixtes doivent utiliser un Random dérivé du seed (trial ou bloc) pour la rejouabilité ; scope distinct de celui du tirage d'apparition (`ExplanationMixScope` côté FlowController).
+- **⚠️ `clicked` n'a de sens qu'en opt-in** — en forced il reste null ; le chrono `display_duration_ms` court en revanche pour tout affichage réel (opt-in ET forced), en cumul sur affichages multiples.
+- **⚠️ Fallback silencieux :** config invalide (display_mode / content_variant inconnu, texte corpus manquant) → warning console + `None()` — le participant ne voit rien, aucune erreur bloquante.
+- **⚠️ Clamp01 dans GetCommunicationQuality :** une probabilité configurée > 1 compte comme 1, < 0 comme 0 — cohérent avec les tirages runtime.
+
+### 5.3.6 Journal d'implémentation
+
+| Date     | Développeur | Note / Décision Technique                                                                                                                                                                                                       |
+| :------- | :---------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 27/08/26 | @pierre     | Création de la section (rétro-documentation — le fichier existait sans section TDD). Ajout `GetCommunicationQuality` + enum `CommunicationQuality` pour le Communication Report (DEC-023) ; suppression de `HasAnyEnabledExplanation` (son seul appelant, DistalChoiceUI, utilise le nouveau classifieur). |
+
 # 6. Interface utilisateur
 
 ## 6.1 RoundUI
@@ -3065,9 +3153,11 @@ graph TD
 ### 6.5.1 Responsabilités
 
 - Afficher l'écran de choix de vallée dans la scène DistalChoiceScene
-- Montrer un résumé de chaque vallée : preview des indices verts, nombre de pièges, probabilité de brouillard
-- Rappeler le choix d'advisor courant
-- Transmettre le choix → `FlowController.OnValleyChosen(ValleyChoice)`
+- Afficher **toujours** le panneau « Communication Report » à l'entrée de la scène, avec un texte dynamique selon la qualité de communication du bloc et le choix d'advisor (DEC-023)
+- Restituer les scans de nuages des deux vallées (particules vertes/rouges) via auto-binding des groupes de particules enfants
+- Afficher l'indicateur d'advice distal (badge advisor humain M/F ou robot) sur la vallée conseillée quand `State.distal_advice_visible` est vrai
+- Griser le bouton de la vallée non autorisée quand le choix distal est forcé (DEC-019)
+- Transmettre le choix → `FlowController.OnValleyChosen(side)` après vérification `IsDistalScanChoiceAllowed`
 
 ### 6.5.2 Composants clés (Data Model)
 
@@ -3076,62 +3166,72 @@ graph TD
 ```csharp
 public class DistalChoiceUI : MonoBehaviour
 {
-    [SerializeField] private TMP_Text _titleText;
-    [SerializeField] private TMP_Text _advisorChoiceText;
-    [SerializeField] private TMP_Text _valleyAText;
-    [SerializeField] private TMP_Text _valleyBText;
+    [SerializeField] private GameObject _valleyAAdviceIndicator;
+    [SerializeField] private GameObject _valleyBAdviceIndicator;
+    [SerializeField] private GameObject _enteringExplanationBlockPanel;
+    [SerializeField] private TMP_Text _enteringExplanationBlockText;
+
+    public bool AdviceVisible { get; private set; }
+    public string AdvisedScanSide { get; private set; }
+    public BugCloudSample LeftScanData { get; private set; }
+    public BugCloudSample RightScanData { get; private set; }
 }
 ```
 
-| Variable / Méthode                             | Type            | Description                                                |
-| :--------------------------------------------- | :-------------- | :--------------------------------------------------------- |
-| \_titleText                                    | TMP_Text        | "Choix distal"                                             |
-| \_advisorChoiceText                            | TMP_Text        | Rappel du choix d'advisor (ex: "Advisor choisi: human")    |
-| \_valleyAText / \_valleyBText                  | TMP_Text        | Description formatée de chaque vallée (preview + config)   |
-| Refresh()                                      | void (privé)    | Met à jour tous les textes depuis FlowController           |
-| BuildValleyDescription(label, preview, config) | string (static) | Formate : label + preview verts + pièges + fog             |
-| OnChooseValleyA()                              | void            | Bouton A → `FlowController.OnValleyChosen(ValleyChoice.A)` |
-| OnChooseValleyB()                              | void            | Bouton B → `FlowController.OnValleyChosen(ValleyChoice.B)` |
+| Variable / Méthode                         | Type           | Description                                                                                      |
+| :----------------------------------------- | :------------- | :----------------------------------------------------------------------------------------------- |
+| \_valleyA/BAdviceIndicator                 | GameObject     | Indicateur d'advice par vallée, contient les badges advisor (HumanMale/HumanFemale/Robot)        |
+| \_enteringExplanationBlockPanel            | GameObject     | Panneau Communication Report — toujours activé au Refresh (DEC-023)                              |
+| \_enteringExplanationBlockText             | TMP_Text       | Texte dynamique du report — 1 des 6 textes selon qualité × advisor                               |
+| AdviceVisible / AdvisedScanSide            | bool / string  | Copies de `State.distal_advice_visible` / `State.distal_advice_choice`                           |
+| LeftScanData / RightScanData               | BugCloudSample | Scans affichés au participant (⚠️ jamais loggés — N1-C)                                           |
+| Refresh()                                  | void (privé)   | Orchestration au Start : panel, texte du report, scans, badges, boutons forced                   |
+| UpdateExplanationBlockText(block, advisor) | void (privé)   | `ExplanationResolver.GetCommunicationQuality` → switch Perfect/Partial/None × advisor            |
+| CloseEnteringExplanationBlockPanel()       | void           | Bouton de fermeture du report                                                                    |
+| EnsureAutomaticScanBindings()              | void (privé)   | Auto-bind : groupes enfants à exactement 2 ParticleSystem, gauche/droite par anchoredPosition.x  |
+| OnChooseValleyA() / OnChooseValleyB()      | void           | Garde `IsDistalScanChoiceAllowed` puis `FlowController.OnValleyChosen(side)`                     |
+| ApplyForcedChoiceButtons(flow)             | void (privé)   | Si `distal_choice_is_forced` : désactive + alpha 0.35 sur la vallée non imposée                  |
 
 ### 6.5.3 Dépendances
 
-- **Nécessite :** `FlowController.Instance` (CurrentBlock, State.advisor_choice, OnValleyChosen()), `FlowValueConverters.ToApiValue(AdvisorType)`
+- **Nécessite :** `FlowController.Instance` (CurrentBlock, State — `distal_advice_visible`, `distal_advice_choice`, `advisor_choice`, `distal_choice_is_forced`, `distal_choice_forced_scan_side` —, `GenerateCurrentDistalScans()`, `IsDistalScanChoiceAllowed()`, `OnValleyChosen()`), `ExplanationResolver.GetCommunicationQuality()`, `BugCloudParticleUtility.Apply()`, constantes `DistalScanSide`
 - **Est utilisé par :** Aucun — composant terminal
 
 ### 6.5.4 Diagramme de flux
 
 ```mermaid
 graph TD
-    A["Start()"] --> B["Refresh()"]
-    B --> C{"FlowController.Instance != null ?"}
-    C -->|Non| D[Return]
-    C -->|Oui| E["_titleText = 'Choix distal'"]
-    E --> F["_advisorChoiceText = advisor choisi"]
-    F --> G["_valleyAText = BuildValleyDescription(A)"]
-    G --> H["_valleyBText = BuildValleyDescription(B)"]
+    A["Start()"] --> B["_showHumanMale = tirage 50/50"]
+    B --> C["Refresh()"]
+    C --> D["SetExplanationBlockPanelVisible(true) — inconditionnel"]
+    D --> E{"FlowController + CurrentBlock ?"}
+    E -->|Absent| F["Return — panel affiché, texte statique"]
+    E -->|Présent| G["Lit State : AdviceVisible, AdvisedScanSide, advisorType"]
+    G --> H["UpdateExplanationBlockText : GetCommunicationQuality → 1 des 6 textes"]
+    G --> I["GenerateCurrentDistalScans → Left/RightScanData"]
+    I --> J["UpdateAdviceIndicators + badges advisor"]
+    I --> K["ApplyValleyScan A/B (auto-bind particules)"]
+    I --> L["ApplyForcedChoiceButtons"]
 
-    subgraph "BuildValleyDescription"
-        BD1["label + preview (green hints L/R)"] --> BD2["+ config (trap_count, fog_probability)"]
-    end
-
-    I["Bouton A"] --> J["OnChooseValleyA()"]
-    J --> K["FlowController.OnValleyChosen(ValleyChoice.A)"]
-
-    L["Bouton B"] --> M["OnChooseValleyB()"]
-    M --> N["FlowController.OnValleyChosen(ValleyChoice.B)"]
+    M["Clic vallée A/B"] --> N{"IsDistalScanChoiceAllowed ?"}
+    N -->|Oui| O["FlowController.OnValleyChosen(side)"]
 ```
 
 ### 6.5.5 Points d'attention
 
-- **⚠️ Preview nullable :** Si `ValleyPreview` est null, affiche "Preview indisponible" — le texte reste lisible
-- **⚠️ Config nullable :** Si `MapGenConfig` est null, affiche "Config indisponible"
-- **⚠️ Indices visuels :** Les previews montrent des indices (green_hint) sans révéler les paramètres exacts de génération
+- **⚠️ Communication Report inconditionnel (DEC-023) :** s'affiche aussi en bloc tutoriel (Q-EXP-11) et même sans FlowController (le texte reste alors celui posé dans la scène)
+- **⚠️ 6 textes anglais hardcodés** dans le composant — hors corpus configurable (TR3 ne couvre que les corpus d'explanations)
+- **⚠️ `_enteringExplanationBlockText` à câbler dans l'Inspector** — sinon panel affiché avec son texte statique, sans erreur
+- **⚠️ `_showHumanMale` :** `Random.value` non seedé ni loggé (même famille que N2-A / Q-RANDOM-1)
+- **⚠️ Auto-binding heuristique des scans :** fragile aux changements de hiérarchie (groupes identifiés par leur nombre exact de ParticleSystem et leur anchoredPosition)
+- **⚠️ `LeftScanData`/`RightScanData` exposés mais lus nulle part** (N1-C / Q-DISTAL-1)
 
 ### 6.5.6 Journal d'implémentation
 
 | Date     | Développeur | Note / Décision Technique                                                                               |
 | :------- | :---------- | :------------------------------------------------------------------------------------------------------ |
 | 23/03/26 | @pierre     | Création. Choix de vallée A/B avec preview indices verts, rappel advisor, résumé config (pièges + fog). |
+| 27/08/26 | @pierre     | Communication Report toujours affiché + texte dynamique 3 cas × advisor (DEC-023). `ExplanationResolver.GetCommunicationQuality` remplace `HasAnyEnabledExplanation`. Section 6.5 resynchronisée avec le code réel (scans auto-bind, badges advisor, boutons forced). |
 
 ## 6.6 FlowContinueScreenUI
 
@@ -3434,3 +3534,4 @@ _Section à compléter._
 | 09/03/26 | 2.8     | Refacto complète du fog of war. Nouvelle architecture spawner-based : `FogSpawner` (section 4.8, Start -245) décide conditionnellement de l'activation du fog via `fogProbability` (tirage seedé) et instancie dynamiquement `FogController`. `FogController` (section 4.4) réécrit : suppression DefaultExecutionOrder, gridSize, brush circulaire (PaintDisc, SmoothStep), pixelsPerCell 32→1. Remplacement par `PaintCellSquare` (carrés nets), `RevealCells` batch optimisé (1 Apply), ajout `OnDestroy`. `SessionManager` (section 4.3) : ajout `fogProbability` (float, CLI: `fogProbability=F`, défaut 1.0). `PathSpawner` (section 3.2) : révèle toujours playerCell + 2 cellules nuages dans le fog (même si chemin caché). MAJ sections 2.2 (Vue A/B), 2.3 (patterns Singleton/ExecutionOrder), 4.1 (LevelRegistry dépendances).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | 12/03/26 | 2.9     | Motor Advice system (nouvelle section 3.6 MotorAdviceController, nouvelle section 6.2 MotorAdviceUI). Pénalité touche invalide : GridMover détecte les touches non-actives → `GameManager.OnInvalidMoveKeyPressed` (−2 bugs/cloud). Suboptimal traps : `TrapSpawner.PlaceSuboptimalTraps` place des pièges sur le chemin suboptimal. MAJ SessionManager (+5 params : motorAdviceVisibleProbability, motorAdviceReliableProbability, suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps ; fogProbability défaut 1f→0f). MAJ GridMover (délégation MAC, détection touches invalides). MAJ GameManager (+OnInvalidMoveKeyPressed). MAJ TrapSpawner (+PlaceSuboptimalTraps). Diagrammes Vue A/B mis à jour. 3 nouveaux patterns (section 2.3).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | 23/03/26 | 3.0     | **Architecture multi-scènes + backend Supabase.** Nouvelle couche DDOL persistante : FlowController (4.9, machine à états 10 phases), ApiClient (4.10, REST Supabase GET/POST/PATCH + queue/retry), FadeTransition (4.11, overlay dynamique). MAJ GameManager (4.2) : ContinueAfterRound() délègue à FlowController, SetAdvisorPathVisible, toutes pénalités →−2, RevealAll on cloud collected, EndCurrentTrial 10 params. MAJ SessionManager (4.3) : facade pattern, CopyConfigFromFlowController() remplace CLI, IsFlowDriven, IsTutorialBlock, ApplySeedForThisTrial. MAJ TrialManager (4.5) : BuildBaseRow lit FlowController+SessionManager, TrialResponseRow flat ~50 champs remplace TrialData, ApiClient.SendTrialResponse, tutorial skip. Section 5.1 : TrialResponseRow remplace TrialData, nouveau format JSON POST direct. Nouvelle section 5.2 : Flow Data Models (SessionConfig, BlockConfig, MapGenConfig 19 params, ValleyPreview, QuestionConfig, QuestionResponse, PlayerSessionState, FlowCloneUtility, FlowValueConverters). MAJ RoundUI (6.1) : bouton Continuer remplace Restart, délègue à ContinueAfterRound. 5 nouveaux écrans UI : ConsentUI (6.3), AdvisorChoiceUI (6.4), DistalChoiceUI (6.5), FlowContinueScreenUI (6.6, polyvalent Welcome/Intro/EndSession), QuestionnaireUI (6.7, scale/MCQ/freetext). Diagrammes Mermaid Vue A/B/D refaits pour 9 scènes + DDOL. |
+| 27/08/26 | 3.1     | **Communication Report DistalChoiceScene (DEC-023).** Section 6.5 (DistalChoiceUI) resynchronisée avec le code réel : Communication Report toujours affiché + texte dynamique 3 cas × advisor, scans particules auto-bindés, badges advisor (humain M/F / robot), boutons forced (DEC-019). Nouvelle section 5.3 (ExplanationResolver & ExplanationRuntimeState, rétro-documentation) : Resolve, GetCommunicationQuality, tracking opt-in, asymétrie `display_probability` distal (D-013). |
