@@ -2701,7 +2701,7 @@ Configuration de génération de map — source de vérité pour les paramètres
 | :------------------------------------------ | :---- | :-------- | :------------------------------------------------------------ |
 | trap_count                                  | int   | 10        | Nombre de pièges                                              |
 | min_distance / max_distance                 | int   | 3 / 10    | Range distance Manhattan placement nuages                     |
-| min_total_bugs / max_total_bugs             | int   | 20 / 80   | Range total bugs par nuage                                    |
+| min_total_bugs / max_total_bugs             | int   | 20 / 80   | Range total bugs par nuage (plafonné à 250 par le backend ; 150 pour distal_scene) |
 | min_green_ratio / max_green_ratio           | float | 0.4 / 0.8 | Range ratio vert par nuage                                    |
 | gap_min / gap_max                           | float | 0.1 / 0.3 | Range écart greenRatio entre nuages                           |
 | path_visible                                | float | 1.0       | Probabilité que le chemin optimal soit visible                |
