@@ -1454,7 +1454,6 @@ public class SessionManager : MonoBehaviour
 
     [Header("Session")]
     public long randomizationSeed;
-    public string buildVersion = "1.0.0";
 
     [Header("Recherche : Map")]
     public int trapCount = 10;
@@ -1496,7 +1495,6 @@ public class SessionManager : MonoBehaviour
 | trialManager                                                                                                 | TrialManager   | Référence (conservée dans l'Inspector, utilisée par TrialManager.BuildBaseRow)                                                                                        |
 | gameManager                                                                                                  | GameManager    | Référence pour déclencher `BeginFirstRound()`                                                                                                                         |
 | randomizationSeed                                                                                            | long           | Seed de randomisation — copiée depuis FlowController ou générée localement                                                                                            |
-| buildVersion                                                                                                 | string         | Version du build — copiée depuis FlowController.BuildVersion si disponible                                                                                            |
 | **IsFlowDriven**                                                                                             | bool (get)     | `true` si la config a été copiée avec succès depuis FlowController                                                                                                    |
 | **IsTutorialBlock**                                                                                          | bool (get)     | `true` si le bloc courant est un tutorial (lu depuis FlowController.IsCurrentBlockTutorial)                                                                           |
 | **Paramètres recherche** _(champs `public`, lus directement par les spawners via `SessionManager.Instance`)_ |                |                                                                                                                                                                       |
@@ -1539,8 +1537,7 @@ graph TD
     B0 -->|Non| B1["IsFlowDriven = false<br/>Log warning: valeurs Inspector conservées"]
     B0 -->|Oui| B2["Copier MapGenConfig → champs locaux"]
     B2 --> B3["randomizationSeed = CurrentTrialSeed ?? map.seed"]
-    B3 --> B4["buildVersion = FlowController.BuildVersion"]
-    B4 --> B5["blockId = State.current_block_index + 1"]
+    B3 --> B5["blockId = State.current_block_index + 1"]
     B5 --> B6["IsTutorialBlock = IsCurrentBlockTutorial"]
     B6 --> B7["IsFlowDriven = true"]
 
@@ -2110,9 +2107,6 @@ public class FlowController : MonoBehaviour
     [SerializeField] string _welcomeSceneName = "WelcomeScene";
     // ... 7 autres scènes configurables
 
-    [Header("Build")]
-    [SerializeField] string _buildVersion = "0.3.0-flow";
-
     [Header("Editor Test")]
     [SerializeField] string _editorSessionId;
 
@@ -2120,7 +2114,6 @@ public class FlowController : MonoBehaviour
     public PlayerSessionState State { get; private set; }
     public long CurrentTrialSeed { get; private set; }
     public int BlockScore { get; private set; }
-    public string BuildVersion => _buildVersion;
 
     public BlockConfig CurrentBlock { get; }       // Config.blocks[State.current_block_index]
     public MapGenConfig ActiveMapConfig { get; }   // valley_a ou valley_b selon State.valley_choice, clone + seed
@@ -2518,7 +2511,7 @@ public class TrialResponseRow
 | :------------------------------------------ | :----- | :--------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | participant_id                              | string | BuildBaseRow (FlowController)                  | ID participant extrait de l'URL WebGL                                                                                                                                    |
 | session_template_id                         | string | BuildBaseRow (FlowController)                  | ID du template de session backend                                                                                                                                        |
-| build_version                               | string | BuildBaseRow (FlowController)                  | Version du build Unity (ex: "0.3.0-flow")                                                                                                                                |
+| build_version                               | string | constante `BuildInfo.Version`                  | Version du build Unity (ex: "0.4.0")                                                                                                                                |
 | block_index                                 | int    | BuildBaseRow (FlowController)                  | Index du bloc courant (0-based)                                                                                                                                          |
 | trial_index                                 | int    | BuildBaseRow (FlowController)                  | Index du trial dans le bloc (0-based)                                                                                                                                    |
 | trial_count                                 | int    | BuildBaseRow (FlowController)                  | Nombre total de trials dans le bloc                                                                                                                                      |
@@ -2593,7 +2586,7 @@ Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJso
 {
   "participant_id": "abc-123",
   "session_template_id": "tmpl-456",
-  "build_version": "0.3.0-flow",
+  "build_version": "0.4.0",
   "block_index": 0,
   "trial_index": 2,
   "trial_count": 4,

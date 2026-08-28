@@ -284,7 +284,7 @@ public class TrialManager : MonoBehaviour
                 ? flow.State.session_template_id
                 : "debug-session-template",
             session_name = flow != null && flow.Config != null ? flow.Config.label : null,
-            build_version = session != null ? session.buildVersion : (flow != null ? flow.BuildVersion : "debug-build"),
+            build_version = BuildInfo.Version,
             block_template_id = block != null ? block.block_template_id : null,
             block_index = blockIndex,
             trial_index = trialIndex,

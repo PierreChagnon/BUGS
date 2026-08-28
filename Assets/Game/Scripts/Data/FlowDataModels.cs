@@ -87,6 +87,11 @@ public class RuleScreen
     }
 }
 
+// Les DTO de config (BlockConfig, DistalSceneConfig, MapGenConfig,
+// AdviceExplanationConfig) ne portent aucun defaut de valeur : le payload de
+// GET /api/sessions/[id] est valide par sessionConfigSchema (Zod) cote backend,
+// qui garantit la presence de chaque champ. Les defauts de saisie vivent dans
+// le dashboard, seule source de verite.
 [Serializable]
 public class BlockConfig
 {
@@ -94,23 +99,23 @@ public class BlockConfig
     public int block_order;
     public bool is_order_locked;
     public string config_fingerprint;
-    public int trial_count = 1;
+    public int trial_count;
     public bool is_tutorial;
     public bool advisor_forced;
-    public string advisor_forced_value = "none";
+    public string advisor_forced_value;
     public bool distal_forced;
-    public float distal_forced_optimal_probability = 1f;
+    public float distal_forced_optimal_probability;
     public float proximal_forced_probability;
-    public float proximal_forced_optimal_probability = 1f;
+    public float proximal_forced_optimal_probability;
     public float motor_forced_probability;
-    public string motor_forced_set = "QZD";
+    public string motor_forced_set;
     public DistalSceneConfig distal_scene = new();
     public MapGenConfig valley_a = new();
     public MapGenConfig valley_b = new();
     public ExplanationsConfig explanations;
-    public float distal_advice_visible_probability = 1f;
-    public float distal_advice_reliable_probability = 1f;
-    public bool show_numerical_feedback = true;
+    public float distal_advice_visible_probability;
+    public float distal_advice_reliable_probability;
+    public bool show_numerical_feedback;
     public InContextTutorialConfig in_context_tutorial = new();
 
     public BlockConfig DeepClone()
@@ -164,12 +169,12 @@ public class InContextTutorialConfig
 [Serializable]
 public class DistalSceneConfig
 {
-    public int min_total_bugs = 20;
-    public int max_total_bugs = 80;
-    public float min_green_ratio = 0.4f;
-    public float max_green_ratio = 0.8f;
-    public float gap_min = 0.1f;
-    public float gap_max = 0.3f;
+    public int min_total_bugs;
+    public int max_total_bugs;
+    public float min_green_ratio;
+    public float max_green_ratio;
+    public float gap_min;
+    public float gap_max;
 
     public DistalSceneConfig DeepClone()
     {
@@ -188,24 +193,24 @@ public class DistalSceneConfig
 [Serializable]
 public class MapGenConfig
 {
-    public int trap_count = 10;
-    public int min_distance = 3;
-    public int max_distance = 10;
-    public int min_total_bugs = 20;
-    public int max_total_bugs = 80;
-    public float min_green_ratio = 0.4f;
-    public float max_green_ratio = 0.8f;
-    public float gap_min = 0.1f;
-    public float gap_max = 0.3f;
-    public float path_visible_probability = 1f;
+    public int trap_count;
+    public int min_distance;
+    public int max_distance;
+    public int min_total_bugs;
+    public int max_total_bugs;
+    public float min_green_ratio;
+    public float max_green_ratio;
+    public float gap_min;
+    public float gap_max;
+    public float path_visible_probability;
     public float suboptimal_path_probability;
     public float detour_probability;
-    public float proximal_advice_reliable_probability = 1f;
-    public float motor_advice_visible_probability = 1f;
-    public float motor_advice_reliable_probability = 1f;
+    public float proximal_advice_reliable_probability;
+    public float motor_advice_visible_probability;
+    public float motor_advice_reliable_probability;
     public float suboptimal_trap_probability;
-    public int min_suboptimal_traps = 1;
-    public int max_suboptimal_traps = 3;
+    public int min_suboptimal_traps;
+    public int max_suboptimal_traps;
     public float fog_probability;
     public long seed;
 
@@ -290,18 +295,21 @@ public class ExplanationsConfig
 [Serializable]
 public class AdviceExplanationConfig
 {
-    public string display_mode = ExplanationDisplayMode.None;
-    public string content_variant = ExplanationContentVariant.Short;
+    public string display_mode;
+    public string content_variant;
     public ExplanationCorpus corpus = new();
-    public float display_probability = 1f;
+
+    // Absent du payload pour le niveau distal (jamais lu dans ce cas : la
+    // distal explanation ne depend que de display_mode).
+    public float display_probability;
 
     // Lu uniquement quand display_mode vaut "forced/opt-in" : probabilite de tirer
     // "forced", sinon "opt-in".
-    public float display_mode_forced_probability = 0.5f;
+    public float display_mode_forced_probability;
 
     // Lu uniquement quand content_variant vaut "short/long" : probabilite de tirer
     // "long", sinon "short".
-    public float content_variant_long_probability = 0.5f;
+    public float content_variant_long_probability;
 
     public ExplanationText GetText(AdvisorType advisorType, string variant)
     {

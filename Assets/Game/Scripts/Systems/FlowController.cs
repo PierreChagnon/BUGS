@@ -22,9 +22,6 @@ public class FlowController : MonoBehaviour
     [SerializeField] private string _breakSceneName = "BreakScene";
     [SerializeField] private string _endSessionSceneName = "EndSessionScene";
 
-    [Header("Build")]
-    [SerializeField] private string _buildVersion = "0.4.0";
-
     [Header("Editor Test")]
     [SerializeField] private string _editorSessionId;
 
@@ -39,7 +36,6 @@ public class FlowController : MonoBehaviour
     public int BlockScore { get; private set; }
     // Total de bugs verts collectes sur la session, blocs tutoriels exclus : jamais remis a zero entre les blocs.
     public int SessionScore { get; private set; }
-    public string BuildVersion => _buildVersion;
     public string PlatformUrl => Config != null ? Config.platform_url : null;
     public bool WasConsentDeclined { get; private set; }
     public ExplanationRuntimeState DistalAdviceExplanation { get; private set; } = ExplanationRuntimeState.None();

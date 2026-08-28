@@ -15,7 +15,7 @@
 | `participant_id` | string | UUID | Identifiant participant (généré côté client). Sert de clé de regroupement. |
 | `session_template_id` | string | id | Modèle de session (config chargée depuis l'API). |
 | `session_name` | string | texte | Nom de la session, recopié depuis la clé `label` de la configuration. |
-| `build_version` | string | ex. `0.3.0-flow` | Version du build ayant produit la donnée. |
+| `build_version` | string | ex. `0.4.0` | Version du build ayant produit la donnée (constante `BuildInfo.Version`). |
 | `block_template_id` | string | id | Modèle du bloc effectivement joué. **Indispensable quand `randomize_blocks = true`** (DEC-022) : `block_index` donne la position jouée, `block_template_id` donne le bloc expérimental. Grouper les analyses par condition sur **cette** colonne, pas sur `block_index`. |
 | `block_index` | int | ≥ 1 | Numéro du bloc dans la session (1-based) — **position jouée**, pas identité du bloc (cf. `block_template_id`). |
 | `trial_index` | int | ≥ 1 | Numéro du trial dans le bloc (1-based). |

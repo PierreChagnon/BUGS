@@ -22,7 +22,6 @@ public class SessionManager : MonoBehaviour
 
     [Header("Session")]
     public long randomizationSeed;
-    public string buildVersion = "1.0.0";
 
     [Header("Recherche : Map")]
     public int trapCount = 10;
@@ -112,7 +111,6 @@ public class SessionManager : MonoBehaviour
         ShouldShowEquipmentFailureOverlay = flow.ShouldShowEquipmentFailureOverlay;
 
         randomizationSeed = flow.CurrentTrialSeed != 0 ? flow.CurrentTrialSeed : map.seed;
-        buildVersion = flow.BuildVersion;
 
         trapCount = map.trap_count;
         minDistance = map.min_distance;

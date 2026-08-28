@@ -233,7 +233,7 @@ résidus « −2 » dans `TDD.md:818,850` (N2-L) · inventaire des packages inco
 | **Mapping des 3 questions non tranché + textes placeholders** | Validité du questionnaire | 🔴 Q-011 |
 | **`spec-tech` absentes pour free/forced et explanations** | Aucune référence opposable sur H1–H8 | 🟠 Rétro-documentation à produire |
 | `motor_forced_set` : fallback silencieux vers ZQSD | Condition expérimentale fausse sans trace | 🟠 **Lot A4** — non corrigé |
-| `build_version` incohérent (0.4.0 vs 1.0.0) | Colonne CSV ambiguë | 🟠 **Lot A5** — non corrigé |
+| `build_version` incohérent (0.4.0 vs 1.0.0) | Colonne CSV ambiguë | ✅ **Levé le 28/08/26** — constante unique `BuildInfo.Version` (Lot A5) |
 | **Modèle de perte de bugs divergent code vs GDD** | Résultats non comparables au protocole | ✅ **Levé le 28/07/26** — le code applique le modèle GDD ; reste le sign-off Q-007 |
 | **Free/forced choices : implémentation absente** | Validité expérimentale | ✅ **Levé le 28/07/26** — implémenté |
 | **Explanations short/long absentes** → H8 non testable | Validité expérimentale | ✅ **Levé le 28/07/26** — implémenté |
@@ -251,7 +251,7 @@ résidus « −2 » dans `TDD.md:818,850` (N2-L) · inventaire des packages inco
 > Détail complet des lots dans `revue-completude-2026-07-28.md`.
 
 1. **Arbitrages chercheur bloquants** — Q-010 (pattern de fiabilité), Q-011 (mapping des 3 questions + textes réels), **texte de consentement** (E2), **décision sur QuestionnaireScene** (E1). Rien d'autre ne peut être figé sans ça.
-2. **Lot A — fiabiliser le pipeline de données.** A1 ne plus jeter le trial si le questionnaire est incomplet · A2 persister la file d'envoi · A3 débloquer la file après échec · A4 supprimer le fallback silencieux `motor_forced_set` · A5 unifier `build_version`. **Aucune passation avec de vrais participants avant.**
+2. **Lot A — fiabiliser le pipeline de données.** A1 ne plus jeter le trial si le questionnaire est incomplet · A2 persister la file d'envoi · A3 débloquer la file après échec · A4 supprimer le fallback silencieux `motor_forced_set` · A5 unifier `build_version` (✅ fait le 28/08/26, `BuildInfo.Version`). **Aucune passation avec de vrais participants avant.**
 2 bis. **Lot E — couvrir la donnée de sortie** (même rang de priorité que le Lot A) : E1 résultat du motor advice · E2 stimulus distal réalisé · E3 colonnes `*_match_advice` · E4 compteur de touches invalides · E5 ordre des advisors seedé et loggé. Dépend des arbitrages Q-MOTOR-1 / Q-DISTAL-1 / Q-RANDOM-1.
 3. **Nettoyer les textes placeholders** — E3 (`AdvisorChoiceUI.cs:56`) et F6 (`TrialQuestionsUI.cs:24-26`). Rapide et visible par le participant.
 4. **Lot D — exécuter la campagne de validation** (`Docs/validation/`) : ouvrir G0, dérouler les axes 1→7, jusqu'au codebook signé (G5).
