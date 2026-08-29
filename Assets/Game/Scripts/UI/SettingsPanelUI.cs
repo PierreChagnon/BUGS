@@ -15,14 +15,35 @@ public class SettingsPanelUI : MonoBehaviour
         _resumeButton.onClick.AddListener(Close);
         _quitButton.onClick.AddListener(Quit);
         if (_masterSlider != null)
-            _masterSlider.onValueChanged.AddListener(v =>
-                AudioManager.Instance?.SetGroupVolume(AudioManager.MASTER_VOLUME, v));
-        _musicSlider.onValueChanged.AddListener(v =>
-            AudioManager.Instance?.SetGroupVolume(AudioManager.MUSIC_VOLUME, v));
+            _masterSlider.onValueChanged.AddListener(OnMasterVolumeChanged);
+        _musicSlider.onValueChanged.AddListener(OnMusicVolumeChanged);
         // Le slider SFX pilote les deux groupes SFX (gameplay + UI) via SetSfxVolume.
-        _sfxSlider.onValueChanged.AddListener(v =>
-            AudioManager.Instance?.SetSfxVolume(v));
+        _sfxSlider.onValueChanged.AddListener(OnSfxVolumeChanged);
         _root.SetActive(false);
+    }
+
+    void OnDestroy()
+    {
+        if (_resumeButton != null) _resumeButton.onClick.RemoveListener(Close);
+        if (_quitButton != null) _quitButton.onClick.RemoveListener(Quit);
+        if (_masterSlider != null) _masterSlider.onValueChanged.RemoveListener(OnMasterVolumeChanged);
+        if (_musicSlider != null) _musicSlider.onValueChanged.RemoveListener(OnMusicVolumeChanged);
+        if (_sfxSlider != null) _sfxSlider.onValueChanged.RemoveListener(OnSfxVolumeChanged);
+    }
+
+    static void OnMasterVolumeChanged(float value)
+    {
+        AudioManager.Instance?.SetGroupVolume(AudioManager.MASTER_VOLUME, value);
+    }
+
+    static void OnMusicVolumeChanged(float value)
+    {
+        AudioManager.Instance?.SetGroupVolume(AudioManager.MUSIC_VOLUME, value);
+    }
+
+    static void OnSfxVolumeChanged(float value)
+    {
+        AudioManager.Instance?.SetSfxVolume(value);
     }
 
     public void Open()

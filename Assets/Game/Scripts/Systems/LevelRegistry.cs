@@ -69,56 +69,16 @@ public class LevelRegistry : MonoBehaviour
     public System.Random CreateRng(string scope)
     {
         if (!_hasRoundSeed)
-            SetRoundSeed(GenerateSeed());
+            SetRoundSeed(SeedUtility.GenerateSeed());
 
         int s = DeriveSeed(scope);
         return new System.Random(s);
     }
 
+    // FNV-1a 64-bit sur (roundSeed + scope) => stable, rapide, cross-platform.
     public int DeriveSeed(string scope)
     {
-        unchecked
-        {
-            // FNV-1a 64-bit sur (roundSeed + scope) => stable, rapide, cross-platform.
-            const ulong offset = 1469598103934665603UL;
-            const ulong prime = 1099511628211UL;
-
-            ulong h = offset;
-            ulong seed64 = (ulong)_roundSeed;
-
-            for (int i = 0; i < 8; i++)
-            {
-                h ^= (byte)(seed64 & 0xFF);
-                h *= prime;
-                seed64 >>= 8;
-            }
-
-            if (!string.IsNullOrEmpty(scope))
-            {
-                for (int i = 0; i < scope.Length; i++)
-                {
-                    h ^= (byte)scope[i];
-                    h *= prime;
-                }
-            }
-
-            return (int)h;
-        }
-    }
-
-    static long GenerateSeed()
-    {
-        // Assez "random" pour une seed de run sans dépendre de UnityEngine.Random.
-        unchecked
-        {
-            int ticksHash = System.DateTime.UtcNow.Ticks.GetHashCode();
-            int guidHash = System.Guid.NewGuid().GetHashCode();
-            int seed = (ticksHash ^ guidHash) & 0x7FFFFFFF;
-            if (seed == 0)
-                seed = 1;
-
-            return seed;
-        }
+        return SeedUtility.DeriveScopedSeed(_roundSeed, scope);
     }
 
     // --- API publique (utilisable par tes autres scripts) ---

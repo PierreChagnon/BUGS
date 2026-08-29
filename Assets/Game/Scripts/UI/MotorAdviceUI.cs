@@ -18,11 +18,8 @@ public class MotorAdviceUI : MonoBehaviour
     [SerializeField] private Text keyDownLabel;
     [SerializeField] private Text keyRightLabel;
 
-    bool _showHumanMale;
-
     void Start()
     {
-        _showHumanMale = Random.value < 0.5f;
         CacheAdvisorDisplays();
 
         if (MotorAdviceController.Instance != null)
@@ -78,30 +75,16 @@ public class MotorAdviceUI : MonoBehaviour
         if (_advisorPicture == null) return;
 
         if (_advisorHumanMale == null)
-            _advisorHumanMale = FindAdvisorDisplay("AdvisorDisplayHumanMale");
+            _advisorHumanMale = AdvisorBadgeUtility.FindDescendant(_advisorPicture.transform, AdvisorBadgeUtility.HumanMaleName);
         if (_advisorHumanFemale == null)
-            _advisorHumanFemale = FindAdvisorDisplay("AdvisorDisplayHumanFemale");
+            _advisorHumanFemale = AdvisorBadgeUtility.FindDescendant(_advisorPicture.transform, AdvisorBadgeUtility.HumanFemaleName);
         if (_advisorRobot == null)
-            _advisorRobot = FindAdvisorDisplay("AdvisorDisplayRobot");
-    }
-
-    GameObject FindAdvisorDisplay(string childName)
-    {
-        Transform child = _advisorPicture.transform.Find(childName);
-        return child != null ? child.gameObject : null;
+            _advisorRobot = AdvisorBadgeUtility.FindDescendant(_advisorPicture.transform, AdvisorBadgeUtility.RobotName);
     }
 
     void SetAdvisorDisplays(bool adviceVisible, AdvisorType advisorType)
     {
-        bool showHuman = adviceVisible && advisorType == AdvisorType.Human;
-        bool showRobot = adviceVisible && advisorType == AdvisorType.Robot;
-
-        if (_advisorHumanMale != null)
-            _advisorHumanMale.SetActive(showHuman && _showHumanMale);
-        if (_advisorHumanFemale != null)
-            _advisorHumanFemale.SetActive(showHuman && !_showHumanMale);
-        if (_advisorRobot != null)
-            _advisorRobot.SetActive(showRobot);
+        AdvisorBadgeUtility.ApplyBadges(_advisorHumanMale, _advisorHumanFemale, _advisorRobot, adviceVisible, advisorType);
     }
 
     AdvisorType GetAdvisorType()

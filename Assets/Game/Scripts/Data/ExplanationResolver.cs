@@ -154,6 +154,13 @@ public static class ExplanationResolver
             : CommunicationQuality.Partial;
     }
 
+    // Tirage d'apparition d'une explanation (display_probability), sur le flux
+    // RNG dedie que lui passe FlowController.
+    public static bool DrawShouldDisplay(float displayProbability, System.Random rng)
+    {
+        return rng.NextDouble() < Mathf.Clamp01(displayProbability);
+    }
+
     // rng sert uniquement a resoudre les valeurs mixtes de display_mode et
     // content_variant. Il doit etre deterministe (derive du seed du trial ou du
     // bloc) pour que la session reste rejouable.

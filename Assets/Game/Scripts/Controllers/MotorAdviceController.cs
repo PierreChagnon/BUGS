@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
@@ -13,8 +12,8 @@ public enum MotorKeySet
 }
 
 // -----------------------------
-// Motor Advice: tirage du set actif + advice visible/fiable.
-// Fournit un mapping input pour GridMover.
+// Motor Advice: applique le tirage du set actif + advice visible/fiable
+// (résolu par TrialDrawResolver). Fournit un mapping input pour GridMover.
 // -----------------------------
 
 [DefaultExecutionOrder(-5)]
@@ -40,40 +39,27 @@ public class MotorAdviceController : MonoBehaviour
         var rng = CreateRng();
         var session = SessionManager.Instance;
 
-        ActiveSet = session != null && session.MotorChoiceIsForced
-            ? FlowValueConverters.ToMotorKeySet(session.MotorChoiceForcedSet)
-            : (MotorKeySet)rng.Next(0, 3);
-
-        float visibleProb = session != null ? session.motorAdviceVisibleProbability : 1f;
-        float reliableProb = session != null ? session.motorAdviceReliableProbability : 1f;
+        float visibleProb = session != null ? session.Map.motor_advice_visible_probability : 1f;
+        float reliableProb = session != null ? session.Map.motor_advice_reliable_probability : 1f;
         bool hasAdvisor = session == null || session.HasAdvisor;
+        bool choiceIsForced = session != null && session.MotorChoiceIsForced;
 
-        if (!hasAdvisor)
-            visibleProb = 0f;
+        // Tirages résolus dans Data/ (set actif, visibilité, fiabilité, set affiché).
+        var draw = TrialDrawResolver.DrawMotorAdvice(
+            hasAdvisor,
+            choiceIsForced,
+            FlowValueConverters.ToMotorKeySet(session != null ? session.MotorChoiceForcedSet : null),
+            visibleProb,
+            reliableProb,
+            rng);
 
-        AdviceVisible = rng.NextDouble() < visibleProb;
-        Debug.Log($"[MotorAdviceController]: visible={AdviceVisible} (prob={visibleProb}), reliable={reliableProb}");
-        if (!AdviceVisible)
-        {
-            AdviceReliable = false;
-            DisplayedSet = MotorKeySet.None;
-            FlowController.Instance?.ResolveMotorExplanationForCurrentTrial(false);
-            OnAdviceChanged?.Invoke();
-            return;
-        }
+        ActiveSet = draw.active_set;
+        AdviceVisible = draw.visible;
+        AdviceReliable = draw.reliable;
+        DisplayedSet = draw.displayed_set;
 
-        if (session != null && session.MotorChoiceIsForced)
-        {
-            AdviceReliable = true;
-            DisplayedSet = ActiveSet;
-        }
-        else
-        {
-            AdviceReliable = rng.NextDouble() < reliableProb;
-            DisplayedSet = AdviceReliable ? ActiveSet : PickOtherSet(rng, ActiveSet);
-        }
-
-        FlowController.Instance?.ResolveMotorExplanationForCurrentTrial(true);
+        Debug.Log($"[MotorAdviceController]: visible={AdviceVisible} (prob={(hasAdvisor ? visibleProb : 0f)}), reliable={reliableProb}");
+        FlowController.Instance?.ResolveMotorExplanationForCurrentTrial(AdviceVisible);
         OnAdviceChanged?.Invoke();
     }
 
@@ -170,13 +156,6 @@ public class MotorAdviceController : MonoBehaviour
             || key == GetKeyControl(ActiveSet, "left")
             || key == GetKeyControl(ActiveSet, "down")
             || key == GetKeyControl(ActiveSet, "right");
-    }
-
-    static MotorKeySet PickOtherSet(System.Random rng, MotorKeySet current)
-    {
-        var options = new List<MotorKeySet> { MotorKeySet.ZQSD, MotorKeySet.TFGH, MotorKeySet.IJKL };
-        options.Remove(current);
-        return options[rng.Next(0, options.Count)];
     }
 
     static System.Random CreateRng()

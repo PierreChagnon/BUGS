@@ -28,19 +28,20 @@ public class TrapSpawner : MonoBehaviour
             return;
         }
 
-        // Lire le trapCount depuis SessionManager (propriétaire de la config expérimentale)
+        // Lire la config expérimentale via SessionManager.Map (source de vérité unique)
         var session = SessionManager.Instance;
         if (session == null)
         {
             Debug.LogError("[TrapSpawner] SessionManager manquant dans la scène.");
             return;
         }
-        _trapCount = session.trapCount;
+        MapGenConfig map = session.Map;
+        _trapCount = map.trap_count;
 
         var rng = registry.CreateRng(nameof(TrapSpawner));
 
         // ── Pièges sur le chemin suboptimal (comptent dans le budget trapCount) ──
-        int suboptimalPlaced = PlaceSuboptimalTraps(registry, session, rng);
+        int suboptimalPlaced = PlaceSuboptimalTraps(registry, map, rng);
         int remainingTraps = _trapCount - suboptimalPlaced;
 
         // ── Pièges normaux (logique inchangée, hors chemin suboptimal) ──
@@ -88,9 +89,9 @@ public class TrapSpawner : MonoBehaviour
     /// Place des pièges spécifiquement sur les cellules du chemin suboptimal.
     /// Retourne le nombre de pièges effectivement posés.
     /// </summary>
-    int PlaceSuboptimalTraps(LevelRegistry registry, SessionManager session, System.Random rng)
+    int PlaceSuboptimalTraps(LevelRegistry registry, MapGenConfig map, System.Random rng)
     {
-        if (session.suboptimalTrapProbability <= 0f) return 0;
+        if (map.suboptimal_trap_probability <= 0f) return 0;
 
         // Collecter les cellules du chemin suboptimal
         var subCells = new List<Vector2Int>();
@@ -104,13 +105,14 @@ public class TrapSpawner : MonoBehaviour
 
         if (subCells.Count == 0) return 0;
 
-        // Tirage de la probabilité
-        if (rng.NextDouble() >= session.suboptimalTrapProbability) return 0;
+        // Tirages probabilité puis nombre de pièges (résolus dans Data/)
+        int targetCount = TrialDrawResolver.DrawSuboptimalTrapCount(
+            map.suboptimal_trap_probability,
+            map.min_suboptimal_traps,
+            map.max_suboptimal_traps,
+            rng);
 
-        // Tirage du nombre de pièges entre les bornes min/max
-        int min = Mathf.Max(0, session.minSuboptimalTraps);
-        int max = Mathf.Max(min, session.maxSuboptimalTraps);
-        int targetCount = rng.Next(min, max + 1);
+        if (targetCount <= 0) return 0;
 
         // Mélanger les cellules candidates
         for (int i = 0; i < subCells.Count; i++)
@@ -129,7 +131,7 @@ public class TrapSpawner : MonoBehaviour
             placed++;
         }
 
-        Debug.Log($"[TrapSpawner] Pièges suboptimaux: {placed}/{targetCount} (prob={session.suboptimalTrapProbability}, bornes=[{min},{max}])");
+        Debug.Log($"[TrapSpawner] Pièges suboptimaux: {placed}/{targetCount} (prob={map.suboptimal_trap_probability}, bornes=[{map.min_suboptimal_traps},{map.max_suboptimal_traps}])");
         return placed;
     }
 

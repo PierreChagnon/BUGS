@@ -94,7 +94,7 @@ graph TD
         CWG["CorridorWallsGenerator\nStart −50"]
         TrS["TrapSpawner\nStart −10"]
         MAC["MotorAdviceController\nStart 0"]
-        SM["SessionManager\nAwake 0 → CopyConfigFromFlowController"]
+        SM["SessionManager\nAwake 0 → Map = ActiveMapConfig"]
     end
 
     FC -->|"BootstrapFlow → FetchSessionConfig"| AC
@@ -102,7 +102,7 @@ graph TD
     FC -->|"TransitionToScene(ProximalScene)"| FT
     FT -->|"FadeOut → LoadScene → FadeIn"| SM
 
-    SM -->|"CopyConfigFromFlowController → seed"| LR
+    SM -->|"Map = ActiveMapConfig → seed"| LR
     LR --> TS
     TS -->|originWorld| PS
     PS -->|joueur enregistré| FS
@@ -197,7 +197,7 @@ sequenceDiagram
 
         loop Pour chaque trial du bloc
             FC->>SM: TransitionToScene(ProximalScene)
-            SM->>SM: CopyConfigFromFlowController()
+            SM->>SM: Map = ActiveMapConfig
             SM->>GM: BeginFirstRound()
             GM->>TM: StartNewTrial()
             Note over GM: Gameplay (steps, traps, clouds)
@@ -236,10 +236,10 @@ sequenceDiagram
 | **Step Budget Penalty**          | `GameManager.OnPlayerStep` → `OnStepBudgetExceeded`, `LevelRegistry.stepBudget`, `BugCloudSpawner.RegisterStepBudget`                                                                                              | Même pattern que `OnTrapTriggered` : quand le joueur dépasse la distance Manhattan (budget de pas enregistré par BugCloudSpawner), chaque pas supplémentaire retire 1 bug de chaque nuage. La donnée brute `cloud_distance` est transmise aux chercheurs via TrialData                                                                                                                                                                          |
 | **Motor Advice**                 | `MotorAdviceController.Instance` (Singleton) → `GridMover.ReadStep()` + `GridMover.IsActiveMoveKey()`                                                                                                              | Tirage seedé d'un jeu de touches actif (ZQSD/TFGH/IJKL) avec advice visible/fiable configurable par SessionManager. GridMover délègue la lecture d'input et la validation des touches actives à MotorAdviceController                                                                                                                                                                                                                           |
 | **Invalid Key Penalty**          | `GridMover.IsAnyNonActiveMoveKeyPressedThisFrame()` → `GameManager.OnInvalidMoveKeyPressed()`                                                                                                                      | Toute touche pressée hors du set actif déclenche une pénalité de -1 bug vert dans chaque nuage (même barème que le piège). Détection via itération `Keyboard.current.allKeys`                                                                                                                                                                                                                                                                   |
-| **Suboptimal Trap Placement**    | `TrapSpawner.PlaceSuboptimalTraps()` → `SessionManager.Instance` (suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps)                                                                               | Permet de placer des pièges spécifiquement sur le chemin suboptimal (avant les pièges normaux). Le nombre de pièges suboptimaux est tiré dans [min, max] et compte dans le budget total `trapCount`                                                                                                                                                                                                                                             |
+| **Suboptimal Trap Placement**    | `TrapSpawner.PlaceSuboptimalTraps()` → `SessionManager.Instance.Map` (suboptimal_trap_probability, min/max_suboptimal_traps) + `TrialDrawResolver.DrawSuboptimalTrapCount()`                                        | Permet de placer des pièges spécifiquement sur le chemin suboptimal (avant les pièges normaux). Le nombre de pièges suboptimaux est tiré dans [min, max] et compte dans le budget total `trapCount`                                                                                                                                                                                                                                             |
 | **Scene Flow State Machine**     | `FlowController.AdvanceToPhase(GamePhase)` — enum `GamePhase` à 10 états (Boot → Welcome → Consent → Intro → Tutorial → AdvisorChoice → DistalChoice → Proximal → Questionnaire → EndSession)                      | Chaque phase correspond à une scène Unity. `FlowController` est DDOL : il survit aux `LoadScene` et orchestre les transitions. Les scènes UI appellent des callbacks typés (`OnConsentGiven`, `OnAdvisorChosen`, `OnValleyChosen`, `OnQuestionnaireComplete`) sans connaître la logique de séquencement                                                                                                                                         |
 | **DDOL Persistent Layer**        | `FlowController`, `ApiClient`, `FadeTransition` — tous `DontDestroyOnLoad` + Singleton avec guard `Destroy(gameObject)` si doublon                                                                                 | Couche persistante qui survit aux transitions de scène. Permet d'accumuler l'état de session (`PlayerSessionState`), de maintenir les connexions API et d'enchaîner les transitions visuelles. Les scènes locales (ProximalScene) ont leurs propres singletons non-DDOL (`GameManager`, `SessionManager`, `LevelRegistry`)                                                                                                                      |
-| **Backend Config Pipeline**      | `FlowController.BootstrapFlow()` → `ApiClient.FetchSessionConfig(sessionId)` → `Initialize(SessionConfig)` → `SessionManager.CopyConfigFromFlowController()`                                                       | La configuration expérimentale vient du backend Supabase, pas des args CLI. `SessionConfig` contient une liste de `BlockConfig`, chaque bloc contient deux `MapGenConfig` (valley_a / valley_b). `SessionManager` copie le `MapGenConfig` actif dans ses champs publics pour que les spawners lisent toujours `SessionManager.Instance.paramName` — le pattern Research Parameter Pipeline est préservé                                         |
+| **Backend Config Pipeline**      | `FlowController.BootstrapFlow()` → `ApiClient.FetchSessionConfig(sessionId)` → `Initialize(SessionConfig)` → `SessionManager.Map = ActiveMapConfig`                                                                | La configuration expérimentale vient du backend Supabase, pas des args CLI. `SessionConfig` contient une liste de `BlockConfig`, chaque bloc contient deux `MapGenConfig` (valley_a / valley_b). `SessionManager` expose le `MapGenConfig` actif tel quel via `Map` : les spawners lisent `SessionManager.Instance.Map.<champ_payload>` — une seule source de vérité, aucune copie divergeable                                                  |
 | **Valley Choice → MapGenConfig** | `FlowController.ActiveMapConfig` → computed property : `State.valley_choice == ValleyChoice.B ? block.valley_b : block.valley_a` + injection de `CurrentTrialSeed`                                                 | Le choix distal du joueur (vallée A ou B) détermine quel `MapGenConfig` sera utilisé pour générer la grille du trial. La seed du trial est injectée dans le clone pour garantir la reproductibilité                                                                                                                                                                                                                                             |
 | **Queued Trial Upload**          | `ApiClient._pendingTrialRequests` (Queue) + `_storedTrialIdsByKey` (Dictionary) + `_pendingQuestionnairePatches` (Dictionary)                                                                                      | Les envois de trial sont mis en queue avec retry automatique (max 3 tentatives). Quand un trial est stocké, son `id` Supabase est mémorisé par clé `participant                                                                                                                                                                                                                                                                                 | block | trial`. Les patchs de questionnaire sont mis en attente jusqu'à ce que le `trialResponseId` correspondant soit disponible, puis flushés automatiquement |
 
@@ -1430,18 +1430,19 @@ Accumulated score = FlowController.GetAccumulatedScoreAfterTrial(trialScore) —
 ### 4.3.1 Responsabilités
 
 - **Singleton** (`SessionManager.Instance`) — façade locale du ProximalScene pour la config du trial courant
-- Exposer aux spawners la configuration du trial via les champs `public` lus directement (`SessionManager.Instance.paramName`)
-- **Copier la config depuis FlowController** (`CopyConfigFromFlowController()`) si présent — mappe `MapGenConfig` → champs locaux
-- Gérer la seed de randomisation pour le trial (copie depuis FlowController ou génération locale)
+- Exposer aux spawners la configuration du trial via **`Map`** (`MapGenConfig`, noms de champs = noms du payload)
+- **`Map` EST la config active** : `FlowController.ActiveMapConfig` en mode flow (aucune copie champ par champ), ou un `MapGenConfig` construit depuis les champs Inspector « Sandbox » si FlowController est absent
+- Exposer l'état de flux (`HasAdvisor`, `ProximalChoiceIsForced`, `MotorChoiceIsForced`, `MotorChoiceForcedSet`) en **lecture directe** dans `FlowController.State` (propriétés pass-through, valeurs de repli sandbox)
+- Gérer la seed de randomisation pour le trial (lue depuis FlowController ou générée via `SeedUtility.GenerateSeed()`)
 - Écrire la seed dans `LevelRegistry.SetRoundSeed()` pour que tous les spawners l'utilisent
 - Déclencher le début du jeu via `GameManager.BeginFirstRound()` après un frame de délai
-- **Si FlowController absent** : conserve les valeurs Inspector (mode debug standalone)
+- **Si FlowController absent** : `Map` est construit depuis les valeurs Inspector (mode debug standalone)
 
 ### 4.3.2 Composants clés (Data Model)
 
-→ **SessionManager.cs** : Singleton MonoBehaviour, façade de configuration du ProximalScene. Ordre d'exécution : `0` (défaut). Awake initialise le Singleton, copie la config depuis FlowController si disponible, puis applique la seed. Start est une coroutine qui lance le jeu après un frame.
+→ **SessionManager.cs** : Singleton MonoBehaviour, façade de configuration du ProximalScene. Ordre d'exécution : `0` (défaut). Awake initialise le Singleton, assigne `Map` (config active FlowController ou sandbox), puis applique la seed. Start est une coroutine qui lance le jeu après un frame.
 
-> **Note architecture :** SessionManager ne fait plus de parsing CLI. La configuration vient de FlowController (qui la récupère du backend via ApiClient). SessionManager reste le point de lecture direct pour les spawners (pattern Singleton identique à v2.9), mais la source de vérité est désormais FlowController → SessionManager → Spawners.
+> **Note architecture :** SessionManager ne copie plus la config champ par champ (le miroir de 20 champs a été supprimé — cf. OBSERVATIONS backend-bugs, Corrigés 28/08/26). `Map` est le clone `ActiveMapConfig` lui-même : toute divergence entre config et valeurs lues/remontées est structurellement impossible. Les spawners lisent `SessionManager.Instance.Map.<champ_payload>` ; l'état de flux est lu en direct dans FlowController via des propriétés pass-through.
 
 ```csharp
 public class SessionManager : MonoBehaviour
@@ -1449,81 +1450,49 @@ public class SessionManager : MonoBehaviour
     public static SessionManager Instance { get; private set; }
 
     [Header("Références")]
-    public TrialManager trialManager;
     public GameManager gameManager;
 
     [Header("Session")]
     public long randomizationSeed;
 
-    [Header("Recherche : Map")]
-    public int trapCount = 10;
-    public int minDistance = 3;
-    public int maxDistance;
+    // Champs Inspector "Sandbox : ..." (trapCount, minDistance, ..., fogProbability, blockId) :
+    // utilisés uniquement pour construire Map quand FlowController est absent.
 
-    [Header("Recherche : Discrimination")]
-    public int minTotalBugs = 20;
-    public int maxTotalBugs = 80;
-    public float minGreenBugsRatio = 0.4f;
-    public float maxGreenBugsRatio = 0.8f;
-    public float gapMin = 0.1f;
-    public float gapMax = 0.3f;
+    // Config de map du trial courant : ActiveMapConfig en mode flow, valeurs
+    // Inspector en mode sandbox. Source de vérité unique pour les spawners et
+    // pour TrialManager.BuildBaseRow.
+    public MapGenConfig Map { get; private set; }
 
-    [Header("Recherche : Advisor")]
-    public float pathVisible = 1f;
-    [Range(0f, 1f)] public float suboptimalPathProbability;
-    [Range(0f, 1f)] public float detourProbability;
-    [Range(0f, 1f)] public float motorAdviceVisibleProbability = 1f;
-    [Range(0f, 1f)] public float motorAdviceReliableProbability = 1f;
-    [Range(0f, 1f)] public float suboptimalTrapProbability;
-    [Min(0)] public int minSuboptimalTraps = 1;
-    [Min(0)] public int maxSuboptimalTraps = 3;
-
-    [Header("Recherche : Fog of War")]
-    [Range(0f, 1f)] public float fogProbability;
-
-    [Header("Recherche : Protocole")]
-    public int blockId = 1;
-
-    public bool IsFlowDriven { get; private set; }
-    public bool IsTutorialBlock { get; private set; }
+    // État de flux lu en direct dans FlowController.State (pass-through, repli sandbox) :
+    public bool HasAdvisor { get; }                 // sandbox : true
+    public bool ProximalChoiceIsForced { get; }     // sandbox : false
+    public bool MotorChoiceIsForced { get; }        // sandbox : false
+    public string MotorChoiceForcedSet { get; }     // sandbox : null
+    public bool ShouldShowEquipmentFailureOverlay { get; }
 }
 ```
 
-| Variable / Méthode                                                                                           | Type           | Description                                                                                                                                                           |
-| :----------------------------------------------------------------------------------------------------------- | :------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Instance                                                                                                     | SessionManager | Référence statique globale (Singleton)                                                                                                                                |
-| trialManager                                                                                                 | TrialManager   | Référence (conservée dans l'Inspector, utilisée par TrialManager.BuildBaseRow)                                                                                        |
-| gameManager                                                                                                  | GameManager    | Référence pour déclencher `BeginFirstRound()`                                                                                                                         |
-| randomizationSeed                                                                                            | long           | Seed de randomisation — copiée depuis FlowController ou générée localement                                                                                            |
-| **IsFlowDriven**                                                                                             | bool (get)     | `true` si la config a été copiée avec succès depuis FlowController                                                                                                    |
-| **IsTutorialBlock**                                                                                          | bool (get)     | `true` si le bloc courant est un tutorial (lu depuis FlowController.IsCurrentBlockTutorial)                                                                           |
-| **Paramètres recherche** _(champs `public`, lus directement par les spawners via `SessionManager.Instance`)_ |                |                                                                                                                                                                       |
-| trapCount                                                                                                    | int            | Nombre de pièges (défaut : 10)                                                                                                                                        |
-| minDistance / maxDistance                                                                                    | int            | Distance Manhattan min/max joueur↔nuages                                                                                                                              |
-| minTotalBugs / maxTotalBugs                                                                                  | int            | Range du nombre total de bugs (défaut : 20-80)                                                                                                                        |
-| minGreenBugsRatio / maxGreenBugsRatio                                                                        | float          | Bornes ratio vert (défaut : 0.4-0.8)                                                                                                                                  |
-| gapMin / gapMax                                                                                              | float          | Écart min/max entre ratios verts (défaut : 0.1-0.3)                                                                                                                   |
-| pathVisible                                                                                                  | float          | Probabilité d'affichage du chemin conseillé (défaut : 1.0)                                                                                                            |
-| suboptimalPathProbability                                                                                    | float          | Probabilité chemin suboptimal (défaut : 0.0)                                                                                                                          |
-| detourProbability                                                                                            | float          | Probabilité détour en « Z » (défaut : 0.0)                                                                                                                            |
-| motorAdviceVisibleProbability                                                                                | float          | Probabilité affichage motor advice (défaut : 1.0)                                                                                                                     |
-| motorAdviceReliableProbability                                                                               | float          | Probabilité fiabilité motor advice (défaut : 1.0)                                                                                                                     |
-| suboptimalTrapProbability                                                                                    | float          | Probabilité pièges sur chemin suboptimal (défaut : 0.0)                                                                                                               |
-| minSuboptimalTraps / maxSuboptimalTraps                                                                      | int            | Range pièges suboptimaux (défaut : 1-3)                                                                                                                               |
-| fogProbability                                                                                               | float          | Probabilité brouillard de guerre (défaut : 0.0)                                                                                                                       |
-| blockId                                                                                                      | int            | Index du bloc courant (1-based, défaut : 1)                                                                                                                           |
-| **Méthodes**                                                                                                 |                |                                                                                                                                                                       |
-| Awake()                                                                                                      | void           | Singleton init → `CopyConfigFromFlowController()` → `ApplySeedForThisTrial()`                                                                                         |
-| Start()                                                                                                      | IEnumerator    | Coroutine : `yield return null` → `gameManager.BeginFirstRound()`                                                                                                     |
-| CopyConfigFromFlowController()                                                                               | bool (privé)   | Lit FlowController.ActiveMapConfig et copie tous les champs MapGenConfig + blockId + IsTutorialBlock. Retourne `false` si FlowController absent ou config non chargée |
-| ApplySeedForThisTrial()                                                                                      | void (privé)   | Si seed == 0 : génère depuis DateTime+Guid. Écrit dans LevelRegistry.SetRoundSeed()                                                                                   |
-| GenerateSeed()                                                                                               | long (static)  | `(DateTime.UtcNow.Ticks << 1) ^ Guid.NewGuid().GetHashCode()` (unchecked)                                                                                             |
+| Variable / Méthode                                                                                    | Type           | Description                                                                                                                                       |
+| :----------------------------------------------------------------------------------------------------- | :------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Instance                                                                                              | SessionManager | Référence statique globale (Singleton)                                                                                                            |
+| gameManager                                                                                           | GameManager    | Référence pour déclencher `BeginFirstRound()`                                                                                                     |
+| randomizationSeed                                                                                     | long           | Seed de randomisation — lue depuis FlowController ou générée localement (`SeedUtility.GenerateSeed()`)                                            |
+| **Map**                                                                                               | MapGenConfig   | Config de map du trial courant : `FlowController.ActiveMapConfig` (mode flow) ou construite depuis les champs Inspector (sandbox). Lue par tous les spawners et par `TrialManager.BuildBaseRow` |
+| **HasAdvisor**                                                                                        | bool (get)     | Pass-through `State.advisor_choice != None` (sandbox : `true`)                                                                                    |
+| **ProximalChoiceIsForced** / **MotorChoiceIsForced**                                                  | bool (get)     | Pass-through `State.*_choice_is_forced` (sandbox : `false`)                                                                                       |
+| **MotorChoiceForcedSet**                                                                              | string (get)   | Pass-through `State.motor_choice_forced_set` (sandbox : `null`)                                                                                   |
+| **Champs Inspector « Sandbox »** _(trapCount, minDistance…, fogProbability, blockId)_                 | int/float      | Valeurs de debug standalone, consommées uniquement par `BuildSandboxMap()` quand FlowController est absent                                         |
+| **Méthodes**                                                                                          |                |                                                                                                                                                    |
+| Awake()                                                                                               | void           | Singleton init → `Map = ActiveMapConfig` (ou `BuildSandboxMap()`) → `ApplySeedForThisTrial()`                                                     |
+| Start()                                                                                               | IEnumerator    | Coroutine : `yield return null` → `gameManager.BeginFirstRound()`                                                                                 |
+| ApplySeedForThisTrial()                                                                               | void (privé)   | Si seed == 0 : `SeedUtility.GenerateSeed()`. Écrit dans LevelRegistry.SetRoundSeed()                                                              |
+| BuildSandboxMap()                                                                                     | MapGenConfig   | Construit un `MapGenConfig` depuis les champs Inspector (mode sandbox uniquement)                                                                 |
 
 ### 4.3.3 Dépendances
 
-- **Nécessite :** `FlowController.Instance` (ActiveMapConfig, CurrentTrialSeed, BuildVersion, State.current_block_index, IsCurrentBlockTutorial, HasLoadedConfig), `LevelRegistry.Instance` (SetRoundSeed), `GameManager` (appelle `BeginFirstRound()`)
-- **Est utilisé par :** `BugCloudSpawner` (lecture directe : minDistance, maxDistance, minTotalBugs, maxTotalBugs, minGreenBugsRatio, maxGreenBugsRatio, gapMin, gapMax), `TrapSpawner` (lecture directe : trapCount, suboptimalTrapProbability, minSuboptimalTraps, maxSuboptimalTraps), `PathSpawner` (lecture directe : pathVisible, proximalAdviceReliableProbability, suboptimalPathProbability, detourProbability), `FogSpawner` (lecture directe : fogProbability), `TrialManager` (lecture directe dans BuildBaseRow : tous les paramètres recherche), `MotorAdviceController` (lecture directe : motorAdviceVisibleProbability, motorAdviceReliableProbability)
-- **Pattern :** Backend Config Pipeline — FlowController.ActiveMapConfig → SessionManager.CopyConfigFromFlowController() → Spawners `.Start()` (lecture directe)
+- **Nécessite :** `FlowController.Instance` (ActiveMapConfig, CurrentTrialSeed, State, IsCurrentBlockTutorial, HasLoadedConfig), `LevelRegistry.Instance` (SetRoundSeed), `GameManager` (appelle `BeginFirstRound()`), `SeedUtility` (GenerateSeed)
+- **Est utilisé par :** `BugCloudSpawner`, `TrapSpawner`, `PathSpawner`, `FogSpawner`, `MotorAdviceController` (lecture de `Map.<champ_payload>` + propriétés de flux), `TrialManager` (lecture de `Map` dans BuildBaseRow)
+- **Pattern :** Backend Config Pipeline — FlowController.ActiveMapConfig → `SessionManager.Map` (même objet, cloné une fois) → Spawners `.Start()` (lecture directe)
 
 ### 4.3.4 Diagramme de flux
 
@@ -1532,21 +1501,17 @@ graph TD
     A["Awake()"] --> A0{"Instance déjà existant ?"}
     A0 -->|Oui| A1["Destroy(gameObject) — return"]
     A0 -->|Non| A2["Instance = this"]
-    A2 --> B["CopyConfigFromFlowController()"]
-    B --> B0{"FlowController.Instance != null<br/>& HasLoadedConfig<br/>& ActiveMapConfig != null ?"}
-    B0 -->|Non| B1["IsFlowDriven = false<br/>Log warning: valeurs Inspector conservées"]
-    B0 -->|Oui| B2["Copier MapGenConfig → champs locaux"]
-    B2 --> B3["randomizationSeed = CurrentTrialSeed ?? map.seed"]
-    B3 --> B5["blockId = State.current_block_index + 1"]
-    B5 --> B6["IsTutorialBlock = IsCurrentBlockTutorial"]
-    B6 --> B7["IsFlowDriven = true"]
+    A2 --> B0{"FlowController.Instance != null<br/>& HasLoadedConfig<br/>& ActiveMapConfig != null ?"}
+    B0 -->|Non| B1["Map = BuildSandboxMap()<br/>Log warning: valeurs sandbox"]
+    B0 -->|Oui| B2["Map = ActiveMapConfig (clone)"]
+    B2 --> B3["randomizationSeed = CurrentTrialSeed ?? Map.seed"]
 
     B1 --> C["ApplySeedForThisTrial()"]
-    B7 --> C
+    B3 --> C
     C --> C1{"LevelRegistry.Instance != null ?"}
     C1 -->|Non| C2["Log warning: seed non appliquée"]
     C1 -->|Oui| C3{"randomizationSeed == 0 ?"}
-    C3 -->|Oui| C4["GenerateSeed() → randomizationSeed"]
+    C3 -->|Oui| C4["SeedUtility.GenerateSeed() → randomizationSeed"]
     C3 -->|Non| C5["Utiliser la valeur existante"]
     C4 --> C6["LevelRegistry.SetRoundSeed(seed)"]
     C5 --> C6
@@ -1555,31 +1520,32 @@ graph TD
     H --> I["gameManager?.BeginFirstRound()"]
 
     subgraph "Lecture par les spawners (Start, ordres négatifs)"
-        S1["BugCloudSpawner.Start(-200)"] -.->|"lit Instance.minDistance, etc."| A2
-        S2["PathSpawner.Start(-100)"] -.->|"lit Instance.pathVisible, etc."| A2
-        S3["TrapSpawner.Start(-10)"] -.->|"lit Instance.trapCount, etc."| A2
-        S5["FogSpawner.Start(-245)"] -.->|"lit Instance.fogProbability"| A2
-        S6["MotorAdviceController.Start(0)"] -.->|"lit Instance.motorAdviceVisibleProbability, etc."| A2
+        S1["BugCloudSpawner.Start(-200)"] -.->|"lit Instance.Map.min_distance, etc."| A2
+        S2["PathSpawner.Start(-100)"] -.->|"lit Instance.Map.path_visible_probability, etc."| A2
+        S3["TrapSpawner.Start(-10)"] -.->|"lit Instance.Map.trap_count, etc."| A2
+        S5["FogSpawner.Start(-245)"] -.->|"lit Instance.Map.fog_probability"| A2
+        S6["MotorAdviceController.Start(0)"] -.->|"lit Instance.Map.motor_advice_visible_probability, etc."| A2
     end
 ```
 
 ### 4.3.5 Approche retenue & alternatives évaluées
 
-**Approche retenue :** Façade Singleton qui copie la config depuis FlowController (DDOL) vers des champs locaux lus directement par les spawners.
+**Approche retenue :** Façade Singleton qui expose la config active de FlowController (DDOL) telle quelle via `Map`, sans copie champ par champ.
 
 | Approche                                                             | Avantages                                                                                                                              | Inconvénients                                                         |
 | :------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------- |
-| ✅ **FlowController → SessionManager.CopyConfig (Singleton façade)** | Spawners inchangés (lisent toujours SessionManager.Instance), FlowController reste DDOL découplé de la scène, fallback debug Inspector | Duplication temporaire des champs (FlowController → SessionManager)   |
+| ✅ **FlowController.ActiveMapConfig → SessionManager.Map (façade)**  | Une seule source de vérité (aucune divergence possible), spawners découplés de FlowController, fallback sandbox Inspector conservé      | Les spawners lisent des noms de champs payload (`snake_case`)         |
+| ~~FlowController → SessionManager.CopyConfig (miroir 20 champs)~~    | Spawners avec noms C# historiques                                                                                                      | Miroir divergeable — classe de bugs éliminée le 28/08/26              |
 | ~~Args CLI → SessionManager (v2.9)~~                                 | Simple, pas de dépendance backend                                                                                                      | Plus compatible avec le flow multi-scènes, pas de config dynamique    |
-| FlowController direct (spawners lisent FlowController.Instance)      | Pas de duplication, source unique                                                                                                      | Couplage fort entre spawners et FlowController, pas de fallback debug |
+| FlowController direct (spawners lisent FlowController.Instance)      | Pas de façade                                                                                                                          | Couplage fort entre spawners et FlowController, pas de fallback debug |
 
 ### 4.3.6 Points d'attention
 
-- **⚠️ Awake, pas Start :** `CopyConfigFromFlowController()` et `ApplySeedForThisTrial()` sont faites en Awake — les spawners (Start avec ordres négatifs) lisent les valeurs déjà copiées
-- **⚠️ Fallback Inspector :** Si FlowController est absent (mode debug), les valeurs Inspector sont conservées — comportement identique à v2.9 en standalone
-- **⚠️ Seed reproductible :** En mode flow, `CurrentTrialSeed` est prioritaire sur `map.seed`. Si 0, une seed est générée localement
+- **⚠️ Awake, pas Start :** l'assignation de `Map` et `ApplySeedForThisTrial()` sont faites en Awake — les spawners (Start avec ordres négatifs) lisent un `Map` déjà prêt
+- **⚠️ Fallback sandbox :** Si FlowController est absent (mode debug), `Map` est construit depuis les champs Inspector « Sandbox » — comportement standalone conservé
+- **⚠️ Seed reproductible :** En mode flow, `CurrentTrialSeed` est prioritaire sur `Map.seed`. Si 0, une seed est générée localement (`SeedUtility`)
 - **⚠️ Plus de CLI :** Le parsing d'arguments CLI a été entièrement supprimé — la config vient du backend via FlowController
-- **⚠️ blockId :** Calculé comme `State.current_block_index + 1` (1-based) — cohérent avec l'ancien blockId CLI
+- **⚠️ blockId :** Champ Inspector sandbox uniquement — en mode flow, `TrialManager.BuildBaseRow` lit `State.current_block_index + 1` directement
 
 ### 4.3.7 Journal d'implémentation
 
@@ -1591,6 +1557,7 @@ graph TD
 | 02/03/26 | @pierre     | Refacto Singleton SRP : SessionManager devient Singleton (`Instance`). Champs `[SerializeField] private` → `public`. Suppression relais LevelRegistry.                                                                                                                                                         |
 | 12/03/26 | @pierre     | Ajout paramètres Motor Advice & Suboptimal Traps.                                                                                                                                                                                                                                                              |
 | 23/03/26 | @pierre     | Refacto façade : suppression totale du parsing CLI. Ajout `CopyConfigFromFlowController()` qui mappe `MapGenConfig` vers les champs locaux. Ajout `IsFlowDriven` et `IsTutorialBlock`. Renommage `ApplySeedForThisRound` → `ApplySeedForThisTrial`. La seed prioritaire est `FlowController.CurrentTrialSeed`. |
+| 28/08/26 | @claude     | Suppression du miroir : `CopyConfigFromFlowController()` remplacé par `Map` (= `ActiveMapConfig` cloné, ou `BuildSandboxMap()` depuis l'Inspector). Les flags copiés (`HasAdvisor`, `ProximalChoiceIsForced`, `MotorChoiceIsForced`, `MotorChoiceForcedSet`) deviennent des pass-through lus en direct dans `FlowController.State` ; `RefreshForcedValuesFromFlow()`, `IsFlowDriven`, `IsTutorialBlock` et `ProximalChoiceForcedValue` supprimés (aucun consommateur). Seeds via `SeedUtility` (Data/).                |
 
 ## 4.4 FogController
 
@@ -2161,7 +2128,7 @@ public class FlowController : MonoBehaviour
 ### 4.9.3 Dépendances
 
 - **Nécessite :** `ApiClient.Instance` (FetchSessionConfig, CompleteSession, QueueQuestionnairePatchForTrial, OnTrialResponseStored), `FadeTransition.Instance` (FadeOut, FadeIn), `TutorialSessionFactory` (EnsureTutorialBlock), `SceneManager` (LoadScene)
-- **Est utilisé par :** `SessionManager` (CopyConfigFromFlowController — lit Config, State, ActiveMapConfig, CurrentTrialSeed, BuildVersion, IsCurrentBlockTutorial), `TrialManager` (BuildBaseRow — lit State, CurrentBlock, ActiveMapConfig ; EndCurrentTrial — GetAccumulatedScoreAfterTrial, RegisterLastTrialResponse, IsCurrentBlockTutorial), `GameManager` (ContinueAfterRound → OnTrialComplete), `ConsentUI` (OnConsentGiven), `AdvisorChoiceUI` (OnAdvisorChosen), `DistalChoiceUI` (OnValleyChosen), `FlowContinueScreenUI` (OnPhaseComplete), `QuestionnaireUI` (OnQuestionnaireComplete)
+- **Est utilisé par :** `SessionManager` (Map = ActiveMapConfig + pass-through State — lit Config, State, ActiveMapConfig, CurrentTrialSeed, IsCurrentBlockTutorial), `TrialManager` (BuildBaseRow — lit State, CurrentBlock, ActiveMapConfig ; EndCurrentTrial — GetAccumulatedScoreAfterTrial, RegisterLastTrialResponse, IsCurrentBlockTutorial), `GameManager` (ContinueAfterRound → OnTrialComplete), `ConsentUI` (OnConsentGiven), `AdvisorChoiceUI` (OnAdvisorChosen), `DistalChoiceUI` (OnValleyChosen), `FlowContinueScreenUI` (OnPhaseComplete), `QuestionnaireUI` (OnQuestionnaireComplete)
 - **Communique avec :** Backend Supabase (via ApiClient), Scènes Unity (via SceneManager)
 
 ### 4.9.4 Diagramme de flux

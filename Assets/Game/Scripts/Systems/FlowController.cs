@@ -28,6 +28,7 @@ public class FlowController : MonoBehaviour
     bool _isBootstrapping;
     double _breakResumeAllowedAt;
     bool _breakCountdownStarted;
+    Coroutine _sceneTransitionCoroutine;
 
     public SessionConfig Config { get; private set; }
     public PlayerSessionState State { get; private set; }
@@ -159,6 +160,7 @@ public class FlowController : MonoBehaviour
             motor_choice_is_forced = false,
             motor_choice_forced_set = null,
             motor_choice_forced_probability = 0f,
+            advisor_display_is_male = false,
             distal_advice_visible = false,
             distal_advice_reliable = false,
             distal_advice_choice = null,
@@ -249,7 +251,7 @@ public class FlowController : MonoBehaviour
         State.distal_scan_choice = scanChoice;
         State.valley_choice = ResolveValleyFromDistalScanChoice(scanChoice);
         CurrentBlockSeed = ResolveBlockSeedForCurrentBlock();
-        CurrentTrialSeed = DeriveTrialSeed(CurrentBlockSeed, State.current_trial_index);
+        CurrentTrialSeed = SeedUtility.DeriveTrialSeed(CurrentBlockSeed, State.current_trial_index);
         Debug.Log(
             $"[FlowController] distalScanChoice={scanChoice}, " +
             $"distalBestScan={State.distal_best_valley}, " +
@@ -289,7 +291,7 @@ public class FlowController : MonoBehaviour
         if (CurrentBlockSeed == 0)
             CurrentBlockSeed = ResolveBlockSeedForCurrentBlock();
 
-        CurrentTrialSeed = DeriveTrialSeed(CurrentBlockSeed, State.current_trial_index);
+        CurrentTrialSeed = SeedUtility.DeriveTrialSeed(CurrentBlockSeed, State.current_trial_index);
         Debug.Log($"[FlowController] blockSeed={CurrentBlockSeed}, trialIndex={State.current_trial_index + 1}, trialSeed={CurrentTrialSeed}");
         AdvanceToPhase(GamePhase.Proximal);
     }
@@ -478,7 +480,12 @@ public class FlowController : MonoBehaviour
             return;
         }
 
-        StartCoroutine(TransitionToScene(sceneName));
+        // Deux transitions rapprochees ne doivent pas se chevaucher : la
+        // nouvelle remplace l'ancienne.
+        if (_sceneTransitionCoroutine != null)
+            StopCoroutine(_sceneTransitionCoroutine);
+
+        _sceneTransitionCoroutine = StartCoroutine(TransitionToScene(sceneName));
     }
 
     IEnumerator TransitionToScene(string sceneName)
@@ -491,6 +498,8 @@ public class FlowController : MonoBehaviour
 
         if (FadeTransition.Instance != null)
             yield return FadeTransition.Instance.FadeIn();
+
+        _sceneTransitionCoroutine = null;
     }
 
     SessionConfig PrepareConfig(SessionConfig source)
@@ -588,22 +597,21 @@ public class FlowController : MonoBehaviour
         if (State == null || block == null)
             return;
 
-        var rng = CreateCurrentTrialRandom(nameof(RollTrialForcedChoicesForCurrentTrial));
+        var draw = TrialDrawResolver.DrawTrialForcedChoices(
+            block,
+            CreateCurrentTrialRandom(nameof(RollTrialForcedChoicesForCurrentTrial)));
 
-        float proximalProbability = Mathf.Clamp01(block.proximal_forced_probability);
-        State.proximal_choice_forced_probability = proximalProbability;
-        State.proximal_choice_is_forced = rng.NextDouble() < proximalProbability;
-        if (State.proximal_choice_is_forced)
+        State.proximal_choice_forced_probability = draw.proximal_probability;
+        State.proximal_choice_is_forced = draw.proximal_is_forced;
+        if (draw.proximal_is_forced)
         {
-            float optimalProbability = Mathf.Clamp01(block.proximal_forced_optimal_probability);
-            State.proximal_choice_forced_optimal_probability = optimalProbability;
-            State.proximal_choice_forced_was_optimal = rng.NextDouble() < optimalProbability;
+            State.proximal_choice_forced_optimal_probability = draw.proximal_optimal_probability;
+            State.proximal_choice_forced_was_optimal = draw.proximal_was_optimal;
         }
 
-        float motorProbability = Mathf.Clamp01(block.motor_forced_probability);
-        State.motor_choice_forced_probability = motorProbability;
-        State.motor_choice_is_forced = rng.NextDouble() < motorProbability;
-        State.motor_choice_forced_set = State.motor_choice_is_forced
+        State.motor_choice_forced_probability = draw.motor_probability;
+        State.motor_choice_is_forced = draw.motor_is_forced;
+        State.motor_choice_forced_set = draw.motor_is_forced
             ? FlowValueConverters.ToApiValue(FlowValueConverters.ToMotorKeySet(block.motor_forced_set))
             : null;
 
@@ -661,8 +669,7 @@ public class FlowController : MonoBehaviour
     // Tirage independant a chaque trial (remplace l'ancienne restriction "1er trial du bloc uniquement").
     bool RollExplanationProbability(string scope, float probability)
     {
-        var rng = CreateCurrentTrialRandom(scope);
-        return rng.NextDouble() < Mathf.Clamp01(probability);
+        return ExplanationResolver.DrawShouldDisplay(probability, CreateCurrentTrialRandom(scope));
     }
 
     // Scope distinct de celui du tirage d'apparition : les valeurs mixtes de
@@ -737,10 +744,9 @@ public class FlowController : MonoBehaviour
             return;
         }
 
-        var bestRng = CreateCurrentBlockRandom(0);
-        State.distal_best_valley = bestRng.NextDouble() < 0.5
-            ? DistalScanSide.Left
-            : DistalScanSide.Right;
+        State.distal_best_valley = BlockDrawResolver.DrawBestValleySide(CreateCurrentBlockRandom(0));
+        // Salt 6 : les salts 0 a 5 sont deja pris par les autres tirages de bloc.
+        State.advisor_display_is_male = BlockDrawResolver.DrawAdvisorDisplayIsMale(CreateCurrentBlockRandom(6));
 
         RollDistalForcedForCurrentBlock(block);
 
@@ -751,34 +757,29 @@ public class FlowController : MonoBehaviour
             return;
         }
 
-        float visibleProbability = Mathf.Clamp01(block.distal_advice_visible_probability);
-        float reliableProbability = Mathf.Clamp01(block.distal_advice_reliable_probability);
-        var adviceRng = CreateCurrentBlockRandom(4);
+        var advice = BlockDrawResolver.DrawDistalAdvice(
+            block,
+            State.distal_choice_is_forced,
+            State.distal_choice_forced_scan_side,
+            State.distal_choice_forced_was_optimal == true,
+            State.distal_best_valley,
+            CreateCurrentBlockRandom(4));
 
-        State.distal_advice_visible = adviceRng.NextDouble() < visibleProbability;
-        if (!State.distal_advice_visible)
+        State.distal_advice_visible = advice.visible;
+        State.distal_advice_reliable = advice.reliable;
+        State.distal_advice_choice = advice.choice;
+
+        float visibleProbability = Mathf.Clamp01(block.distal_advice_visible_probability);
+        if (!advice.visible)
         {
             Debug.Log($"[FlowController] Distal advice visible=false (prob={visibleProbability:0.###}).");
             ResolveDistalExplanationForCurrentBlock();
             return;
         }
 
-        if (State.distal_choice_is_forced)
-        {
-            State.distal_advice_choice = State.distal_choice_forced_scan_side;
-            State.distal_advice_reliable = State.distal_choice_forced_was_optimal == true;
-        }
-        else
-        {
-            State.distal_advice_reliable = adviceRng.NextDouble() < reliableProbability;
-            State.distal_advice_choice = State.distal_advice_reliable
-                ? State.distal_best_valley
-                : DistalScanSide.Opposite(State.distal_best_valley);
-        }
-
         Debug.Log(
             $"[FlowController] Distal advice visible=true (prob={visibleProbability:0.###}), " +
-            $"reliable={State.distal_advice_reliable} (prob={reliableProbability:0.###}), " +
+            $"reliable={State.distal_advice_reliable} (prob={Mathf.Clamp01(block.distal_advice_reliable_probability):0.###}), " +
             $"bestScan={State.distal_best_valley}, " +
             $"advisor_choice={State.distal_advice_choice}.");
         ResolveDistalExplanationForCurrentBlock();
@@ -806,22 +807,21 @@ public class FlowController : MonoBehaviour
         if (block == null || !block.distal_forced)
             return;
 
-        float optimalProbability = Mathf.Clamp01(block.distal_forced_optimal_probability);
-        bool forcedWasOptimal = CreateCurrentBlockRandom(3).NextDouble() < optimalProbability;
-        string forcedScanSide = forcedWasOptimal
-            ? State.distal_best_valley
-            : DistalScanSide.Opposite(State.distal_best_valley);
+        var forced = BlockDrawResolver.DrawDistalForced(
+            block,
+            State.distal_best_valley,
+            CreateCurrentBlockRandom(3));
 
         State.distal_choice_is_forced = true;
-        State.distal_choice_forced_scan_side = forcedScanSide;
-        State.distal_choice_forced_was_optimal = forcedWasOptimal;
-        State.distal_choice_forced_optimal_probability = optimalProbability;
+        State.distal_choice_forced_scan_side = forced.forced_scan_side;
+        State.distal_choice_forced_was_optimal = forced.forced_was_optimal;
+        State.distal_choice_forced_optimal_probability = forced.optimal_probability;
         State.distal_choice_forced_value = FlowValueConverters.ToApiValue(
-            ResolveValleyFromDistalScanChoice(forcedScanSide));
+            ResolveValleyFromDistalScanChoice(forced.forced_scan_side));
 
         Debug.Log(
-            $"[FlowController] Distal forced: scan={forcedScanSide}, " +
-            $"valley={State.distal_choice_forced_value}, optimal={forcedWasOptimal}.");
+            $"[FlowController] Distal forced: scan={forced.forced_scan_side}, " +
+            $"valley={State.distal_choice_forced_value}, optimal={forced.forced_was_optimal}.");
     }
 
     void ResetDistalAdviceState()
@@ -885,7 +885,7 @@ public class FlowController : MonoBehaviour
 
     ValleyChoice ResolveValleyFromDistalScanChoice(string scanChoice)
     {
-        ValleyChoice bestValley = ResolveMostRewardingValley(CurrentBlock, CreateCurrentBlockRandom(1));
+        ValleyChoice bestValley = BlockDrawResolver.DrawMostRewardingValley(CurrentBlock, CreateCurrentBlockRandom(1));
         bool choseBestScan = scanChoice == State.distal_best_valley;
 
         if (choseBestScan)
@@ -897,84 +897,21 @@ public class FlowController : MonoBehaviour
     System.Random CreateCurrentBlockRandom(int salt)
     {
         long seed = ResolveDistalSeedForCurrentBlock();
-        int intSeed = (int)(DeriveTrialSeed(seed, salt) & 0x7FFFFFFF);
-        if (intSeed == 0)
-            intSeed = 1;
-
-        return new System.Random(intSeed);
+        return new System.Random((int)SeedUtility.DeriveTrialSeed(seed, salt));
     }
 
     System.Random CreateCurrentTrialRandom(string scope)
     {
-        long seed = CurrentTrialSeed != 0 ? CurrentTrialSeed : DeriveTrialSeed(ResolveBlockSeedForCurrentBlock(), State?.current_trial_index ?? 0);
-        int intSeed = DeriveScopedSeed(seed, scope);
-        if (intSeed == 0)
-            intSeed = 1;
+        long seed = CurrentTrialSeed != 0
+            ? CurrentTrialSeed
+            : SeedUtility.DeriveTrialSeed(ResolveBlockSeedForCurrentBlock(), State?.current_trial_index ?? 0);
 
-        return new System.Random(intSeed);
-    }
-
-    static ValleyChoice ResolveMostRewardingValley(BlockConfig block, System.Random rng)
-    {
-        float valleyAExpectedGreenBugs = ComputeExpectedGreenBugs(block?.valley_a);
-        float valleyBExpectedGreenBugs = ComputeExpectedGreenBugs(block?.valley_b);
-
-        if (Mathf.Approximately(valleyAExpectedGreenBugs, valleyBExpectedGreenBugs))
-            return rng.NextDouble() < 0.5 ? ValleyChoice.A : ValleyChoice.B;
-
-        return valleyAExpectedGreenBugs > valleyBExpectedGreenBugs
-            ? ValleyChoice.A
-            : ValleyChoice.B;
-    }
-
-    static float ComputeExpectedGreenBugs(MapGenConfig map)
-    {
-        if (map == null)
-            return 0f;
-
-        float averageTotalBugs = (map.min_total_bugs + map.max_total_bugs) * 0.5f;
-        float averageGreenRatio = (map.min_green_ratio + map.max_green_ratio) * 0.5f;
-        return averageTotalBugs * averageGreenRatio;
+        return new System.Random(SeedUtility.DeriveScopedSeed(seed, scope));
     }
 
     static ValleyChoice GetOppositeValley(ValleyChoice valley)
     {
         return valley == ValleyChoice.A ? ValleyChoice.B : ValleyChoice.A;
-    }
-
-    static void MixLong(ref ulong hash, ulong prime, long value)
-    {
-        ulong raw = (ulong)value;
-        for (int i = 0; i < 8; i++)
-        {
-            hash ^= (byte)(raw & 0xFF);
-            hash *= prime;
-            raw >>= 8;
-        }
-    }
-
-    static int DeriveScopedSeed(long seed, string scope)
-    {
-        unchecked
-        {
-            const ulong offset = 1469598103934665603UL;
-            const ulong prime = 1099511628211UL;
-
-            ulong h = offset;
-            MixLong(ref h, prime, seed);
-
-            if (!string.IsNullOrEmpty(scope))
-            {
-                for (int i = 0; i < scope.Length; i++)
-                {
-                    h ^= (byte)scope[i];
-                    h *= prime;
-                }
-            }
-
-            int intSeed = (int)(h & 0x7FFFFFFF);
-            return intSeed == 0 ? 1 : intSeed;
-        }
     }
 
     string GetSceneName(GamePhase phase)
@@ -1030,17 +967,17 @@ public class FlowController : MonoBehaviour
     {
         var block = CurrentBlock;
         if (block == null)
-            return GenerateSeed();
+            return SeedUtility.GenerateSeed();
 
         MapGenConfig map = State != null && State.valley_choice == ValleyChoice.B
             ? block.valley_b
             : block.valley_a;
 
         if (map == null)
-            return GenerateSeed();
+            return SeedUtility.GenerateSeed();
 
         if (map.seed == 0)
-            map.seed = GenerateSeed();
+            map.seed = SeedUtility.GenerateSeed();
 
         return map.seed;
     }
@@ -1049,7 +986,7 @@ public class FlowController : MonoBehaviour
     {
         var block = CurrentBlock;
         if (block == null)
-            return GenerateSeed();
+            return SeedUtility.GenerateSeed();
 
         if (block.valley_a != null && block.valley_a.seed != 0)
             return block.valley_a.seed;
@@ -1057,58 +994,10 @@ public class FlowController : MonoBehaviour
         if (block.valley_b != null && block.valley_b.seed != 0)
             return block.valley_b.seed;
 
-        long seed = GenerateSeed();
+        long seed = SeedUtility.GenerateSeed();
         if (block.valley_a != null)
             block.valley_a.seed = seed;
 
         return seed;
-    }
-
-    static long DeriveTrialSeed(long blockSeed, int trialIndex)
-    {
-        unchecked
-        {
-            const ulong offset = 1469598103934665603UL;
-            const ulong prime = 1099511628211UL;
-
-            ulong h = offset;
-            ulong seed64 = (ulong)blockSeed;
-
-            for (int i = 0; i < 8; i++)
-            {
-                h ^= (byte)(seed64 & 0xFF);
-                h *= prime;
-                seed64 >>= 8;
-            }
-
-            uint index = (uint)Mathf.Max(0, trialIndex);
-            for (int i = 0; i < 4; i++)
-            {
-                h ^= (byte)(index & 0xFF);
-                h *= prime;
-                index >>= 8;
-            }
-
-            int seed = (int)(h & 0x7FFFFFFF);
-            if (seed == 0)
-                seed = 1;
-
-            return seed;
-        }
-    }
-
-    static long GenerateSeed()
-    {
-        unchecked
-        {
-            // Seed 31 bits positive: exact en JSON/JS (pas de perte de precision).
-            int ticksHash = DateTime.UtcNow.Ticks.GetHashCode();
-            int guidHash = Guid.NewGuid().GetHashCode();
-            int seed = (ticksHash ^ guidHash) & 0x7FFFFFFF;
-            if (seed == 0)
-                seed = 1;
-
-            return seed;
-        }
     }
 }

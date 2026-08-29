@@ -269,7 +269,10 @@ public class TrialManager : MonoBehaviour
         var session = SessionManager.Instance;
         var flow = FlowController.Instance;
         var block = flow != null ? flow.CurrentBlock : null;
-        var map = flow != null ? flow.ActiveMapConfig : null;
+        // Source de verite unique : la Map du SessionManager (= ActiveMapConfig
+        // en mode flow, valeurs sandbox sinon). Repli direct sur FlowController
+        // si la scene n'a pas de SessionManager.
+        MapGenConfig map = session != null ? session.Map : flow?.ActiveMapConfig;
 
         int blockIndex = flow != null && flow.State != null ? flow.State.current_block_index + 1 : (session != null ? session.blockId : 1);
         int trialIndex = flow != null && flow.State != null ? flow.State.current_trial_index + 1 : 1;
@@ -301,26 +304,26 @@ public class TrialManager : MonoBehaviour
             distal_best_valley = flow != null && flow.State != null ? flow.State.distal_best_valley : null,
             distal_scan_choice = flow != null && flow.State != null ? flow.State.distal_scan_choice : null,
             distal_scene = block != null && block.distal_scene != null ? block.distal_scene.DeepClone() : new DistalSceneConfig(),
-            trap_count = session != null ? session.trapCount : map?.trap_count ?? 0,
-            min_distance = session != null ? session.minDistance : map?.min_distance ?? 0,
-            max_distance = session != null ? session.maxDistance : map?.max_distance ?? 0,
-            min_total_bugs = session != null ? session.minTotalBugs : map?.min_total_bugs ?? 0,
-            max_total_bugs = session != null ? session.maxTotalBugs : map?.max_total_bugs ?? 0,
-            min_green_ratio = session != null ? session.minGreenBugsRatio : map?.min_green_ratio ?? 0f,
-            max_green_ratio = session != null ? session.maxGreenBugsRatio : map?.max_green_ratio ?? 0f,
-            gap_min = session != null ? session.gapMin : map?.gap_min ?? 0f,
-            gap_max = session != null ? session.gapMax : map?.gap_max ?? 0f,
-            fog_probability = session != null ? session.fogProbability : map?.fog_probability ?? 0f,
+            trap_count = map?.trap_count ?? 0,
+            min_distance = map?.min_distance ?? 0,
+            max_distance = map?.max_distance ?? 0,
+            min_total_bugs = map?.min_total_bugs ?? 0,
+            max_total_bugs = map?.max_total_bugs ?? 0,
+            min_green_ratio = map?.min_green_ratio ?? 0f,
+            max_green_ratio = map?.max_green_ratio ?? 0f,
+            gap_min = map?.gap_min ?? 0f,
+            gap_max = map?.gap_max ?? 0f,
+            fog_probability = map?.fog_probability ?? 0f,
             trial_seed = session != null ? session.randomizationSeed : flow?.CurrentTrialSeed ?? 0,
-            path_visible_probability = session != null ? session.pathVisible : map?.path_visible_probability ?? 0f,
-            suboptimal_path_probability = session != null ? session.suboptimalPathProbability : map?.suboptimal_path_probability ?? 0f,
-            detour_probability = session != null ? session.detourProbability : map?.detour_probability ?? 0f,
-            proximal_advice_reliable_probability = session != null ? session.proximalAdviceReliableProbability : map?.proximal_advice_reliable_probability ?? 0f,
-            motor_advice_visible_probability = session != null ? session.motorAdviceVisibleProbability : map?.motor_advice_visible_probability ?? 0f,
-            motor_advice_reliable_probability = session != null ? session.motorAdviceReliableProbability : map?.motor_advice_reliable_probability ?? 0f,
-            suboptimal_trap_probability = session != null ? session.suboptimalTrapProbability : map?.suboptimal_trap_probability ?? 0f,
-            min_suboptimal_traps = session != null ? session.minSuboptimalTraps : map?.min_suboptimal_traps ?? 0,
-            max_suboptimal_traps = session != null ? session.maxSuboptimalTraps : map?.max_suboptimal_traps ?? 0,
+            path_visible_probability = map?.path_visible_probability ?? 0f,
+            suboptimal_path_probability = map?.suboptimal_path_probability ?? 0f,
+            detour_probability = map?.detour_probability ?? 0f,
+            proximal_advice_reliable_probability = map?.proximal_advice_reliable_probability ?? 0f,
+            motor_advice_visible_probability = map?.motor_advice_visible_probability ?? 0f,
+            motor_advice_reliable_probability = map?.motor_advice_reliable_probability ?? 0f,
+            suboptimal_trap_probability = map?.suboptimal_trap_probability ?? 0f,
+            min_suboptimal_traps = map?.min_suboptimal_traps ?? 0,
+            max_suboptimal_traps = map?.max_suboptimal_traps ?? 0,
             started_at = _startedAtIsoUtc
         };
 

@@ -12,11 +12,20 @@ public class UIButtonSound : MonoBehaviour
     [Tooltip("SFX joué au clic. SoundEffect.channel doit être UI pour un routage correct.")]
     [SerializeField] private SoundEffect _clickSound;
 
+    Button _button;
+
     void Awake()
     {
         if (_clickSound == null)
             return;
-        GetComponent<Button>().onClick.AddListener(OnClick);
+        _button = GetComponent<Button>();
+        _button.onClick.AddListener(OnClick);
+    }
+
+    void OnDestroy()
+    {
+        if (_button != null)
+            _button.onClick.RemoveListener(OnClick);
     }
 
     void OnClick()

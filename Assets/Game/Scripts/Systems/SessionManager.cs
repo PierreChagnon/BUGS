@@ -5,12 +5,15 @@ using UnityEngine;
 // Façade locale du ProximalScene.
 //
 // Responsabilités :
-//   - Exposer aux spawners la config du trial courant
-//   - Copier la config depuis FlowController
+//   - Exposer aux spawners la config du trial courant (Map)
 //   - Poser la seed du trial dans LevelRegistry
+//   - Lancer le premier round
 //
-// Si FlowController est absent, SessionManager conserve simplement
-// les valeurs deja presentes dans l'Inspector de la scene.
+// Map EST la config active du FlowController (ActiveMapConfig) : plus aucune
+// copie champ par champ susceptible de diverger. L'état de flux (advisor,
+// forçages) est lu en direct dans FlowController. Les champs Inspector
+// "Sandbox" ne servent qu'à construire Map quand la scène est lancée sans
+// FlowController.
 // -----------------------------
 
 public class SessionManager : MonoBehaviour
@@ -23,12 +26,12 @@ public class SessionManager : MonoBehaviour
     [Header("Session")]
     public long randomizationSeed;
 
-    [Header("Recherche : Map")]
+    [Header("Sandbox : Map")]
     public int trapCount = 10;
     public int minDistance = 3;
     public int maxDistance;
 
-    [Header("Recherche : Discrimination")]
+    [Header("Sandbox : Discrimination")]
     public int minTotalBugs = 20;
     public int maxTotalBugs = 80;
     public float minGreenBugsRatio = 0.4f;
@@ -36,7 +39,7 @@ public class SessionManager : MonoBehaviour
     public float gapMin = 0.1f;
     public float gapMax = 0.3f;
 
-    [Header("Recherche : Advisor")]
+    [Header("Sandbox : Advisor")]
     public float pathVisible = 1f;
     [Range(0f, 1f)] public float suboptimalPathProbability;
     [Range(0f, 1f)] public float detourProbability;
@@ -47,20 +50,42 @@ public class SessionManager : MonoBehaviour
     [Min(0)] public int minSuboptimalTraps = 1;
     [Min(0)] public int maxSuboptimalTraps = 3;
 
-    [Header("Recherche : Fog of War")]
+    [Header("Sandbox : Fog of War")]
     [Range(0f, 1f)] public float fogProbability;
 
-    [Header("Recherche : Protocole")]
+    [Header("Sandbox : Protocole")]
     public int blockId = 1;
 
-    public bool IsFlowDriven { get; private set; }
-    public bool IsTutorialBlock { get; private set; }
-    public bool HasAdvisor { get; private set; } = true;
-    public bool ProximalChoiceIsForced { get; private set; }
-    public string ProximalChoiceForcedValue { get; private set; }
-    public bool MotorChoiceIsForced { get; private set; }
-    public string MotorChoiceForcedSet { get; private set; }
-    public bool ShouldShowEquipmentFailureOverlay { get; private set; }
+    // Config de map du trial courant : ActiveMapConfig en mode flow, valeurs
+    // Inspector en mode sandbox. Source de vérité unique pour les spawners et
+    // pour TrialManager.BuildBaseRow.
+    public MapGenConfig Map { get; private set; }
+
+    // État de flux lu en direct : pas de copie locale qui pourrait diverger.
+    // Les valeurs de repli couvrent le mode sandbox (FlowController absent).
+    public bool HasAdvisor =>
+        FlowController.Instance == null ||
+        FlowController.Instance.State == null ||
+        FlowController.Instance.State.advisor_choice != AdvisorType.None;
+
+    public bool ProximalChoiceIsForced =>
+        FlowController.Instance != null &&
+        FlowController.Instance.State != null &&
+        FlowController.Instance.State.proximal_choice_is_forced;
+
+    public bool MotorChoiceIsForced =>
+        FlowController.Instance != null &&
+        FlowController.Instance.State != null &&
+        FlowController.Instance.State.motor_choice_is_forced;
+
+    public string MotorChoiceForcedSet =>
+        FlowController.Instance != null && FlowController.Instance.State != null
+            ? FlowController.Instance.State.motor_choice_forced_set
+            : null;
+
+    public bool ShouldShowEquipmentFailureOverlay =>
+        FlowController.Instance != null &&
+        FlowController.Instance.ShouldShowEquipmentFailureOverlay;
 
     void Awake()
     {
@@ -72,9 +97,22 @@ public class SessionManager : MonoBehaviour
 
         Instance = this;
 
-        IsFlowDriven = CopyConfigFromFlowController();
-        if (!IsFlowDriven)
-            Debug.LogWarning("[SessionManager] FlowController absent: utilisation des valeurs deja presentes dans la scene.");
+        var flow = FlowController.Instance;
+        MapGenConfig activeMap = flow != null && flow.HasLoadedConfig ? flow.ActiveMapConfig : null;
+
+        if (activeMap != null)
+        {
+            Map = activeMap;
+            randomizationSeed = flow.CurrentTrialSeed != 0 ? flow.CurrentTrialSeed : Map.seed;
+            Debug.Log(
+                $"[SessionManager] Config active lue depuis FlowController " +
+                $"(block={flow.State.current_block_index + 1}, tutorial={flow.IsCurrentBlockTutorial}, seed={randomizationSeed}).");
+        }
+        else
+        {
+            Map = BuildSandboxMap();
+            Debug.LogWarning("[SessionManager] FlowController absent: utilisation des valeurs sandbox de la scene.");
+        }
 
         ApplySeedForThisTrial();
     }
@@ -83,65 +121,6 @@ public class SessionManager : MonoBehaviour
     {
         yield return null;
         gameManager?.BeginFirstRound();
-    }
-
-    public void RefreshForcedValuesFromFlow()
-    {
-        var flow = FlowController.Instance;
-        if (flow == null || flow.State == null)
-            return;
-
-        ProximalChoiceIsForced = flow.State.proximal_choice_is_forced;
-        ProximalChoiceForcedValue = flow.State.proximal_choice_forced_value;
-        ShouldShowEquipmentFailureOverlay = flow.ShouldShowEquipmentFailureOverlay;
-    }
-
-    bool CopyConfigFromFlowController()
-    {
-        var flow = FlowController.Instance;
-        if (flow == null || !flow.HasLoadedConfig || flow.ActiveMapConfig == null)
-            return false;
-
-        MapGenConfig map = flow.ActiveMapConfig;
-        HasAdvisor = flow.State != null && flow.State.advisor_choice != AdvisorType.None;
-        ProximalChoiceIsForced = flow.State != null && flow.State.proximal_choice_is_forced;
-        ProximalChoiceForcedValue = flow.State != null ? flow.State.proximal_choice_forced_value : null;
-        MotorChoiceIsForced = flow.State != null && flow.State.motor_choice_is_forced;
-        MotorChoiceForcedSet = flow.State != null ? flow.State.motor_choice_forced_set : null;
-        ShouldShowEquipmentFailureOverlay = flow.ShouldShowEquipmentFailureOverlay;
-
-        randomizationSeed = flow.CurrentTrialSeed != 0 ? flow.CurrentTrialSeed : map.seed;
-
-        trapCount = map.trap_count;
-        minDistance = map.min_distance;
-        maxDistance = map.max_distance;
-        minTotalBugs = map.min_total_bugs;
-        maxTotalBugs = map.max_total_bugs;
-        minGreenBugsRatio = map.min_green_ratio;
-        maxGreenBugsRatio = map.max_green_ratio;
-        gapMin = map.gap_min;
-        gapMax = map.gap_max;
-        pathVisible = map.path_visible_probability;
-        suboptimalPathProbability = map.suboptimal_path_probability;
-        detourProbability = map.detour_probability;
-        proximalAdviceReliableProbability = map.proximal_advice_reliable_probability;
-        motorAdviceVisibleProbability = map.motor_advice_visible_probability;
-        motorAdviceReliableProbability = map.motor_advice_reliable_probability;
-        suboptimalTrapProbability = map.suboptimal_trap_probability;
-        minSuboptimalTraps = map.min_suboptimal_traps;
-        maxSuboptimalTraps = map.max_suboptimal_traps;
-        fogProbability = map.fog_probability;
-
-        // Le miroir doit rester une copie fidele de la config : TrialManager
-        // remonte ces valeurs dans trial_responses. La regle "pas d'advisor =>
-        // pas de chemin conseille ni de legende moteur" est portee par les
-        // consommateurs (PathSpawner, MotorAdviceController) via HasAdvisor.
-
-        blockId = flow.State.current_block_index + 1;
-        IsTutorialBlock = flow.IsCurrentBlockTutorial;
-
-        Debug.Log($"[SessionManager] Config chargee depuis FlowController (block={blockId}, tutorial={IsTutorialBlock}, seed={randomizationSeed}).");
-        return true;
     }
 
     void ApplySeedForThisTrial()
@@ -154,22 +133,35 @@ public class SessionManager : MonoBehaviour
         }
 
         if (randomizationSeed == 0)
-            randomizationSeed = GenerateSeed();
+            randomizationSeed = SeedUtility.GenerateSeed();
 
         registry.SetRoundSeed(randomizationSeed);
     }
 
-    static long GenerateSeed()
+    MapGenConfig BuildSandboxMap()
     {
-        unchecked
+        return new MapGenConfig
         {
-            int ticksHash = System.DateTime.UtcNow.Ticks.GetHashCode();
-            int guidHash = System.Guid.NewGuid().GetHashCode();
-            int seed = (ticksHash ^ guidHash) & 0x7FFFFFFF;
-            if (seed == 0)
-                seed = 1;
-
-            return seed;
-        }
+            trap_count = trapCount,
+            min_distance = minDistance,
+            max_distance = maxDistance,
+            min_total_bugs = minTotalBugs,
+            max_total_bugs = maxTotalBugs,
+            min_green_ratio = minGreenBugsRatio,
+            max_green_ratio = maxGreenBugsRatio,
+            gap_min = gapMin,
+            gap_max = gapMax,
+            path_visible_probability = pathVisible,
+            suboptimal_path_probability = suboptimalPathProbability,
+            detour_probability = detourProbability,
+            proximal_advice_reliable_probability = proximalAdviceReliableProbability,
+            motor_advice_visible_probability = motorAdviceVisibleProbability,
+            motor_advice_reliable_probability = motorAdviceReliableProbability,
+            suboptimal_trap_probability = suboptimalTrapProbability,
+            min_suboptimal_traps = minSuboptimalTraps,
+            max_suboptimal_traps = maxSuboptimalTraps,
+            fog_probability = fogProbability,
+            seed = randomizationSeed
+        };
     }
 }

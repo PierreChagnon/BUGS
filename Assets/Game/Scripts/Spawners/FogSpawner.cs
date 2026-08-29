@@ -5,8 +5,8 @@ using UnityEngine;
 // puis instancie et positionne la surface de fog sur la grille.
 //
 // Responsabilités :
-//   - Lire fogProbability depuis SessionManager
-//   - Tirer au sort la présence du fog (via le RNG reproductible)
+//   - Lire fog_probability depuis SessionManager.Map
+//   - Tirer au sort la présence du fog (TrialDrawResolver, RNG reproductible)
 //   - Instancier fogSurfacePrefab, le positionner/dimensionner sur la grille
 //
 // Ce qui n'est PAS ici :
@@ -55,13 +55,12 @@ public class FogSpawner : MonoBehaviour
             return;
         }
 
-        // Tirage : brouillard actif ce round ?
+        // Tirage : brouillard actif ce round ? (résolu dans Data/)
         var rng = reg.CreateRng(nameof(FogSpawner));
-        bool forceFog = session.ProximalChoiceIsForced;
-        if (!forceFog && rng.NextDouble() >= session.fogProbability)
+        if (!TrialDrawResolver.DrawFogActive(session.Map.fog_probability, session.ProximalChoiceIsForced, rng))
         {
             Debug.Log("[FogSpawner] Pas de brouillard ce round (fogProbability=" +
-                      session.fogProbability + ").");
+                      session.Map.fog_probability + ").");
             return;
         }
 

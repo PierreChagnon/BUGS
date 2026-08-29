@@ -25,13 +25,14 @@ public class PathSpawner : MonoBehaviour
             return;
         }
 
-        // Lecture du paramètre recherche depuis SessionManager (propriétaire de la config expérimentale)
+        // Lecture de la config expérimentale via SessionManager.Map (source de vérité unique)
         var session = SessionManager.Instance;
         if (session == null)
         {
             Debug.LogError("[PathSpawner] SessionManager manquant dans la scène.");
             return;
         }
+        MapGenConfig map = session.Map;
 
         var rng = reg.CreateRng(nameof(PathSpawner));
 
@@ -169,15 +170,21 @@ public class PathSpawner : MonoBehaviour
 
 
         // ------ TIRAGES : ADVICE FIABLE ? CHEMIN SUBOPTIMAL ? ------
+        // Variables expérimentales résolues dans Data/ sur un flux RNG dédié :
+        // le résultat ne dépend pas des tirages consommés par la construction des chemins.
         bool isSuboptimal = false;
         bool proximalAdviceReliable = false; // valeur réalisée, remontée dans trial_responses
         List<Vector2Int> displayPath; // chemin qui sera affiché au joueur
-        bool hasAdvisor = session != null && session.HasAdvisor;
+        bool hasAdvisor = session.HasAdvisor;
         bool proximalForced = FlowController.Instance != null &&
                               FlowController.Instance.State != null &&
                               FlowController.Instance.State.proximal_choice_is_forced;
         bool forcedIsLeft = proximalForced &&
                             FlowController.Instance.State.proximal_choice_forced_value != DistalScanSide.Right;
+
+        var adviceDraw = hasAdvisor
+            ? TrialDrawResolver.DrawProximalAdvice(map, reg.CreateRng("ProximalAdviceDraw"))
+            : default;
 
         if (hasAdvisor && proximalForced)
         {
@@ -188,18 +195,16 @@ public class PathSpawner : MonoBehaviour
         }
         else if (hasAdvisor)
         {
-            // Tirage fiabilité : un advice non fiable désigne le mauvais nuage
-            // (celui avec le moins de bugs verts).
-            proximalAdviceReliable = rng.NextDouble() < session.proximalAdviceReliableProbability;
+            // Un advice non fiable désigne le mauvais nuage (celui avec le moins de bugs verts).
+            proximalAdviceReliable = adviceDraw.reliable;
             bool optimalIsLeft = optimalPath == pathToLeftCloud;
             bool advisedIsLeft = proximalAdviceReliable ? optimalIsLeft : !optimalIsLeft;
             Vector2Int advisedCloudCell = advisedIsLeft ? leftCloudCell : rightCloudCell;
 
-            bool routeSuboptimal = session.suboptimalPathProbability > 0f && rng.NextDouble() < session.suboptimalPathProbability;
-            if (routeSuboptimal)
+            if (adviceDraw.route_suboptimal)
             {
                 // Détour (crochet) ou simple chemin Manhattan alternatif ?
-                bool withDetour = session.detourProbability > 0f && rng.NextDouble() < session.detourProbability;
+                bool withDetour = adviceDraw.with_detour;
 
                 if (withDetour)
                     displayPath = BuildSuboptimalDetour(rng, reg, playerCell, advisedCloudCell, out withDetour);
@@ -217,10 +222,10 @@ public class PathSpawner : MonoBehaviour
             }
 
             // Tracé rallongé ou mauvais nuage désigné : dans les deux cas le chemin affiché n'est pas l'optimal.
-            isSuboptimal = routeSuboptimal || !proximalAdviceReliable;
+            isSuboptimal = adviceDraw.route_suboptimal || !proximalAdviceReliable;
 
             if (!proximalAdviceReliable)
-                Debug.Log($"[PathSpawner] Advice proximal NON FIABLE (prob={session.proximalAdviceReliableProbability:0.###}) : chemin vers le nuage {(advisedIsLeft ? "gauche" : "droit")}.");
+                Debug.Log($"[PathSpawner] Advice proximal NON FIABLE (prob={map.proximal_advice_reliable_probability:0.###}) : chemin vers le nuage {(advisedIsLeft ? "gauche" : "droit")}.");
         }
         else
         {
@@ -235,7 +240,7 @@ public class PathSpawner : MonoBehaviour
             GameManager.Instance.SetProximalAdviceReliable(proximalAdviceReliable);
         }
 
-        bool visible = hasAdvisor && rng.NextDouble() < session.pathVisible;
+        bool visible = hasAdvisor && adviceDraw.visible;
 
         if (GameManager.Instance != null)
             GameManager.Instance.SetAdvisorPathVisible(visible);

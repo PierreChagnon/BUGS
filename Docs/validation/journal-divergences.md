@@ -44,7 +44,7 @@
 | PC-3 | Persistance | File d'envoi en mémoire, non persistée ⇒ perte à la fermeture / crash — **confirmé le 28/07/26** (revue §3, D2), non corrigé (Lot A2) | 🔴 |
 | PC-4 | Reproductibilité | `trial_seed` = `session.randomizationSeed` (potentiellement constant) au lieu du seed per-trial (`TrialManager.cs:269`) | 🟠 |
 | PC-5 | Précédence config | `SessionManager` prime sur `FlowController.ActiveMapConfig` dans `BuildBaseRow` | 🟠 |
-| PC-6 | Sérialisation | Champs null omis du JSON (hors `[IncludeNullInJson]`) ⇒ colonnes absentes sur certaines lignes | 🟠 |
+| PC-6 | Sérialisation | Champs null omis du JSON (hors `[JsonProperty(NullValueHandling = Include)]`) ⇒ colonnes absentes sur certaines lignes | 🟠 |
 | PC-7 | PATCH questionnaire | ~~`human_likeness_question` patché « par bloc » : atterrit-il sur la bonne ligne ?~~ → **CLOS le 28/07/26 (D-011)** : il atterrit sur **toutes** les lignes du bloc, par construction (`ApiClient.cs:150-186`). Reste l'arbitrage Q-HL-1 et l'alignement doc/DEC-013. | 🟠 → **clos**, reporté sur D-011 |
 | PC-8 | Complétude données | Positions pièges & bugs verts nuage non-choisi non exportés | 🟡 |
 | PC-9 | Sémantique | `followed_advisor_path` = chemin affiché, pas optimal | 🟡 (doc) |

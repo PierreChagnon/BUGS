@@ -2,9 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Reflection;
 using System.Text;
-using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -32,6 +30,21 @@ public class ApiClient : MonoBehaviour
         public Action<string> onError;
     }
 
+    [Serializable]
+    class IdResponse
+    {
+        public string id;
+    }
+
+    // Lecture et ecriture JSON partagent la meme strategie (Newtonsoft) : les
+    // champs null sont omis du payload, sauf ceux marques
+    // [JsonProperty(NullValueHandling = Include)] dans les DTO.
+    static readonly JsonSerializerSettings JsonSettings = new()
+    {
+        NullValueHandling = NullValueHandling.Ignore,
+        Culture = CultureInfo.InvariantCulture
+    };
+
     public static ApiClient Instance { get; private set; }
 
     [Header("Config")]
@@ -47,8 +60,10 @@ public class ApiClient : MonoBehaviour
     readonly Dictionary<string, string> _storedTrialIdsByKey = new();
     readonly Dictionary<string, PendingQuestionnairePatch> _pendingQuestionnairePatches = new();
 
-    bool _isProcessingTrialQueue;
-    bool _isFlushingQuestionnairePatches;
+    // Handles des deux boucles d'envoi : un handle non-null = boucle en cours
+    // (empeche tout chevauchement de coroutines sur la meme file).
+    Coroutine _trialQueueCoroutine;
+    Coroutine _questionnaireFlushCoroutine;
 
     void Awake()
     {
@@ -195,10 +210,10 @@ public class ApiClient : MonoBehaviour
 
     public void RetryPendingTrialUploads()
     {
-        if (_isProcessingTrialQueue || _pendingTrialRequests.Count == 0)
+        if (_trialQueueCoroutine != null || _pendingTrialRequests.Count == 0)
             return;
 
-        StartCoroutine(ProcessPendingTrialRequests());
+        _trialQueueCoroutine = StartCoroutine(ProcessPendingTrialRequests());
     }
 
     public void CompleteSession(string participantId)
@@ -228,7 +243,7 @@ public class ApiClient : MonoBehaviour
             session_template_id = sessionTemplateId,
             note = note
         };
-        string body = ToJsonObjectSkippingNullStrings(payload);
+        string body = ToJson(payload);
 
         using var request = BuildJsonRequest(url, "POST", body);
         yield return request.SendWebRequest();
@@ -297,8 +312,6 @@ public class ApiClient : MonoBehaviour
 
     IEnumerator ProcessPendingTrialRequests()
     {
-        _isProcessingTrialQueue = true;
-
         while (_pendingTrialRequests.Count > 0)
         {
             PendingTrialRequest request = _pendingTrialRequests.Peek();
@@ -343,13 +356,13 @@ public class ApiClient : MonoBehaviour
                 FlushPendingQuestionnairePatches();
         }
 
-        _isProcessingTrialQueue = false;
+        _trialQueueCoroutine = null;
     }
 
     IEnumerator SendTrialResponseCoroutine(TrialResponseRow row, Action<string> onSuccess, Action<string> onError)
     {
         string url = CombineUrl(backendRootUrl, _trialResponsesPath);
-        string payload = ToJsonObjectSkippingNullStrings(row);
+        string payload = ToJson(row);
 
         using var request = BuildJsonRequest(url, "POST", payload);
         yield return request.SendWebRequest();
@@ -370,7 +383,7 @@ public class ApiClient : MonoBehaviour
         Action<string> onError)
     {
         string url = CombineUrl(backendRootUrl, _trialResponsesPath, trialResponseId);
-        string body = ToJsonObjectSkippingNullStrings(payload);
+        string body = ToJson(payload);
 
         using var request = BuildJsonRequest(url, "PATCH", body);
         yield return request.SendWebRequest();
@@ -386,16 +399,17 @@ public class ApiClient : MonoBehaviour
 
     void FlushPendingQuestionnairePatches()
     {
-        if (_isFlushingQuestionnairePatches || _pendingQuestionnairePatches.Count == 0)
+        // HasFlushableQuestionnairePatch garantit au moins un yield dans la
+        // coroutine : le handle ne peut pas etre ecrase par une execution
+        // entierement synchrone.
+        if (_questionnaireFlushCoroutine != null || !HasFlushableQuestionnairePatch())
             return;
 
-        StartCoroutine(FlushPendingQuestionnairePatchesCoroutine());
+        _questionnaireFlushCoroutine = StartCoroutine(FlushPendingQuestionnairePatchesCoroutine());
     }
 
     IEnumerator FlushPendingQuestionnairePatchesCoroutine()
     {
-        _isFlushingQuestionnairePatches = true;
-
         var keys = new List<string>(_pendingQuestionnairePatches.Keys);
         for (int i = 0; i < keys.Count; i++)
         {
@@ -426,7 +440,7 @@ public class ApiClient : MonoBehaviour
             }
         }
 
-        _isFlushingQuestionnairePatches = false;
+        _questionnaireFlushCoroutine = null;
 
         if (HasFlushableQuestionnairePatch())
             FlushPendingQuestionnairePatches();
@@ -501,8 +515,15 @@ public class ApiClient : MonoBehaviour
         if (string.IsNullOrWhiteSpace(responseText))
             return null;
 
-        Match match = Regex.Match(responseText, "\"id\"\\s*:\\s*\"([^\"]+)\"");
-        return match.Success ? match.Groups[1].Value : null;
+        try
+        {
+            var response = JsonConvert.DeserializeObject<IdResponse>(responseText, JsonSettings);
+            return string.IsNullOrWhiteSpace(response?.id) ? null : response.id;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     static void MergeQuestionnairePatchPayload(QuestionnairePatchPayload target, QuestionnairePatchPayload source)
@@ -513,105 +534,9 @@ public class ApiClient : MonoBehaviour
         target.human_likeness_question = source.human_likeness_question;
     }
 
-    static string ToJsonObjectSkippingNullStrings(object source)
+    static string ToJson(object source)
     {
-        if (source == null)
-            return "{}";
-
-        var builder = new StringBuilder();
-        builder.Append('{');
-
-        FieldInfo[] fields = source.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public);
-        bool hasPreviousField = false;
-
-        for (int i = 0; i < fields.Length; i++)
-        {
-            object value = fields[i].GetValue(source);
-            bool shouldIncludeNull = Attribute.IsDefined(fields[i], typeof(IncludeNullInJsonAttribute));
-            if (value == null && !shouldIncludeNull)
-                continue;
-
-            if (hasPreviousField)
-                builder.Append(',');
-
-            AppendJsonString(builder, fields[i].Name);
-            builder.Append(':');
-            if (value == null)
-                builder.Append("null");
-            else
-                AppendJsonValue(builder, value);
-
-            hasPreviousField = true;
-        }
-
-        builder.Append('}');
-        return builder.ToString();
-    }
-
-    static void AppendJsonValue(StringBuilder builder, object value)
-    {
-        switch (value)
-        {
-            case string stringValue:
-                AppendJsonString(builder, stringValue);
-                break;
-            case bool boolValue:
-                builder.Append(boolValue ? "true" : "false");
-                break;
-            case IFormattable formattable:
-                builder.Append(formattable.ToString(null, CultureInfo.InvariantCulture));
-                break;
-            default:
-                builder.Append(JsonUtility.ToJson(value));
-                break;
-        }
-    }
-
-    static void AppendJsonString(StringBuilder builder, string value)
-    {
-        builder.Append('"');
-
-        for (int i = 0; i < value.Length; i++)
-        {
-            char c = value[i];
-            switch (c)
-            {
-                case '"':
-                    builder.Append("\\\"");
-                    break;
-                case '\\':
-                    builder.Append("\\\\");
-                    break;
-                case '\b':
-                    builder.Append("\\b");
-                    break;
-                case '\f':
-                    builder.Append("\\f");
-                    break;
-                case '\n':
-                    builder.Append("\\n");
-                    break;
-                case '\r':
-                    builder.Append("\\r");
-                    break;
-                case '\t':
-                    builder.Append("\\t");
-                    break;
-                default:
-                    if (char.IsControl(c))
-                    {
-                        builder.Append("\\u");
-                        builder.Append(((int)c).ToString("x4", CultureInfo.InvariantCulture));
-                    }
-                    else
-                    {
-                        builder.Append(c);
-                    }
-                    break;
-            }
-        }
-
-        builder.Append('"');
+        return source == null ? "{}" : JsonConvert.SerializeObject(source, JsonSettings);
     }
 
     static string BuildRequestError(string context, UnityWebRequest request)

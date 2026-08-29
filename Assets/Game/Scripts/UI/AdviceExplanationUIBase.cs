@@ -21,13 +21,10 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
 
     ExplanationRuntimeState _state;
     bool _hasLoggedDebugState;
-    bool _showHumanMaleBadge;
 
     void Awake()
     {
         ProximalForcedExplanationSequence.EnsureSceneContext();
-
-        _showHumanMaleBadge = Random.value < 0.5f;
 
         if (_explanationRoot == null)
             _explanationRoot = gameObject;
@@ -184,17 +181,12 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
         if (!ShowAdvisorBadgesFromExplanation)
             return;
 
-        bool badgesVisible = explanationVisible;
-        AdvisorType advisorType = GetAdvisorType();
-        bool showHuman = badgesVisible && advisorType == AdvisorType.Human;
-        bool showRobot = badgesVisible && advisorType == AdvisorType.Robot;
-
-        if (_advisorHumanMaleBadge != null)
-            _advisorHumanMaleBadge.SetActive(showHuman && _showHumanMaleBadge);
-        if (_advisorHumanFemaleBadge != null)
-            _advisorHumanFemaleBadge.SetActive(showHuman && !_showHumanMaleBadge);
-        if (_advisorRobotBadge != null)
-            _advisorRobotBadge.SetActive(showRobot);
+        AdvisorBadgeUtility.ApplyBadges(
+            _advisorHumanMaleBadge,
+            _advisorHumanFemaleBadge,
+            _advisorRobotBadge,
+            explanationVisible,
+            GetAdvisorType());
     }
 
     AdvisorType GetAdvisorType()

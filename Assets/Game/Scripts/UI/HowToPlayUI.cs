@@ -18,17 +18,16 @@ public class HowToPlayPage
 
 // -----------------------------
 // HowToPlayUI : composant UI de tutoriel pagine autonome.
-// LOT 3 : API publique SetPages/Open/Close + events Closed/Completed.
-// Mode dev preserve : auto-show des _dummyPages au Start si aucun SetPages externe.
+// API publique SetPages/Open/Close + events Closed (base) / Completed.
+// Socle modal (racine, etat ouvert, dummy de dev, event Closed) : ModalPanelUIBase.
 // Le composant reste agnostique de son integration (pas de ref a FlowController, etc.).
 // -----------------------------
-public class HowToPlayUI : MonoBehaviour
+public class HowToPlayUI : ModalPanelUIBase
 {
     [Header("Dummy data (mode dev — utilise si rien n'est passe par SetPages)")]
     [SerializeField] private List<HowToPlayPage> _dummyPages = new List<HowToPlayPage>();
 
     [Header("Refs vue")]
-    [SerializeField] private GameObject _root;
     [SerializeField] private Image _image;
     [Tooltip("Sprite affiche a la place de l'image quand une page ne fournit pas d'image (page.image == null).")]
     [SerializeField] private Sprite _defaultSprite;
@@ -49,51 +48,43 @@ public class HowToPlayUI : MonoBehaviour
     [SerializeField] private Color _dotActiveColor = Color.white;
     [SerializeField] private Color _dotInactiveColor = new Color(1f, 1f, 1f, 0.35f);
 
-    // Notifications sortantes
-    public event Action Closed;
+    // Notification sortante : la derniere page avait ete atteinte a la fermeture.
     public event Action Completed;
 
     private List<HowToPlayPage> _pages;
     private readonly List<Image> _dotImages = new List<Image>();
     private int _index;
     private bool _lastReached;
-    private bool _externalDataSet;
-    private bool _isOpen;
 
-    void Awake()
+    protected override void Awake()
     {
+        base.Awake();
+
         if (_prevButton != null) _prevButton.onClick.AddListener(OnPrevClicked);
         if (_nextButton != null) _nextButton.onClick.AddListener(OnNextClicked);
         if (_closeButton != null) _closeButton.onClick.AddListener(OnCloseClicked);
 
-        if (_root != null) _root.SetActive(false);
         if (_closeButton != null) _closeButton.gameObject.SetActive(false);
     }
 
-    void Start()
+    void OnDestroy()
     {
-        // Auto-show mode dev : uniquement si aucune data n'a ete passee par l'API externe
-        if (!_externalDataSet && _dummyPages != null && _dummyPages.Count > 0)
-        {
-            _pages = _dummyPages;
-            OpenInternal();
-        }
+        if (_prevButton != null) _prevButton.onClick.RemoveListener(OnPrevClicked);
+        if (_nextButton != null) _nextButton.onClick.RemoveListener(OnNextClicked);
+        if (_closeButton != null) _closeButton.onClick.RemoveListener(OnCloseClicked);
+    }
+
+    protected override bool HasDummyContent => _dummyPages != null && _dummyPages.Count > 0;
+
+    protected override void OpenFromDummy()
+    {
+        _pages = _dummyPages;
+        OpenInternal();
     }
 
     // -----------------------------
     // API publique
     // -----------------------------
-
-    /// <summary>
-    /// Declare que le composant est pilote de l'exterieur (ex : IntroSceneController).
-    /// Desactive l'auto-show des _dummyPages au Start, evitant le flash de placeholders
-    /// pendant le chargement asynchrone du contenu de session.
-    /// A appeler depuis un Awake() pour garantir l'ordre avant le Start() de ce composant.
-    /// </summary>
-    public void MarkExternallyControlled()
-    {
-        _externalDataSet = true;
-    }
 
     /// <summary>
     /// Remplace la liste interne par <paramref name="pages"/>. Reset index a 0 et lastReached a false.
@@ -102,7 +93,7 @@ public class HowToPlayUI : MonoBehaviour
     /// </summary>
     public void SetPages(IList<HowToPlayPage> pages)
     {
-        _externalDataSet = true;
+        MarkExternallyControlled();
 
         if (pages == null || pages.Count == 0)
         {
@@ -111,7 +102,7 @@ public class HowToPlayUI : MonoBehaviour
             _index = 0;
             _lastReached = false;
             RebuildDots();
-            if (_isOpen)
+            if (IsOpen)
                 CloseSilent();
             return;
         }
@@ -120,7 +111,7 @@ public class HowToPlayUI : MonoBehaviour
         _index = 0;
         _lastReached = false;
 
-        if (_isOpen)
+        if (IsOpen)
         {
             RebuildDots();
             Show(0);
@@ -145,15 +136,12 @@ public class HowToPlayUI : MonoBehaviour
     /// Ferme le panel. Emet Closed (et Completed si la derniere page a ete atteinte).
     /// No-op silencieux si deja ferme.
     /// </summary>
-    public void Close()
+    public override void Close()
     {
-        if (!_isOpen) return;
+        if (!IsOpen) return;
 
         bool wasCompleted = _lastReached;
-        if (_root != null) _root.SetActive(false);
-        _isOpen = false;
-
-        Closed?.Invoke();
+        base.Close();
         if (wasCompleted)
             Completed?.Invoke();
     }
@@ -164,19 +152,12 @@ public class HowToPlayUI : MonoBehaviour
 
     private void OpenInternal()
     {
-        _isOpen = true;
         _index = 0;
         _lastReached = false;
-        if (_root != null) _root.SetActive(true);
+        MarkOpened();
         if (_closeButton != null) _closeButton.gameObject.SetActive(false);
         RebuildDots();
         Show(0);
-    }
-
-    private void CloseSilent()
-    {
-        if (_root != null) _root.SetActive(false);
-        _isOpen = false;
     }
 
     private void Show(int i)

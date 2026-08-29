@@ -7,7 +7,7 @@
 > Légende `CSV ?` : ✅ présente & même nom · 🔁 présente mais **renommée** (préciser) · ❌ **absente** · ⚠️ présente mais type/encodage différent.
 > Légende `Statut` : OK · DIVERGENCE (→ reporter dans `journal-divergences.md`) · À VÉRIFIER.
 >
-> ⚠️ **Sérialisation** (`ApiClient.cs:539` `ToJsonObjectSkippingNullStrings`) : un champ **null** est **omis du JSON** SAUF s'il porte `[IncludeNullInJson]`. Les champs marqués « omis si null » ci-dessous **peuvent disparaître** de certains trials → vérifier que la colonne CSV existe quand même (valeur vide) pour toutes les lignes. Nombres sérialisés en `InvariantCulture` (point décimal), bool en `true`/`false`.
+> ⚠️ **Sérialisation** (`ApiClient` — Newtonsoft, `NullValueHandling.Ignore` global) : un champ **null** est **omis du JSON** SAUF s'il porte `[JsonProperty(NullValueHandling = Include)]` dans `FlowDataModels.cs`. Les champs marqués « omis si null » ci-dessous **peuvent disparaître** de certains trials → vérifier que la colonne CSV existe quand même (valeur vide) pour toutes les lignes. Nombres sérialisés en `InvariantCulture` (point décimal), bool en `true`/`false`.
 
 ---
 
@@ -86,7 +86,7 @@
 
 ## Explanations (× distal / motor / proximal)
 
-> Structure identique pour les 3 advices. `display_mode` défaut = `none` (jamais null). Les 4 champs de contenu portent `[IncludeNullInJson]` → **toujours présents** (null si non applicable).
+> Structure identique pour les 3 advices. `display_mode` défaut = `none` (jamais null). Les 4 champs de contenu portent `[JsonProperty(NullValueHandling = Include)]` → **toujours présents** (null si non applicable).
 
 | Champ (code) | Type | Domaine / valeurs | Omis si null | CSV ? | Statut |
 | :-- | :-- | :-- | :-: | :-: | :-- |

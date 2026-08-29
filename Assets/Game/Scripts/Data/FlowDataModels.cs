@@ -469,6 +469,9 @@ public class PlayerSessionState
     public bool motor_choice_is_forced;
     public string motor_choice_forced_set;
     public float motor_choice_forced_probability;
+    // Genre du conseiller humain affiche par les badges advisor : tire une fois
+    // par bloc (seede, salt 6) et consomme par toutes les UI via AdvisorBadgeUtility.
+    public bool advisor_display_is_male;
     public bool distal_advice_visible;
     public bool distal_advice_reliable;
     public string distal_advice_choice;
@@ -476,11 +479,10 @@ public class PlayerSessionState
     public string distal_scan_choice;
 }
 
-[AttributeUsage(AttributeTargets.Field)]
-public sealed class IncludeNullInJsonAttribute : Attribute
-{
-}
-
+// Les champs marques [JsonProperty(NullValueHandling = Include)] partent a
+// null explicite dans le payload (le backend les attend nullable-mais-presents) ;
+// tous les autres champs null sont omis (NullValueHandling.Ignore global
+// dans ApiClient).
 [Serializable]
 public class TrialResponseRow
 {
@@ -512,10 +514,10 @@ public class TrialResponseRow
     public string distal_best_valley;
     public string distal_scan_choice;
     public string distal_advice_explanation_display_mode = ExplanationDisplayMode.None;
-    [IncludeNullInJson] public string distal_advice_explanation_content_variant;
-    [IncludeNullInJson] public string distal_advice_explanation_text_id;
-    [IncludeNullInJson] public bool? distal_advice_explanation_clicked;
-    [IncludeNullInJson] public int? distal_advice_explanation_display_duration_ms;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string distal_advice_explanation_content_variant;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string distal_advice_explanation_text_id;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public bool? distal_advice_explanation_clicked;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public int? distal_advice_explanation_display_duration_ms;
     public DistalSceneConfig distal_scene;
     public int trap_count;
     public int min_distance;
@@ -535,10 +537,10 @@ public class TrialResponseRow
     public float motor_advice_visible_probability;
     public float motor_advice_reliable_probability;
     public string motor_advice_explanation_display_mode = ExplanationDisplayMode.None;
-    [IncludeNullInJson] public string motor_advice_explanation_content_variant;
-    [IncludeNullInJson] public string motor_advice_explanation_text_id;
-    [IncludeNullInJson] public bool? motor_advice_explanation_clicked;
-    [IncludeNullInJson] public int? motor_advice_explanation_display_duration_ms;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string motor_advice_explanation_content_variant;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string motor_advice_explanation_text_id;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public bool? motor_advice_explanation_clicked;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public int? motor_advice_explanation_display_duration_ms;
     public float suboptimal_trap_probability;
     public int min_suboptimal_traps;
     public int max_suboptimal_traps;
@@ -552,10 +554,10 @@ public class TrialResponseRow
     public bool proximal_advice_reliable;
     public string proximal_choice;
     public string proximal_advice_explanation_display_mode = ExplanationDisplayMode.None;
-    [IncludeNullInJson] public string proximal_advice_explanation_content_variant;
-    [IncludeNullInJson] public string proximal_advice_explanation_text_id;
-    [IncludeNullInJson] public bool? proximal_advice_explanation_clicked;
-    [IncludeNullInJson] public int? proximal_advice_explanation_display_duration_ms;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string proximal_advice_explanation_content_variant;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string proximal_advice_explanation_text_id;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public bool? proximal_advice_explanation_clicked;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public int? proximal_advice_explanation_display_duration_ms;
     public bool choice_correct;
     public string true_cloud;
     public int green_bugs_collected;
@@ -566,7 +568,7 @@ public class TrialResponseRow
     public int overtime_steps;
     public bool followed_advisor_path;
     public string player_path_log;
-    [IncludeNullInJson] public string advisor_path_config;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string advisor_path_config;
     public string acceptability_question;
     public string sens_of_agency_question;
     public string human_likeness_question;

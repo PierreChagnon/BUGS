@@ -36,25 +36,19 @@ public class BugCloudSpawner : MonoBehaviour
 
         var rng = registry.CreateRng(nameof(BugCloudSpawner));
 
-        // Lecture des paramètres recherche depuis SessionManager (propriétaire de la config expérimentale)
+        // Lecture de la config expérimentale via SessionManager.Map (source de vérité unique)
         var session = SessionManager.Instance;
         if (session == null)
         {
             Debug.LogError("[BugCloudSpawner] SessionManager manquant dans la scène.");
             return;
         }
-        int minDistance        = Mathf.Max(1, session.minDistance);
-        int minTotalBugs       = session.minTotalBugs;
-        int maxTotalBugs       = session.maxTotalBugs;
-        float minGreenBugsRatio = session.minGreenBugsRatio;
-        float maxGreenBugsRatio = session.maxGreenBugsRatio;
-        float gapMin           = session.gapMin;
-        float gapMax           = session.gapMax;
+        MapGenConfig map = session.Map;
 
         // Bornes pour la distance au joueur (D)
-        int Dmin = minDistance;
+        int Dmin = Mathf.Max(1, map.min_distance);
         int gridMax = registry.gridSize.x + registry.gridSize.y; // borne absolue imposée par la map
-        int maxDistance = session.maxDistance;
+        int maxDistance = map.max_distance;
         // Si le chercheur a défini une maxDistance > 0, on l'utilise bornée par la taille de la map.
         // Sinon (0 = pas de limite), on utilise la taille de la map comme fallback.
         int Dmax = (maxDistance > 0) ? Mathf.Min(maxDistance, gridMax) : gridMax;
@@ -100,17 +94,7 @@ public class BugCloudSpawner : MonoBehaviour
 
         var cloudA = goA.GetComponent<BugCloud>();
         var cloudB = goB.GetComponent<BugCloud>();
-        var cloudPair = BugCloudGenerationUtility.GenerateGameplayPair(
-            new MapGenConfig
-            {
-                min_total_bugs = minTotalBugs,
-                max_total_bugs = maxTotalBugs,
-                min_green_ratio = minGreenBugsRatio,
-                max_green_ratio = maxGreenBugsRatio,
-                gap_min = gapMin,
-                gap_max = gapMax
-            },
-            rng);
+        var cloudPair = BugCloudGenerationUtility.GenerateGameplayPair(map, rng);
 
         bool cloudAIsLeft = goA.transform.position.x <= goB.transform.position.x;
         BugCloudSample leftSample = cloudPair.firstCloud;
@@ -127,7 +111,6 @@ public class BugCloudSpawner : MonoBehaviour
             ? DistalScanSide.Left
             : DistalScanSide.Right;
         FlowController.Instance?.ResolveProximalForcedCloud(bestCloudSide);
-        SessionManager.Instance?.RefreshForcedValuesFromFlow();
 
         // ─────────────────────────────────────────────────────────────────────────────────
         // INITIALISATION DES SYSTÈMES DE PARTICULES
