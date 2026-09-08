@@ -7,17 +7,21 @@ using UnityEngine.UI;
 // apres le panneau de resultats (RoundUI).
 // 3 questions apres chaque trial (2 d'acceptabilite, 1 de sens d'agentivite), + 1 en fin de dernier trial du bloc.
 // L'ordre des ecrans est melange a partir du seed du trial.
+// Deux echelles de reponse : un slider entier 1-7 pour l'acceptabilite, 7 boutons radio pour les autres.
+// Les deux produisent une reponse "1"..."7".
 public class TrialQuestionsUI : MonoBehaviour
 {
     struct TrialQuestionItem
     {
         public string key;
         public string text;
+        public bool useSlider;
 
-        public TrialQuestionItem(string key, string text)
+        public TrialQuestionItem(string key, string text, bool useSlider)
         {
             this.key = key;
             this.text = text;
+            this.useSlider = useSlider;
         }
     }
 
@@ -31,12 +35,17 @@ public class TrialQuestionsUI : MonoBehaviour
     [SerializeField] private GameObject _panel;
     [SerializeField] private TMP_Text _questionText;
     [SerializeField] private TMP_Text _progressText;
+    [Tooltip("Rangee des boutons radio (AnswerRow)")]
+    [SerializeField] private GameObject _answerRow;
     [SerializeField] private Toggle[] _choiceToggles; // 7 toggles : strongly disagree → strongly agree
+    [Tooltip("Rangee du slider (SliderRow), contient le Slider ScaleSlider")]
+    [SerializeField] private GameObject _sliderRow;
     [SerializeField] private Button _confirmButton;
     [SerializeField] private RoundUI _roundUI;
 
     readonly List<TrialQuestionItem> _questions = new();
     readonly List<QuestionResponse> _responses = new();
+    Slider _scaleSlider;
     int _currentIndex;
     bool _hasPreparedQuestions;
 
@@ -44,6 +53,11 @@ public class TrialQuestionsUI : MonoBehaviour
     {
         if (_panel != null)
             _panel.SetActive(false);
+
+        if (_sliderRow != null)
+            _scaleSlider = _sliderRow.GetComponentInChildren<Slider>(true);
+        if (_scaleSlider == null)
+            Debug.LogError("[TrialQuestionsUI] Slider introuvable sous _sliderRow: les questions d'acceptabilite ne pourront pas etre repondues.");
 
         for (int i = 0; i < _choiceToggles.Length; i++)
         {
@@ -92,15 +106,15 @@ public class TrialQuestionsUI : MonoBehaviour
         // Les questions d'acceptabilite portent sur l'advisor : elles n'ont pas de sens si aucun advisor n'a ete choisi (none).
         if (flow.State.advisor_choice != AdvisorType.None)
         {
-            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestion1Key, _acceptabilityQuestion1));
-            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestion2Key, _acceptabilityQuestion2));
+            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestion1Key, _acceptabilityQuestion1, useSlider: true));
+            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestion2Key, _acceptabilityQuestion2, useSlider: true));
         }
 
-        _questions.Add(new TrialQuestionItem(FlowSerializationUtility.SensOfAgencyQuestionKey, _senseOfAgencyQuestion));
+        _questions.Add(new TrialQuestionItem(FlowSerializationUtility.SensOfAgencyQuestionKey, _senseOfAgencyQuestion, useSlider: false));
 
         bool isLastTrial = flow.State.current_trial_index >= flow.CurrentBlock.trial_count - 1;
         if (isLastTrial)
-            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.HumanLikenessQuestionKey, _humanLikenessQuestion));
+            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.HumanLikenessQuestionKey, _humanLikenessQuestion, useSlider: false));
 
         var rng = new System.Random((int)flow.CurrentTrialSeed);
         for (int i = _questions.Count - 1; i > 0; i--)
@@ -131,15 +145,27 @@ public class TrialQuestionsUI : MonoBehaviour
     public void OnConfirmClicked()
     {
         if (_currentIndex < 0 || _currentIndex >= _questions.Count) return;
-        int selected = GetSelectedIndex();
-        if (selected < 0) return;
+
+        var question = _questions[_currentIndex];
+        string response;
+        if (question.useSlider)
+        {
+            if (_scaleSlider == null) return;
+            response = Mathf.RoundToInt(_scaleSlider.value).ToString(); // slider entier 1…7
+        }
+        else
+        {
+            int selected = GetSelectedIndex();
+            if (selected < 0) return;
+            response = (selected + 1).ToString(); // 1=strongly disagree … 7=strongly agree
+        }
 
         _responses.Add(new QuestionResponse
         {
             order = _currentIndex + 1,
-            question_key = _questions[_currentIndex].key,
-            question_text = _questions[_currentIndex].text,
-            response = (selected + 1).ToString() // 1=strongly disagree … 7=strongly agree
+            question_key = question.key,
+            question_text = question.text,
+            response = response
         });
 
         _currentIndex++;
@@ -157,14 +183,25 @@ public class TrialQuestionsUI : MonoBehaviour
         if (_progressText != null)
             _progressText.text = $"{_currentIndex + 1} / {_questions.Count}";
 
+        var question = _questions[_currentIndex];
+
         if (_questionText != null)
-            _questionText.text = _questions[_currentIndex].text;
+            _questionText.text = question.text;
+
+        if (_answerRow != null)
+            _answerRow.SetActive(!question.useSlider);
+        if (_sliderRow != null)
+            _sliderRow.SetActive(question.useSlider);
 
         foreach (var toggle in _choiceToggles)
             toggle.isOn = false;
 
+        // Le slider a toujours une valeur : il repart du milieu de l'echelle et la validation est immediate.
+        if (_scaleSlider != null)
+            _scaleSlider.value = Mathf.Round((_scaleSlider.minValue + _scaleSlider.maxValue) / 2f);
+
         if (_confirmButton != null)
-            _confirmButton.interactable = false;
+            _confirmButton.interactable = question.useSlider;
     }
 
     void RefreshConfirmButton()

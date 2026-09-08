@@ -4030,6 +4030,7 @@ MonoBehaviour:
   _panel: {fileID: 425631500}
   _questionText: {fileID: 612934718}
   _progressText: {fileID: 1819093337}
+  _answerRow: {fileID: 1184326023}
   _choiceToggles:
   - {fileID: 640853535}
   - {fileID: 211769170}
@@ -4038,6 +4039,7 @@ MonoBehaviour:
   - {fileID: 882718897}
   - {fileID: 158201162}
   - {fileID: 2117624315}
+  _sliderRow: {fileID: 1184326022}
   _confirmButton: {fileID: 537781763}
   _roundUI: {fileID: 988510860}
 --- !u!4 &425865057 stripped
@@ -12263,6 +12265,16 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 1310028211529153949, guid: c8ca65ecdf242ce43bbcc052a0064679, type: 3}
   m_PrefabInstance: {fileID: 1115326333}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1184326022 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7324408291033862559, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
+  m_PrefabInstance: {fileID: 1445343096}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &1184326023 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6056817519857981042, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
+  m_PrefabInstance: {fileID: 1445343096}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1186543554
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -15350,6 +15362,10 @@ PrefabInstance:
     - target: {fileID: 1585154722453076790, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_AnchorMin.x
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1585154722703064612, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
+      propertyPath: m_Value
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 1585154722829068586, guid: 00f1ba516e030419db3b37ef9cf24afc, type: 3}
       propertyPath: m_AnchorMax.x
