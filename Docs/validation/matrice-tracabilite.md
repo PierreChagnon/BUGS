@@ -128,7 +128,8 @@
 
 | Champ (code) | Type | Domaine / valeurs | Peuplé par | Omis si null | CSV ? | Statut |
 | :-- | :-- | :-- | :-- | :-: | :-: | :-- |
-| `acceptability_question` | string | réponse (obligatoire) | `SubmitCurrentTrialResponses` | non | | |
+| `acceptability_question_1` | string | réponse (null sans advisor) | `SubmitCurrentTrialResponses` | non | | |
+| `acceptability_question_2` | string | réponse (null sans advisor) | `SubmitCurrentTrialResponses` | non | | |
 | `sens_of_agency_question` | string | réponse (obligatoire) | `SubmitCurrentTrialResponses` | non | | |
 | `human_likeness_question` | string | réponse — envoyée en **PATCH** (null au POST) | `QueueHumanLikenessPatchForBlock` | **oui au POST** | | ⚠️ voir Axe 4 |
 | `started_at` | string | ISO 8601 UTC (`"o"`) | `StartNewTrial` | non | | |

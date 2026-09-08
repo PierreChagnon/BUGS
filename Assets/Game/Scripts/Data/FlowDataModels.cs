@@ -569,7 +569,8 @@ public class TrialResponseRow
     public bool followed_advisor_path;
     public string player_path_log;
     [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string advisor_path_config;
-    public string acceptability_question;
+    public string acceptability_question_1;
+    public string acceptability_question_2;
     public string sens_of_agency_question;
     public string human_likeness_question;
     public string started_at;

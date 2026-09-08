@@ -3,7 +3,8 @@ using UnityEngine;
 
 public static class FlowSerializationUtility
 {
-    public const string AcceptabilityQuestionKey = "acceptability";
+    public const string AcceptabilityQuestion1Key = "acceptability_1";
+    public const string AcceptabilityQuestion2Key = "acceptability_2";
     public const string SensOfAgencyQuestionKey = "sens_of_agency";
     public const string HumanLikenessQuestionKey = "human_likeness";
 
@@ -68,7 +69,8 @@ public static class FlowSerializationUtility
         if (row == null)
             return;
 
-        row.acceptability_question = null;
+        row.acceptability_question_1 = null;
+        row.acceptability_question_2 = null;
         row.sens_of_agency_question = null;
         row.human_likeness_question = null;
 
@@ -83,8 +85,11 @@ public static class FlowSerializationUtility
 
             switch (response.question_key)
             {
-                case AcceptabilityQuestionKey:
-                    row.acceptability_question = response.response;
+                case AcceptabilityQuestion1Key:
+                    row.acceptability_question_1 = response.response;
+                    break;
+                case AcceptabilityQuestion2Key:
+                    row.acceptability_question_2 = response.response;
                     break;
                 case SensOfAgencyQuestionKey:
                     row.sens_of_agency_question = response.response;

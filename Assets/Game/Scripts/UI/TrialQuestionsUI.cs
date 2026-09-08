@@ -5,7 +5,8 @@ using UnityEngine.UI;
 
 // Affiche les questions de fin de trial dans la ProximalScene,
 // apres le panneau de resultats (RoundUI).
-// 2 questions apres chaque trial, + 1 en fin de dernier trial du bloc.
+// 3 questions apres chaque trial (2 d'acceptabilite, 1 de sens d'agentivite), + 1 en fin de dernier trial du bloc.
+// L'ordre des ecrans est melange a partir du seed du trial.
 public class TrialQuestionsUI : MonoBehaviour
 {
     struct TrialQuestionItem
@@ -21,7 +22,8 @@ public class TrialQuestionsUI : MonoBehaviour
     }
 
     [Header("Textes des questions")]
-    [SerializeField] private string _acceptabilityQuestion = "Question d'acceptabilite (a definir)";
+    [SerializeField] private string _acceptabilityQuestion1 = "Question d'acceptabilite 1 (a definir)";
+    [SerializeField] private string _acceptabilityQuestion2 = "Question d'acceptabilite 2 (a definir)";
     [SerializeField] private string _senseOfAgencyQuestion = "Question de sens d'agentivite (a definir)";
     [SerializeField] private string _humanLikenessQuestion = "Question de ressemblance humaine (a definir)";
 
@@ -87,9 +89,12 @@ public class TrialQuestionsUI : MonoBehaviour
         if (flow == null || flow.CurrentBlock == null)
             return;
 
-        // La question d'acceptabilite porte sur l'advisor : elle n'a pas de sens si aucun advisor n'a ete choisi (none).
+        // Les questions d'acceptabilite portent sur l'advisor : elles n'ont pas de sens si aucun advisor n'a ete choisi (none).
         if (flow.State.advisor_choice != AdvisorType.None)
-            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestionKey, _acceptabilityQuestion));
+        {
+            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestion1Key, _acceptabilityQuestion1));
+            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestion2Key, _acceptabilityQuestion2));
+        }
 
         _questions.Add(new TrialQuestionItem(FlowSerializationUtility.SensOfAgencyQuestionKey, _senseOfAgencyQuestion));
 

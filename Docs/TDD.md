@@ -2464,7 +2464,8 @@ public class TrialResponseRow
     public string advisor_path_config;
 
     // Questionnaire de fin de trial (renseigné par TrialQuestionsUI, ProximalScene)
-    public string acceptability_question;
+    public string acceptability_question_1;
+    public string acceptability_question_2;
     public string sens_of_agency_question;
     public string human_likeness_question;   // patché par bloc, pas par trial
 
@@ -2517,7 +2518,8 @@ public class TrialResponseRow
 | overtime_steps                              | int    | EndCurrentTrial                                | Pas au-delà du budget (steps − cloud_distance, min 0)                                                                                                                    |
 | followed_advisor_path                       | bool   | EndCurrentTrial                                | `true` si le joueur a suivi le chemin conseillé                                                                                                                          |
 | player_path_log                             | string | EndCurrentTrial                                | JSON sérialisé de `List<PlayerStep>` (coordonnées + timestamps)                                                                                                          |
-| acceptability_question                      | string | TrialQuestionsUI → SubmitCurrentTrialResponses | Réponse 1-5. ⚠️ **Non posée si `advisor_choice == None`** — le champ reste `null` et `TrialManager.cs:119-124` annule alors l'envoi de toute la ligne (divergence D-001) |
+| acceptability_question_1                    | string | TrialQuestionsUI → SubmitCurrentTrialResponses | Réponse 1-5 (1re question d'acceptabilité). ⚠️ **Non posée si `advisor_choice == None`** — le champ reste `null` et est omis du payload, la ligne part quand même         |
+| acceptability_question_2                    | string | TrialQuestionsUI → SubmitCurrentTrialResponses | Réponse 1-5 (2e question d'acceptabilité). Même règle que la 1re                                                                                                         |
 | sens_of_agency_question                     | string | TrialQuestionsUI → SubmitCurrentTrialResponses | Réponse 1-5, posée à chaque trial                                                                                                                                        |
 | human_likeness_question                     | string | ApiClient.QueueHumanLikenessPatchForBlock      | Posée au **dernier trial du bloc** uniquement, puis patchée via `PATCH /api/trial-responses/{id}` sur **tous** les trials du bloc avec la même valeur                    |
 | started_at                                  | string | BuildBaseRow                                   | Timestamp ISO 8601 UTC début de trial                                                                                                                                    |
@@ -2607,7 +2609,7 @@ Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJso
 ### Points d'attention sur les données
 
 - **⚠️ Flat row :** `TrialResponseRow` est une structure plate (~50 champs) — pas de nested objects — conçue pour insertion directe dans une table Supabase
-- **⚠️ Questionnaire :** `acceptability_question` et `sens_of_agency_question` sont renseignés **au POST initial** (le questionnaire de fin de trial précède l'envoi). Seul `human_likeness_question` est retiré du payload et patché ensuite via `PATCH /api/trial-responses/{id}`, sur tous les trials du bloc
+- **⚠️ Questionnaire :** `acceptability_question_1`, `acceptability_question_2` et `sens_of_agency_question` sont renseignés **au POST initial** (le questionnaire de fin de trial précède l'envoi). Seul `human_likeness_question` est retiré du payload et patché ensuite via `PATCH /api/trial-responses/{id}`, sur tous les trials du bloc
 - **⚠️ Contrat de noms à vérifier (D-003) :** le schéma SQL de référence (`specs/multi-screen-flow/spec-tech.md:758`) déclare encore `q1_response`/`q2_response`/`q3_response`. Si la table Supabase suit ce schéma, les trois réponses n'atterrissent nulle part. À lever avant toute passation
 - **⚠️ player_path_log :** Sérialisé en string JSON (pas un objet imbriqué) — le backend reçoit la string telle quelle
 - **⚠️ advisor_path_config :** Même principe (string JSON `[{x,y}]`, sans timestamps) pour les cases du chemin advisor affiché — explicitement `null` quand `optimal_path_visible` est faux
