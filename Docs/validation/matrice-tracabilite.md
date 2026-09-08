@@ -1,7 +1,7 @@
 # Matrice de traçabilité — `TrialResponseRow` (code) ↔ CSV exporté
 
 > **Rôle** : opposer, champ par champ, ce que le **code émet** (source de vérité) à ce que le **CSV** livre au chercheur.
-> **Colonnes pré-remplies** (côté code) : à partir de `Assets/Game/Scripts/Data/FlowDataModels.cs:439-521`, `TrialManager.cs`, `GameManager.cs`. **NE PAS les modifier** sans revérifier le code.
+> **Colonnes pré-remplies** (côté code) : à partir de `Assets/Game/Scripts/Data/FlowDataModels.cs:487-578`, `TrialManager.cs`, `GameManager.cs`. **NE PAS les modifier** sans revérifier le code.
 > **Colonnes à remplir par l'équipe** (Axe 1, gate G4) : `CSV ?` et `Statut`.
 >
 > Légende `CSV ?` : ✅ présente & même nom · 🔁 présente mais **renommée** (préciser) · ❌ **absente** · ⚠️ présente mais type/encodage différent.
@@ -18,7 +18,7 @@
 | `participant_id` | string | UUID | `BuildBaseRow` (flow.State ou `Guid.NewGuid`) | non | | |
 | `session_template_id` | string | id session | `BuildBaseRow` | non | | |
 | `session_name` | string | nom de la session | `SessionConfig.label` via `BuildBaseRow` | omis si null | | |
-| `build_version` | string | ex. `0.4.0` | constante `BuildInfo.Version` | non | | |
+| `build_version` | string | ex. `1.1.0` | constante `BuildInfo.Version` | non | | |
 | `block_template_id` | string | id template de bloc | `block.block_template_id` (DEC-022) | omis si null | | ⚠️ ajouté au tableau le 28/07/26 (D-014) |
 | `block_index` | int | ≥ 1 (1-based) | `BuildBaseRow` | non | | |
 | `trial_index` | int | ≥ 1 (1-based) | `BuildBaseRow` | non | | |
@@ -66,9 +66,9 @@
 | `suboptimal_trap_probability` | float | [0,1] | session/map | non | | |
 | `min_suboptimal_traps` | int | ≥ 0 | session/map | non | | |
 | `max_suboptimal_traps` | int | ≥ min | session/map | non | | |
-| `map_config` | string (JSON) | `{gridWidth,gridHeight,leftCloud{x,y,totalBugs,greenRatio},rightCloud{…}}` | `SetMapConfig`/`SetMapConfigJson` | **oui** (edge) | | |
-| `optimal_path_length` | int | ≥ 0 | `SetOptimalPathLength` | non | | |
-| `cloud_distance` | int | Manhattan joueur→nuages | `SetCloudDistance` | non | | |
+| `map_config` | string (JSON) | `{gridWidth,gridHeight,leftCloud{x,y,totalBugs,greenRatio},rightCloud{…},cells[{x,y,trap,path,wall,cloud,suboptimalPath,playerStart}]}` — `cells[]` depuis `f7c8f3fc` (25/08/26) | `SetMapConfig`/`BuildMapConfigJson` | **oui** (edge) | | |
+| `optimal_path_length` | int? | ≥ 0 ou null (= jamais mesuré, `fe5fc771`) | `SetOptimalPathLength` | **oui** | | |
+| `cloud_distance` | int? | Manhattan joueur→nuages ou null | `SetCloudDistance` | **oui** | | |
 | `show_numerical_feedback` | bool | true/false | `block.show_numerical_feedback` | non | | |
 
 ## Advice distal
@@ -113,6 +113,7 @@
 | `proximal_choice` | string | `left`/`right`/`unknown` | `EndCurrentTrial` | non | | |
 | `optimal_path_visible` | bool | true/false | `EndCurrentTrial` | non | | |
 | `path_is_suboptimal` | bool | true/false | `EndCurrentTrial` | non | | |
+| `proximal_advice_reliable` | bool | true/false — **réalisé** (`false` sans advisor) | `EndCurrentTrial` (ajouté `62a52f58`, 24/08/26) | non | | |
 | `choice_correct` | bool | true/false | `EndCurrentTrial` | non | | |
 | `true_cloud` | string | `left`/`right`/`none` | `EndCurrentTrial` | non | | |
 | `green_bugs_collected` | int | ≥ 0 | `EndCurrentTrial` | non | | |
@@ -123,13 +124,14 @@
 | `overtime_steps` | int | ≥ 0 | `EndCurrentTrial` | non | | |
 | `followed_advisor_path` | bool | true/false (chemin **affiché**) | `EndCurrentTrial` | non | | |
 | `player_path_log` | string (JSON array) | `[{x,y,t}]` t=ISO UTC | `ToPlayerStepsJson` | non | | |
+| `advisor_path_config` | string (JSON array) | `[{x,y}]` — chemin advisor **affiché**, null si non visible | `TrialManager` (ajouté `8c3baa07`, 24/08/26) | non (`[IncludeNull]`) | | |
 
 ## Questionnaire & timestamps
 
 | Champ (code) | Type | Domaine / valeurs | Peuplé par | Omis si null | CSV ? | Statut |
 | :-- | :-- | :-- | :-- | :-: | :-: | :-- |
-| `acceptability_question_1` | string | réponse (null sans advisor) | `SubmitCurrentTrialResponses` | non | | |
-| `acceptability_question_2` | string | réponse (null sans advisor) | `SubmitCurrentTrialResponses` | non | | |
+| `acceptability_question_1` | string | `1`…`7` (slider ; null sans advisor) | `SubmitCurrentTrialResponses` | **oui** (sans advisor — pas d'attribut `[IncludeNull]`, Ignore global) | | |
+| `acceptability_question_2` | string | `1`…`7` (slider ; null sans advisor) | `SubmitCurrentTrialResponses` | **oui** (idem) | | |
 | `sens_of_agency_question` | string | réponse (obligatoire) | `SubmitCurrentTrialResponses` | non | | |
 | `human_likeness_question` | string | réponse — envoyée en **PATCH** (null au POST) | `QueueHumanLikenessPatchForBlock` | **oui au POST** | | ⚠️ voir Axe 4 |
 | `started_at` | string | ISO 8601 UTC (`"o"`) | `StartNewTrial` | non | | |
@@ -143,8 +145,10 @@
 | :- | :-- | :-- | :-- | :-- | :-- |
 | | | | | | |
 
-> Total champs code = **82** (décompte vérifié le 28/07/26 sur `FlowDataModels.cs:461-543` ;
-> l'ancienne valeur de 80 précédait l'ajout de `session_name` et `block_template_id`).
+> Total champs code = **87** (décompte vérifié le 08/09/26 sur `FlowDataModels.cs:487-578`).
+> Depuis le décompte de 82 du 28/07/26 : +`proximal_advice_reliable_probability`,
+> +`proximal_advice_reliable`, +`green_bugs_session_total`, +`advisor_path_config`,
+> +`acceptability_question_1`/`_2` (−`acceptability_question`, remplacé).
 > Reporter chaque ligne `❌`/`🔁`/`⚠️` ici et dans `journal-divergences.md`.
 
 ---
@@ -166,7 +170,7 @@ Elle n'est pas dupliquée ici pour éviter deux sources de vérité divergentes.
 | | Nombre |
 | :-- | :-: |
 | Colonnes attendues par le client | 76 |
-| Champs émis par le code | 82 |
+| Champs émis par le code | 87 (08/09/26 ; 82 au 28/07) |
 | Correspondances de **nom exact** | 10 |
 | Renommages à équivalence sémantique | ~16 |
 | Colonnes client **absentes** du code | **29** |
@@ -186,6 +190,17 @@ Elle n'est pas dupliquée ici pour éviter deux sources de vérité divergentes.
 | Bornes de pièges (`min/max_traps_nb`) | 2 | — |
 | `Trust in Technology Questionnaire` | 1 | **D-010** / Q-TRUST-1 |
 | `proximal_advice_reliability` (paramètre nommé) | 1 | — |
+
+> **Actualisation du 08/09/26** — mouvements depuis la confrontation du 28/07 :
+>
+> - **Fermées** : colonne 22 `proximal_advice_reliability` (→ `proximal_advice_reliable_probability`
+>   + réalisé `proximal_advice_reliable`, commit `62a52f58`) ; colonne 58 `proximal_advice_path`
+>   (→ `advisor_path_config`, commit `8c3baa07`) ; colonne 55 `map_layout` passe de ⚠️ à 🔁
+>   (`map_config.cells[]` fournit murs et pièges, commit `f7c8f3fc`).
+> - **Régression** : colonne 76 `final_comments` repasse de 🟢 à ❌ — la table `participant_notes`
+>   est gelée (DEC-024), le commentaire libre est désormais couvert par la partie 2 hors Unity.
+> - Le solde des absences reste dominé par `visibility_noise` (7), le stimulus distal (5),
+>   le niveau moteur (4) et les `*_match_advice` (3) — inchangés.
 
 > ⚠️ **Lecture équitable.** Le template CSV V1 date de mars 2026 et précède DEC-017, DEC-018,
 > DEC-019 et DEC-022. Une bonne part de l'écart est une **évolution légitime du design**.

@@ -232,12 +232,36 @@
 - **Impact :** `QuestionPanel.prefab` : `AnswerRow` passe de 5 à 7 instances `Radio_Cyan`, renommées `Radio_1`…`Radio_7` (l'ordre visuel devient la source de vérité du câblage) ; largeurs `QuestionBox` 1300 → 1760, `AnswerRow` 1200 → 1660, texte de question 1000 → 1460, `ProgressText.x` 518 → 748. `ProximalScene.unity` : `TrialQuestionsUI._choiceToggles` recâblé à 7 références. **Aucun changement de code** — `response` est un `string` et vaut `(index + 1)`, donc `1`…`7` passe tel quel jusqu'à l'API. ⚠️ **Rupture de comparabilité des données** : les lignes produites avant cette date sont sur 5 points, `dictionnaire-donnees.md` porte l'avertissement. À vérifier hors dépôt : que le dashboard ne valide pas `response` sur un intervalle 1-5.
 - **Statut :** ACTIF
 
+### DEC-026 — Correctif pipeline critiques : les trials sans advisor partent avec les champs questionnaire à `null`
+- **Date :** 2026-08-26 *(actée rétroactivement lors de la revue de livraison du 08/09/26)*
+- **Tag :** [TECH]
+- **Décision :** Trois correctifs de pipeline livrés dans le commit `fe5fc771` : (1) un trial joué en condition `advisor = none` est **envoyé** — `TrialManager` n'exige plus `acceptability_question` ; les champs non renseignés restent `null` et sont omis du payload ; seul un `sens_of_agency_question` vide (abandon réel du questionnaire) annule encore l'envoi. (2) `optimal_path_length` et `cloud_distance` deviennent **nullables** (`int?`) : `null` signifie « jamais mesuré », distinct d'un vrai `0`. (3) `SessionManager` redevient un **miroir fidèle** de la config : la remise à zéro de `pathVisible`/`motorAdviceVisibleProbability` en l'absence d'advisor est supprimée — la règle est portée par les consommateurs via `HasAdvisor`, et les probabilités loggées reflètent la config, pas le réalisé.
+- **Raison :** La condition contrôle `advisor = none` ne remontait **jamais** en base (divergence D-001, Lot A1 des revues du 28/07/26) — perte systématique, pas accidentelle. Les correctifs (2) et (3) suppriment des ambiguïtés de mesure (0 mesuré vs jamais mesuré ; config vs réalisé).
+- **Impact :** `TrialManager.cs:143-148`, `FlowDataModels.cs` (types nullables), `SessionManager.cs`. Ferme l'essentiel de D-001 (résidu 🟠 : l'abandon réel du questionnaire jette encore la ligne). Q-DATA-1 requalifiée : l'option A (« null assumé ») est implémentée de facto — sign-off chercheur à obtenir. Le même commit corrige côté backend le session label, l'export CSV paginé, les bornes de config et le fingerprint stable (cf. MàJ DEC-022).
+- **Statut :** ACTIF
+
+### DEC-027 — Le dashboard est la source unique des défauts de configuration ; `BuildInfo.Version` est la source unique de `build_version`
+- **Date :** 2026-08-28 *(actée rétroactivement lors de la revue de livraison du 08/09/26)*
+- **Tag :** [TECH]
+- **Décision :** Les DTO de configuration côté Unity (`BlockConfig`, `DistalSceneConfig`, `MapGenConfig`, `AdviceExplanationConfig`) ne portent **plus aucune valeur par défaut** (ex-`trial_count = 1`, `trap_count = 10`, `*_probability = 1f`, `motor_forced_set = "QZD"` → champs nus). Le contrat : le payload `GET /api/sessions/[id]` est validé par un schéma **Zod côté backend** qui garantit la présence et le domaine de chaque champ ; les défauts de saisie vivent dans le dashboard. Par ailleurs, `build_version` a désormais une source unique : la constante `BuildInfo.Version` (`Assets/Game/Scripts/Data/BuildInfo.cs`, `"1.1.0"` à cette date), alignée sur le contrat `docs/payload-examples.md` du repo backend-bugs.
+- **Raison :** Les défauts Unity masquaient des configs incomplètes (une valeur manquante produisait silencieusement un défaut de code, cf. D-004/D-005 de la revue du 28/07/26) et dupliquaient la vérité entre trois endroits (dashboard, backend, Unity). Clôt le Lot A5 (`build_version` valait `0.4.0` ou `1.0.0` selon le chemin d'exécution).
+- **Impact :** Commit `7d098281`. Ferme D-005. Change la nature du Lot A4 : une valeur `motor_forced_set` inconnue ne peut plus arriver qu'en contournant la validation Zod — le fallback silencieux `→ ZQSD` subsiste toutefois côté Unity (`FlowValueConverters.ToMotorKeySet`). Une session lancée contre un backend sans validation produit désormais des zéros/`null` plutôt que des défauts plausibles.
+- **Statut :** ACTIF
+
+### DEC-028 — Deuxième question d'acceptabilité à chaque trial ; sliders pour l'acceptabilité, radios pour les autres questions
+- **Date :** 2026-09-08 *(actée rétroactivement lors de la revue de livraison du 08/09/26)*
+- **Tag :** [FONC]
+- **Décision :** Chaque trial pose désormais **deux questions d'acceptabilité** (au lieu d'une), sous forme de **sliders entiers 1-7** (départ au milieu), en plus de la question d'agentivité (7 boutons radio, chaque trial) et de la question de ressemblance humaine (7 radios, dernier trial du bloc). Les colonnes `acceptability_question_1` et `acceptability_question_2` **remplacent** `acceptability_question`. Les deux questions d'acceptabilité restent non posées quand `advisor_choice == None` (le trial part quand même, cf. DEC-026). Complète DEC-025 (échelle 7 points).
+- **Raison :** Demande chercheur (08/09/26) : mesurer l'acceptabilité sur deux items distincts, avec une modalité de réponse continue (slider) adaptée à ce construct.
+- **Impact :** Commits `128bdcd4` et `e4bd00c7`. `TrialQuestionsUI` (4 textes sérialisés, toujours placeholders « (a definir) » — Q-011), nouveau `SliderValueLabel.cs`, `QuestionPanel.prefab`. ⚠️ **Rupture de schéma** : tout script d'analyse ou table qui attend `acceptability_question` est cassé ; la colonne `acceptability_question_2` doit exister côté Supabase (cf. D-003, D-016). À 36 trials/bloc, la charge passe à ≈ 108 interruptions par bloc — le volet fréquence de Q-FREQ-1 reste ouvert.
+- **Statut :** ACTIF
+
 ---
 
 ## Index par tag
 
 - **[SCOPE]** : DEC-004, DEC-005, DEC-008, DEC-024
-- **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023, DEC-025
-- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022
+- **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023, DEC-025, DEC-028
+- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022, DEC-026, DEC-027
 - **[PLANNING]** : _(aucune pour l'instant)_
 - **[CLIENT]** : _(aucune pour l'instant)_

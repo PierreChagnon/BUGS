@@ -15,7 +15,7 @@
 | `participant_id` | string | UUID | Identifiant participant (généré côté client). Sert de clé de regroupement. |
 | `session_template_id` | string | id | Modèle de session (config chargée depuis l'API). |
 | `session_name` | string | texte | Nom de la session, recopié depuis la clé `label` de la configuration. |
-| `build_version` | string | ex. `0.4.0` | Version du build ayant produit la donnée (constante `BuildInfo.Version`). |
+| `build_version` | string | ex. `1.1.0` | Version du build ayant produit la donnée (constante `BuildInfo.Version`, source unique depuis le 28/08/26). |
 | `block_template_id` | string | id | Modèle du bloc effectivement joué. **Indispensable quand `randomize_blocks = true`** (DEC-022) : `block_index` donne la position jouée, `block_template_id` donne le bloc expérimental. Grouper les analyses par condition sur **cette** colonne, pas sur `block_index`. |
 | `block_index` | int | ≥ 1 | Numéro du bloc dans la session (1-based) — **position jouée**, pas identité du bloc (cf. `block_template_id`). |
 | `trial_index` | int | ≥ 1 | Numéro du trial dans le bloc (1-based). |
@@ -56,9 +56,9 @@
 | `motor_advice_reliable_probability` | float | [0,1] | Probabilité que le conseil moteur soit fiable. |
 | `suboptimal_trap_probability` | float | [0,1] | Probabilité de pièges sur chemin suboptimal. |
 | `min_suboptimal_traps` / `max_suboptimal_traps` | int | ≥ 0 | Bornes du nombre de pièges suboptimaux. |
-| `map_config` | JSON (string) | — | `{gridWidth, gridHeight, leftCloud{x,y,totalBugs,greenRatio}, rightCloud{…}}`. À parser pour la géométrie exacte. |
-| `optimal_path_length` | int | ≥ 0 | Longueur (cases) du chemin optimal. |
-| `cloud_distance` | int | ≥ 0 | Distance Manhattan joueur → nuages (= budget de pas). |
+| `map_config` | JSON (string) | — | `{gridWidth, gridHeight, leftCloud{x,y,totalBugs,greenRatio}, rightCloud{…}, cells[]}`. À parser pour la géométrie exacte. Depuis le 25/08/26 (commit `f7c8f3fc`), `cells[]` contient l'état de **chaque cellule** de la grille : `{x, y, trap, path, wall, cloud, suboptimalPath, playerStart}` (booléens). Le layout complet — murs et positions des pièges compris — est donc reconstituable. Vide sur les lignes de builds antérieurs. |
+| `optimal_path_length` | int? | ≥ 0 ou ∅ | Longueur (cases) du chemin optimal. **Nullable depuis le 26/08/26** (commit `fe5fc771`) : ∅ = jamais mesuré sur ce trial, à distinguer d'un vrai 0. |
+| `cloud_distance` | int? | ≥ 0 ou ∅ | Distance Manhattan joueur → nuages (= budget de pas). Nullable, même convention que `optimal_path_length`. |
 | `show_numerical_feedback` | bool | — | Le feedback numérique était-il affiché ? |
 
 ## Advice distal
@@ -119,6 +119,12 @@ Pour chaque advice `X` ∈ {`distal`, `motor`, `proximal`}, 5 colonnes `X_advice
 
 ## Questionnaire & horodatage
 
+> ⚠️ **Rupture d'échelle et de colonnes au 08/09/26** (DEC-025 + commit `128bdcd4`). Les lignes
+> antérieures portent une unique colonne `acceptability_question` sur une échelle à **5 points**
+> (`1`…`5`). Depuis, l'échelle est à **7 points** pour les 4 questions et l'acceptabilité est
+> scindée en deux colonnes `acceptability_question_1` / `acceptability_question_2`. **Ne jamais
+> mélanger les deux périodes dans une même analyse sans recodage** — filtrer sur `build_version`.
+
 | Colonne | Type | Domaine | Description |
 | :-- | :-- | :-- | :-- |
 | `acceptability_question_1` | string | `1`…`7` | Réponse 1re question dimension « acceptabilité ». Échelle à **7 points** saisie au **slider** (1 = pas du tout d'accord → 7 = tout à fait d'accord). **Vide quand `advisor_choice = none`** : la question n'est délibérément pas posée (`TrialQuestionsUI.cs`). (mapping et textes à confirmer — Q-011 ; valeur attendue sans advisor — Q-DATA-1) |
@@ -168,7 +174,7 @@ d'échec) ; aucune reprise en cas d'échec réseau définitif.
 
 1. **`followed_advisor_path` = adhérence au chemin AFFICHÉ**, pas nécessairement optimal. Pour l'adhérence au chemin *optimal*, recalculer post-hoc via `player_path_log` + `optimal_path_length` / `map_config`.
 2. **Temps de décision non fourni directement** : à recalculer (`started_at` vs 1er `t` de `player_path_log`, ou latences inter-pas dans `player_path_log`).
-3. **Positions des pièges absentes** de l'export : impossible de croiser erreurs et géographie des pièges à partir du CSV seul.
+3. ~~**Positions des pièges absentes** de l'export~~ **Levée le 25/08/26** : `map_config.cells[]` fournit désormais l'état de chaque cellule (pièges, murs, chemins compris). Reste vrai pour les lignes de builds antérieurs au commit `f7c8f3fc`.
 4. **Bugs verts du nuage non-choisi non loggés** : pas de mesure directe du contraste entre les deux options.
 5. **Colonnes nullables** (`valley_choice`, `advisor_forced_value`, `motor_forced_set`, `distal_advice_choice`, `distal_best_valley`, `distal_scan_choice`, `human_likeness_question` au POST) : peuvent être **vides**. Traiter le vide explicitement dans les scripts d'analyse.
 6. **Reproductibilité / `trial_seed`** : vérifier (campagne, Axe 6) que le seed loggé régénère bien le trial — il peut refléter `randomizationSeed` de session plutôt que le seed per-trial.
@@ -183,4 +189,4 @@ d'échec) ; aucune reprise en cas d'échec réseau définitif.
 10. 🔴 **Le stimulus distal réellement affiché n'est pas enregistré.** `distal_scene` contient les **bornes de tirage** (min/max total, min/max ratio, gap), pas les valeurs vues par le participant. `distal_best_valley` indique la vallée objectivement meilleure, sans dire de combien. Le contraste perçu à l'écran distal n'est donc pas reconstituable. (Côté proximal, `map_config` fournit bien les valeurs réalisées.) (D-009, Q-DISTAL-1)
 11. **Granularité : 1 ligne = 1 trial**, pas 1 écran. Le tableau de référence client prévoyait une ligne par écran (`screen_type`, `screen_id`). Les informations de niveau bloc — `valley_choice`, `distal_advice_*`, `distal_scene`, `advisor_choice`, tous les paramètres `*_forced*` et map — sont **recopiées à l'identique sur chaque trial du bloc**. (D-011 / Q-ROW-1)
 12. **Aucune colonne d'adhérence au conseil (`*_match_advice`).** À recalculer post-hoc : distal = `valley_choice` vs `distal_advice_choice` ; chemin proximal = `followed_advisor_path` (déjà fourni) ; cible proximale = `choice_correct` comme proxy **uniquement quand le conseil était fiable** ; moteur = impossible (limite 9). (D-007)
-13. **Deux tirages ne sont ni reproductibles ni enregistrés** : l'**ordre d'affichage des 3 options d'advisor** (remélangé à chaque affichage — un éventuel effet de position sur le méta-choix est donc invérifiable) et le **genre du badge de l'advisor humain** (tiré indépendamment par composant, donc potentiellement incohérent au sein d'un même trial). Le reste du gameplay est reproductible depuis `trial_seed`. (D-012, Q-RANDOM-1)
+13. **Un tirage n'est ni reproductible ni enregistré** : l'**ordre d'affichage des 3 options d'advisor** (remélangé à chaque affichage — un éventuel effet de position sur le méta-choix est donc invérifiable). Le **genre du badge de l'advisor humain**, lui, est depuis le 29/08/26 (`AdvisorBadgeUtility`, commit `48b05b25`) tiré **une fois par bloc, seedé** (cohérent entre les trois UI et reproductible depuis la seed) — mais il n'est **pas exporté** dans `trial_responses`. Le reste du gameplay est reproductible depuis `trial_seed`. (D-012, Q-RANDOM-1)

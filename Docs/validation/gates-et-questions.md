@@ -21,7 +21,7 @@ Statut : ⬜ à faire · 🟨 en cours · ✅ fait
 | :-- | :-- | :-- | :-- | :-- |
 | **Q-007** | Modèle de perte de bugs (−1 green/piège/nuage vs décrément total) | Interprétation des scores | `green_bugs_collected`, `green_bugs_accumulated`, `traps_hit` | ⬜ |
 | **Q-010** | Pattern de fiabilité advisor (fréquence) — *non spécifié* | Cœur scientifique | `*_advice_reliable*`, `*_visible*` | ⬜ |
-| **Q-011** | Mapping des 3 questions ↔ dimensions | Validité questionnaire | `acceptability_question`, `sens_of_agency_question`, `human_likeness_question` | ⬜ |
+| **Q-011** | Mapping des **4 questions** ↔ dimensions (2 acceptabilité + agentivité + human-likeness depuis le 08/09/26) | Validité questionnaire | `acceptability_question_1`, `acceptability_question_2`, `sens_of_agency_question`, `human_likeness_question` | ⬜ |
 | Q-002 | Colonnes CSV motor advice | Traçabilité motor | `motor_*` | ⬜ |
 | Q-012 | Nombre de trials/bloc cible | Volumétrie / durée | `trial_count` | ⬜ |
 

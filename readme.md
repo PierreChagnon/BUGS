@@ -1,41 +1,35 @@
+# BUGS — jeu de collecte de bugs sur grille (étude de recherche)
+
+Unity **6000.3.5f2** · URP 17.3.0 · New Input System · WebGL. Version build : `BuildInfo.Version` (**1.1.0**).
+
+Le participant se déplace sur une grille pour collecter des nuages de bugs en évitant des pièges,
+dans un flow expérimental multi-écrans piloté par une configuration de session distante.
+La documentation détaillée vit dans `Docs/` (`Docs/TDD.md`, specs, dictionnaire de données).
+
+## Flow actuel
+
+- **Boot** : `BootScene` → `FlowController.BootstrapFlow()` lit le seul argument supporté,
+  `sessionId=<id>` (URL param en WebGL, fallback éditeur), puis charge la config de session
+  via `GET {root}/api/sessions/{id}`.
+- **Scènes** : Boot → Welcome → Consent → Intro → AdvisorChoice → DistalChoice → Proximal
+  (trials) → Break (pauses) → EndSession (redirection vers la partie 2 via `platform_url`).
+  `QuestionnaireScene` est présente au build mais non câblée dans le flow.
+- **Données** : une ligne par trial non-tutorial, envoyée par `TrialManager`/`ApiClient` en
+  `POST /api/trial-responses`, complétée par `PATCH /api/trial-responses/{id}` (questionnaire
+  de fin de bloc). Codebook : `Docs/validation/dictionnaire-donnees.md`.
+
+```mermaid
 flowchart TD
-
-%% === Étape 1 : SessionManager ===
-A["SessionManager - CreateSession()"] -->|"Appel API /api/session"| B["API Server"]
-B -->|"Réponse : game_session_id"| C["GameManager - BeginFirstRound()"]
-
-%% === Étape 2 : GameManager ===
-C --> D["GameManager - StartNewRound()"]
-D -->|"screenCounter++"| E["TrialManager - StartNewTrial()"]
-
-%% === Étape 3 : TrialManager ===
-E -->|"Crée un TrialData\nAssocie game_session_id\nPrépare map_config"| F["Boucle de Gameplay"]
-
-%% === Étape 4 : Gameplay Loop ===
-F --> G["GridMover - Player bouge"]
-G --> H["GameManager.OnPlayerStep(cell)"]
-H -->|"steps++ / check traps / update score + HUD / RecordMove()"| I{"Joueur atteint un nuage ?"}
-
-I -->|"Non"| F
-I -->|"Oui"| J["GameManager.OnCloudCollected()"]
-
-%% === Étape 5 : Fin de manche ===
-J -->|"Appelé par BugCloud.OnTriggerEnter()"| K["Fin de manche"]
-K -->|"Détermine le nuage choisi\nVérifie si c’est le meilleur\nBloque les inputs\nMet à jour le score"| L["Appels TrialManager"]
-
-%% === Appels TrialManager depuis OnCloudCollected ===
-L --> M1["TrialManager.SetOptimalPathLength()"]
-L --> M2["TrialManager.EndCurrentTrial()"]
-L --> M3["TrialManager.SendTrials()"]
-
-%% === Étape 6 : TrialManager suite ===
-M1 --> N1["Enregistre la longueur optimale"]
-M2 --> N2["Remplit TrialData\n(choice, correct, end_timestamp)"]
-M3 --> N3["SendTrialsCoroutine()\n→ POST /api/trials\n→ Vide la mémoire locale"]
-
-%% === Étape 7 : Game Over UI ===
-N3 --> O["Game Over UI\nAffiche score et stats"]
-O --> P["Bouton Restart\n→ GameManager.RestartRound()"]
-
-%% === Étape 8 : Nouvelle manche ===
-P --> Q["Scene Reload\n→ Retour à StartNewRound()"]
+    A["BootScene\nFlowController.BootstrapFlow()"] -->|"GET /api/sessions/{sessionId}"| B["SessionConfig"]
+    B --> C["Welcome → Consent → Intro\n→ AdvisorChoice → DistalChoice"]
+    C --> D["ProximalScene\nSessionManager copie la config du trial"]
+    D --> E["Gameplay : GridMover / GameManager\nsteps, pièges, brouillard, collecte"]
+    E --> F["Fin de trial\nTrialManager.EndCurrentTrial()"]
+    F -->|"POST /api/trial-responses"| G["Supabase"]
+    F --> H["TrialQuestionsUI\n(questions par trial)"]
+    H -->|"PATCH /api/trial-responses/{id}"| G
+    H --> I{"Trial suivant ?"}
+    I -->|"Oui"| D
+    I -->|"Pause"| J["BreakScene"] --> D
+    I -->|"Fin de session"| K["EndSessionScene\n→ redirection partie 2 (platform_url)"]
+```

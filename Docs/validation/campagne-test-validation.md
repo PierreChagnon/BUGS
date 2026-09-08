@@ -12,7 +12,7 @@
 ## 0. Pourquoi cette campagne (les 2 risques qui la structurent)
 
 1. **Dérive du contrat de données.** Les noms émis par le code ≠ noms de la doc/décisions.
-   Ex. code : `advisor_forced`, `advisor_forced_value`, `distal_forced`, `proximal_forced_probability`, `acceptability_question` / `sens_of_agency_question` / `human_likeness_question`.
+   Ex. code : `advisor_forced`, `advisor_forced_value`, `distal_forced`, `proximal_forced_probability`, `acceptability_question_1` / `acceptability_question_2` / `sens_of_agency_question` / `human_likeness_question`.
    Doc/décisions : `meta_choice_is_forced`, `proximal_choice_is_forced`, `q1_response` / `q2_response` / `q3_response`.
    → C'est exactement ce qui casse l'analyse côté chercheur. **Le code fait foi**, mais il faut vérifier ce que reçoit réellement le chercheur (colonnes CSV) et lui livrer un dictionnaire aligné.
 
@@ -43,7 +43,7 @@ Pyramide de tests « data », dans l'ordre. **On ne monte pas d'un axe tant que 
 - [ ] **G0.1** — Trancher avec le chercheur les questions qui donnent du **sens** aux colonnes :
   - **Q-007** modèle de perte de bugs (−1 green/piège/nuage vs décrément total — divergence GDD/code)
   - **Q-010** pattern de fiabilité advisor (*non spécifié*)
-  - **Q-011** mapping des 3 questions ↔ `acceptability_question` / `sens_of_agency_question` / `human_likeness_question`
+  - **Q-011** mapping des 4 questions ↔ `acceptability_question_1` / `acceptability_question_2` / `sens_of_agency_question` / `human_likeness_question` (2 questions d'acceptabilité depuis le 08/09/26)
 - [ ] **G0.2** — Geler la liste des champs de `TrialResponseRow` = contrat opposable (cf. `matrice-tracabilite.md`).
 - [ ] **G0.3** — Définir la/les session(s) de test qui exercent toutes les conditions (cf. `config-session-test.md`).
 

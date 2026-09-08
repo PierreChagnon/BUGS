@@ -6,6 +6,16 @@
 > **Date :** 2026-03-16  
 > **Décisions associées :** DEC-002, DEC-004, DEC-008, DEC-009, DEC-010, DEC-011, DEC-012, DEC-013, DEC-014, DEC-015
 
+> ⚠️ **ERRATA (08/09/26)** — ce document décrit l'architecture de mars 2026 ; deux points sont périmés :
+>
+> 1. **Colonnes questionnaire** : le code émet `acceptability_question_1`, `acceptability_question_2`,
+>    `sens_of_agency_question` et `human_likeness_question` — pas les `q1_response`/`q2_response`/`q3_response`
+>    des §4.4, §8 et §10.2 (divergence **D-003** du `journal-divergences.md`). Le schéma SQL §10 est
+>    conservé comme référence historique, ne pas créer de table depuis ce fichier.
+> 2. **EndSession** : **DEC-024** (07/09/26) a scindé l'expérience en deux parties — la boîte de
+>    commentaire (`ParticipantNoteUI`, `POST api/participant-notes`) est supprimée et l'écran de fin
+>    redirige vers la partie 2 via `platform_url`. Le flow décrit ici est antérieur à cette décision.
+
 ---
 
 ## 1. Contexte technique
@@ -462,6 +472,10 @@ public class TrialResponseRow
 }
 ```
 
+> ⚠️ **Errata 08/09/26** : le bloc questionnaire ci-dessus (`q1_text`…`q3_response`) n'a jamais été
+> implémenté sous ces noms — le code émet `acceptability_question_1`/`_2`, `sens_of_agency_question`,
+> `human_likeness_question` (D-003). Voir l'errata en tête de document.
+>
 > **Règle :** `q1_text`..`q3_response` sont `null` sur tous les essais sauf le dernier du bloc.
 > `green_bugs_accumulated` est mis à jour par FlowController à chaque essai.
 > `green_bugs_collected` est le score de l'essai courant uniquement.
@@ -638,6 +652,11 @@ Assets/Game/Scenes/GameScenes/
 ---
 
 ## 10. Schéma SQL Supabase complet
+
+> ⚠️ **Errata 08/09/26** : schéma de **référence historique** (mars 2026). Les colonnes questionnaire
+> réelles sont `acceptability_question_1`/`_2`, `sens_of_agency_question`, `human_likeness_question`
+> (D-003), et le modèle a depuis gagné ~30 champs (cf. `Docs/validation/matrice-tracabilite.md`,
+> 87 champs au 08/09/26). Ne pas créer de table depuis ce schéma.
 
 ### 10.1 Tables de configuration (remplies par les chercheurs via le dashboard)
 

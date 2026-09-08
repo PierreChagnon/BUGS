@@ -1,5 +1,10 @@
 # Revue de couverture bidirectionnelle — besoin ↔ code ↔ documentation
 
+> ⚠️ **REMPLACÉE le 08/09/2026** par [`revue-livraison-2026-09-08.md`](revue-livraison-2026-09-08.md),
+> qui donne le statut à jour de chaque constat (notamment : N2-A §9.2 corrigé, N1-F/N2-J clos
+> par retrait de `participant-notes`, colonnes client 22/55/58 fermées, N1-B toujours ouvert).
+> Ce document reste valable comme photographie du 28/07 et pour le détail des analyses.
+
 > **Date :** 28/07/2026 · **Rôle :** Pilotage
 > **Méthode :** confrontation ligne à ligne des documents de référence
 > (`GameDocument_2_0.docx`, `specs-light.md`, **`CSV_BUGS_Output_V1.xlsx`**,

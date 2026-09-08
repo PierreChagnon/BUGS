@@ -18,8 +18,10 @@
 | Distal advice reliable                                                                               | false ; true                                                                        |                  |                               |
 | Motor advice visible                                                                                 | proba 0 ; 1                                                                         |                  |                               |
 | Motor advice reliable                                                                                | proba 0 ; 1                                                                         |                  |                               |
-| Explanation display_mode (×3 advices)                                                                | `none`, `forced`, `opt-in`                                                          |                  |                               |
-| Explanation content_variant                                                                          | `short`, `long`                                                                     |                  |                               |
+| Explanation display_mode (×3 advices)                                                                | `none`, `forced`, `opt-in`, `forced/opt-in` (mixte, résolu par trial)               |                  | ⚠️ valeur mixte ajoutée le 27/08/26 (`3e5560e5`) |
+| Explanation content_variant                                                                          | `short`, `long`, `short/long` (mixte, résolu par trial)                             |                  | ⚠️ idem |
+| **Explanation `display_mode_forced_probability`** (lu seulement si display_mode = `forced/opt-in`)   | 0 ; 1                                                                               |                  | ⚠️ ajouté le 27/08/26 (`3e5560e5`) |
+| **Explanation `content_variant_long_probability`** (lu seulement si content_variant = `short/long`)  | 0 ; 1                                                                               |                  | ⚠️ idem |
 | Explanation opt-in clic                                                                              | cliqué / non cliqué (⇒ `_clicked`, `_display_duration_ms`)                          |                  |                               |
 | **Explanation `display_probability`** (proximal, motor **uniquement** — le distal n'a pas ce tirage) | 0 ; 1                                                                               |                  | ⚠️ ajouté le 28/07/26 (D-013) |
 | Path visible                                                                                         | proba 0 ; 1                                                                         |                  |                               |
@@ -64,7 +66,7 @@ Champs pilotant les colonnes (source : `BlockConfig` lu par `TrialManager.BuildB
 `distal_scene`, `trial_count`, `is_tutorial`, `block_order`, `is_order_locked`, `config_fingerprint`,
 
 - paramètres map (`trap_count`, `min/max_distance`, `min/max_total_bugs`, `min/max_green_ratio`, `gap_min/max`, `fog_probability`, `path_visible_probability`, `suboptimal_path_probability`, `detour_probability`, `motor_advice_visible/reliable_probability`, `suboptimal_trap_probability`, `min/max_suboptimal_traps`)
-- config explanations (display_mode / content_variant / corpus text_id **et `display_probability`** par advice).
+- config explanations (display_mode / content_variant / corpus text_id, **`display_probability`**, et depuis le 27/08/26 `display_mode_forced_probability` / `content_variant_long_probability` pour les valeurs mixtes `forced/opt-in` et `short/long`, par advice).
 
 > ⚠️ **`display_probability`** (`AdviceExplanationConfig`, `FlowDataModels.cs:286`) est un
 > tirage **par trial** décidant si l'explanation proximale ou motrice s'affiche. Il **contredit

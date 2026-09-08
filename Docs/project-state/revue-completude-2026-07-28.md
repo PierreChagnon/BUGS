@@ -1,5 +1,9 @@
 # Revue de complétude — code réel vs attendu
 
+> ⚠️ **REMPLACÉE le 08/09/2026** par [`revue-livraison-2026-09-08.md`](revue-livraison-2026-09-08.md),
+> qui donne le statut à jour de chaque constat (D1 et E2 notamment sont corrigés).
+> Ce document reste valable comme photographie du 28/07 et pour le détail des analyses.
+
 > **Date :** 28/07/2026 · **Rôle :** Pilotage · **Méthode :** confrontation de `Docs/references/`, `Docs/project-state/`, `Docs/specs/` et `Docs/validation/` à la lecture directe du code (69 scripts C#, `EditorBuildSettings.asset`, historique git).
 > **But :** savoir si l'application est achevée, et sur quoi arbitrer avec l'équipe et le chercheur.
 > **Aucune modification de code n'a été faite pour produire ce rapport.** Chaque affirmation cite un `fichier:ligne` vérifiable.

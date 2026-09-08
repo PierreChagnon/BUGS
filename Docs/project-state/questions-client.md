@@ -263,10 +263,10 @@
 - **Réponse :** —
 
 ### Q-011 — Mapping QuestionnaireUI aux 3 dimensions GDD
-- **Posée le :** 2026-05-12
+- **Posée le :** 2026-05-12 · **MàJ 2026-09-08** : il y a désormais **4 questions** par trial — 2 d'acceptabilité (sliders 1-7, DEC-028), 1 d'agentivité et 1 de ressemblance humaine (7 boutons radio, DEC-025). Les 4 textes sont toujours des placeholders « (a definir) » (`TrialQuestionsUI.cs:29-32`). La question porte donc sur le mapping ET les textes réels des **4** questions.
 - **Origine :** Pilotage, revue d'avancement vs GDD 2.0
 - **Bloque :** Finalisation QuestionnaireScene. Validité des données collectées.
-- **Question :** Le GDD prévoit 3 dimensions à mesurer : sense of agency (control), acceptability (de l'advisor), human-likeness. Les colonnes `q1..q3` sont prêtes (DEC-008). Quel mapping retient-on et qui édite les textes ?
+- **Question :** Le GDD prévoit 3 dimensions à mesurer : sense of agency (control), acceptability (de l'advisor), human-likeness. Les colonnes émises sont `acceptability_question_1`/`_2`, `sens_of_agency_question`, `human_likeness_question`. Quel mapping retient-on, quels textes exacts pour les 4 questions (dont la distinction entre les 2 questions d'acceptabilité), et qui édite les textes ?
 - **Options :**
   - A : **Mapping fixe** q1=control, q2=acceptability, q3=human-likeness, textes hardcodés → impact : simple mais peu flexible
   - B : **Mapping fixe + textes éditables côté chercheur** (config ou BDD) → impact : ajout d'un système d'édition, plus de souplesse
@@ -504,13 +504,13 @@
 ### Q-CONSENT-1 — Quel est le texte de consentement réel, et qui doit pouvoir l'éditer ?
 - **Posée le :** 2026-07-28
 - **Origine :** Pilotage, revue de complétude (écran E2)
-- **Bloque :** 🔴 **La conformité éthique de la passation.** Aujourd'hui `ConsentUI.cs:16-20` écrase l'écran par un placeholder codé en dur (« Veuillez accepter le consentement pour demarrer la session. ») et il n'existe **aucun champ `consent_text`** dans la configuration de session. Le vrai texte ne peut donc être affiché ni par la scène, ni par l'API.
+- **Bloque :** ~~🔴 La conformité éthique de la passation~~ → 🟡 **Largement résolu le 08/09/26** : le vrai texte de consentement (anglais, expérience en 2 parties, contact IJN.Agency) vit désormais dans `ConsentScene.unity` (commits `78f9b6e1`, `a4a98569`, retouché sur feedbacks de Mark), et l'écrasement placeholder de `ConsentUI.Start` est neutralisé (`_titleText`/`_bodyText` débranchés dans la scène). Le refus passe par une vraie modale (`FlowContinueScreenUI`).
 - **Question :** Quel texte doit voir le participant, et doit-il être éditable par le chercheur sans rebuild ?
 - **Options :**
-  - A : Texte fourni une fois et figé dans la scène Unity → impact : simple, mais toute correction impose un rebuild
-  - B : Nouveau champ `consent_text` dans la configuration de session (comme `rules`) → impact : cohérent avec DEC-009, éditable à chaud, ~½ journée de dev
-- **Note annexe :** `ConsentUI.cs:34` annonce « La session s'arrete ici » alors que le refus renvoie vers Welcome. À trancher aussi : que doit-il se passer exactement en cas de refus ?
-- **Statut :** EN ATTENTE
+  - A : Texte fourni une fois et figé dans la scène Unity → ✅ **implémenté de facto le 08/09/26** — toute correction impose un rebuild
+  - B : Nouveau champ `consent_text` dans la configuration de session (comme `rules`) → impact : cohérent avec DEC-009, éditable à chaud, ~½ journée de dev — toujours possible si l'éditabilité sans rebuild est requise
+- **Note annexe :** le message « La session s'arrete ici » subsiste en code mort dans `ConsentUI.cs:34` (champ débranché). Nettoyage à prévoir avec E3.
+- **Statut :** EN ATTENTE DE SIGN-OFF — option A implémentée de facto ; ne reste ouverte que la question de l'éditabilité API
 - **Réponse :** —
 
 ### Q-QUEST-1 — QuestionnaireScene : à câbler ou à retirer du flow ?
@@ -556,16 +556,16 @@
 - **Réponse :** —
 
 ### Q-DATA-1 — Que doit valoir l'acceptabilité pour un trial joué sans advisor ?
-- **Posée le :** 2026-07-28 · **Reformulée le 2026-07-28** après vérification du code
+- **Posée le :** 2026-07-28 · **Reformulée le 2026-07-28** après vérification du code · **Requalifiée le 2026-09-08**
 - **Origine :** Pilotage, revue de complétude (défaut D1 requalifié, Lot A1)
-- **Bloque :** 🔴 **Lot A1 — priorité absolue.** La formulation initiale (« que faire d'un questionnaire incomplet ») décrivait un aléa de comportement participant. Le vrai problème est systématique : la question d'acceptabilité **n'est délibérément pas posée** quand aucun advisor n'a été choisi (`TrialQuestionsUI.cs:91` — « elle n'a pas de sens si aucun advisor n'a été choisi »). Le champ reste donc vide (`FlowSerializationUtility.cs:45`), et `TrialManager.cs:119-124` **jette la ligne entière**. Résultat : **aucune trial de la condition `advisor = none` — la condition contrôle — n'arrive en base.**
-- **Question :** Pour un trial où le participant n'a pas d'advisor, la question d'acceptabilité n'a pas de sens et n'est pas posée. Que doit contenir la colonne `acceptability_question` dans ce cas ?
+- **Bloque :** ~~🔴 Lot A1 — priorité absolue~~ → 🟡 **Plus un bloqueur d'implémentation : le code a tranché l'option A depuis le 26/08/26** (commit `fe5fc771`, DEC-026). `TrialManager.cs:143-148` envoie désormais la ligne avec le gameplay complet ; les champs d'acceptabilité restent `null` et sont omis du payload quand la question n'a pas été posée. La condition `advisor = none` remonte en base. La question devient un **sign-off a posteriori** du comportement implémenté.
+- **Question :** Pour un trial sans advisor, les questions d'acceptabilité ne sont pas posées et les colonnes `acceptability_question_1`/`_2` valent `null` (à distinguer de `advisor_choice` dans l'analyse). **Validez-vous ce comportement ?**
 - **Options :**
-  - A : **Vide / `null` assumé** → impact : la ligne part avec le gameplay complet ; dans l'analyse, `null` sur cette colonne signifie « sans advisor » et se déduit de `advisor_choice`
-  - B : **Une valeur « non applicable » explicite** (ex. `"n/a"`) → impact : distingue sans ambiguïté « non applicable » d'une non-réponse d'un participant qui a abandonné en cours de questionnaire
+  - A : **Vide / `null` assumé** → ✅ **implémenté depuis le 26/08/26** — sign-off suffit
+  - B : **Une valeur « non applicable » explicite** (ex. `"n/a"`) → impact : petit correctif, distingue « non applicable » d'un abandon en cours de questionnaire
   - C : **Poser quand même la question sans advisor** (reformulée) → impact : change le protocole, à cadrer côté chercheur
-- **Note :** quelle que soit l'option, le correctif A1 doit aussi couvrir le cas d'un participant qui abandonne réellement en cours de questionnaire — la ligne de gameplay ne doit jamais être perdue.
-- **Statut :** EN ATTENTE
+- **Note (résidu du Lot A1) :** le cas d'un participant qui abandonne réellement en cours de questionnaire jette encore la ligne (`sens_of_agency_question` vide → envoi annulé, `TrialManager.cs:145-147`). À corriger indépendamment de l'option retenue.
+- **Statut :** EN ATTENTE DE SIGN-OFF — option A implémentée de facto
 - **Réponse :** —
 
 ### Q-TIE-1 — Quand les deux nuages finissent à égalité, quel choix est « correct » ?
@@ -599,7 +599,7 @@
 - **Posée le :** 2026-07-28
 - **Origine :** Pilotage, revue de couverture (constats N1-A et N1-B, divergences D-007 et D-008)
 - **Bloque :** 🔴 **Toute analyse impliquant le niveau moteur.** Q-002 était classée « traçabilité » depuis le 12/03/26. Après vérification du code, ce n'est pas un sujet de traçabilité : **c'est une manipulation expérimentale sans mesure.**
-- **Contexte :** aujourd'hui, la ligne envoyée ne contient, pour le niveau moteur, que les **probabilités de configuration** (`motor_advice_visible_probability`, `motor_advice_reliable_probability`) et les paramètres de forçage. Ce qui s'est réellement passé sur le trial n'est nulle part : ni le set de touches **actif**, ni le set **affiché** au participant, ni le fait que le conseil ait été affiché, ni qu'il ait été fiable. Ces quatre valeurs existent bien en mémoire (`MotorAdviceController.ActiveSet` / `DisplayedSet` / `AdviceVisible` / `AdviceReliable`) — elles ne sont simplement jamais recopiées dans la ligne.
+- **Contexte :** aujourd'hui, la ligne envoyée ne contient, pour le niveau moteur, que les **probabilités de configuration** (`motor_advice_visible_probability`, `motor_advice_reliable_probability`) et les paramètres de forçage. Ce qui s'est réellement passé sur le trial n'est nulle part : ni le set de touches **actif**, ni le set **affiché** au participant, ni le fait que le conseil ait été affiché, ni qu'il ait été fiable. Ces quatre valeurs existent bien en mémoire (`MotorAdviceController.ActiveSet` / `DisplayedSet` / `AdviceVisible` / `AdviceReliable`) — elles ne sont simplement jamais recopiées dans la ligne. **MàJ 2026-09-08** : depuis le refacto du 29/08 (`48b05b25`), ces quatre valeurs sont produites de façon centralisée et seedée par `TrialDrawResolver.MotorAdviceDraw` — **l'export est devenu un branchement trivial** ; seul l'arbitrage sur les noms/formats de colonnes manque encore.
 - **Conséquences concrètes :** on ne peut pas mesurer si le participant a suivi le conseil moteur ; on ne peut pas distinguer un trial où le conseil était absent d'un trial où il était présent mais trompeur ; la colonne `motor_choice_match_advice` du CSV de référence est donc **impossible à recalculer post-hoc**.
 - **Question :** quelles colonnes le motor advice doit-il produire dans `trial_responses` ?
 - **Options :**
@@ -655,8 +655,8 @@
 - **Posée le :** 2026-07-28
 - **Origine :** Pilotage, revue de couverture (§4)
 - **Bloque :** 🟠 Charge cognitive du participant, durée de passation, et comparabilité avec la littérature.
-- **Contexte :** le document de référence dit « après **certains** essais ». Le jeu pose aujourd'hui **deux questions après chaque essai** (acceptabilité + contrôle) et une troisième au dernier essai du bloc (ressemblance humaine). **Il n'existe aucun réglage de fréquence.** Sur un bloc de 36 essais, cela représente **72 interruptions** par bloc.
-  Deux détails d'implémentation jamais actés : l'échelle comporte **5 niveaux** (« pas du tout d'accord » → « tout à fait d'accord »), et **l'ordre des questions est mélangé** à chaque essai (de façon reproductible).
+- **Contexte :** le document de référence dit « après **certains** essais ». ⚠️ **MàJ 2026-09-08** : le jeu pose désormais **trois questions après chaque essai** (2 d'acceptabilité + contrôle, DEC-028) et une quatrième au dernier essai du bloc (ressemblance humaine). **Il n'existe toujours aucun réglage de fréquence.** Sur un bloc de 36 essais, cela représente désormais **≈ 108 interruptions** par bloc (72 au moment où la question a été posée).
+  L'échelle, elle, est tranchée depuis le 08/09/26 : **7 niveaux** (DEC-025). Reste un détail jamais acté : **l'ordre des questions est mélangé** à chaque essai (de façon reproductible), et l'ordre présenté n'est pas enregistré.
 - **Question :** à quelle fréquence ces questions doivent-elles être posées, et sur quelle échelle ?
 - **Options (fréquence) :**
   - A : **Après chaque essai, statu quo** → impact : aucun développement ; charge participant élevée
@@ -673,7 +673,7 @@
 - **Bloque :** 🔴 Contrôle d'un confondant sur le méta-choix (H1), et cohérence de la présentation de l'advisor.
 - **Contexte :** deux tirages aléatoires échappent aujourd'hui au mécanisme de reproductibilité du jeu (tout le reste du gameplay est reproductible à partir d'une graine enregistrée) :
   1. **L'ordre des trois options d'advisor** (aucun / humain / robot) est **remélangé à chaque affichage**. L'ordre présenté n'est ni reproductible, ni enregistré, ni spécifié dans aucun document. Or un effet de position (gauche / milieu / droite) est un biais classique, et il porte ici sur **le choix le plus en amont du protocole**. En l'état, il est **impossible de le vérifier ou de le corriger après coup**.
-  2. **L'apparence de l'advisor humain** (homme ou femme) est tirée à pile ou face **indépendamment par chaque élément d'interface**. Conséquence : sur un même essai, l'indicateur de conseil peut montrer une femme pendant que l'encart d'explication montre un homme. Le document de référence s'interroge explicitement sur les biais liés à l'apparence des advisors.
+  2. ~~**L'apparence de l'advisor humain** (homme ou femme) est tirée à pile ou face **indépendamment par chaque élément d'interface**.~~ ✅ **Réglé le 29/08/26** (`AdvisorBadgeUtility`, commit `48b05b25`) : le genre est tiré **une fois par bloc, de façon reproductible** (seed de bloc, salt 6), enregistré dans `advisor_display_is_male`, et consommé par les trois éléments d'interface — plus d'incohérence intra-trial. Cela correspond à l'**option C** ci-dessous ; il reste à confirmer que c'est bien le comportement souhaité (vs option A ou B).
 - **Question :** que doit-il se passer pour chacun de ces deux points ?
 - **Options (ordre des advisors) :**
   - A : **Randomisé, mais reproductible et enregistré** → impact : correctif simple ; permet de tester l'effet de position dans l'analyse. **Recommandé**
@@ -682,8 +682,8 @@
 - **Options (apparence de l'advisor humain) :**
   - A : **Un seul genre pour tout le projet** → impact : le plus simple, supprime la variable
   - B : **Tiré une fois par participant, cohérent partout** → impact : permet de contrôler la variable dans l'analyse ; suppose de l'enregistrer
-  - C : **Tiré une fois par bloc, cohérent partout** → impact : idem, plus proche du comportement actuel
-- **Statut :** EN ATTENTE
+  - C : **Tiré une fois par bloc, cohérent partout** → ✅ **implémenté depuis le 29/08/26** (seedé + enregistré dans `advisor_display_is_male`)
+- **Statut :** PARTIELLEMENT RÉPONDU — volet **apparence** implémenté (option C de facto, sign-off à obtenir) ; volet **ordre des advisors** toujours EN ATTENTE (le shuffle reste non seedé et non loggé, `AdvisorChoiceUI.cs:30`)
 - **Réponse :** —
 
 ### Q-HL-1 — La réponse « ressemblance humaine » doit-elle figurer sur toutes les lignes du bloc ?
