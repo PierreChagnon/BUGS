@@ -94,6 +94,7 @@ public class TrialManager : MonoBehaviour
 
         FlowController.Instance?.FinalizeCurrentExplanationTimers();
         ApplyForcedChoiceState(_currentTrialRow);
+        ApplyMotorAdviceState(_currentTrialRow);
 
         _currentTrialRow.proximal_choice = playerChoice;
         _currentTrialRow.choice_correct = correct;
@@ -328,10 +329,13 @@ public class TrialManager : MonoBehaviour
         };
 
         ApplyForcedChoiceState(row);
+        ApplyMotorAdviceState(row);
         flow?.ApplyCurrentExplanationStatesToRow(row);
         return row;
     }
 
+    // Echo de la config de forcage du bloc, puis tirages realises du trial
+    // (RollTrialForcedChoicesForCurrentTrial / ResolveProximalForcedCloud).
     static void ApplyForcedChoiceState(TrialResponseRow row)
     {
         if (row == null)
@@ -339,6 +343,7 @@ public class TrialManager : MonoBehaviour
 
         var flow = FlowController.Instance;
         var block = flow != null ? flow.CurrentBlock : null;
+        var state = flow != null ? flow.State : null;
         if (block != null)
         {
             row.advisor_forced = block.advisor_forced;
@@ -349,20 +354,38 @@ public class TrialManager : MonoBehaviour
             row.proximal_forced_optimal_probability = block.proximal_forced_optimal_probability;
             row.motor_forced_probability = block.motor_forced_probability;
             row.motor_forced_set = block.motor_forced_set;
-            return;
+        }
+        else if (state != null)
+        {
+            row.advisor_forced = state.meta_choice_is_forced;
+            row.advisor_forced_value = state.meta_choice_forced_value;
+            row.distal_forced = state.distal_choice_is_forced;
+            row.distal_forced_optimal_probability = state.distal_choice_forced_optimal_probability ?? 0f;
+            row.proximal_forced_probability = state.proximal_choice_forced_probability;
+            row.proximal_forced_optimal_probability = state.proximal_choice_forced_optimal_probability ?? 0f;
+            row.motor_forced_probability = state.motor_choice_forced_probability;
+            row.motor_forced_set = state.motor_choice_forced_set;
         }
 
-        if (flow == null || flow.State == null)
+        if (state == null)
             return;
 
-        row.advisor_forced = flow.State.meta_choice_is_forced;
-        row.advisor_forced_value = flow.State.meta_choice_forced_value;
-        row.distal_forced = flow.State.distal_choice_is_forced;
-        row.distal_forced_optimal_probability = flow.State.distal_choice_forced_optimal_probability ?? 0f;
-        row.proximal_forced_probability = flow.State.proximal_choice_forced_probability;
-        row.proximal_forced_optimal_probability = flow.State.proximal_choice_forced_optimal_probability ?? 0f;
-        row.motor_forced_probability = flow.State.motor_choice_forced_probability;
-        row.motor_forced_set = flow.State.motor_choice_forced_set;
+        row.proximal_forced = state.proximal_choice_is_forced;
+        row.proximal_forced_value = state.proximal_choice_is_forced ? state.proximal_choice_forced_value : null;
+        row.proximal_forced_was_optimal = state.proximal_choice_is_forced ? state.proximal_choice_forced_was_optimal : null;
+        row.motor_forced = state.motor_choice_is_forced;
+    }
+
+    // Tirage realise de la legende moteur (visible / fidele au set actif),
+    // resolu par MotorAdviceController au chargement de la scene.
+    static void ApplyMotorAdviceState(TrialResponseRow row)
+    {
+        var motor = MotorAdviceController.Instance;
+        if (row == null || motor == null)
+            return;
+
+        row.motor_advice_visible = motor.AdviceVisible;
+        row.motor_advice_reliable = motor.AdviceReliable;
     }
 
     void EnsureCurrentTrialRow()

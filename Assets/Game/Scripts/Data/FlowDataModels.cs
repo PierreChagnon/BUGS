@@ -505,6 +505,15 @@ public class TrialResponseRow
     public float proximal_forced_optimal_probability;
     public float motor_forced_probability;
     public string motor_forced_set;
+    // Tirages realises du trial (FlowController.State + MotorAdviceController),
+    // a cote des probabilites configurees ci-dessus. Les deux nullables restent
+    // null — donc omis du payload — quand le forcage proximal n'a pas eu lieu.
+    public bool proximal_forced;
+    public string proximal_forced_value;
+    public bool? proximal_forced_was_optimal;
+    public bool motor_forced;
+    public bool motor_advice_visible;
+    public bool motor_advice_reliable;
     public float distal_advice_visible_probability;
     public float distal_advice_reliable_probability;
     public bool show_numerical_feedback;

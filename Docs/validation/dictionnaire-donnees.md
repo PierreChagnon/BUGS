@@ -36,6 +36,12 @@
 | `proximal_forced_optimal_probability` | float | [0,1] | Probabilité que l'imposition proximale soit optimale. |
 | `motor_forced_probability` | float | [0,1] | Probabilité d'imposer le set moteur (par trial). |
 | `motor_forced_set` | string | `QZD`/`FTH`/`JIL`/∅ | Set de touches imposé si applicable. ⚠️ `JIL` (set IJKL) a remplacé l'ancien `KOM` (set OKLM) au commit `7b3a9e86`. Les valeurs encodent les touches gauche-haut-droite des sets ZQSD / TFGH / IJKL. Une valeur inconnue est **silencieusement convertie en ZQSD** par `FlowValueConverters.ToMotorKeySet` — vérifier les configs de session. |
+| `proximal_forced` | bool | — | **Réalisé** : le choix de nuage était-il imposé sur ce trial ? Vide sur les lignes antérieures au champ. |
+| `proximal_forced_value` | string | `left`/`right`/∅ | **Réalisé** : nuage imposé. Vide si `proximal_forced` est faux. |
+| `proximal_forced_was_optimal` | bool | true/false/∅ | **Réalisé** : le nuage imposé était-il le meilleur ? Vide si `proximal_forced` est faux. |
+| `motor_forced` | bool | — | **Réalisé** : le set de touches était-il imposé sur ce trial ? Si vrai, le set actif est `motor_forced_set`. Vide sur les lignes antérieures au champ. |
+| `motor_advice_visible` | bool | — | **Réalisé** : la légende des touches était-elle affichée ? `false` sans advisor. Vide sur les lignes antérieures au champ. |
+| `motor_advice_reliable` | bool | — | **Réalisé** : la légende affichait-elle le set actif ? `false` si cachée, toujours `true` si moteur forcé. Vide sur les lignes antérieures au champ. |
 
 ## Paramètres expérimentaux de la map
 
@@ -176,7 +182,7 @@ d'échec) ; aucune reprise en cas d'échec réseau définitif.
 2. **Temps de décision non fourni directement** : à recalculer (`started_at` vs 1er `t` de `player_path_log`, ou latences inter-pas dans `player_path_log`).
 3. ~~**Positions des pièges absentes** de l'export~~ **Levée le 25/08/26** : `map_config.cells[]` fournit désormais l'état de chaque cellule (pièges, murs, chemins compris). Reste vrai pour les lignes de builds antérieurs au commit `f7c8f3fc`.
 4. **Bugs verts du nuage non-choisi non loggés** : pas de mesure directe du contraste entre les deux options.
-5. **Colonnes nullables** (`valley_choice`, `advisor_forced_value`, `motor_forced_set`, `distal_advice_choice`, `distal_best_valley`, `distal_scan_choice`, `human_likeness_question` au POST) : peuvent être **vides**. Traiter le vide explicitement dans les scripts d'analyse.
+5. **Colonnes nullables** (`valley_choice`, `advisor_forced_value`, `motor_forced_set`, `proximal_forced_value`, `proximal_forced_was_optimal`, `distal_advice_choice`, `distal_best_valley`, `distal_scan_choice`, `human_likeness_question` au POST) : peuvent être **vides**. Traiter le vide explicitement dans les scripts d'analyse.
 6. **Reproductibilité / `trial_seed`** : vérifier (campagne, Axe 6) que le seed loggé régénère bien le trial — il peut refléter `randomizationSeed` de session plutôt que le seed per-trial.
 7. **Questions ouvertes impactant le sens** : Q-007 (modèle de perte de bugs), Q-010 (pattern de fiabilité), Q-011 (mapping des 3 dimensions du questionnaire). À trancher avant analyse définitive.
 

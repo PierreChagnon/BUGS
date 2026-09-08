@@ -39,6 +39,12 @@
 | `proximal_forced_optimal_probability` | float | [0,1] | block/flow.State | non | | |
 | `motor_forced_probability` | float | [0,1] | block/flow.State | non | | |
 | `motor_forced_set` | string | `QZD`/`FTH`/`JIL` ⚠️ (ex-`KOM`) | block/flow.State | **oui** | | |
+| `proximal_forced` | bool | true/false | `flow.State.proximal_choice_is_forced` (ApplyForcedChoiceState) | non | | ajouté le 08/09/26 |
+| `proximal_forced_value` | string | `left`/`right`/null | `flow.State.proximal_choice_forced_value` si forcé | **oui** | | ajouté le 08/09/26 |
+| `proximal_forced_was_optimal` | bool? | true/false/null | `flow.State.proximal_choice_forced_was_optimal` si forcé | **oui** | | ajouté le 08/09/26 |
+| `motor_forced` | bool | true/false | `flow.State.motor_choice_is_forced` (ApplyForcedChoiceState) | non | | ajouté le 08/09/26 |
+| `motor_advice_visible` | bool | true/false | `MotorAdviceController.AdviceVisible` (ApplyMotorAdviceState) | non | | ajouté le 08/09/26 |
+| `motor_advice_reliable` | bool | true/false | `MotorAdviceController.AdviceReliable` (ApplyMotorAdviceState) | non | | ajouté le 08/09/26 |
 
 ## Config map (paramètres expérimentaux)
 
