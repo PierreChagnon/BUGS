@@ -161,6 +161,7 @@ public class FlowController : MonoBehaviour
             motor_choice_forced_set = null,
             motor_choice_forced_probability = 0f,
             advisor_display_is_male = false,
+            advisor_display_order = null,
             distal_advice_visible = false,
             distal_advice_reliable = false,
             distal_advice_choice = null,
@@ -462,7 +463,11 @@ public class FlowController : MonoBehaviour
             return;
 
         if (next == GamePhase.AdvisorChoice)
+        {
             RollMetaForcedForCurrentBlock();
+            // Salt 7 : les salts 0 a 6 sont deja pris par les autres tirages de bloc.
+            State.advisor_display_order = BlockDrawResolver.DrawAdvisorDisplayOrder(CreateCurrentBlockRandom(7));
+        }
 
         if (next == GamePhase.DistalChoice)
             RollDistalAdviceForCurrentBlock();

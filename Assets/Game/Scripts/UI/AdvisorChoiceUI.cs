@@ -25,15 +25,14 @@ public class AdvisorChoiceUI : MonoBehaviour
         GameObject[] prefabs = { _nonePrefab, _humanPrefab, _robotPrefab };
         GameObject[] slots = { _slotLeft, _slotMiddle, _slotRight };
 
-        for (int i = prefabs.Length - 1; i > 0; i--)
-        {
-            int randomIndex = Random.Range(0, i + 1);
-            (prefabs[i], prefabs[randomIndex]) = (prefabs[randomIndex], prefabs[i]);
-        }
+        // Ordre tire de facon seedee par FlowController (salt 7, une fois par bloc).
+        // Sans FlowController (sandbox), ordre par defaut none/human/robot.
+        int[] order = FlowController.Instance?.State?.advisor_display_order;
 
-        for (int i = 0; i < prefabs.Length && i < slots.Length; i++)
+        for (int i = 0; i < slots.Length; i++)
         {
-            GameObject prefab = prefabs[i];
+            int prefabIndex = order != null && i < order.Length ? order[i] : i;
+            GameObject prefab = prefabIndex < prefabs.Length ? prefabs[prefabIndex] : null;
             GameObject slot = slots[i];
 
             if (prefab != null && slot != null)

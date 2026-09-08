@@ -472,6 +472,10 @@ public class PlayerSessionState
     // Genre du conseiller humain affiche par les badges advisor : tire une fois
     // par bloc (seede, salt 6) et consomme par toutes les UI via AdvisorBadgeUtility.
     public bool advisor_display_is_male;
+    // Ordre d'affichage des advisors dans AdvisorChoiceScene (index d'advisor
+    // par slot) : tire une fois par bloc (seede, salt 7). Local uniquement,
+    // jamais envoye a l'API.
+    public int[] advisor_display_order;
     public bool distal_advice_visible;
     public bool distal_advice_reliable;
     public string distal_advice_choice;

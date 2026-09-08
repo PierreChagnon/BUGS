@@ -258,10 +258,18 @@
 
 ---
 
+### DEC-029 — Ordre d'affichage des advisors seedé par bloc, non exporté
+- **Date :** 2026-09-08
+- **Tag :** [TECH] / [FONC]
+- **Décision :** L'ordre des trois options (none / human / robot) dans les slots de `AdvisorChoiceScene` est tiré une fois par bloc via le RNG de bloc (`BlockDrawResolver.DrawAdvisorDisplayOrder`, salt 7) et stocké dans `PlayerSessionState.advisor_display_order`. Il n'est **pas** ajouté aux données de trial envoyées à l'API (choix explicite de PC). Le genre du badge advisor (salt 6) reste inchangé, déjà seedé depuis DEC du 29/08.
+- **Raison :** Le mélange utilisait `UnityEngine.Random` non initialisé : seul aléa à valeur expérimentale hors du système de seeds du projet, donc non reproductible depuis la seed (constat N2-A, D-012).
+- **Impact :** `AdvisorChoiceUI` ne mélange plus localement ; sans `FlowController` (sandbox), ordre par défaut none/human/robot. L'ordre est recalculable hors ligne depuis la seed de bloc mais n'apparaît pas dans les exports.
+- **Statut :** ACTIF
+
 ## Index par tag
 
 - **[SCOPE]** : DEC-004, DEC-005, DEC-008, DEC-024
-- **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023, DEC-025, DEC-028
-- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022, DEC-026, DEC-027
+- **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023, DEC-025, DEC-028, DEC-029
+- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022, DEC-026, DEC-027, DEC-029
 - **[PLANNING]** : _(aucune pour l'instant)_
 - **[CLIENT]** : _(aucune pour l'instant)_

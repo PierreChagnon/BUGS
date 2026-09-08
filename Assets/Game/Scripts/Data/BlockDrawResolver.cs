@@ -37,6 +37,20 @@ public static class BlockDrawResolver
         return rng.NextDouble() < 0.5;
     }
 
+    // Salt 7 : ordre d'affichage des trois advisors (none, human, robot) dans
+    // les slots gauche/milieu/droite de AdvisorChoiceScene. Retourne, pour
+    // chaque slot, l'index de l'advisor à y instancier (permutation de 0..2).
+    public static int[] DrawAdvisorDisplayOrder(System.Random rng)
+    {
+        int[] order = { 0, 1, 2 };
+        for (int i = order.Length - 1; i > 0; i--)
+        {
+            int j = rng.Next(0, i + 1);
+            (order[i], order[j]) = (order[j], order[i]);
+        }
+        return order;
+    }
+
     // Salt 3 : forçage du choix distal.
     public static DistalForcedDraw DrawDistalForced(BlockConfig block, string bestValleySide, System.Random rng)
     {
