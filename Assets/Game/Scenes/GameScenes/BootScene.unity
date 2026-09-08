@@ -305,7 +305,6 @@ MonoBehaviour:
   supabaseAnonKey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zbHZtenFnaXp5aXF1dndqb291Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMDg3MzMsImV4cCI6MjA3NDg4NDczM30._jIlaU-PkhQZJdbO4ce5QvBgguBEV1aW66nhTHQHrR8
   _sessionConfigPath: api/sessions
   _trialResponsesPath: api/trial-responses
-  _participantNotesPath: api/participant-notes
   _maxImmediateRetries: 3
   _retryDelaySeconds: 1
 --- !u!114 &530388670

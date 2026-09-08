@@ -216,11 +216,19 @@
 - **Impact :** `DistalChoiceUI` : affichage inconditionnel, nouveau champ `_enteringExplanationBlockText` (TMP_Text, à câbler dans l'éditeur), méthode `UpdateExplanationBlockText()`. `ExplanationResolver` : `HasAnyEnabledExplanation()` supprimée (seul appelant), remplacée par `GetCommunicationQuality(BlockConfig)` → enum `CommunicationQuality {Perfect, Partial, None}`. Spec fonc `explanations-short-long` : nouveau §2.4 (règles R10–R13, dont R13 « display_mode maître »). Effet de bord : le panneau s'affiche désormais aussi en bloc tutoriel (l'ancienne condition l'y masquait) → Q-EXP-11 posée au chercheur. Aucune colonne `trial_responses` impactée.
 - **Statut :** ACTIF
 
+### DEC-024 — L'expérience est scindée en deux parties ; EndSessionScene devient un écran de passage de relais
+- **Date :** 2026-09-07
+- **Tag :** [SCOPE]
+- **Décision :** L'expérience se déroule en deux parties : la **partie 1** est le jeu Unity, la **partie 2** est un ensemble de questionnaires hébergés hors du jeu (~10 min), au terme desquels le participant reçoit son code de complétion. `EndSessionScene` n'est donc plus l'écran terminal de l'expérience mais un **écran de transition** : il remercie pour la partie 1 et renvoie vers la partie 2 via `platform_url`. Le recueil de commentaire libre in-game (`ParticipantNoteUI`) est **supprimé** — le `final_comments` du GDD est repris par les questionnaires de la partie 2. Le bouton vers la plateforme reste **toujours visible**, même si `platform_url` est vide.
+- **Raison :** Demande du chercheur (07/09/26). Le code de complétion ne peut être délivré qu'après les questionnaires ; les faire passer hors du jeu évite de rebâtir un moteur de questionnaire dans Unity (cf. D-010, `QuestionnaireScene` restée coquille vide). Le bouton reste visible parce que le nouveau texte dit explicitement « follow the link below » : le masquer sur config incomplète laisserait le participant dans une impasse sans recours.
+- **Impact :** Suppression de `Assets/Game/Scripts/UI/ParticipantNoteUI.cs`, de `ApiClient.SendParticipantNote` / `SendParticipantNoteCoroutine` / `ParticipantNotePayload` / `_participantNotesPath`, et de la ligne correspondante dans `BootScene.unity`. `PlatformUrlDisplay` perd son champ `_root` et ne masque plus rien ; un `platform_url` absent produit seulement un warning. `EndSessionScene` : suppression de `Container_Feeback`, `Confirmation` et du TMP `Platform URL` ; nouveaux textes `Title` / `Body` ; bouton relabellé « Go to Part 2 ». L'endpoint backend `POST api/participant-notes` reste en place mais n'est plus appelé → **D-015 sans objet**, table `participant_notes` gelée dans `dictionnaire-donnees.md`. Le nom technique `EndSessionScene` / `GamePhase.EndSession` est conservé (renommer toucherait `EditorBuildSettings` et `FlowController` sans bénéfice). Nouvelle dépendance opérationnelle : `platform_url` doit impérativement être renseigné dans le dashboard pour chaque session — sans lui, la partie 2 est inatteignable.
+- **Statut :** ACTIF
+
 ---
 
 ## Index par tag
 
-- **[SCOPE]** : DEC-004, DEC-005, DEC-008
+- **[SCOPE]** : DEC-004, DEC-005, DEC-008, DEC-024
 - **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023
 - **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022
 - **[PLANNING]** : _(aucune pour l'instant)_

@@ -134,21 +134,32 @@ Pour chaque advice `X` ∈ {`distal`, `motor`, `proximal`}, 5 colonnes `X_advice
 > Ajouté le 2026-07-28 (revue de couverture, constat N1-F / divergence D-015). Cette table
 > existait depuis le 16/06/2026 et n'était documentée nulle part.
 
-### Table `participant_notes`
+### Table `participant_notes` — ⚠️ GELÉE depuis le 2026-09-07 (DEC-024)
+
+> **Cette table n'est plus alimentée par le jeu.** La scission de l'expérience en deux parties
+> (DEC-024) a supprimé la boîte de commentaire de `EndSessionScene` ainsi que tout le code client
+> associé (`ParticipantNoteUI`, `ApiClient.SendParticipantNote`). L'endpoint
+> `POST api/participant-notes` existe toujours côté backend mais n'est plus appelé.
+>
+> **Le `final_comments` du document de référence client est désormais couvert par les
+> questionnaires de la partie 2**, hors Unity. Pour l'analyse, ne pas chercher ce champ dans les
+> données du jeu.
+>
+> Les lignes collectées **avant** le 2026-09-07 restent valides et exploitables — d'où le maintien
+> de la description ci-dessous.
 
 Commentaire libre saisi par le participant sur l'écran de fin de session
 (`ParticipantNoteUI`, EndSessionScene → `POST api/participant-notes`).
-C'est la réponse au champ `final_comments` du document de référence client.
 
 | Colonne | Type | Description |
 | :-- | :-- | :-- |
 | `participant_id` | string (UUID) | Jointure avec `trial_responses.participant_id`. |
 | `session_template_id` | string | Modèle de session. |
-| `note` | string | Texte libre, trimé. Une ligne n'est créée que si le participant saisit quelque chose et clique « Send ». |
+| `note` | string | Texte libre, trimé. Une ligne n'était créée que si le participant saisissait quelque chose et cliquait « Send ». |
 
-**Limites** : pas d'horodatage côté client ; l'envoi est optimiste (la confirmation s'affiche
-avant la réponse du serveur, avec restauration du formulaire en cas d'échec) ; aucune reprise
-en cas d'échec réseau définitif.
+**Limites (données historiques)** : pas d'horodatage côté client ; l'envoi était optimiste (la
+confirmation s'affichait avant la réponse du serveur, avec restauration du formulaire en cas
+d'échec) ; aucune reprise en cas d'échec réseau définitif.
 
 ---
 

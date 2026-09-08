@@ -60,8 +60,9 @@ E5 seeder et logger l'ordre des advisors.
 30 scripts sur 63 absents du TDD (13 absents de tout `Docs/`) · pénalité « mauvaise touche »
 appliquée mais jamais comptée (N2-E) · pénalité de dépassement du budget de pas absente du
 GDD (N2-F) · overlay « Equipment failure » non spécifié (N2-G) · deux conventions de départage
-contradictoires (N2-H) · endpoint `participant-notes` non documenté — mais qui **couvre en fait
-le `final_comments` du GDD** (N1-F/N2-J) · `CLAUDE.md` périmé sur le parsing CLI (N2-K) ·
+contradictoires (N2-H) · endpoint `participant-notes` non documenté (N1-F/N2-J) — **clos le
+07/09/26 : DEC-024 supprime le recueil in-game, le `final_comments` passe en partie 2** ·
+`CLAUDE.md` périmé sur le parsing CLI (N2-K) ·
 résidus « −2 » dans `TDD.md:818,850` (N2-L) · inventaire des packages incomplet (N2-M) ·
 `readme.md` racine périmé (N2-N).
 
@@ -118,7 +119,7 @@ résidus « −2 » dans `TDD.md:818,850` (N2-L) · inventaire des packages inco
 | DistalChoiceScene + DistalChoiceUI + DistalValleyScanView | ✅ Implémentées — Communication Report toujours affiché, texte dynamique 3 cas × advisor (DEC-023, 27/08/26) |
 | ProximalScene (forest screen) + RoundUI + TrialQuestionsUI | ✅ Implémentée — c'est **ici** que les 3 dimensions sont réellement collectées |
 | QuestionnaireScene + QuestionnaireUI (DEC-008) | 🔴 **Coquille vide** — s'auto-enchaîne avec zéro réponse, cf. E1 |
-| EndSessionScene + ParticipantNoteUI + PlatformUrlDisplay | ✅ Implémentée |
+| EndSessionScene + PlatformUrlDisplay | ✅ Implémentée — **écran de transition vers la partie 2** (DEC-024, 07/09/26), plus l'écran terminal. Le recueil de commentaire libre a été retiré ; le bouton vers `platform_url` est toujours visible. ⚠️ `platform_url` doit être renseigné dans le dashboard, sinon la partie 2 est inatteignable |
 | BreakScene + countdown et reprise verrouillée | ✅ Scène créée, bindée et dans le build |
 
 #### 🔴 Écrans incomplets — détail
