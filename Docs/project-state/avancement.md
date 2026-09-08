@@ -200,7 +200,7 @@ résidus « −2 » dans `TDD.md:818,850` (N2-L) · inventaire des packages inco
 | **Q-RANDOM-1** | Ordre des advisors et apparence de l'advisor humain : à contrôler ? | Biais de position sur le méta-choix (H1) | 🔴 **Nouveau 28/07/26** (N2-A) |
 | **Q-ROW-1** | 1 ligne par écran vs 1 ligne par trial : acter la divergence | Interprétation de tout export | 🟠 **Nouveau 28/07/26** |
 | **Q-TRUST-1** | Trust in Technology dans le jeu ou via Qualtrics (DEC-005) ? | H7 ; conditionne Q-QUEST-1 | 🔴 **Nouveau 28/07/26** (N1-D) |
-| **Q-FREQ-1** | Fréquence des questions trial-wise + échelle 5 vs 7 points | Charge participant, comparabilité | 🟠 **Nouveau 28/07/26** |
+| **Q-FREQ-1** | Fréquence des questions trial-wise (volet échelle ✅ tranché par DEC-025 : 7 points) | Charge participant | 🟠 **Nouveau 28/07/26** — partiellement résolue 08/09/26 |
 | **Q-HL-1** | `human_likeness` sur toutes les lignes ou la dernière ? | Sémantique de la colonne | 🟠 **Nouveau 28/07/26** (N2-B) |
 | Q-003 | Motor advice avec explanation ? | — | ✅ RÉSOLUE par DEC-017 |
 | Q-004 | Format d'affichage du set de touches | UI + compréhension participant | 🟡 Bloque polish UI |

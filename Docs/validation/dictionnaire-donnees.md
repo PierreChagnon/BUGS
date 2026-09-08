@@ -121,9 +121,9 @@ Pour chaque advice `X` ∈ {`distal`, `motor`, `proximal`}, 5 colonnes `X_advice
 
 | Colonne | Type | Domaine | Description |
 | :-- | :-- | :-- | :-- |
-| `acceptability_question` | string | `1`…`5` | Réponse dimension « acceptabilité ». Échelle Likert à **5 points** (1 = pas du tout d'accord → 5 = tout à fait d'accord). **Vide quand `advisor_choice = none`** : la question n'est délibérément pas posée (`TrialQuestionsUI.cs:91`). (mapping et textes à confirmer — Q-011 ; valeur attendue sans advisor — Q-DATA-1) |
-| `sens_of_agency_question` | string | `1`…`5` | Réponse dimension « sense of agency ». Même échelle. (Q-011) |
-| `human_likeness_question` | string | `1`…`5` | Réponse dimension « human-likeness ». Posée **une seule fois par bloc** (au dernier trial), puis renseignée via PATCH. ⚠️ **La réponse est recopiée sur TOUTES les lignes du bloc**, pas seulement la dernière (`ApiClient.cs:150-186`) — cf. §Limites n°8. (Q-011, Q-HL-1) |
+| `acceptability_question` | string | `1`…`7` | Réponse dimension « acceptabilité ». Échelle Likert à **7 points** depuis DEC-025 (1 = *Strongly disagree*, 2 = *Disagree*, 3 = *Somewhat disagree*, 4 = *Neutral*, 5 = *Somewhat agree*, 6 = *Agree*, 7 = *Strongly agree*). ⚠️ **Les lignes produites avant le 08/09/26 sont sur une échelle à 5 points** : ne pas mélanger les deux dans une même analyse. **Vide quand `advisor_choice = none`** : la question n'est délibérément pas posée (`TrialQuestionsUI.cs:91`). (mapping et textes à confirmer — Q-011 ; valeur attendue sans advisor — Q-DATA-1) |
+| `sens_of_agency_question` | string | `1`…`7` | Réponse dimension « sense of agency ». Même échelle. (Q-011) |
+| `human_likeness_question` | string | `1`…`7` | Réponse dimension « human-likeness ». Posée **une seule fois par bloc** (au dernier trial), puis renseignée via PATCH. ⚠️ **La réponse est recopiée sur TOUTES les lignes du bloc**, pas seulement la dernière (`ApiClient.cs:150-186`) — cf. §Limites n°8. (Q-011, Q-HL-1) |
 | `started_at` | string | ISO 8601 UTC | Début du trial. |
 | `ended_at` | string | ISO 8601 UTC | Fin du trial. |
 

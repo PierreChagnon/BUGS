@@ -224,12 +224,20 @@
 - **Impact :** Suppression de `Assets/Game/Scripts/UI/ParticipantNoteUI.cs`, de `ApiClient.SendParticipantNote` / `SendParticipantNoteCoroutine` / `ParticipantNotePayload` / `_participantNotesPath`, et de la ligne correspondante dans `BootScene.unity`. `PlatformUrlDisplay` perd son champ `_root` et ne masque plus rien ; un `platform_url` absent produit seulement un warning. `EndSessionScene` : suppression de `Container_Feeback`, `Confirmation` et du TMP `Platform URL` ; nouveaux textes `Title` / `Body` ; bouton relabellé « Go to Part 2 ». L'endpoint backend `POST api/participant-notes` reste en place mais n'est plus appelé → **D-015 sans objet**, table `participant_notes` gelée dans `dictionnaire-donnees.md`. Le nom technique `EndSessionScene` / `GamePhase.EndSession` est conservé (renommer toucherait `EditorBuildSettings` et `FlowController` sans bénéfice). Nouvelle dépendance opérationnelle : `platform_url` doit impérativement être renseigné dans le dashboard pour chaque session — sans lui, la partie 2 est inatteignable.
 - **Statut :** ACTIF
 
+### DEC-025 — Questions de fin de trial : échelle de Likert à 7 points
+- **Date :** 2026-09-08
+- **Tag :** [FONC]
+- **Décision :** Les trois questions de fin de trial (acceptabilité, sense of agency, human-likeness) passent d'une échelle de Likert à **5 points** à une échelle à **7 points**, libellés `Strongly disagree` / `Disagree` / `Somewhat disagree` / `Neutral` / `Somewhat agree` / `Agree` / `Strongly agree`. Les extrêmes existants sont conservés ; deux niveaux intermédiaires sont insérés en positions 3 et 5.
+- **Raison :** Tranche le volet « échelle » de **Q-FREQ-1** (ouverte depuis le 28/07/26). Sept points est la granularité usuelle en littérature pour les mesures d'agentivité et d'acceptabilité, et offre plus de variance qu'une échelle à 5 sans alourdir la passation. Le volet « fréquence » de Q-FREQ-1 reste ouvert.
+- **Impact :** `QuestionPanel.prefab` : `AnswerRow` passe de 5 à 7 instances `Radio_Cyan`, renommées `Radio_1`…`Radio_7` (l'ordre visuel devient la source de vérité du câblage) ; largeurs `QuestionBox` 1300 → 1760, `AnswerRow` 1200 → 1660, texte de question 1000 → 1460, `ProgressText.x` 518 → 748. `ProximalScene.unity` : `TrialQuestionsUI._choiceToggles` recâblé à 7 références. **Aucun changement de code** — `response` est un `string` et vaut `(index + 1)`, donc `1`…`7` passe tel quel jusqu'à l'API. ⚠️ **Rupture de comparabilité des données** : les lignes produites avant cette date sont sur 5 points, `dictionnaire-donnees.md` porte l'avertissement. À vérifier hors dépôt : que le dashboard ne valide pas `response` sur un intervalle 1-5.
+- **Statut :** ACTIF
+
 ---
 
 ## Index par tag
 
 - **[SCOPE]** : DEC-004, DEC-005, DEC-008, DEC-024
-- **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023
+- **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023, DEC-025
 - **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022
 - **[PLANNING]** : _(aucune pour l'instant)_
 - **[CLIENT]** : _(aucune pour l'instant)_

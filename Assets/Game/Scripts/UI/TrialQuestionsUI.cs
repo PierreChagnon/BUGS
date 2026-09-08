@@ -29,7 +29,7 @@ public class TrialQuestionsUI : MonoBehaviour
     [SerializeField] private GameObject _panel;
     [SerializeField] private TMP_Text _questionText;
     [SerializeField] private TMP_Text _progressText;
-    [SerializeField] private Toggle[] _choiceToggles; // 5 toggles : strongly disagree → strongly agree
+    [SerializeField] private Toggle[] _choiceToggles; // 7 toggles : strongly disagree → strongly agree
     [SerializeField] private Button _confirmButton;
     [SerializeField] private RoundUI _roundUI;
 
@@ -134,7 +134,7 @@ public class TrialQuestionsUI : MonoBehaviour
             order = _currentIndex + 1,
             question_key = _questions[_currentIndex].key,
             question_text = _questions[_currentIndex].text,
-            response = (selected + 1).ToString() // 1=strongly disagree … 5=strongly agree
+            response = (selected + 1).ToString() // 1=strongly disagree … 7=strongly agree
         });
 
         _currentIndex++;

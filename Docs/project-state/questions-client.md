@@ -663,8 +663,9 @@
   - B : **Sur un sous-ensemble d'essais, réglable par bloc** → impact : développement modéré (un paramètre + un tirage) ; réduit la charge et rapproche du document de référence
   - C : **Une fois par bloc uniquement** → impact : beaucoup moins de données par participant
 - **Options (échelle) :** 5 niveaux (statu quo) · 7 niveaux · autre — merci de préciser aussi les **libellés** attendus (cf. Q-011).
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** PARTIELLEMENT RÉPONDU — volet **échelle** tranché le 08/09/26 (cf. DEC-025) ; volet **fréquence** toujours EN ATTENTE.
+- **Réponse (échelle, 08/09/26) :** **7 niveaux**, libellés `Strongly disagree` / `Disagree` / `Somewhat disagree` / `Neutral` / `Somewhat agree` / `Agree` / `Strongly agree`. Implémenté dans `QuestionPanel.prefab` ; valeurs envoyées `1`…`7`.
+- **Réponse (fréquence) :** —
 
 ### Q-RANDOM-1 — L'ordre des advisors et l'apparence de l'advisor humain doivent-ils être contrôlés ?
 - **Posée le :** 2026-07-28
