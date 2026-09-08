@@ -519,7 +519,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 1960222442}
   m_Direction: 2
   m_Value: 1
-  m_Size: 0.4943341
+  m_Size: 0.48197806
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -1960,17 +1960,20 @@ MonoBehaviour:
 
 
     You
-    are invited to play the game on this website. The game generates data for scientific
-    research, so you must provide your <b>informed consent</b> before participating.
+    are invited to participate in this <b>two-part experiment</b>. <b>Part 1</b>
+    is to play the game on this website. The game generates data for scientific research,
+    so you must provide your <b>informed consent</b> before participating.
 
 
     All
     data generated through the game will be <b>anonymized</b>. Your privacy will
     be protected in all published and unpublished reports resulting from this research.
 
-
     There
     are <b>no known risks</b> associated with playing the game.
+
+    <b>Part 2</b>
+    takes place after the game. In part 2, you will answer a few <b>questionnaires</b>.
 
 
     Participation
@@ -1984,7 +1987,6 @@ MonoBehaviour:
     selecting <b><color=#00E4FF>"Accept"</color></b>, you confirm that you have read
     and understood this consent information and agree to participate under the conditions
     described above.
-
 
     If you have any questions or concerns about your participation,
     please contact the <b>IJN.Agency</b> research group at <color=#00E4FF><u>Agency.IJN@gmail.com</u></color>.'
