@@ -323,10 +323,18 @@
 - **Impact :** F7 clos (revues du 28/07 et 08/09). Le seul retour visible d'un échec de boot reste la barre de chargement figée (`BootLoadingBar`) — assumé. Les scènes isolées se testent via les sandboxes existantes (fallbacks locaux type ordre advisor par défaut) plutôt que par un mode offline dédié.
 - **Statut :** ACTIF
 
+### DEC-037 — Pattern de fiabilité des advisors : probabiliste, configuré par le chercheur (résout Q-010)
+- **Date :** 2026-09-09 *(enregistre un modèle déjà implémenté et arbitré avec les chercheurs)*
+- **Tag :** [FONC] / [CLIENT]
+- **Décision :** La fiabilité de l'advice n'est pas un pattern déterministe : c'est une **probabilité configurée par le chercheur à la création de la tâche**, par bloc (distal) et par vallée (proximal, motor) — `distal_advice_reliable_probability`, `proximal_advice_reliable_probability`, `motor_advice_reliable_probability` ∈ [0,1], saisies dans le dashboard et validées par le schéma Zod du backend (`backend-bugs/lib/schemas/admin.js`, `probabilitySchema`). Le runtime tire la fiabilité de façon **seedée** : une fois par bloc pour le distal (le choix de vallée est block-wise), à chaque trial pour le proximal et le motor. Les valeurs **réalisées** sont exportées (`distal_advice_reliable`, `proximal_advice_reliable`, `motor_advice_reliable`).
+- **Raison :** Résout **Q-010** (ouverte depuis le 12/05/26 — la section « Reliability Manipulations » du GDD était vide) : c'est l'option A de la question (random paramétrable), retenue par les chercheurs via le modèle de configuration du dashboard. Le mécanisme est documenté côté backend (`backend-bugs/docs/dashboard-configuration.md`), y compris les règles de subordination : sur un trial/bloc **forced**, la probabilité de fiabilité est **court-circuitée** — l'advice suit le choix imposé (« advisor follows forced », DEC-019 Note 1) et la fiabilité enregistrée reflète l'optimalité du côté imposé.
+- **Impact :** Q-010 fermée — le dernier arbitrage scientifique « hors donnée » de la revue de livraison. La manipulation est pilotable (probabilités), reproductible (tirages seedés) et mesurée (réalisés exportés). Le GDD n'est pas modifié : la spécification vit dans le dashboard doc + cette décision. La ligne « Frequency/pattern d'apparition de l'advice » de l'analyse de gap est couverte par le même modèle (`*_visible_probability`, mêmes niveaux de config).
+- **Statut :** ACTIF
+
 ## Index par tag
 
 - **[SCOPE]** : DEC-004, DEC-005, DEC-008, DEC-024, DEC-031, DEC-033, DEC-034, DEC-036
-- **[FONC]** : DEC-001, DEC-003 *(annulée)*, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023, DEC-025, DEC-028, DEC-029, DEC-031, DEC-032, DEC-033, DEC-034, DEC-035
+- **[FONC]** : DEC-001, DEC-003 *(annulée)*, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023, DEC-025, DEC-028, DEC-029, DEC-031, DEC-032, DEC-033, DEC-034, DEC-035, DEC-037
 - **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022, DEC-026, DEC-027, DEC-029, DEC-030, DEC-036
 - **[PLANNING]** : _(aucune pour l'instant)_
-- **[CLIENT]** : _(aucune pour l'instant)_
+- **[CLIENT]** : DEC-037

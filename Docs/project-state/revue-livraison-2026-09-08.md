@@ -45,8 +45,10 @@ maintenue en continu (DEC-023 à DEC-025, dictionnaire et matrice à jour).
    bloquée après échec des retries.
 3. **Les textes des 4 questions trial-wise sont toujours « (a definir) »** et le pattern de
    fiabilité des advisors (Q-010) reste non spécifié — arbitrages chercheur.
-   *(MàJ 09/09 : constat textes **levé** — les 4 textes réels sont posés dans `ProximalScene.unity`
-   (DEC-035, dernier libellé via `746a4406`) ; F6 clos. Reste Q-010 seule sur ce point.)*
+   *(MàJ 09/09 : point **entièrement levé** — les 4 textes réels sont posés dans `ProximalScene.unity`
+   (DEC-035, dernier libellé via `746a4406`, F6 clos), et Q-010 est **résolue par DEC-037** : le
+   pattern de fiabilité est probabiliste, configuré par le chercheur au niveau tâche —
+   `*_advice_reliable_probability`, dashboard + Zod, tirages seedés, réalisés exportés.)*
 4. **La campagne de validation n'a jamais démarré** : gates G0–G5 tous ⬜, et le contrat de
    colonnes côté Supabase (D-003) n'est toujours pas vérifié — aggravé par la rupture
    d'échelle 5→7 points et le passage à 2 colonnes d'acceptabilité.
@@ -164,7 +166,8 @@ api/trial-responses/{id}` · `GET` images publiques. (`api/participant-notes` su
 
 1. **Arbitrages chercheur** (rien de neuf ne peut se passer sans eux) :
    ~~textes réels des 4 questions~~ *(MàJ 09/09 : réglé — les 4 textes sont en scène, DEC-035 +
-   `746a4406`, F6 clos)* · pattern de fiabilité des advisors (Q-010) ·
+   `746a4406`, F6 clos)* · ~~pattern de fiabilité des advisors (Q-010)~~ *(MàJ 09/09 : résolu —
+   DEC-037, probabiliste configuré chercheur)* ·
    sign-off du « null assumé » pour l'acceptabilité sans advisor (Q-DATA-1, tranché en code
    le 26/08) · acter le retrait de `final_comments` (DEC-024) et la rupture d'échelle 5→7 ·
    noms/formats des colonnes motor (Q-MOTOR-1).

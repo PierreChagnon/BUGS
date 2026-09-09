@@ -259,8 +259,8 @@
   - A : **Random uniforme** : reliability tiré à chaque trial selon une probabilité paramétrable → impact : implémentation simple, paramètre unique par bloc
   - B : **Pattern déterministe** : séquence pré-calculée par bloc (ex : 6 trials fiables / 6 non fiables alternés) → impact : reproductibilité parfaite, contrôle expérimental fin
   - C : **Mixte** : random au sein de quotas (ex : 70% fiable garantis sur 36 trials) → impact : compromis, plus représentatif d'un advisor "globalement fiable"
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU *(2026-09-09 — DEC-037)*
+- **Réponse :** **Option A** — le pattern est **probabiliste, déterminé à la configuration de la tâche par le chercheur** : `distal/proximal/motor_advice_reliable_probability` ∈ [0,1], saisies dans le dashboard (validation Zod, `backend-bugs/lib/schemas/admin.js`), tirées de façon seedée par le runtime (1×/bloc pour le distal, par trial pour proximal/motor) et exportées en réalisé (`*_advice_reliable`). Sur les trials/blocs forced, la probabilité est court-circuitée (« advisor follows forced », DEC-019 Note 1). Mécanisme documenté dans `backend-bugs/docs/dashboard-configuration.md`. La visibilité de l'advice (« provided periodically ») suit le même modèle via `*_visible_probability`.
 
 ### Q-011 — Mapping QuestionnaireUI aux 3 dimensions GDD
 - **Posée le :** 2026-05-12 · **MàJ 2026-09-08** : il y a désormais **4 questions** par trial — 2 d'acceptabilité (sliders 1-7, DEC-028), 1 d'agentivité et 1 de ressemblance humaine (7 boutons radio, DEC-025). Les 4 textes sont toujours des placeholders « (a definir) » (`TrialQuestionsUI.cs:29-32`). La question porte donc sur le mapping ET les textes réels des **4** questions.
