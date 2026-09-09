@@ -526,7 +526,7 @@
   - A : Retirer QuestionnaireScene du flow et du build → impact : ~110 lignes de code mort et une scène supprimées ; **le plus économique**
   - B : La câbler → impact : **extension du modèle de données** (`BlockConfig.questions`) **+ du contrat de PATCH** + saisie côté panneau de configuration. Dépend de Q-011 (quelles questions, quels textes) et de **Q-TRUST-1** (est-ce là que doit passer le questionnaire Trust in Technology ?)
 - **Statut :** RÉPONDU *(2026-09-09 — DEC-038)*
-- **Réponse :** **Option A — retrait.** Q-TRUST-1 étant tranchée (Trust in Technology en partie 2), plus rien ne justifiait la scène. ⏳ **Le travail de retrait est en cours côté PC** — vérification à son prochain commit (scène hors du build, `QuestionnaireUI`/`QuestionConfig`/code mort supprimés). E1/N1-D passeront à ✅ à cette livraison.
+- **Réponse :** **Option A — retrait.** Q-TRUST-1 étant tranchée (Trust in Technology en partie 2), plus rien ne justifiait la scène. ✅ **Retrait livré et vérifié le 09/09 au soir** (commits PC `b6fb5258`/`13bd070f`) : scène supprimée + hors du build, `QuestionnaireUI`/`QuestionConfig`/`GamePhase.Questionnaire`/`OnQuestionnaireComplete` nettoyés. E1/N1-D clos.
 
 ### Q-FF-12 — Articulation `distal_forced_optimal_probability` vs `distal_advice_reliability`
 - **Posée le :** 2026-05-26 (reportée ici le 2026-07-28 — elle n'existait que dans `specs/free-forced-choices/spec-fonc.md`)
