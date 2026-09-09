@@ -4023,7 +4023,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TrialQuestionsUI
   _acceptabilityQuestion1: How helpful did you find your advisor?
-  _acceptabilityQuestion2: Question d'acceptabilite 2 (a definir)
+  _acceptabilityQuestion2: How satisfied were you with your advisor?
   _senseOfAgencyQuestion: How much control did you feel you had over the outcome
     of the mission?
   _humanLikenessQuestion: How human-like did you find your advisor?
