@@ -117,28 +117,6 @@ public class ApiClient : MonoBehaviour
         RetryPendingTrialUploads();
     }
 
-    public void QueueQuestionnairePatchForTrial(
-        string participantId,
-        int blockIndex,
-        int trialIndex,
-        IReadOnlyList<QuestionResponse> responses,
-        Action onSuccess,
-        Action<string> onError)
-    {
-        var tempRow = new TrialResponseRow();
-        FlowSerializationUtility.ApplyQuestionnaireResponses(tempRow, responses);
-
-        var payload = new QuestionnairePatchPayload
-        {
-            human_likeness_question = tempRow.human_likeness_question
-        };
-
-        if (string.IsNullOrWhiteSpace(payload.human_likeness_question))
-            return;
-
-        QueueQuestionnairePatchPayloadForTrial(participantId, blockIndex, trialIndex, payload, onSuccess, onError);
-    }
-
     public void QueueHumanLikenessPatchForBlock(
         string participantId,
         int blockIndex,

@@ -18,7 +18,6 @@ public class FlowController : MonoBehaviour
     [SerializeField] private string _advisorChoiceSceneName = "AdvisorChoiceScene";
     [SerializeField] private string _distalChoiceSceneName = "DistalChoiceScene";
     [SerializeField] private string _proximalSceneName = "ProximalScene";
-    [SerializeField] private string _questionnaireSceneName = "QuestionnaireScene";
     [SerializeField] private string _breakSceneName = "BreakScene";
     [SerializeField] private string _endSessionSceneName = "EndSessionScene";
 
@@ -295,28 +294,6 @@ public class FlowController : MonoBehaviour
         CurrentTrialSeed = SeedUtility.DeriveTrialSeed(CurrentBlockSeed, State.current_trial_index);
         Debug.Log($"[FlowController] blockSeed={CurrentBlockSeed}, trialIndex={State.current_trial_index + 1}, trialSeed={CurrentTrialSeed}");
         AdvanceToPhase(GamePhase.Proximal);
-    }
-
-    public void OnQuestionnaireComplete(List<QuestionResponse> responses)
-    {
-        if (State == null || State.current_phase != GamePhase.Questionnaire || CurrentBlock == null)
-            return;
-
-        if (!CurrentBlock.is_tutorial && ApiClient.Instance != null)
-        {
-            int blockIndex = State.current_block_index + 1;
-            int lastTrialIndex = Mathf.Max(1, CurrentBlock.trial_count);
-
-            ApiClient.Instance.QueueQuestionnairePatchForTrial(
-                State.participant_id,
-                blockIndex,
-                lastTrialIndex,
-                responses,
-                () => Debug.Log($"[FlowController] Questionnaire bloque {blockIndex} patche."),
-                error => Debug.LogWarning($"[FlowController] Questionnaire non patche tout de suite: {error}"));
-        }
-
-        AdvanceToNextBlockOrEnd();
     }
 
     public void OnBreakComplete()
@@ -930,7 +907,6 @@ public class FlowController : MonoBehaviour
             GamePhase.AdvisorChoice => _advisorChoiceSceneName,
             GamePhase.DistalChoice => _distalChoiceSceneName,
             GamePhase.Proximal => _proximalSceneName,
-            GamePhase.Questionnaire => _questionnaireSceneName,
             GamePhase.Break => _breakSceneName,
             GamePhase.EndSession => _endSessionSceneName,
             _ => _bootSceneName

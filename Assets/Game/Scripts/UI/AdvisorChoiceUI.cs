@@ -4,8 +4,6 @@ using UnityEngine.UI;
 
 public class AdvisorChoiceUI : MonoBehaviour
 {
-    [SerializeField] private TMP_Text _titleText;
-    [SerializeField] private TMP_Text _subtitleText;
     [SerializeField] private TMP_Text[] _optionLabels;
     [SerializeField]
     private GameObject _slotLeft
@@ -47,12 +45,6 @@ public class AdvisorChoiceUI : MonoBehaviour
         var flow = FlowController.Instance;
         if (flow == null || flow.CurrentBlock == null)
             return;
-
-        if (_titleText != null)
-            _titleText.text = "Choix d'advisor";
-
-        if (_subtitleText != null)
-            _subtitleText.text = "Ce choix est enregistre mais n'affecte pas encore la generation de la map.";
 
         if (_optionLabels == null)
             return;

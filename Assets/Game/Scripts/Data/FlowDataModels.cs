@@ -406,34 +406,6 @@ public class ExplanationText
 }
 
 [Serializable]
-public class QuestionConfig
-{
-    public int order;
-    public string text;
-    public string type;
-    public string[] options = Array.Empty<string>();
-    public int min_value = 1;
-    public int max_value = 7;
-    public string min_label;
-    public string max_label;
-
-    public QuestionConfig DeepClone()
-    {
-        return new QuestionConfig
-        {
-            order = order,
-            text = text,
-            type = type,
-            options = FlowCloneUtility.CloneArray(options),
-            min_value = min_value,
-            max_value = max_value,
-            min_label = min_label,
-            max_label = max_label
-        };
-    }
-}
-
-[Serializable]
 public class QuestionResponse
 {
     public int order;

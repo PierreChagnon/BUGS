@@ -36,9 +36,6 @@ EditorBuildSettings:
     path: Assets/Game/Scenes/GameScenes/ProximalScene.unity
     guid: 088cc697484ebfe4fbc9656247731b62
   - enabled: 1
-    path: Assets/Game/Scenes/GameScenes/QuestionnaireScene.unity
-    guid: a83307c5ce5a5384487d3999b5a60c80
-  - enabled: 1
     path: Assets/Game/Scenes/GameScenes/EndSessionScene.unity
     guid: 78f7ffdda9f2b42409ad48c01e77a694
   - enabled: 1
