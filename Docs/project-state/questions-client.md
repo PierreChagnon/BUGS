@@ -223,8 +223,8 @@
   - A : **Valider en l'état** → impact : aucun changement de code ; on ferme Q-007 et on corrige le TDD, qui décrit encore à tort une pénalité de -2 (18 occurrences)
   - B : **Valider la pénalité de piège mais revoir les deux autres** (budget de pas, touche invalide) → impact : à cadrer, ces deux mécaniques ne figurent pas au GDD
   - C : **Autre modèle** à préciser → impact : à définir
-- **Statut :** EN ATTENTE — le code tranche déjà côté GDD, seul le sign-off manque
-- **Réponse :** —
+- **Statut :** RÉPONDU *(2026-09-09 — DEC-039, validation chercheur antérieure actée rétroactivement)*
+- **Réponse :** **Option A — validé en l'état**, y compris les deux pénalités additionnelles (budget de pas, touche invalide) actées comme ajouts de design. −1 bug vert par nuage par événement, jamais de rouge, jamais sous zéro. Le TDD décrit déjà le bon modèle (corrigé le 28/07). Résidu indépendant côté données : le compteur de touches invalides n'est pas exporté (N2-E, Lot E4).
 
 ### Q-008 — Nombre de paths visibles dans la forêt (2 vs 4)
 - **Posée le :** 2026-05-12
@@ -426,8 +426,8 @@
   - A : **Afficher comme un bloc normal** (comportement actuel) → simple, mais le texte peut annoncer des explanations qui n'apparaîtront jamais en tutoriel
   - B : **Masquer en tutoriel** → retour partiel à l'ancienne condition ; un cas particulier de plus
   - C : **Texte dédié tutoriel** → contenu à fournir par le chercheur
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU *(2026-09-09 — DEC-044)*
+- **Réponse :** **Option A — statu quo.** Le report est conditionné par la **configuration** de la tâche (probas d'advice, `display_mode`/`display_probability` des explanations) et par le choix d'advisor — il dit donc vrai dès lors que le bloc tutoriel est **configuré sans explanations** (`display_mode = none`), consigne opérationnelle dashboard actée dans DEC-044. (Nuance technique : la suppression runtime `is_tutorial` d'`ExplanationResolver.Resolve` n'est pas consultée par `GetCommunicationQuality` — c'est la config qui doit être cohérente.)
 
 ### Q-ICT-1 — In-context tutorial : origine de la donnée réelle (titre/texte par scène) ?
 - **Posée le :** 2026-05-29
@@ -565,8 +565,8 @@
   - B : **Une valeur « non applicable » explicite** (ex. `"n/a"`) → impact : petit correctif, distingue « non applicable » d'un abandon en cours de questionnaire
   - C : **Poser quand même la question sans advisor** (reformulée) → impact : change le protocole, à cadrer côté chercheur
 - **Note (résidu du Lot A1) :** le cas d'un participant qui abandonne réellement en cours de questionnaire jette encore la ligne (`sens_of_agency_question` vide → envoi annulé, `TrialManager.cs:145-147`). À corriger indépendamment de l'option retenue.
-- **Statut :** EN ATTENTE DE SIGN-OFF — option A implémentée de facto
-- **Réponse :** —
+- **Statut :** RÉPONDU *(2026-09-09 — DEC-040)*
+- **Réponse :** **Option B — valeur explicite `"NA"`.** On veut quelque chose de plus explicite que le `null` : quand les questions d'acceptabilité ne sont pas posées (cas `advisor = none`, défini dans le fonctionnement des questions), les colonnes `acceptability_question_1`/`_2` doivent valoir **`"NA"`** (non applicable). `null` reste réservé à « jamais mesuré » (abandon, ligne antérieure au champ). ⏳ **Action code à planifier** : remplacer le `null`/omission actuel par `"NA"` dans la sérialisation (`FlowSerializationUtility`/`TrialManager`) — les colonnes sont textuelles, `"NA"` passe tel quel ; prévenir l'analyse que la colonne devient trivaluée (`1..7` / `NA` / vide).
 
 ### Q-TIE-1 — Quand les deux nuages finissent à égalité, quel choix est « correct » ?
 - **Posée le :** 2026-07-28
@@ -635,8 +635,8 @@
   - A : **Oui, statu quo** → impact : aucun développement ; on ajoute au codebook un avertissement explicite et la liste des colonnes concernées
   - B : **Ajouter deux colonnes de repérage** (`screen_type`, `screen_id`) sans changer la granularité → impact : petit développement, facilite le filtrage côté analyse
   - C : **Revenir à une ligne par écran** → impact : refonte du modèle de données et de l'export ; remet en cause DEC-011
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU *(2026-09-09 — DEC-043)*
+- **Réponse :** **Option B** — granularité « 1 ligne = 1 trial » confirmée (DEC-011), **plus deux colonnes de repérage `screen_type`/`screen_id`** pour le filtrage côté analyse (ferme les colonnes client 4-5 à la livraison). ⏳ Action code à planifier : +2 champs `TrialResponseRow` (→ 95), migration Supabase, sémantique exacte des valeurs à spécifier au ticket.
 
 ### Q-TRUST-1 — Le questionnaire « Trust in Technology » est-il dans le jeu ou en dehors ?
 - **Posée le :** 2026-07-28
@@ -663,9 +663,9 @@
   - B : **Sur un sous-ensemble d'essais, réglable par bloc** → impact : développement modéré (un paramètre + un tirage) ; réduit la charge et rapproche du document de référence
   - C : **Une fois par bloc uniquement** → impact : beaucoup moins de données par participant
 - **Options (échelle) :** 5 niveaux (statu quo) · 7 niveaux · autre — merci de préciser aussi les **libellés** attendus (cf. Q-011).
-- **Statut :** PARTIELLEMENT RÉPONDU — volet **échelle** tranché le 08/09/26 (cf. DEC-025) ; volet **fréquence** toujours EN ATTENTE.
+- **Statut :** RÉPONDU — volet **échelle** tranché le 08/09/26 (DEC-025) ; volet **fréquence** tranché le 09/09/26 (**DEC-041**, sign-off mail de Mark).
 - **Réponse (échelle, 08/09/26) :** **7 niveaux**, libellés `Strongly disagree` / `Disagree` / `Somewhat disagree` / `Neutral` / `Somewhat agree` / `Agree` / `Strongly agree`. Implémenté dans `QuestionPanel.prefab` ; valeurs envoyées `1`…`7`.
-- **Réponse (fréquence) :** —
+- **Réponse (fréquence, 09/09/26) :** **Statu quo validé par Mark** (recap approuvé par mail, DEC-041) : acceptabilité ×2 à **chaque trial** (blocs avec advisor uniquement, même sans advice au trial), agentivité à **chaque trial**, human-likeness **1×/bloc au dernier trial (blocs avec advisor)**. La charge ~108 interruptions/bloc est acceptée ; aucun paramètre de fréquence à développer. ⚠️ Écart de conformité relevé à cette occasion : human-likeness posée aussi dans les blocs sans advisor — divergence **D-017**, correctif à planifier.
 
 ### Q-RANDOM-1 — L'ordre des advisors et l'apparence de l'advisor humain doivent-ils être contrôlés ?
 - **Posée le :** 2026-07-28
@@ -683,7 +683,7 @@
   - A : **Un seul genre pour tout le projet** → impact : le plus simple, supprime la variable
   - B : **Tiré une fois par participant, cohérent partout** → impact : permet de contrôler la variable dans l'analyse ; suppose de l'enregistrer
   - C : **Tiré une fois par bloc, cohérent partout** → ✅ **implémenté depuis le 29/08/26** (seedé ; ⚠️ stocké en état de session seulement, **non exporté** dans les données de trial — même question d'export que l'ordre des advisors)
-- **Statut :** PARTIELLEMENT RÉPONDU — volet **apparence** implémenté (option C de facto, sign-off à obtenir) ; volet **ordre des advisors** : seed ✅ implémenté le 08/09/26 (DEC-029), **export du tirage réalisé toujours EN ATTENTE** (requis par le pilotage, MàJ DEC-029 du 09/09 — action code Lot E5 résiduel)
+- **Statut :** PARTIELLEMENT RÉPONDU — volet **apparence** ✅ **validé le 09/09/26** (DEC-044, option C confirmée : genre tiré 1×/bloc seedé) ; volet **ordre des advisors** : seed ✅ implémenté le 08/09/26 (DEC-029), **export des tirages réalisés (ordre + genre) toujours EN ATTENTE** (requis par le pilotage, MàJ DEC-029 du 09/09 — action code Lot E5 résiduel)
 - **Réponse :** —
 
 ### Q-HL-1 — La réponse « ressemblance humaine » doit-elle figurer sur toutes les lignes du bloc ?
@@ -695,8 +695,8 @@
 - **Options :**
   - A : **Recopie sur toutes les lignes, statu quo** → impact : aucun développement ; on corrige DEC-013 et le codebook, et on ajoute un avertissement d'analyse
   - B : **Uniquement sur la dernière ligne du bloc** (conforme à DEC-013) → impact : correctif simple ; l'analyse doit rattacher la réponse au bloc
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU *(2026-09-09 — DEC-042)*
+- **Réponse :** **Option A — statu quo acté** : la table plate évite les jointures (cohérent avec DEC-011), chaque ligne est auto-suffisante. DEC-013 amendée en conséquence ; l'avertissement d'analyse (surpondération ×`trial_count`, dédupliquer par `participant_id`+`block_index`) est au codebook (limite 8). Ferme D-011 et l'état final de PC-7.
 
 ---
 

@@ -132,6 +132,7 @@
 - **Décision :** Les réponses au questionnaire post-bloc sont envoyées par un PATCH sur la dernière ligne `trial_responses` du bloc (celle dont l'UUID est conservé dans `State.last_trial_response_id`), plutôt que de retarder l'envoi du dernier trial.
 - **Raison :** Découple l'envoi du trial (immédiat, après collecte) de l'envoi du questionnaire (après réponses). Si le joueur ferme le navigateur avant le questionnaire, les données du trial sont déjà en base. Le PATCH ne peut modifier que les colonnes `q1..q3`.
 - **Impact :** `ApiClient` expose une méthode `PatchQuestionnaireResponses()`. `FlowController.State.last_trial_response_id` est mis à jour à chaque POST réussi. Le flow est : POST dernier trial → UI questionnaire → PATCH q1..q3.
+- **Mise à jour 2026-09-09 (DEC-042) :** le principe du PATCH découplé reste valide, mais le volet « sur la dernière ligne du bloc » est **remplacé** : la réponse human-likeness est PATCHée **sur toutes les lignes du bloc** (réplication actée par DEC-042, cohérente avec la table plate DEC-011). Les colonnes q1..q3 de l'époque sont devenues `acceptability_question_1`/`_2`/`sens_of_agency_question` (POSTées avec le trial) + `human_likeness_question` (PATCHée).
 - **Statut :** ACTIF
 
 ### DEC-014 — Tutorial modélisé comme BlockConfig
@@ -339,10 +340,58 @@
 - **Impact :** Ferme **Q-TRUST-1** (H7 a son chemin de données via la plateforme partie 2) et **Q-QUEST-1**. **DEC-008 est ANNULÉE** (son véhicule — scène dédiée post-bloc, colonnes q1-q3 — n'a jamais existé en pratique ; son intention est couverte par `TrialQuestionsUI`). E1/N1-D passeront à ✅ **à la livraison du commit de retrait de PC** — à vérifier : scène hors du build, fichiers supprimés, enum nettoyé.
 - **Statut :** ACTIF
 
+### DEC-039 — Sign-off chercheur du modèle de pénalités (résout Q-007)
+- **Date :** 2026-09-09 *(enregistre une validation chercheur antérieure, rapportée par Florian — date de l'échange non consignée)*
+- **Tag :** [FONC] / [CLIENT]
+- **Décision :** Le modèle de pénalités **tel qu'implémenté est validé par le chercheur** (option A de Q-007) : **−1 bug vert par nuage** pour chaque piège touché (conforme GDD), **et** pour chaque pas au-delà du budget (distance de Manhattan joueur→nuages), **et** pour chaque appui sur une touche hors du set moteur actif. Jamais de bug rouge retiré, jamais sous zéro (`GameManager.cs`, `BugCloud.AddBugs`). Les deux pénalités additionnelles (budget de pas, touche invalide), absentes du GDD, sont **actées comme ajouts de design validés**.
+- **Raison :** Q-007 était ouverte depuis le 12/05/26 et reformulée en sign-off le 28/07 (le code appliquait déjà le modèle GDD pour les pièges). La validation chercheur couvre les trois sources de perte.
+- **Impact :** Q-007 fermée. **N2-F clos** (la pénalité de budget de pas hors GDD est désormais couverte par le sign-off). La dépendance notée dans **DEC-032** (le budget de pas comme remplaçant de l'interdiction de retour arrière) est **levée** — DEC-032 est pleinement consolidée. Le TDD décrit déjà le bon modèle (−1 vert, corrigé le 28/07 via D-002). Résidu indépendant : **N2-E** (le compteur de touches invalides n'est toujours pas exporté — `green_bugs_collected` reste non décomposable, volet « donnée » / Lot E4).
+- **Statut :** ACTIF
+
+### DEC-040 — Acceptabilité sans advisor : valeur explicite `"NA"` plutôt que `null` (résout Q-DATA-1)
+- **Date :** 2026-09-09
+- **Tag :** [FONC] / [TECH]
+- **Décision :** Quand un trial est joué en condition `advisor = none`, les deux questions d'acceptabilité ne sont pas posées (comportement défini des questions) et les colonnes `acceptability_question_1`/`_2` doivent porter la valeur explicite **`"NA"`** (non applicable) — et non `null`/omission comme depuis DEC-026. **`null` reste réservé à « jamais mesuré »** (abandon réel du questionnaire, lignes antérieures au champ). Option B de Q-DATA-1.
+- **Raison :** Demande d'explicitation (09/09) : un `null` est ambigu à l'analyse (non applicable ? non répondu ? donnée perdue ?). `"NA"` rend la non-applicabilité auto-documentée dans le CSV, en référence directe au fonctionnement des questions.
+- **Impact :** **Action code à planifier** (petit correctif) : dans la sérialisation (`FlowSerializationUtility` / `TrialManager`), poser `"NA"` au lieu de laisser `null` quand `advisor_choice == None`. Les colonnes étant textuelles (`"1"`…`"7"`), `"NA"` passe sans changement de schéma. La colonne devient trivaluée — `1..7` / `NA` / vide — à documenter au dictionnaire une fois livré. Ne traite **pas** le résidu D-001 (abandon réel → ligne jetée), indépendant. Q-DATA-1 fermée.
+- **Statut :** ACTIF
+
+### DEC-041 — Sign-off chercheur du protocole des questions trial-wise (résout Q-FREQ-1)
+- **Date :** 2026-09-09 *(échange mail Florian/Mark, recap approuvé — « Yes, I agree. Looks good to me. »)*
+- **Tag :** [FONC] / [CLIENT]
+- **Décision :** Mark valide le recap complet des questions trial-wise : **(1) Types et modalités** — acceptabilité en slider 7 points, agentivité et human-likeness en échelle de Likert 7 points (confirme DEC-025/DEC-028). **(2) Textes** — les 4 énoncés posés en scène (confirme DEC-035 ; les textes sont désormais formellement validés par le chercheur). **(3) Distribution / fréquence** — acceptabilité : les 2 questions **à chaque trial**, uniquement dans les blocs avec advisor, même si l'advice n'est pas donné au trial ; agentivité : **à chaque trial** ; human-likeness : **une fois par bloc, au dernier trial, dans les blocs avec advisor**. Le volet fréquence de **Q-FREQ-1** est tranché : statu quo « chaque trial » validé en connaissance de cause (~108 interruptions à 36 trials/bloc) — aucun paramètre de fréquence à développer.
+- **Raison :** Sign-off écrit du chercheur sur le protocole tel qu'implémenté. Q-FREQ-1 était ouverte depuis le 28/07 (volet échelle tranché par DEC-025 le 08/09).
+- **Impact :** Q-FREQ-1 intégralement fermée. ⚠️ **La vérification de conformité révèle un écart** : le code pose human-likeness au dernier trial de **tous** les blocs, y compris `advisor = none` (`TrialQuestionsUI.cs:115-117`, pas de garde advisor) — contraire au point (3) validé. **Divergence D-017** ouverte au journal : correctif d'une ligne à planifier (garde `advisor_choice != None`, + `"NA"` sur ces blocs par convention DEC-040). Détail non couvert par le recap, à garder tracé : l'**ordre** des questions est mélangé à chaque trial (seedé, reproductible) et non exporté.
+- **Statut :** ACTIF
+
+### DEC-042 — `human_likeness_question` répliquée sur toutes les lignes du bloc : statu quo acté (résout Q-HL-1)
+- **Date :** 2026-09-09
+- **Tag :** [TECH] / [FONC]
+- **Décision :** Le comportement actuel est **acté** (option A de Q-HL-1) : la réponse human-likeness, posée une fois par bloc (dernier trial), est PATCHée **sur toutes les lignes du bloc** (`ApiClient.QueueHumanLikenessPatchForBlock`, boucle 1 à `trial_count`). C'est la convention voulue — cohérente avec DEC-011 (table plate dénormalisée, exportable sans jointure) : chaque ligne est auto-suffisante.
+- **Raison :** « La table plate évite les jointures » (arbitrage 09/09). L'avertissement d'analyse (surpondération ×`trial_count` sur toute moyenne naïve — dédupliquer par `participant_id`+`block_index`) est déjà au codebook (limite 8) et suffit.
+- **Impact :** Q-HL-1 fermée ; **divergence D-011 close** (le comportement n'est plus un écart, c'est la règle). **DEC-013 est amendée** (voir sa MàJ) : le mécanisme PATCH découplé reste valide, mais « sur la dernière ligne du bloc » devient « sur toutes les lignes du bloc ». Articulation avec D-017/DEC-041 : une fois la garde advisor posée, la réplication ne s'appliquera que dans les blocs avec advisor (blocs sans advisor → `"NA"`, convention DEC-040). Ferme aussi le point de vigilance PC-7 dans son état final.
+- **Statut :** ACTIF
+
+### DEC-043 — Granularité « 1 ligne = 1 trial » confirmée, avec ajout de deux colonnes de repérage `screen_type`/`screen_id` (résout Q-ROW-1)
+- **Date :** 2026-09-09
+- **Tag :** [TECH] / [FONC]
+- **Décision :** La granularité de `trial_responses` reste **une ligne par trial** (DEC-011, table plate, informations de niveau bloc recopiées sur chaque ligne) — le format « une ligne par écran » du template client est définitivement écarté. **En complément** (option B de Q-ROW-1), deux colonnes de repérage sont ajoutées à `TrialResponseRow` : **`screen_type`** et **`screen_id`**, pour faciliter le filtrage côté analyse et fermer les colonnes client n°4-5.
+- **Raison :** Cohérence avec DEC-042 (« la table plate évite les jointures ») tout en donnant à l'analyse un axe de filtrage explicite — la recopie des variables de bloc surpondère les agrégations naïves (limite 11 du codebook), un repère d'écran rend le phénomène visible et filtrable dans le CSV lui-même.
+- **Impact :** **Action code à planifier** : +2 champs dans `TrialResponseRow` (→ 95), migration Supabase, MàJ dictionnaire/matrice à la livraison. **La sémantique exacte des valeurs est à spécifier dans le ticket** (proposition de départ : `screen_type` = type d'écran source de la ligne — `"forest"` pour les lignes trial actuelles, extensible si d'autres types de lignes apparaissent ; `screen_id` = compteur séquentiel d'écrans dans la session). Colonnes client 4-5 passeront de ❌ à ✅ à la livraison. Q-ROW-1 fermée.
+- **Statut :** ACTIF
+
+### DEC-044 — Confirmations de présentation : genre du badge 1×/bloc validé ; Communication Report en tutoriel = statu quo (résout Q-EXP-11)
+- **Date :** 2026-09-09
+- **Tag :** [FONC]
+- **Décision :** Deux confirmations légères. **(1) Genre du badge advisor humain** : le tirage **une fois par bloc, seedé** (salt 6, `AdvisorBadgeUtility`, 29/08) est **validé** — le volet « apparence » de Q-RANDOM-1 est fermé (reste le volet export du réalisé, MàJ DEC-029, même ticket que l'ordre). **(2) Communication Report en bloc tutoriel** (Q-EXP-11) : **statu quo** — le report s'affiche comme sur un bloc normal ; ses messages sont conditionnés par la configuration de la tâche (probas d'advice + `display_mode`/`display_probability` des explanations, via `GetCommunicationQuality`) et par le choix d'advisor (6 variantes).
+- **Raison :** Vérifié dans le code (09/09) : le report reflète fidèlement la **config** du bloc. Nuance technique tracée : `ExplanationResolver.Resolve:174` supprime les explanations au runtime sur `is_tutorial` quelle que soit la config, alors que `GetCommunicationQuality` ne consulte pas `is_tutorial`. La cohérence narrative en tutoriel repose donc sur une **consigne opérationnelle dashboard** : configurer les blocs tutoriels sans explanations (`display_mode = none`) — la config étant la source unique depuis DEC-027, c'est entre les mains du chercheur.
+- **Impact :** Q-EXP-11 fermée sans changement de code. Q-RANDOM-1 : volet apparence ✅ (option C confirmée) — la question ne reste ouverte que sur l'export des tirages réalisés (ordre + genre, cf. MàJ DEC-029). La consigne « tutoriel sans explanations » est à reporter dans la doc de configuration du dashboard (repo backend-bugs) à l'occasion.
+- **Statut :** ACTIF
+
 ## Index par tag
 
 - **[SCOPE]** : DEC-004, DEC-005, DEC-008 *(annulée)*, DEC-024, DEC-031, DEC-033, DEC-034, DEC-036, DEC-038
-- **[FONC]** : DEC-001, DEC-003 *(annulée)*, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023, DEC-025, DEC-028, DEC-029, DEC-031, DEC-032, DEC-033, DEC-034, DEC-035, DEC-037
-- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022, DEC-026, DEC-027, DEC-029, DEC-030, DEC-036
+- **[FONC]** : DEC-001, DEC-003 *(annulée)*, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023, DEC-025, DEC-028, DEC-029, DEC-031, DEC-032, DEC-033, DEC-034, DEC-035, DEC-037, DEC-039, DEC-040, DEC-041, DEC-042, DEC-043, DEC-044
+- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013 *(amendée par DEC-042)*, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022, DEC-026, DEC-027, DEC-029, DEC-030, DEC-036, DEC-040, DEC-042, DEC-043
 - **[PLANNING]** : _(aucune pour l'instant)_
-- **[CLIENT]** : DEC-037
+- **[CLIENT]** : DEC-037, DEC-039, DEC-041

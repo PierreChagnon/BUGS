@@ -40,7 +40,7 @@ Pyramide de tests « data », dans l'ordre. **On ne monte pas d'un axe tant que 
 ## 2. Détail des axes (checklists exécutables)
 
 ### Axe 0 — Gel des références *(GATES bloquants)*
-- [ ] **G0.1** — Trancher avec le chercheur les questions qui donnent du **sens** aux colonnes :
+- [x] **G0.1** — ✅ *(09/09/26)* Trancher avec le chercheur les questions qui donnent du **sens** aux colonnes — **fait** : Q-007 → DEC-039, Q-010 → DEC-037, Q-011 → DEC-035 + `746a4406` :
   - **Q-007** modèle de perte de bugs (−1 green/piège/nuage vs décrément total — divergence GDD/code)
   - **Q-010** pattern de fiabilité advisor (*non spécifié*)
   - **Q-011** mapping des 4 questions ↔ `acceptability_question_1` / `acceptability_question_2` / `sens_of_agency_question` / `human_likeness_question` (2 questions d'acceptabilité depuis le 08/09/26)

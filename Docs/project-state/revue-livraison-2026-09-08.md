@@ -83,7 +83,7 @@ Légende : ✅ corrigé · 🔁 clos par retrait/décision · 🟡 partiellement
 | **E1** | QuestionnaireScene coquille vide, inatteignable | 🟡 | *(MàJ 09/09)* **Tranché — retrait décidé (DEC-038, Q-QUEST-1 option A ; Trust in Technology confirmé en partie 2, Q-TRUST-1 close).** Le retrait est **en cours côté PC** — à vérifier à son prochain commit (scène hors du build, `QuestionnaireUI`/`QuestionConfig`/code mort supprimés). État au 09/09 : code inchangé (`QuestionnaireUI.cs:38`, scène au build) |
 | **E2** | Consentement placeholder | ✅ | Vrai texte dans `ConsentScene.unity` (commits `78f9b6e1`, `a4a98569`) ; l'écrasement au `Start` de `ConsentUI.cs:17-21` est neutralisé — `_titleText`/`_bodyText` débranchés dans la scène (`ConsentScene.unity:240-241`, `fileID: 0`) ; decline via vraie modale (`FlowContinueScreenUI`). **Résidus** : code mort dans `ConsentUI.cs` (placeholders + message « La session s'arrete ici ») ; toujours pas de champ `consent_text` dans `SessionConfig` — le texte est porté par la scène, pas configurable via l'API |
 | **E3** | Texte dev périmé sur AdvisorChoice | ❌ | `AdvisorChoiceUI.cs:56` affiche toujours « Ce choix est enregistre mais n'affecte pas encore la generation de la map. » — faux, visible participant. **Quick win** |
-| **D1** | Trials `advisor=none` perdus | ✅ | `fe5fc771` — `TrialManager.cs:143-148` : le trial part avec les champs acceptabilité null (omis du payload). **Résidu** : un `sens_of_agency_question` vide (abandon réel du questionnaire) jette encore la ligne avec un simple `LogWarning` |
+| **D1** | Trials `advisor=none` perdus | ✅ | `fe5fc771` — `TrialManager.cs:143-148` : le trial part avec les champs acceptabilité null (omis du payload) *(MàJ 09/09 : deviendra un `"NA"` explicite — DEC-040, correctif à planifier)*. **Résidu** : un `sens_of_agency_question` vide (abandon réel du questionnaire) jette encore la ligne avec un simple `LogWarning` |
 | **D2** | Pas de persistance locale de la file d'envoi | ❌ | `ApiClient.cs:58` — `Queue<>` mémoire seule, zéro `PlayerPrefs` |
 | **D3** | File bloquée après échec des retries | ❌ | `ApiClient.cs:295-301` — `break` sans dépiler ; pas de `OnApplicationPause`/`Quit` ; la file ne repart qu'au prochain enqueue |
 | **D4** | Fallback silencieux `motor_forced_set` → ZQSD | 🟡 | `FlowValueConverters.ToMotorKeySet` accepte désormais aussi `ZQSD`/`TFGH`/`IJKL` (`FlowDataModels.cs:673-681`) mais toute valeur inconnue retombe toujours sur ZQSD **sans log** (`:682-683`). Contexte atténuant : validation Zod côté backend depuis DEC-027 |
@@ -112,11 +112,11 @@ Légende : ✅ corrigé · 🔁 clos par retrait/décision · 🟡 partiellement
 | **N1-F / N2-J** | `participant-notes` hors codebook | 🔁 | **Clos par retrait** : `ParticipantNoteUI` et l'endpoint supprimés (`7a86e064`, DEC-024). ⚠️ La colonne client 76 `final_comments` redevient ❌ — à faire acter par le chercheur si le template CSV V1 fait toujours foi |
 | **N2-A §9.1** | Ordre des options advisor non seedé, non loggé | 🟡 | *(MàJ 09/09)* **Volet seed fermé par `88899e9a`** (DEC-029, post-revue) : tirage 1×/bloc via `BlockDrawResolver.DrawAdvisorDisplayOrder` (salt 7), consommé par `AdvisorChoiceUI`. **Volet log toujours ouvert** : `advisor_display_order` vit dans `PlayerSessionState`, pas dans `TrialResponseRow` — le tirage réalisé n'est pas enregistré. L'export est **requis par le pilotage** (MàJ DEC-029 du 09/09) ; le non-export initial n'est pas validé |
 | **N2-A §9.2** | Genre du badge humain incohérent | ✅ | `AdvisorBadgeUtility` — tiré **1×/bloc, seedé** (salt 6), consommé par les 3 UI, champ `advisor_display_is_male`. *(Correctif 09/09 : ce champ vit dans `PlayerSessionState` — **il n'est pas exporté** dans `TrialResponseRow`, contrairement à ce qu'affirmait cette ligne. L'incohérence intra-trial est bien réglée ; le genre affiché reste recalculable depuis la seed mais absent des données — même question d'export que §9.1, cf. Q-RANDOM-1 volet apparence)* |
-| **N2-B** | `human_likeness` répliqué sur toutes les lignes | ❌ | `ApiClient.cs:142-178` inchangé — comportement toujours non acté (Q-HL-1) |
+| **N2-B** | `human_likeness` répliqué sur toutes les lignes | 🔁 | *(MàJ 09/09)* **Clos par décision (DEC-042, Q-HL-1 option A)** : la réplication est la convention actée — table plate sans jointure (DEC-011), DEC-013 amendée, avertissement d'analyse au codebook (limite 8). D-011 clos |
 | **N2-C** | `display_probability` non documenté | 📘 | Le mécanisme demeure (et s'est étendu : `content_variant_long_probability`), mais il est désormais **documenté** (spec-fonc explanations R9, TDD, dictionnaire). L'asymétrie distale est commentée dans le code |
 | **N2-D** | `block_template_id` hors codebook | ✅ | Dictionnaire et matrice tenus à jour depuis le 28/07 |
 | **N2-E** | Pénalité touche invalide non comptée | ❌ | `GameManager.cs:292-303` applique la pénalité, aucun compteur en base — `green_bugs_collected` toujours non décomposable |
-| **N2-F** | Pénalité budget de pas hors GDD | ❌ | Toujours présente (`GameManager.cs:262-271`) — attend le sign-off Q-007 |
+| **N2-F** | Pénalité budget de pas hors GDD | ✅ | *(MàJ 09/09)* **Sign-off obtenu (DEC-039, Q-007 option A)** : le modèle complet — piège, budget de pas, touche invalide, −1 vert/nuage — est validé par le chercheur. Consolide DEC-032 |
 | **N2-G** | Overlay « Equipment failure » non spécifié | ❌ | Code présent (`FlowController.cs:102`), toujours aucune spec |
 | **N2-H** | Deux conventions de départage | 🟡 | Génération : `GenerateOrderedPair` produit la paire ordonnée par construction (l'ancien tie-break a disparu). Runtime : `GameManager.GetBestCloud` (`GameManager.cs:418`) garde le `>` strict — à égalité le nuage de **droite** gagne (Q-TIE-1 toujours ouvert) |
 | **N2-I** | Input physique vs affichage OS | 🟡 | Désormais commenté dans le code (`MotorAdviceController.cs:123-138`) — toujours pas documenté côté Docs |
@@ -130,7 +130,10 @@ Légende : ✅ corrigé · 🔁 clos par retrait/décision · 🟡 partiellement
 Le protocole a **changé** depuis le 28/07 : jusqu'à **3 questions par trial** (2 acceptabilité en
 slider 1-7 + 1 agentivité en 7 radios) **+ 1** human-likeness au dernier trial du bloc.
 À 36 trials/bloc, ~**108 interruptions Likert par bloc** (contre 72 estimées en juillet) —
-Q-FREQ-1 reste ouverte et se durcit. L'échelle 5 points est morte (DEC-025) ; l'ordre des
+Q-FREQ-1 reste ouverte et se durcit. *(MàJ 09/09 : **Q-FREQ-1 fermée** — le statu quo « chaque
+trial » est validé par sign-off mail de Mark, DEC-041, charge acceptée. La vérification de
+conformité a en revanche ouvert **D-017** : human-likeness est posée aussi dans les blocs sans
+advisor, contrairement au protocole validé — correctif à planifier.)* L'échelle 5 points est morte (DEC-025) ; l'ordre des
 questions reste mélangé (Fisher-Yates **seedé** sur `CurrentTrialSeed` — reproductible) mais
 l'ordre présenté n'est toujours pas loggé ; l'acceptabilité reste non posée si
 `advisor_choice == None` (le trial part quand même désormais, cf. D1).
@@ -154,7 +157,7 @@ Sur les **29 colonnes client manquantes** du 28/07 :
 | :-- | :-- |
 | ✅ Fermées | 22 `proximal_advice_reliability` · 58 `proximal_advice_path` (`advisor_path_config`) · 55 `map_layout` complété (`map_config.cells` — murs + pièges, ferme PC-8) |
 | 🔁 Retirées par décision | 76 `final_comments` (DEC-024 — **à faire acter côté chercheur**) · *(MàJ 09/09)* les 7 `visibility_noise` (12-14, 32, 35, 47, 51 — DEC-031, F1/Q-013 clos : difficulté portée par ratio/gap) |
-| ❌ Toujours manquantes | les 6 du niveau moteur (N1-B) · les 5 du stimulus distal (N1-C) · les 3 `*_match_advice` (N1-A) · ~~les 7 `visibility_noise`~~ *(→ retirées, DEC-031)* · `screen_type`/`screen_id`/`username` · `explanation_given_frequency` (réalisé) |
+| ❌ Toujours manquantes | les 6 du niveau moteur (N1-B) · les 5 du stimulus distal (N1-C) · les 3 `*_match_advice` (N1-A) · ~~les 7 `visibility_noise`~~ *(→ retirées, DEC-031)* · `screen_type`/`screen_id` *(→ décidées le 09/09, DEC-043 — à livrer)* · `username` · `explanation_given_frequency` (réalisé) |
 | ✅ *(MàJ 09/09)* Fermées par `a919a683` | 64 `motor_advice_given` (→ `motor_advice_visible`) · 23 `motor_advice_reliability` réalisé (→ `motor_advice_reliable`) — sur les 6 colonnes moteur, restent 63 `motor_choice_active_config`, 65 `motor_advice` (set affiché), 67 `motor_choice`, 68 `motor_choice_match_advice` |
 
 Endpoints actuels : `GET api/sessions/{id}` · `POST api/trial-responses` · `PATCH
@@ -168,8 +171,8 @@ api/trial-responses/{id}` · `GET` images publiques. (`api/participant-notes` su
    ~~textes réels des 4 questions~~ *(MàJ 09/09 : réglé — les 4 textes sont en scène, DEC-035 +
    `746a4406`, F6 clos)* · ~~pattern de fiabilité des advisors (Q-010)~~ *(MàJ 09/09 : résolu —
    DEC-037, probabiliste configuré chercheur)* ·
-   sign-off du « null assumé » pour l'acceptabilité sans advisor (Q-DATA-1, tranché en code
-   le 26/08) · acter le retrait de `final_comments` (DEC-024) et la rupture d'échelle 5→7 ·
+   ~~sign-off du « null assumé »~~ *(MàJ 09/09 : Q-DATA-1 tranchée — **`"NA"` explicite**, DEC-040,
+   correctif de sérialisation à planifier)* · acter le retrait de `final_comments` (DEC-024) et la rupture d'échelle 5→7 ·
    noms/formats des colonnes motor (Q-MOTOR-1).
 2. **Lot E résiduel — mesure** (le refacto a baissé le coût) :
    E1' export motor advice réalisé — *(MàJ 09/09)* **partiellement fait** (`a919a683`, DEC-030 :
@@ -236,4 +239,5 @@ reste l'export du tirage réalisé).
 **Corrigé le 09/09 :** **F6** (DEC-035 — les 4 textes réels en scène, dernier libellé via `746a4406`).
 **Décidé, implémentation en cours (PC) :** E1/N1-D (retrait de la QuestionnaireScene, DEC-038).
 **Toujours ouverts :** E3, D2, D3, N1-A, N1-C,
-N2-B, N2-E, N2-F, N2-G, Q-TIE-1.
+N2-E, N2-G, Q-TIE-1. *(N2-F : ✅ sign-off Q-007 obtenu le 09/09, DEC-039 · N2-B : 🔁 clos par
+DEC-042 · nouveau **D-017** : garde advisor manquante sur human-likeness, correctif à planifier.)*

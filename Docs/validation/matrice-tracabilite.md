@@ -139,7 +139,7 @@
 | `acceptability_question_1` | string | `1`…`7` (slider ; null sans advisor) | `SubmitCurrentTrialResponses` | **oui** (sans advisor — pas d'attribut `[IncludeNull]`, Ignore global) | | |
 | `acceptability_question_2` | string | `1`…`7` (slider ; null sans advisor) | `SubmitCurrentTrialResponses` | **oui** (idem) | | |
 | `sens_of_agency_question` | string | réponse (obligatoire) | `SubmitCurrentTrialResponses` | non | | |
-| `human_likeness_question` | string | réponse — envoyée en **PATCH** (null au POST) | `QueueHumanLikenessPatchForBlock` | **oui au POST** | | ⚠️ voir Axe 4 |
+| `human_likeness_question` | string | réponse — envoyée en **PATCH** (null au POST), **répliquée sur toutes les lignes du bloc** (convention DEC-042) | `QueueHumanLikenessPatchForBlock` | **oui au POST** | | ⚠️ voir Axe 4 ; D-017 (garde advisor à venir) |
 | `started_at` | string | ISO 8601 UTC (`"o"`) | `StartNewTrial` | non | | |
 | `ended_at` | string | ISO 8601 UTC (`"o"`) | `EndCurrentTrial` | non | | |
 
