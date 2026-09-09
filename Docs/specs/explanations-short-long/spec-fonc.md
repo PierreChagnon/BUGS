@@ -3,7 +3,7 @@
 > Produit par le Rôle 2 (Analyse Fonctionnelle).
 > Décrit le QUOI et le POURQUOI. Jamais le COMMENT technique.
 
-**Date :** 2026-08-27 *(révisée — ajout §2.4 Communication Report, DEC-023 ; révision précédente : 2026-05-26, consolidation post-échange chercheurs)*
+**Date :** 2026-09-09 *(révisée — explanations affichées en bloc tutoriel, DEC-045 : R4/TR4 réécrites ; révisions précédentes : 2026-08-27 ajout §2.4 Communication Report DEC-023 ; 2026-05-26 consolidation post-échange chercheurs)*
 **Statut :** `draft`
 **Chantier :** Explanations short/long
 **Spec tech associée :** `Docs/specs/explanations-short-long/spec-tech.md` (à produire)
@@ -40,7 +40,6 @@ Permettre à chaque advice (distal, proximal, motor) d'être accompagné d'une *
 | Mécanique `free/forced` sur les 4 choix | Chantier distinct | Spec free/forced (rattachée à Q-005) |
 | Contenu littéral des textes explicatifs | À fournir par le chercheur | Validation chercheur, hors spec |
 | Pattern de fréquence d'apparition de l'advice lui-même | Chantier reliability | Spec reliability (rattachée à Q-010) |
-| Tutoriel : pas d'explanation pendant le bloc tutorial (cf. DEC-014) | Hors scope expérimental | — |
 
 ### Décisions déjà prises
 
@@ -50,13 +49,14 @@ Permettre à chaque advice (distal, proximal, motor) d'être accompagné d'une *
 - **DEC-013** — Questionnaire envoyé par PATCH après le dernier trial.
 - **DEC-014** — Tutorial modélisé comme `BlockConfig` avec flag `is_tutorial` (pas d'envoi API).
 - **DEC-017** — Cadrage initial du présent chantier : périmètre D+P+M, deux textes alternatifs, précondition advisor choisi + advice donné, édition via session config panel. Résout Q-003 (motor advice avec explanation) et Q-006 (modèle d'édition).
+- **DEC-045** — Le bloc tutoriel n'est plus un cas particulier : les explanations y suivent les règles générales (R4/TR4 réécrites). Pour cette feature, le seul effet de `is_tutorial` reste le non-envoi API (DEC-014).
 - **DEC-018** — Consolidation post-échange chercheurs (Florian / Valerian / Mark). Introduction de `display_mode` orthogonal à `content_variant`, granularité blockwise, cross-level interdit, jusqu'à 3 explanations simultanées (layout L/R), corpus indexé par advisor type, format CSV enum + id, tracking opt-in obligatoire, contrainte UI no-overlap avec la map. Principe directeur : « keep it simple, adapt later ». Résout Q-EXP-1, 2, 3, 4, 5, 7, 8, 9.
 
 ### Dépendances
 
 - **Requiert :** Advisors fonctionnels (DistalChoiceScene, ProximalScene, MotorAdvice forest UI), pipeline `trial_responses` (DEC-011), configuration de session chargée par URL + API (DEC-009), connaissance de l'`advisor_type` actif au moment d'afficher une explanation.
 - **Est requis par :** validité de l'hypothèse H8, finalisation du chantier Motor Advice (Q-003), spec free/forced (les conditions `explanation × forced` font partie de la combinatoire GDD).
-- **Doit rester cohérent avec :** `BlockConfig` (DEC-014), envoi PATCH questionnaire (DEC-013), neutralité du flag `is_tutorial`.
+- **Doit rester cohérent avec :** `BlockConfig` (DEC-014), envoi PATCH questionnaire (DEC-013), non-envoi API en tutoriel (DEC-014).
 - **Dépendances UI :** non-overlap avec la map (TR10), layout L/R pour multi-advices simultanés (TR9). Détails à régler en spec tech et en UI test.
 
 ---
@@ -97,7 +97,7 @@ Le texte affiché est sélectionné dans le corpus du bloc indexé par l'`adviso
 - **R2** : `display_mode` et `content_variant` sont lus depuis la config du bloc (granularité **blockwise**, cf. TR7).
 - **R9 (Valeurs mixtes)** : `display_mode = forced/opt-in` et `content_variant = short/long` délèguent le choix à un tirage effectué **à chaque affichage**, pas une fois pour le bloc. Les probabilités `display_mode_forced_probability` (probabilité de tirer `forced`, sinon `opt-in`) et `content_variant_long_probability` (probabilité de tirer `long`, sinon `short`) sont lues uniquement quand la dimension correspondante vaut sa valeur mixte. Le tirage est déterministe (dérivé du seed du trial pour proximal/motor, du seed du bloc pour distal) afin que la session reste rejouable. Il intervient **après** `display_probability`, qui reste seul maître de l'apparition de l'explanation proximale ou motor sur le trial. Les valeurs mixtes n'existent qu'en config : les colonnes `trial_responses` enregistrent toujours la valeur tirée (`forced` / `opt-in`, `short` / `long`).
 - **R3** : l'explanation est **indépendante de la fiabilité** de l'advice. Un advice non fiable peut être accompagné d'une explanation.
-- **R4** : pendant le bloc tutorial (`is_tutorial = true`, DEC-014), aucune explanation n'est affichée et aucune ligne n'est envoyée à l'API.
+- **R4 (Tutoriel = bloc normal)** : le bloc tutorial (`is_tutorial = true`, DEC-014) n'est pas un cas particulier pour les explanations — elles s'y affichent selon la config du bloc et les règles R1–R3, R7–R9, afin que le participant découvre la mécanique avant le premier bloc réel. Aucune ligne n'est envoyée à l'API en tutoriel (DEC-014), donc aucune colonne `*_explanation_*` n'y est produite. (DEC-045 — remplace l'ancienne règle « aucune explanation en tutoriel », jamais arbitrée par les chercheurs.)
 - **R7 (Tracking opt-in)** : quand `display_mode = opt-in`, le système enregistre **(a)** si le participant a cliqué sur « show explanation » et **(b)** la durée d'affichage de l'explication. Quand `display_mode ≠ opt-in`, les colonnes de tracking sont à `null`.
 - **R8 (Cross-level interdit)** : seule l'explanation **du même niveau** que l'advice peut être affichée. Pas de motor-explanation pour un distal-advice, etc. (cf. TR8).
 
@@ -222,7 +222,7 @@ Aucune — le Communication Report n'émet aucune colonne `trial_responses`.
 
 #### Question ouverte
 
-- Comportement en bloc tutoriel : l'affichage inconditionnel s'applique aussi en `is_tutorial = true`, alors que TR4 y supprime les explanations. → **Q-EXP-11**.
+- ~~Comportement en bloc tutoriel~~ → **Q-EXP-11 close** (DEC-044 : le report s'affiche en tutoriel comme sur un bloc normal ; DEC-045 : les explanations aussi — report et explanations lisent la même config, plus d'incohérence possible).
 
 ---
 
@@ -231,7 +231,7 @@ Aucune — le Communication Report n'émet aucune colonne `trial_responses`.
 - **TR1 — Indépendance fiabilité / explanation** : la fiabilité d'un advice ne conditionne pas l'affichage de son explanation. Les deux variables sont orthogonales (cohérent avec les variables indépendantes du GDD : `Explanation/No explanations` listée séparément de `Advice reliability`).
 - **TR2 — Deux textes alternatifs** : pour chaque advice et chaque advisor_type, le chercheur édite **deux textes indépendants** (un court, un long). Aucune génération automatique d'un texte à partir de l'autre.
 - **TR3 — Édition centralisée** : tous les contenus d'explanation sont édités par les chercheurs depuis le **session config panel** (DEC-017). Aucun texte n'est hardcodé côté Unity.
-- **TR4 — Neutralité tutorial** : pendant un bloc `is_tutorial = true` (DEC-014), aucune explanation n'est affichée. Aucune colonne `*_explanation_*` n'est envoyée à l'API (cohérent avec DEC-014, pas d'envoi API en tuto).
+- **TR4 — Tutoriel sans traitement spécial** : un bloc `is_tutorial = true` (DEC-014) est traité comme un bloc normal par toute la feature (explanations, Communication Report). Le flag n'a d'effet que sur l'envoi API (aucune ligne en tutoriel, donc aucune colonne `*_explanation_*`). (DEC-045)
 - **TR5 — Indépendance entre advice** : les trois explanations (distal, proximal, motor) sont pilotées indépendamment. Un trial peut avoir distal `display_mode = forced/long`, proximal `display_mode = none`, motor `display_mode = opt-in/short`.
 - **TR6 — Cohérence avec free/forced** : l'interaction entre `explanation` et le mécanisme `free/forced` (Q-005 partiellement résolue) doit être confirmée dans la spec free/forced. Hypothèse de travail : les deux paramètres sont orthogonaux.
 - **TR7 — Granularité blockwise des deux dimensions** : `display_mode` et `content_variant` sont définis **par bloc** dans `BlockConfig`, pas par trial. Tous les trials d'un même bloc partagent la même configuration explanation. (Q-EXP-1, DEC-018)

@@ -2790,7 +2790,7 @@ public static class ExplanationResolver
 | ExplanationRuntimeState.Create(...)     | ExplanationRuntimeState (static) | Initialise le tracking : opt-in → `clicked = false` + chrono 0 ; forced → chrono 0, `clicked` null |
 | MarkDisplayed(realtime)                 | void                          | Démarre le chrono de lecture (idempotent) ; en opt-in pose `clicked = true`                          |
 | MarkHidden(realtime)                    | void                          | Arrête le chrono et cumule le temps écoulé dans `display_duration_ms`                                |
-| Resolve(...)                            | ExplanationRuntimeState (static) | `None()` si bloc null / tutoriel / advisor None / advice non visible / config invalide ; sinon résout mode + variant et sélectionne le texte corpus (advisorType × variant) |
+| Resolve(...)                            | ExplanationRuntimeState (static) | `None()` si bloc null / advisor None / advice non visible / config invalide (le bloc tutoriel n'est pas un cas particulier, DEC-045) ; sinon résout mode + variant et sélectionne le texte corpus (advisorType × variant) |
 | GetCommunicationQuality(block)          | CommunicationQuality (static) | Perfect / Partial / None selon visibilité des advisors et apparition des explanations (cf. 5.3.4)    |
 | DrawDisplayMode / DrawContentVariant    | string (privées, static)      | Tirage des valeurs mixtes `forced/opt-in` et `short/long` selon `display_mode_forced_probability` / `content_variant_long_probability` |
 
@@ -2805,7 +2805,7 @@ public static class ExplanationResolver
 
 ```mermaid
 graph TD
-    A["Resolve(block, level, advisor, adviceVisible, rng)"] --> B{"block null / is_tutorial /<br/>advisor None / advice non visible ?"}
+    A["Resolve(block, level, advisor, adviceVisible, rng)"] --> B{"block null / advisor None /<br/>advice non visible ?"}
     B -->|Oui| Z["ExplanationRuntimeState.None()"]
     B -->|Non| C["config = explanations.GetConfig(level)"]
     C --> D{"display_mode normalisé ?"}
@@ -2838,6 +2838,7 @@ graph TD
 | Date     | Développeur | Note / Décision Technique                                                                                                                                                                                                       |
 | :------- | :---------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 27/08/26 | @pierre     | Création de la section (rétro-documentation — le fichier existait sans section TDD). Ajout `GetCommunicationQuality` + enum `CommunicationQuality` pour le Communication Report (DEC-023) ; suppression de `HasAnyEnabledExplanation` (son seul appelant, DistalChoiceUI, utilise le nouveau classifieur). |
+| 09/09/26 | @pierre     | Retrait du garde `block.is_tutorial` dans `Resolve` (DEC-045) : les explanations s'affichent en bloc tutoriel selon la config, comme sur un bloc normal. `Resolve` et `GetCommunicationQuality` lisent désormais la même config — plus d'écart possible entre le Communication Report et l'affichage réel. Non-envoi API en tuto inchangé (TrialManager, DEC-014). |
 
 # 6. Interface utilisateur
 

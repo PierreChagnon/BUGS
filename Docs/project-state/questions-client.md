@@ -426,8 +426,9 @@
   - A : **Afficher comme un bloc normal** (comportement actuel) → simple, mais le texte peut annoncer des explanations qui n'apparaîtront jamais en tutoriel
   - B : **Masquer en tutoriel** → retour partiel à l'ancienne condition ; un cas particulier de plus
   - C : **Texte dédié tutoriel** → contenu à fournir par le chercheur
-- **Statut :** RÉPONDU *(2026-09-09 — DEC-044)*
+- **Statut :** RÉPONDU *(2026-09-09 — DEC-044, complétée par DEC-045)*
 - **Réponse :** **Option A — statu quo.** Le report est conditionné par la **configuration** de la tâche (probas d'advice, `display_mode`/`display_probability` des explanations) et par le choix d'advisor — il dit donc vrai dès lors que le bloc tutoriel est **configuré sans explanations** (`display_mode = none`), consigne opérationnelle dashboard actée dans DEC-044. (Nuance technique : la suppression runtime `is_tutorial` d'`ExplanationResolver.Resolve` n'est pas consultée par `GetCommunicationQuality` — c'est la config qui doit être cohérente.)
+  **MàJ 2026-09-09 (DEC-045) :** la nuance technique est levée — le garde `is_tutorial` de `ExplanationResolver.Resolve` est retiré, les explanations s'affichent en tutoriel selon la config du bloc comme sur un bloc normal. Report et explanations dérivent désormais de la même config : plus de consigne dashboard nécessaire.
 
 ### Q-ICT-1 — In-context tutorial : origine de la donnée réelle (titre/texte par scène) ?
 - **Posée le :** 2026-05-29

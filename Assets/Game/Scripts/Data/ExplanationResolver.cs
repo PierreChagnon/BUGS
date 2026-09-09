@@ -171,7 +171,7 @@ public static class ExplanationResolver
         bool adviceVisible,
         System.Random rng)
     {
-        if (block == null || block.is_tutorial || advisorType == AdvisorType.None || !adviceVisible)
+        if (block == null || advisorType == AdvisorType.None || !adviceVisible)
             return ExplanationRuntimeState.None();
 
         AdviceExplanationConfig config = block.explanations != null
