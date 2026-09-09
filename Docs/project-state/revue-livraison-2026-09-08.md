@@ -80,7 +80,7 @@ Légende : ✅ corrigé · 🔁 clos par retrait/décision · 🟡 partiellement
 
 | Réf | Sujet | Verdict | Preuve / état au 08/09 |
 | :-- | :-- | :-: | :-- |
-| **E1** | QuestionnaireScene coquille vide, inatteignable | ❌ | `QuestionnaireUI.cs:38` inchangé ; aucun `AdvanceToPhase(GamePhase.Questionnaire)` ; scène toujours au build (`EditorBuildSettings.asset:38-39`) ; `QuestionConfig` toujours orphelin |
+| **E1** | QuestionnaireScene coquille vide, inatteignable | 🟡 | *(MàJ 09/09)* **Tranché — retrait décidé (DEC-038, Q-QUEST-1 option A ; Trust in Technology confirmé en partie 2, Q-TRUST-1 close).** Le retrait est **en cours côté PC** — à vérifier à son prochain commit (scène hors du build, `QuestionnaireUI`/`QuestionConfig`/code mort supprimés). État au 09/09 : code inchangé (`QuestionnaireUI.cs:38`, scène au build) |
 | **E2** | Consentement placeholder | ✅ | Vrai texte dans `ConsentScene.unity` (commits `78f9b6e1`, `a4a98569`) ; l'écrasement au `Start` de `ConsentUI.cs:17-21` est neutralisé — `_titleText`/`_bodyText` débranchés dans la scène (`ConsentScene.unity:240-241`, `fileID: 0`) ; decline via vraie modale (`FlowContinueScreenUI`). **Résidus** : code mort dans `ConsentUI.cs` (placeholders + message « La session s'arrete ici ») ; toujours pas de champ `consent_text` dans `SessionConfig` — le texte est porté par la scène, pas configurable via l'API |
 | **E3** | Texte dev périmé sur AdvisorChoice | ❌ | `AdvisorChoiceUI.cs:56` affiche toujours « Ce choix est enregistre mais n'affecte pas encore la generation de la map. » — faux, visible participant. **Quick win** |
 | **D1** | Trials `advisor=none` perdus | ✅ | `fe5fc771` — `TrialManager.cs:143-148` : le trial part avec les champs acceptabilité null (omis du payload). **Résidu** : un `sens_of_agency_question` vide (abandon réel du questionnaire) jette encore la ligne avec un simple `LogWarning` |
@@ -108,7 +108,7 @@ Légende : ✅ corrigé · 🔁 clos par retrait/décision · 🟡 partiellement
 | **N1-A** | Colonnes `*_match_advice` | ❌ | Toujours zéro occurrence. Recalculabilité **améliorée** : `advisor_path_config` + `map_config.cells` couvrent désormais le proximal-chemin ; le motor reste non recalculable tant que N1-B est ouvert |
 | **N1-B** | Motor advice sans donnée de résultat | 🟡 | *(MàJ 09/09)* **Partiellement fermé par `a919a683`** (DEC-030, post-revue) : `motor_advice_visible` et `motor_advice_reliable` sont désormais exportés (`FlowDataModels.cs`, `TrialManager.ApplyMotorAdviceState`). **Restent absents : le set actif et le set affiché** (`TrialDrawResolver.MotorAdviceDraw.active_set`/`displayed_set` ne remontent pas) — sur un trial free, le set actif n'est reconstructible que par re-simulation du RNG. Résidu porté par Q-MOTOR-1 |
 | **N1-C** | Stimulus distal réalisé non loggé | ❌ | `LeftScanData`/`RightScanData` toujours lus nulle part hors `DistalChoiceUI.cs` (Q-DISTAL-1) |
-| **N1-D** | QuestionnaireScene inatteignable | ❌ | Voir E1 — triple verrou intact |
+| **N1-D** | QuestionnaireScene inatteignable | 🟡 | Voir E1 — *(MàJ 09/09)* retrait décidé (DEC-038), en cours côté PC |
 | **N1-F / N2-J** | `participant-notes` hors codebook | 🔁 | **Clos par retrait** : `ParticipantNoteUI` et l'endpoint supprimés (`7a86e064`, DEC-024). ⚠️ La colonne client 76 `final_comments` redevient ❌ — à faire acter par le chercheur si le template CSV V1 fait toujours foi |
 | **N2-A §9.1** | Ordre des options advisor non seedé, non loggé | 🟡 | *(MàJ 09/09)* **Volet seed fermé par `88899e9a`** (DEC-029, post-revue) : tirage 1×/bloc via `BlockDrawResolver.DrawAdvisorDisplayOrder` (salt 7), consommé par `AdvisorChoiceUI`. **Volet log toujours ouvert** : `advisor_display_order` vit dans `PlayerSessionState`, pas dans `TrialResponseRow` — le tirage réalisé n'est pas enregistré. L'export est **requis par le pilotage** (MàJ DEC-029 du 09/09) ; le non-export initial n'est pas validé |
 | **N2-A §9.2** | Genre du badge humain incohérent | ✅ | `AdvisorBadgeUtility` — tiré **1×/bloc, seedé** (salt 6), consommé par les 3 UI, champ `advisor_display_is_male`. *(Correctif 09/09 : ce champ vit dans `PlayerSessionState` — **il n'est pas exporté** dans `TrialResponseRow`, contrairement à ce qu'affirmait cette ligne. L'incohérence intra-trial est bien réglée ; le genre affiché reste recalculable depuis la seed mais absent des données — même question d'export que §9.1, cf. Q-RANDOM-1 volet apparence)* |
@@ -182,9 +182,9 @@ api/trial-responses/{id}` · `GET` images publiques. (`api/participant-notes` su
 3. **Lot A résiduel — résilience** : A2 persistance de la file (`ApiClient.cs:58`) ·
    A3 `break` → dépilage/backoff + retry sur `OnApplicationPause`/`Quit` (`:295-301`) ·
    A4 log d'erreur sur `ToMotorKeySet` inconnu.
-4. **Quick wins visibles participant** : E3 (une ligne de texte) · décision
-   QuestionnaireScene : retirer du build ou câbler (N1-D — rappel : câbler = extension du
-   modèle de données **et** du contrat PATCH).
+4. **Quick wins visibles participant** : E3 (une ligne de texte) · ~~décision
+   QuestionnaireScene~~ *(MàJ 09/09 : tranché — **retrait**, DEC-038 ; implémentation en cours
+   côté PC, à vérifier à son prochain commit)*.
 5. **Campagne de validation** : ouvrir G0 ; exécuter en premier le check
    « hypothesis-readiness » (échouerait aujourd'hui sur toute hypothèse motrice) ;
    vérifier le schéma réel des colonnes Supabase (D-003) **avant** toute passation.
@@ -234,5 +234,6 @@ DEC-003 Mountain UI annulée) ;
 **N1-B** (`a919a683`/DEC-030 — reste set actif/affiché) et **N2-A §9.1** (`88899e9a`/DEC-029 —
 reste l'export du tirage réalisé).
 **Corrigé le 09/09 :** **F6** (DEC-035 — les 4 textes réels en scène, dernier libellé via `746a4406`).
-**Toujours ouverts :** E1/N1-D, E3, D2, D3, N1-A, N1-C,
+**Décidé, implémentation en cours (PC) :** E1/N1-D (retrait de la QuestionnaireScene, DEC-038).
+**Toujours ouverts :** E3, D2, D3, N1-A, N1-C,
 N2-B, N2-E, N2-F, N2-G, Q-TIE-1.

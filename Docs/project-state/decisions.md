@@ -84,7 +84,7 @@
 - **Décision :** Les 2-3 questions posées après chaque bloc sont intégrées directement dans le jeu Unity (scène dédiée), pas dans un outil externe. Les réponses sont enregistrées comme partie du bloc en cours. Les mêmes questions sont reposées à chaque bloc.
 - **Raison :** Les questions font partie intégrante du flux expérimental de chaque bloc. Les réponses doivent être associées au bloc courant. Pas de redirection vers un outil externe entre les blocs.
 - **Impact :** Nécessite une scène QuestionnaireScene, un composant QuestionnaireUI. Les réponses sont stockées comme colonnes (`q1_text`/`q1_response`, `q2`, `q3`) dans la table `trial_responses`, remplies uniquement sur la dernière ligne du bloc. DEC-005 reste valide pour les questionnaires pré/post expérience longs (Qualtrics).
-- **Statut :** ACTIF
+- **Statut :** ANNULÉE *(2026-09-09, par DEC-038 — la scène dédiée n'a jamais été câblée ; l'intention est couverte par `TrialQuestionsUI` (questions par trial, DEC-025/028/035) et par les questionnaires de la partie 2 (DEC-024). La scène est retirée.)*
 
 ### DEC-009 — Config de session chargée par URL + API
 - **Date :** 2026-03-16
@@ -331,9 +331,17 @@
 - **Impact :** Q-010 fermée — le dernier arbitrage scientifique « hors donnée » de la revue de livraison. La manipulation est pilotable (probabilités), reproductible (tirages seedés) et mesurée (réalisés exportés). Le GDD n'est pas modifié : la spécification vit dans le dashboard doc + cette décision. La ligne « Frequency/pattern d'apparition de l'advice » de l'analyse de gap est couverte par le même modèle (`*_visible_probability`, mêmes niveaux de config).
 - **Statut :** ACTIF
 
+### DEC-038 — QuestionnaireScene retirée ; le Trust in Technology Questionnaire passe en partie 2
+- **Date :** 2026-09-09
+- **Tag :** [SCOPE]
+- **Décision :** (1) Le **Trust in Technology Questionnaire** (prédicteur de H7, GDD §2.7) est passé **hors du jeu**, dans les questionnaires de la **partie 2** (DEC-024) — confirme DEC-005. (2) La **QuestionnaireScene** est **retirée** du flow et du build, avec son code mort (`QuestionnaireUI` ~110 lignes, type orphelin `QuestionConfig`, `OnQuestionnaireComplete`, `GamePhase.Questionnaire`) — option A de Q-QUEST-1. **Le travail de retrait est en cours côté PC** ; vérification à son prochain commit.
+- **Raison :** La scène n'a jamais été chargée (aucun `AdvanceToPhase(GamePhase.Questionnaire)`), sa liste de questions est vide en dur, `QuestionConfig` n'est saisissable nulle part, et le PATCH ne conserve qu'une réponse — la câbler aurait été un chantier (modèle de données + contrat PATCH + dashboard) sans besoin : les questions in-game sont servies par `TrialQuestionsUI` (par trial, DEC-025/028/035) et les questionnaires longs par la partie 2 (DEC-024).
+- **Impact :** Ferme **Q-TRUST-1** (H7 a son chemin de données via la plateforme partie 2) et **Q-QUEST-1**. **DEC-008 est ANNULÉE** (son véhicule — scène dédiée post-bloc, colonnes q1-q3 — n'a jamais existé en pratique ; son intention est couverte par `TrialQuestionsUI`). E1/N1-D passeront à ✅ **à la livraison du commit de retrait de PC** — à vérifier : scène hors du build, fichiers supprimés, enum nettoyé.
+- **Statut :** ACTIF
+
 ## Index par tag
 
-- **[SCOPE]** : DEC-004, DEC-005, DEC-008, DEC-024, DEC-031, DEC-033, DEC-034, DEC-036
+- **[SCOPE]** : DEC-004, DEC-005, DEC-008 *(annulée)*, DEC-024, DEC-031, DEC-033, DEC-034, DEC-036, DEC-038
 - **[FONC]** : DEC-001, DEC-003 *(annulée)*, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023, DEC-025, DEC-028, DEC-029, DEC-031, DEC-032, DEC-033, DEC-034, DEC-035, DEC-037
 - **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022, DEC-026, DEC-027, DEC-029, DEC-030, DEC-036
 - **[PLANNING]** : _(aucune pour l'instant)_

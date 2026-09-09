@@ -525,8 +525,8 @@
 - **Options :**
   - A : Retirer QuestionnaireScene du flow et du build → impact : ~110 lignes de code mort et une scène supprimées ; **le plus économique**
   - B : La câbler → impact : **extension du modèle de données** (`BlockConfig.questions`) **+ du contrat de PATCH** + saisie côté panneau de configuration. Dépend de Q-011 (quelles questions, quels textes) et de **Q-TRUST-1** (est-ce là que doit passer le questionnaire Trust in Technology ?)
-- **Statut :** EN ATTENTE — à trancher **avec [Q-TRUST-1](#q-trust-1--le-questionnaire-trust-in-technology-est-il-dans-le-jeu-ou-en-dehors)**
-- **Réponse :** —
+- **Statut :** RÉPONDU *(2026-09-09 — DEC-038)*
+- **Réponse :** **Option A — retrait.** Q-TRUST-1 étant tranchée (Trust in Technology en partie 2), plus rien ne justifiait la scène. ⏳ **Le travail de retrait est en cours côté PC** — vérification à son prochain commit (scène hors du build, `QuestionnaireUI`/`QuestionConfig`/code mort supprimés). E1/N1-D passeront à ✅ à cette livraison.
 
 ### Q-FF-12 — Articulation `distal_forced_optimal_probability` vs `distal_advice_reliability`
 - **Posée le :** 2026-05-26 (reportée ici le 2026-07-28 — elle n'existait que dans `specs/free-forced-choices/spec-fonc.md`)
@@ -648,8 +648,8 @@
   - A : **Hors périmètre, confirmé (DEC-005)** → impact : on retire la scène inutilisée du jeu ; le lien de redirection en fin de session sert déjà à cela. Le plus économique
   - B : **Dans le jeu, entre les blocs** → impact : développement à chiffrer — il faut créer le moyen pour vous de saisir les questions, l'écran de passation, et l'enregistrement des réponses (rien de tout cela n'existe aujourd'hui)
   - C : **Dans le jeu, une seule fois en fin de session** → impact : même développement, mais un seul point de passation
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU *(2026-09-09 — DEC-038)*
+- **Réponse :** **Option A** — le Trust in Technology Questionnaire passe dans les **questionnaires de la partie 2** hors-jeu (DEC-024) : H7 a son chemin de données via la plateforme, confirmant DEC-005. La QuestionnaireScene est retirée (cf. Q-QUEST-1).
 
 ### Q-FREQ-1 — À quelle fréquence poser les trois questions, et sur quelle échelle ?
 - **Posée le :** 2026-07-28
