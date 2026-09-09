@@ -40,7 +40,7 @@
 ### Q-002 — Quelles colonnes CSV V1 pour le motor advice ?
 - **Posée le :** 2026-03-12
 - **Origine :** Analyse fonctionnelle, chantier Motor Advice
-- **Bloque :** ~~Traçabilite data et spec fonc finale~~ → 🔴 **requalifiée le 2026-07-28** (revue de couverture, constat N1-B / divergence D-008) : **aucune** des 4 données n'est enregistrée aujourd'hui. Ce n'est pas un sujet de traçabilité mais **une manipulation expérimentale sans mesure** — le niveau moteur est inanalysable. Passe au rang des arbitrages bloquants, aux côtés de Q-010 et Q-011.
+- **Bloque :** ~~Traçabilite data et spec fonc finale~~ → 🔴 **requalifiée le 2026-07-28** (revue de couverture, constat N1-B / divergence D-008) : ~~**aucune** des 4 données n'est enregistrée aujourd'hui~~ → **MàJ 2026-09-09** : **2 des 4 le sont depuis le 08/09** (`motor_advice_visible`, `motor_advice_reliable` — commit `a919a683`, DEC-030) ; restent le set actif et le set affiché. Ce n'est pas un sujet de traçabilité mais **une manipulation expérimentale à moitié mesurée** — l'adhérence moteur reste inanalysable. Reste au rang des arbitrages bloquants, aux côtés de Q-010 et Q-011.
 - **Question :** Quelles colonnes CSV exactes doivent enregistrer le set actif, l affichage de l advice, sa fiabilite et le set affiche ?
 - **Options :**
   - A : Ajouter 4 colonnes dediees → impact : mise a jour schema CSV
@@ -271,8 +271,8 @@
   - A : **Mapping fixe** q1=control, q2=acceptability, q3=human-likeness, textes hardcodés → impact : simple mais peu flexible
   - B : **Mapping fixe + textes éditables côté chercheur** (config ou BDD) → impact : ajout d'un système d'édition, plus de souplesse
   - C : **Mapping configurable par bloc** (toutes les dimensions ne sont pas demandées à chaque bloc) → impact : config plus riche, nécessite logique conditionnelle dans le flow
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU *(2026-09-09 — DEC-035, option A de facto ; dernier libellé posé par `746a4406` le même jour)*
+- **Réponse :** **Option A de facto** : mapping fixe porté par les 4 champs sérialisés de `TrialQuestionsUI`, textes figés dans `ProximalScene.unity` (même modèle que le consentement — rebuild pour toute retouche). **Les 4 textes sont posés** (vérifié en scène le 09/09) : acceptabilité 1 = « How helpful did you find your advisor? », acceptabilité 2 = « How satisfied were you with your advisor? » (commit `746a4406`), agentivité = « How much control did you feel you had over the outcome of the mission? », ressemblance humaine = « How human-like did you find your advisor? ». F6 clos.
 
 ### Q-012 — Nombre de trials par bloc et nombre de blocs training
 - **Posée le :** 2026-05-12
@@ -295,8 +295,8 @@
   - A : **Saturation des couleurs** (réduction du contraste rouge/vert) → impact : simple, modification de matériau/shader, ajout d'un paramètre `saturation_noise`
   - B : **Blur / gabor masking** → impact : shader plus complexe, plus proche du GDD
   - C : **Variation du ratio affiché vs réel** (cloud bruité visuellement par particules supplémentaires d'une couleur) → impact : altère la perception sans toucher au rendu, plus simple à équilibrer
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU *(2026-09-09 — DEC-031)*
+- **Réponse :** **Aucun bruit de rendu** — le GDD listait lui-même « green/red ratio » comme piste, c'est elle qui est retenue. Acté avec les chercheurs : la difficulté de discrimination est portée par **le contenu des cibles** — ratio vert/rouge proche de 0,5 pour une cible dure à lire, `gap` faible pour deux cibles dures à départager — via les paramètres existants `min/max_green_ratio` + `gap_min`/`gap_max` (par bloc, déjà exportés). Le paramètre `visibility_noise` est **abandonné**, ainsi que les 7 colonnes client correspondantes (écart au template CSV V1 à faire acter, cf. DEC-031). Ferme F1. ⚠️ Corollaire : le ratio réalisé devient la mesure de difficulté — renforce Q-DISTAL-1 (les valeurs réellement affichées à l'écran distal ne sont toujours pas exportées).
 
 ### Q-EXP-1 — Explanations : comment piloter quelle version (short / long) est donnée ?
 - **Posée le :** 2026-05-20
@@ -552,8 +552,8 @@
 - **Options :**
   - A : Acter que le budget de pas remplace l'interdiction → impact : aucun dev, une décision à enregistrer
   - B : Implémenter l'interdiction → impact : dev court, mais fait potentiellement doublon avec `overtime_steps`
-- **Statut :** EN ATTENTE
-- **Réponse :** —
+- **Statut :** RÉPONDU *(2026-09-09 — DEC-032)*
+- **Réponse :** **Option A.** Le budget de pas remplace l'interdiction : tout retour en arrière coûte mécaniquement (budget = chemin minimum, chaque pas excédentaire pénalisé −1 vert/nuage) et le comportement est mesuré (`overtime_steps` + `player_path_log`, revisites comptables post-hoc). Raison supplémentaire : l'interdiction dure pouvait soft-locker un trial dans un cul-de-sac (la génération n'en garantit pas l'absence). Écart à `specs-light` §4 assumé. ⚠️ Dépendance tracée dans DEC-032 : la pénalité de budget attend elle-même le sign-off Q-007.
 
 ### Q-DATA-1 — Que doit valoir l'acceptabilité pour un trial joué sans advisor ?
 - **Posée le :** 2026-07-28 · **Reformulée le 2026-07-28** après vérification du code · **Requalifiée le 2026-09-08**
@@ -599,7 +599,7 @@
 - **Posée le :** 2026-07-28
 - **Origine :** Pilotage, revue de couverture (constats N1-A et N1-B, divergences D-007 et D-008)
 - **Bloque :** 🔴 **Toute analyse impliquant le niveau moteur.** Q-002 était classée « traçabilité » depuis le 12/03/26. Après vérification du code, ce n'est pas un sujet de traçabilité : **c'est une manipulation expérimentale sans mesure.**
-- **Contexte :** aujourd'hui, la ligne envoyée ne contient, pour le niveau moteur, que les **probabilités de configuration** (`motor_advice_visible_probability`, `motor_advice_reliable_probability`) et les paramètres de forçage. Ce qui s'est réellement passé sur le trial n'est nulle part : ni le set de touches **actif**, ni le set **affiché** au participant, ni le fait que le conseil ait été affiché, ni qu'il ait été fiable. Ces quatre valeurs existent bien en mémoire (`MotorAdviceController.ActiveSet` / `DisplayedSet` / `AdviceVisible` / `AdviceReliable`) — elles ne sont simplement jamais recopiées dans la ligne. **MàJ 2026-09-08** : depuis le refacto du 29/08 (`48b05b25`), ces quatre valeurs sont produites de façon centralisée et seedée par `TrialDrawResolver.MotorAdviceDraw` — **l'export est devenu un branchement trivial** ; seul l'arbitrage sur les noms/formats de colonnes manque encore.
+- **Contexte :** aujourd'hui, la ligne envoyée ne contient, pour le niveau moteur, que les **probabilités de configuration** (`motor_advice_visible_probability`, `motor_advice_reliable_probability`) et les paramètres de forçage. Ce qui s'est réellement passé sur le trial n'est nulle part : ni le set de touches **actif**, ni le set **affiché** au participant, ni le fait que le conseil ait été affiché, ni qu'il ait été fiable. Ces quatre valeurs existent bien en mémoire (`MotorAdviceController.ActiveSet` / `DisplayedSet` / `AdviceVisible` / `AdviceReliable`) — elles ne sont simplement jamais recopiées dans la ligne. **MàJ 2026-09-08** : depuis le refacto du 29/08 (`48b05b25`), ces quatre valeurs sont produites de façon centralisée et seedée par `TrialDrawResolver.MotorAdviceDraw`. **MàJ 2026-09-09** : le commit `a919a683` (08/09 au soir, DEC-030) exporte désormais **2 des 4** — `motor_advice_visible` et `motor_advice_reliable`. **Restent absents : le set actif et le set affiché** ; sur un trial free, le set actif n'est reconstructible que par re-simulation du RNG. L'option C ci-dessous est donc **implémentée de facto** — l'arbitrage restant porte sur les 2 colonnes manquantes (option A ou B vs statu quo C).
 - **Conséquences concrètes :** on ne peut pas mesurer si le participant a suivi le conseil moteur ; on ne peut pas distinguer un trial où le conseil était absent d'un trial où il était présent mais trompeur ; la colonne `motor_choice_match_advice` du CSV de référence est donc **impossible à recalculer post-hoc**.
 - **Question :** quelles colonnes le motor advice doit-il produire dans `trial_responses` ?
 - **Options :**
@@ -607,7 +607,7 @@
   - B : **Les 4 valeurs + une colonne `motor_choice_match_advice` pré-calculée** → impact : le CSV client est servi tel quel, aucun retraitement côté analyse
   - C : **Le minimum** — seulement « conseil affiché » et « conseil fiable » → impact : on sait quand le conseil est intervenu, mais pas ce que le participant a vu ni ce qu'il a fait ; l'adhérence reste non mesurable
 - **Note :** l'option retenue conditionne aussi Q-002 (qui peut alors être close) et le lot E1/E3 de la revue de couverture.
-- **Statut :** EN ATTENTE
+- **Statut :** EN ATTENTE — **option C implémentée de facto le 08/09/26** (`a919a683`, DEC-030) ; l'arbitrage restant : faut-il aussi exporter le set actif et le set affiché (option A/B), et sous quels noms/formats ?
 - **Réponse :** —
 
 ### Q-DISTAL-1 — Faut-il enregistrer les valeurs réellement affichées sur l'écran distal ?
@@ -672,18 +672,18 @@
 - **Origine :** Pilotage, revue de couverture (constat N2-A, divergence D-012)
 - **Bloque :** 🔴 Contrôle d'un confondant sur le méta-choix (H1), et cohérence de la présentation de l'advisor.
 - **Contexte :** deux tirages aléatoires échappent aujourd'hui au mécanisme de reproductibilité du jeu (tout le reste du gameplay est reproductible à partir d'une graine enregistrée) :
-  1. **L'ordre des trois options d'advisor** (aucun / humain / robot) est **remélangé à chaque affichage**. L'ordre présenté n'est ni reproductible, ni enregistré, ni spécifié dans aucun document. Or un effet de position (gauche / milieu / droite) est un biais classique, et il porte ici sur **le choix le plus en amont du protocole**. En l'état, il est **impossible de le vérifier ou de le corriger après coup**.
-  2. ~~**L'apparence de l'advisor humain** (homme ou femme) est tirée à pile ou face **indépendamment par chaque élément d'interface**.~~ ✅ **Réglé le 29/08/26** (`AdvisorBadgeUtility`, commit `48b05b25`) : le genre est tiré **une fois par bloc, de façon reproductible** (seed de bloc, salt 6), enregistré dans `advisor_display_is_male`, et consommé par les trois éléments d'interface — plus d'incohérence intra-trial. Cela correspond à l'**option C** ci-dessous ; il reste à confirmer que c'est bien le comportement souhaité (vs option A ou B).
+  1. **L'ordre des trois options d'advisor** (aucun / humain / robot) ~~est **remélangé à chaque affichage**~~ → 🟡 **MàJ 2026-09-09** : depuis le 08/09 au soir (`88899e9a`, DEC-029), l'ordre est **tiré une fois par bloc, de façon reproductible** (seed de bloc, salt 7). Il n'est en revanche **toujours pas enregistré** dans les données de trial (`advisor_display_order` reste local à l'état de session) — le pilotage a acté le 09/09 que ce non-export n'est **pas suffisant** : le tirage réalisé (l'ordre effectivement présenté au participant au moment de son choix) doit être enregistré pour la traçabilité (MàJ DEC-029). Un effet de position (gauche / milieu / droite) est un biais classique, et il porte ici sur **le choix le plus en amont du protocole** ; en l'état il n'est vérifiable que par re-simulation hors ligne depuis la seed, pas depuis l'export.
+  2. ~~**L'apparence de l'advisor humain** (homme ou femme) est tirée à pile ou face **indépendamment par chaque élément d'interface**.~~ ✅ **Réglé le 29/08/26** (`AdvisorBadgeUtility`, commit `48b05b25`) : le genre est tiré **une fois par bloc, de façon reproductible** (seed de bloc, salt 6), stocké dans l'état de session (`advisor_display_is_male` — ⚠️ **non exporté** dans les données de trial, précision du 09/09/26), et consommé par les trois éléments d'interface — plus d'incohérence intra-trial. Cela correspond à l'**option C** ci-dessous ; il reste à confirmer que c'est bien le comportement souhaité (vs option A ou B).
 - **Question :** que doit-il se passer pour chacun de ces deux points ?
 - **Options (ordre des advisors) :**
-  - A : **Randomisé, mais reproductible et enregistré** → impact : correctif simple ; permet de tester l'effet de position dans l'analyse. **Recommandé**
+  - A : **Randomisé, mais reproductible et enregistré** → impact : correctif simple ; permet de tester l'effet de position dans l'analyse. **Recommandé** — 🟡 moitié faite le 08/09/26 : le « reproductible » est implémenté (DEC-029), l'« enregistré » reste à faire (requis, MàJ DEC-029 du 09/09)
   - B : **Ordre fixe pour tous les participants** → impact : supprime la variance, mais installe un effet de position constant
   - C : **Contrebalancé entre participants** (ordre déterminé par l'identifiant participant) → impact : le plus propre méthodologiquement, développement légèrement supérieur
 - **Options (apparence de l'advisor humain) :**
   - A : **Un seul genre pour tout le projet** → impact : le plus simple, supprime la variable
   - B : **Tiré une fois par participant, cohérent partout** → impact : permet de contrôler la variable dans l'analyse ; suppose de l'enregistrer
-  - C : **Tiré une fois par bloc, cohérent partout** → ✅ **implémenté depuis le 29/08/26** (seedé + enregistré dans `advisor_display_is_male`)
-- **Statut :** PARTIELLEMENT RÉPONDU — volet **apparence** implémenté (option C de facto, sign-off à obtenir) ; volet **ordre des advisors** toujours EN ATTENTE (le shuffle reste non seedé et non loggé, `AdvisorChoiceUI.cs:30`)
+  - C : **Tiré une fois par bloc, cohérent partout** → ✅ **implémenté depuis le 29/08/26** (seedé ; ⚠️ stocké en état de session seulement, **non exporté** dans les données de trial — même question d'export que l'ordre des advisors)
+- **Statut :** PARTIELLEMENT RÉPONDU — volet **apparence** implémenté (option C de facto, sign-off à obtenir) ; volet **ordre des advisors** : seed ✅ implémenté le 08/09/26 (DEC-029), **export du tirage réalisé toujours EN ATTENTE** (requis par le pilotage, MàJ DEC-029 du 09/09 — action code Lot E5 résiduel)
 - **Réponse :** —
 
 ### Q-HL-1 — La réponse « ressemblance humaine » doit-elle figurer sur toutes les lignes du bloc ?

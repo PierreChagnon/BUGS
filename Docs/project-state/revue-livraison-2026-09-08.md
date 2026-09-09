@@ -10,6 +10,22 @@
 > constat est donné en §2.
 > **Aucune modification de code n'a été faite.** Chaque affirmation cite un `fichier:ligne` ou un commit.
 
+> ### 📌 Addendum du 09/09/2026 — deux commits ont atterri le soir même, après la rédaction
+>
+> Cette revue photographie le HEAD `e4bd00c7` (08/09 après-midi). Deux commits livrés le 08/09 au soir
+> modifient deux de ses verdicts ; les corrections sont reportées **dans le corps du document**,
+> marquées *(MàJ 09/09)* :
+>
+> - **`a919a683`** (DEC-030) — export des **tirages réalisés** : +6 champs dans `TrialResponseRow`
+>   (`proximal_forced`, `proximal_forced_value`, `proximal_forced_was_optimal`, `motor_forced`,
+>   `motor_advice_visible`, `motor_advice_reliable`) + migration Supabase `20260908150000`.
+>   → **N1-B passe de ❌ à 🟡** : le motor advice a désormais 2 de ses 4 valeurs réalisées en base ;
+>   restent le **set actif** et le **set affiché** (Q-MOTOR-1). Le total de champs passe de 87 à **93**.
+> - **`88899e9a`** (DEC-029) — l'**ordre d'affichage des advisors** est tiré 1×/bloc, seedé (salt 7),
+>   mais **non exporté**. → **N2-A §9.1 passe de ❌ à 🟡** : reproductible depuis la seed, mais le
+>   tirage réalisé (ce que le participant a vu) n'est toujours pas enregistré — **export requis par
+>   le pilotage** (MàJ DEC-029 du 09/09), le non-export initial n'est pas validé.
+
 ---
 
 ## Verdict
@@ -29,6 +45,8 @@ maintenue en continu (DEC-023 à DEC-025, dictionnaire et matrice à jour).
    bloquée après échec des retries.
 3. **Les textes des 4 questions trial-wise sont toujours « (a definir) »** et le pattern de
    fiabilité des advisors (Q-010) reste non spécifié — arbitrages chercheur.
+   *(MàJ 09/09 : constat textes **levé** — les 4 textes réels sont posés dans `ProximalScene.unity`
+   (DEC-035, dernier libellé via `746a4406`) ; F6 clos. Reste Q-010 seule sur ce point.)*
 4. **La campagne de validation n'a jamais démarré** : gates G0–G5 tous ⬜, et le contrat de
    colonnes côté Supabase (D-003) n'est toujours pas vérifié — aggravé par la rupture
    d'échelle 5→7 points et le passage à 2 colonnes d'acceptabilité.
@@ -74,24 +92,24 @@ Légende : ✅ corrigé · 🔁 clos par retrait/décision · 🟡 partiellement
 
 | Réf | Sujet | Verdict | État au 08/09 |
 | :-- | :-- | :-: | :-- |
-| **F1** | `visibility_noise` | ❌ | Zéro occurrence dans `Assets/` — attend l'arbitrage Q-013 |
-| **F2** | Retour arrière non bloqué | ❌ | `LevelRegistry.cs:187` — `IsWalkable = InBounds && !IsWall` ; à clore probablement par décision (budget de pas) |
-| **F4** | Protocole de sortie | ❌ | `SettingsPanelUI.Quit()` → `Application.Quit()` sec, ni confirmation ni `session_abandoned` |
-| **F5** | BLOCK_RECAP | 🟡 | La BreakScene affiche désormais le **total de bugs verts de session** (`c428bac8`) — toujours ni advisor utilisé, ni vallée choisie, ni comparatif |
-| **F6** | Textes questionnaire placeholders | ❌ | Désormais **4 textes** « … (a definir) » (`TrialQuestionsUI.cs:29-32`) — sérialisés donc surchargeables, mais les défauts commités restent des placeholders. Bloquant passation |
-| **F7** | Pas de boot hors-ligne | ❌ | `FlowController.cs:386,423` — `LogError` et arrêt. Gêne le dev/test, pas la passation |
+| **F1** | `visibility_noise` | 🔁 | *(MàJ 09/09)* **Clos par décision (DEC-031)** : acté avec les chercheurs que la difficulté de discrimination est portée par le ratio vert/rouge et le `gap` (paramètres existants `min/max_green_ratio`, `gap_min`/`gap_max`) — aucun bruit de rendu ne sera implémenté. Q-013 fermée ; les 7 colonnes client `visibility_noise` sont abandonnées (écart CSV à faire acter). Corollaire : renforce Q-DISTAL-1 (le ratio réalisé devient la mesure de difficulté, or le distal ne l'exporte pas — N1-C) |
+| **F2** | Retour arrière non bloqué | 🔁 | *(MàJ 09/09)* **Clos par décision (DEC-032, Q-BACK-1 option A)** : le budget de pas remplace l'interdiction de `specs-light` §4 — tout détour coûte (−1 vert/nuage par pas excédentaire) et est mesuré (`overtime_steps`, `player_path_log`). L'interdiction dure risquait le soft-lock en cul-de-sac. Dépendance tracée : la pénalité de budget attend elle-même le sign-off Q-007 (N2-F) |
+| **F4** | Protocole de sortie | 🔁 | *(MàJ 09/09)* **Clos par décision (DEC-033, re-scope WebGL)** : le §2.8 du plan est une architecture desktop — en WebGL `Application.Quit()` est inerte et la fermeture d'onglet n'est pas interceptable fiablement. Pas de bouton Quitter (le `QuitButton` de `SettingsOverlay.prefab` est désactivé, `m_IsActive: 0`) ; conservation des données portée par le **Lot A2/A3** (devenu non négociable) ; `session_abandoned` dérivé côté serveur, pas de colonne nouvelle |
+| **F5** | BLOCK_RECAP | 🔁 | *(MàJ 09/09)* **Clos par décision (DEC-034)** : la BreakScene est un écran de repos (countdown + total de session), **comportement revu et validé par le chercheur** — le récap systématique du §2.6 est abandonné (structurellement incompatible avec les pauses DEC-022 : des blocs s'enchaînent sans BreakScene). La fuite potentielle total de session vs `show_numerical_feedback` est actée négligeable. **DEC-003 (Mountain UI) annulée** dans la foulée |
+| **F6** | Textes questionnaire placeholders | ✅ | *(MàJ 09/09)* **Clos — vérifié dans `ProximalScene.unity`** : les 4 textes réels vivent en scène (DEC-035, modèle E2/consentement) — acceptabilité 1 « How helpful… », acceptabilité 2 « How satisfied were you with your advisor? » (posée par `746a4406`, 09/09), agentivité « How much control… », human-likeness « How human-like… ». Les défauts « (a definir) » du code restent des fallbacks jamais montrés |
+| **F7** | Pas de boot hors-ligne | 🔁 | *(MàJ 09/09)* **Clos par décision (DEC-036)** : aucun mode hors-ligne ne sera développé — « pas un problème pour nous », dev/test avec backend accessible, et le cas n'existe pas pour un participant (lancement par URL + `sessionId`, DEC-009) |
 
 ### Couverture de la donnée (revue de couverture)
 
 | Réf | Sujet | Verdict | État au 08/09 |
 | :-- | :-- | :-: | :-- |
 | **N1-A** | Colonnes `*_match_advice` | ❌ | Toujours zéro occurrence. Recalculabilité **améliorée** : `advisor_path_config` + `map_config.cells` couvrent désormais le proximal-chemin ; le motor reste non recalculable tant que N1-B est ouvert |
-| **N1-B** | Motor advice sans donnée de résultat | ❌➜🔧 | Toujours aucune colonne — **mais** les 4 valeurs réalisées (set actif, set affiché, visible, fiable) existent désormais proprement dans `TrialDrawResolver.MotorAdviceDraw` (`48b05b25`). L'export est devenu un branchement trivial ; reste l'arbitrage noms/formats (Q-MOTOR-1) |
+| **N1-B** | Motor advice sans donnée de résultat | 🟡 | *(MàJ 09/09)* **Partiellement fermé par `a919a683`** (DEC-030, post-revue) : `motor_advice_visible` et `motor_advice_reliable` sont désormais exportés (`FlowDataModels.cs`, `TrialManager.ApplyMotorAdviceState`). **Restent absents : le set actif et le set affiché** (`TrialDrawResolver.MotorAdviceDraw.active_set`/`displayed_set` ne remontent pas) — sur un trial free, le set actif n'est reconstructible que par re-simulation du RNG. Résidu porté par Q-MOTOR-1 |
 | **N1-C** | Stimulus distal réalisé non loggé | ❌ | `LeftScanData`/`RightScanData` toujours lus nulle part hors `DistalChoiceUI.cs` (Q-DISTAL-1) |
 | **N1-D** | QuestionnaireScene inatteignable | ❌ | Voir E1 — triple verrou intact |
 | **N1-F / N2-J** | `participant-notes` hors codebook | 🔁 | **Clos par retrait** : `ParticipantNoteUI` et l'endpoint supprimés (`7a86e064`, DEC-024). ⚠️ La colonne client 76 `final_comments` redevient ❌ — à faire acter par le chercheur si le template CSV V1 fait toujours foi |
-| **N2-A §9.1** | Ordre des options advisor non seedé, non loggé | ❌ | `AdvisorChoiceUI.cs:30` — `UnityEngine.Random.Range`, toujours ni seed ni log. Manipulation la plus en amont du protocole |
-| **N2-A §9.2** | Genre du badge humain incohérent | ✅ | `AdvisorBadgeUtility` — tiré **1×/bloc, seedé** (salt 6), consommé par les 3 UI, exporté `advisor_display_is_male` (`FlowDataModels.cs:474`) |
+| **N2-A §9.1** | Ordre des options advisor non seedé, non loggé | 🟡 | *(MàJ 09/09)* **Volet seed fermé par `88899e9a`** (DEC-029, post-revue) : tirage 1×/bloc via `BlockDrawResolver.DrawAdvisorDisplayOrder` (salt 7), consommé par `AdvisorChoiceUI`. **Volet log toujours ouvert** : `advisor_display_order` vit dans `PlayerSessionState`, pas dans `TrialResponseRow` — le tirage réalisé n'est pas enregistré. L'export est **requis par le pilotage** (MàJ DEC-029 du 09/09) ; le non-export initial n'est pas validé |
+| **N2-A §9.2** | Genre du badge humain incohérent | ✅ | `AdvisorBadgeUtility` — tiré **1×/bloc, seedé** (salt 6), consommé par les 3 UI, champ `advisor_display_is_male`. *(Correctif 09/09 : ce champ vit dans `PlayerSessionState` — **il n'est pas exporté** dans `TrialResponseRow`, contrairement à ce qu'affirmait cette ligne. L'incohérence intra-trial est bien réglée ; le genre affiché reste recalculable depuis la seed mais absent des données — même question d'export que §9.1, cf. Q-RANDOM-1 volet apparence)* |
 | **N2-B** | `human_likeness` répliqué sur toutes les lignes | ❌ | `ApiClient.cs:142-178` inchangé — comportement toujours non acté (Q-HL-1) |
 | **N2-C** | `display_probability` non documenté | 📘 | Le mécanisme demeure (et s'est étendu : `content_variant_long_probability`), mais il est désormais **documenté** (spec-fonc explanations R9, TDD, dictionnaire). L'asymétrie distale est commentée dans le code |
 | **N2-D** | `block_template_id` hors codebook | ✅ | Dictionnaire et matrice tenus à jour depuis le 28/07 |
@@ -119,17 +137,23 @@ l'ordre présenté n'est toujours pas loggé ; l'acceptabilité reste non posée
 
 ## 3. Couverture CSV client — delta depuis le 28/07
 
-`TrialResponseRow` compte désormais **87 champs** (82 au 28/07) : +`acceptability_question_1`/`_2`
+`TrialResponseRow` comptait **87 champs** au moment de la revue (82 au 28/07) : +`acceptability_question_1`/`_2`
 (remplacent `acceptability_question`), +`advisor_path_config`, +`green_bugs_session_total`,
 +`proximal_advice_reliable`, +`proximal_advice_reliable_probability`.
+
+> *(MàJ 09/09)* Le total est passé à **93 champs** avec `a919a683` (DEC-030) : +`proximal_forced`,
+> +`proximal_forced_value`, +`proximal_forced_was_optimal`, +`motor_forced`, +`motor_advice_visible`,
+> +`motor_advice_reliable` — les tirages **réalisés** du forçage proximal/motor, à côté des
+> probabilités configurées (migration Supabase `20260908150000`).
 
 Sur les **29 colonnes client manquantes** du 28/07 :
 
 | Mouvement | Colonnes |
 | :-- | :-- |
 | ✅ Fermées | 22 `proximal_advice_reliability` · 58 `proximal_advice_path` (`advisor_path_config`) · 55 `map_layout` complété (`map_config.cells` — murs + pièges, ferme PC-8) |
-| 🔁 Retirées par décision | 76 `final_comments` (DEC-024 — **à faire acter côté chercheur**) |
-| ❌ Toujours manquantes | les 6 du niveau moteur (N1-B) · les 5 du stimulus distal (N1-C) · les 3 `*_match_advice` (N1-A) · les 7 `visibility_noise` (F1/Q-013) · `screen_type`/`screen_id`/`username` · `explanation_given_frequency` (réalisé) |
+| 🔁 Retirées par décision | 76 `final_comments` (DEC-024 — **à faire acter côté chercheur**) · *(MàJ 09/09)* les 7 `visibility_noise` (12-14, 32, 35, 47, 51 — DEC-031, F1/Q-013 clos : difficulté portée par ratio/gap) |
+| ❌ Toujours manquantes | les 6 du niveau moteur (N1-B) · les 5 du stimulus distal (N1-C) · les 3 `*_match_advice` (N1-A) · ~~les 7 `visibility_noise`~~ *(→ retirées, DEC-031)* · `screen_type`/`screen_id`/`username` · `explanation_given_frequency` (réalisé) |
+| ✅ *(MàJ 09/09)* Fermées par `a919a683` | 64 `motor_advice_given` (→ `motor_advice_visible`) · 23 `motor_advice_reliability` réalisé (→ `motor_advice_reliable`) — sur les 6 colonnes moteur, restent 63 `motor_choice_active_config`, 65 `motor_advice` (set affiché), 67 `motor_choice`, 68 `motor_choice_match_advice` |
 
 Endpoints actuels : `GET api/sessions/{id}` · `POST api/trial-responses` · `PATCH
 api/trial-responses/{id}` · `GET` images publiques. (`api/participant-notes` supprimé.)
@@ -139,14 +163,17 @@ api/trial-responses/{id}` · `GET` images publiques. (`api/participant-notes` su
 ## 4. Ce qui bloque encore la livraison — ordre proposé
 
 1. **Arbitrages chercheur** (rien de neuf ne peut se passer sans eux) :
-   textes réels des 4 questions (F6, Q-011) · pattern de fiabilité des advisors (Q-010) ·
+   ~~textes réels des 4 questions~~ *(MàJ 09/09 : réglé — les 4 textes sont en scène, DEC-035 +
+   `746a4406`, F6 clos)* · pattern de fiabilité des advisors (Q-010) ·
    sign-off du « null assumé » pour l'acceptabilité sans advisor (Q-DATA-1, tranché en code
    le 26/08) · acter le retrait de `final_comments` (DEC-024) et la rupture d'échelle 5→7 ·
    noms/formats des colonnes motor (Q-MOTOR-1).
 2. **Lot E résiduel — mesure** (le refacto a baissé le coût) :
-   E1' export motor advice réalisé depuis `TrialDrawResolver.MotorAdviceDraw` (N1-B, trivial) ·
+   E1' export motor advice réalisé — *(MàJ 09/09)* **partiellement fait** (`a919a683`, DEC-030 :
+   visible + fiable exportés) ; **reste** l'export du set actif et du set affiché (N1-B, Q-MOTOR-1) ·
    E2' log du stimulus distal (`LeftScanData`/`RightScanData`, N1-C) ·
-   E5' seeder + logger l'ordre des options advisor (N2-A §9.1) ·
+   E5' ordre des options advisor — *(MàJ 09/09)* **seed ✅ fait** (`88899e9a`, DEC-029) ;
+   **reste** l'export du tirage réalisé, requis par le pilotage (N2-A §9.1) ·
    E4' compteur de touches invalides (N2-E) ·
    E3' colonnes `*_match_advice` ou acter « recalculables » (N1-A).
 3. **Lot A résiduel — résilience** : A2 persistance de la file (`ApiClient.cs:58`) ·
@@ -181,7 +208,7 @@ api/trial-responses/{id}` · `GET` images publiques. (`api/participant-notes` su
 
 | Sujet | Détail |
 | :-- | :-- |
-| **TDD.md** | Changelog gelé à v3.1 (27/08) alors que le corps a bougé ; **section 7 toujours manquante** (saute de 6.7 à 8) ; `BreakSceneController`, `BlockOrderRandomizer`, classes Audio, tutoriels, `SettingsPanelUI` absents ; nouvelles classes du refacto (`BlockDrawResolver`, `AdvisorBadgeUtility`, `ModalPanelUIBase`) non documentées ; §6.7 QuestionnaireUI à réviser vs N1-D ; inventaire packages §11.2 (N2-M) à refaire. **À traiter via le protocole `!doc`** (diff soumis à validation) — non fait dans cette passe, conformément aux règles du projet |
+| **TDD.md** | ~~Changelog gelé à v3.1 (27/08)~~ *(MàJ 09/09 : journal passé en v3.2 par `a919a683`, en-tête réaligné 3.0→3.2 lors de la passe de réconciliation)* ; **section 7 toujours manquante** (saute de 6.7 à 8) ; `BreakSceneController`, `BlockOrderRandomizer`, classes Audio, tutoriels, `SettingsPanelUI` absents ; nouvelles classes du refacto (`BlockDrawResolver`, `AdvisorBadgeUtility`, `ModalPanelUIBase`) non documentées ; §6.7 QuestionnaireUI à réviser vs N1-D ; inventaire packages §11.2 (N2-M) à refaire. **À traiter via le protocole `!doc`** (diff soumis à validation) — non fait dans cette passe, conformément aux règles du projet |
 | **Spec-techs manquantes** | `free-forced-choices` et `explanations-short-long` — toujours « à produire » ; les tie-breakers R6/R15 renvoient toujours à un document fantôme (le tie-break vallée 50/50 est maintenant explicite dans `BlockDrawResolver`, salt 1 — matière à rétro-documentation) |
 | **Sans aucune doc** | Murs organiques (`CorridorWallsGenerator`, `624f9a99`) · `SliderValueLabel` · panneaux forced de `RoundUI` (mentions éparses seulement) |
 | **Hygiène repo** | `mono_crash.*.json` (334 Ko) toujours versionnés · 3 scènes `[LEGACY]`, `ProximalSceneFLO.unity`, 3 prefabs `_DRAFT`, `EndOfBlockPanel_TODO.prefab` · branches `feature/bug-cloud-feedback` et `scene/mission-dashboard` non mergées ni closes · HDRP installé à côté d'URP · toujours aucun test ni `.asmdef` |
@@ -192,7 +219,17 @@ api/trial-responses/{id}` · `GET` images publiques. (`api/participant-notes` su
 
 **Corrigés depuis le 28/07 :** D1, D5, E2, N2-A §9.2, N2-C (doc), N2-D, N2-K, N2-L, N2-N,
 PC-8, colonnes client 22 et 58.
-**Clos par retrait :** N1-F, N2-J (DEC-024 — sign-off chercheur à obtenir).
-**Partiels :** D4, F5, F8, N2-H, N2-I.
-**Toujours ouverts :** E1/N1-D, E3, D2, D3, F1, F2, F4, F6, F7, N1-A, N1-B, N1-C,
-N2-A §9.1, N2-B, N2-E, N2-F, N2-G, Q-TIE-1.
+**Clos par retrait :** N1-F, N2-J (DEC-024 — sign-off chercheur à obtenir) ; *(MàJ 09/09)*
+**F1** (DEC-031 — difficulté portée par ratio/gap, Q-013 fermée, 7 colonnes client abandonnées) ;
+**F2** (DEC-032 — budget de pas remplace l'interdiction de retour arrière, Q-BACK-1 fermée) ;
+**F4** (DEC-033 — QUIT_OVERLAY abandonné, re-scope WebGL : conservation des données par Lot A2/A3,
+`session_abandoned` dérivé côté serveur) ;
+**F5** (DEC-034 — BreakScene = écran de repos validé chercheur, BLOCK_RECAP §2.6 abandonné,
+DEC-003 Mountain UI annulée) ;
+**F7** (DEC-036 — pas de mode hors-ligne, assumé).
+**Partiels :** D4, F8, N2-H, N2-I — et, depuis le 08/09 au soir *(MàJ 09/09)* :
+**N1-B** (`a919a683`/DEC-030 — reste set actif/affiché) et **N2-A §9.1** (`88899e9a`/DEC-029 —
+reste l'export du tirage réalisé).
+**Corrigé le 09/09 :** **F6** (DEC-035 — les 4 textes réels en scène, dernier libellé via `746a4406`).
+**Toujours ouverts :** E1/N1-D, E3, D2, D3, N1-A, N1-C,
+N2-B, N2-E, N2-F, N2-G, Q-TIE-1.

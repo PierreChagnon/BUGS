@@ -4,7 +4,7 @@
 > Décrit le QUOI et le POURQUOI. Jamais le COMMENT technique.
 
 **Date initiale :** 2026-05-20
-**Dernière mise à jour :** 2026-07-28 (correction du domaine `motor_forced_set` — cf. errata ci-dessous. Le corps fonctionnel reste celui validé le 2026-05-26 : Q-FF-1 à Q-FF-11 résolues, Notes 1/2/3 intégrées)
+**Dernière mise à jour :** 2026-09-09 (errata n°3 : colonnes `*_match_advice` inexistantes, D-007. Errata précédent du 2026-07-28 : domaine `motor_forced_set`. Le corps fonctionnel reste celui validé le 2026-05-26 : Q-FF-1 à Q-FF-11 résolues, Notes 1/2/3 intégrées)
 **Statut :** `validé` — **implémenté**, mais sans spec tech
 **Chantier :** Free / Forced choices
 **Spec tech associée :** `Docs/specs/free-forced-choices/spec-tech.md` — ❌ **jamais produite**
@@ -18,6 +18,8 @@
 > Attention : `FlowValueConverters.ToMotorKeySet` (`FlowDataModels.cs:631-650`) convertit **silencieusement** toute valeur inconnue en `ZQSD`. Une configuration de session encore renseignée en `"KOM"` produirait donc du ZQSD sans aucune alerte.
 
 **2. Spec tech manquante.** Le chantier a été **implémenté sans spec technique** (`FlowController.cs:99-171`, `239-256`). Les tie-breakers « vallée optimale » (R6, §2.2) et « cloud optimal » (R15, §2.3) sont renvoyés par cette spec à un document qui n'existe pas — la règle de départage réellement appliquée n'est donc écrite nulle part. Voir `Docs/project-state/revue-completude-2026-07-28.md` §5.2.
+
+**3. *(Ajouté le 2026-09-09)* Les colonnes `*_match_advice` n'existent pas (D-007).** R13 (§2.3) et le §7 « Données de sortie » déclarent `valley_advisor_choice_match`, `target_choice_match_advice` et `motor_choice_match_advice` comme des « colonnes **existantes** » : c'est faux — ces trois noms viennent du CSV de référence client (`CSV_BUGS_Output_V1.xlsx`) et **n'ont jamais été implémentés** (zéro occurrence dans le code, divergence **D-007** du `journal-divergences.md`, constat N1-A des revues). L'adhérence au conseil est recalculable au distal (`valley_choice` vs `distal_advice_choice`) et sur le chemin (`followed_advisor_path`) ; **pas au niveau moteur** tant que le set actif et le set affiché ne sont pas exportés (Q-MOTOR-1). Lire R13 et le §7 avec cette réserve — l'arbitrage « implémenter ou acter recalculables » est porté par le Lot E3.
 
 ---
 

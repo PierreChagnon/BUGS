@@ -44,7 +44,7 @@
 - **Décision :** La progression dans un bloc est visualisée par une métaphore de montagne (ascension).
 - **Raison :** Cohérence thématique avec le jeu d'exploration. Feedback visuel motivant.
 - **Impact :** Nécessite un écran dédié ou un overlay. Design visuel à préciser.
-- **Statut :** ACTIF
+- **Statut :** ANNULÉE *(2026-09-09, par DEC-034 — jamais implémentée en 6 mois, le flow a vécu sans ; tout affichage de progression/récap inter-bloc est écarté par DEC-034. Le prefab `EndOfBlockPanel_TODO.prefab` est à supprimer.)*
 
 ### DEC-004 — Consent screen dans le scope
 - **Date :** 2026-03-03
@@ -264,12 +264,69 @@
 - **Décision :** L'ordre des trois options (none / human / robot) dans les slots de `AdvisorChoiceScene` est tiré une fois par bloc via le RNG de bloc (`BlockDrawResolver.DrawAdvisorDisplayOrder`, salt 7) et stocké dans `PlayerSessionState.advisor_display_order`. Il n'est **pas** ajouté aux données de trial envoyées à l'API (choix explicite de PC). Le genre du badge advisor (salt 6) reste inchangé, déjà seedé depuis DEC du 29/08.
 - **Raison :** Le mélange utilisait `UnityEngine.Random` non initialisé : seul aléa à valeur expérimentale hors du système de seeds du projet, donc non reproductible depuis la seed (constat N2-A, D-012).
 - **Impact :** `AdvisorChoiceUI` ne mélange plus localement ; sans `FlowController` (sandbox), ordre par défaut none/human/robot. L'ordre est recalculable hors ligne depuis la seed de bloc mais n'apparaît pas dans les exports.
+- **Mise à jour 2026-09-09 (export du réalisé requis) :** le volet « non exporté » de cette décision n'est **pas validé** par le pilotage. Le seed règle la reproductibilité, pas la traçabilité : le chercheur doit disposer, dans les données, du tirage réalisé — l'ordre effectivement présenté au participant au moment de son choix. `advisor_display_order` vit aujourd'hui dans `PlayerSessionState` sans jamais être recopié dans `TrialResponseRow`. Action code à planifier (Lot E5 résiduel) ; la divergence D-012 reste ouverte côté export (cf. `journal-divergences.md`), N2-A §9.1 reste 🟡.
+- **Statut :** ACTIF
+
+### DEC-030 — Export des tirages réalisés forced + motor advice
+- **Date :** 2026-09-08 *(actée rétroactivement lors de la passe de réconciliation du 09/09/26)*
+- **Tag :** [TECH]
+- **Décision :** Six valeurs **réalisées** rejoignent `TrialResponseRow`, à côté des probabilités configurées : `proximal_forced`, `proximal_forced_value`, `proximal_forced_was_optimal` (nullables — `null` = forçage proximal non tiré), `motor_forced`, `motor_advice_visible`, `motor_advice_reliable`. Alimentées par `TrialManager.ApplyForcedChoiceState` (depuis `FlowController.State`) et la nouvelle `TrialManager.ApplyMotorAdviceState` (depuis `MotorAdviceController.AdviceVisible`/`AdviceReliable`). Migration Supabase associée : `20260908150000`.
+- **Raison :** Ferme une partie du constat N1-B / divergence D-008 (« le motor advice n'émet aucune donnée de résultat », revues du 28/07 et du 08/09) et lève l'ambiguïté config vs réalisé sur le forçage proximal. Commit `a919a683` (PC), livré le 08/09 au soir, après la revue de livraison.
+- **Impact :** `TrialResponseRow` passe de 87 à **93 champs**. **D-008 partiellement clos** : `AdviceVisible` et `AdviceReliable` remontent désormais ; **restent absents le set actif et le set affiché** (`TrialDrawResolver.MotorAdviceDraw.active_set`/`displayed_set`) — sur un trial free, le set actif n'est reconstructible que par re-simulation du RNG. Le résidu est porté par Q-MOTOR-1 (noms/formats des 2 colonnes manquantes). Dictionnaire, matrice et TDD (corps) mis à jour par le commit ; le reste du corpus réconcilié le 09/09.
+- **Statut :** ACTIF
+
+### DEC-031 — Pas de `visibility_noise` : la difficulté de discrimination est portée par le ratio vert/rouge et le gap
+- **Date :** 2026-09-09 *(enregistre un arbitrage pris avec les chercheurs, rapporté par Florian — date de l'échange non consignée)*
+- **Tag :** [FONC] / [SCOPE]
+- **Décision :** Le paramètre `visibility_noise` demandé par le GDD, `specs-light.md` §2 et le plan multi-écran §2.3 (blur, saturation ou bruit de rendu sur les cibles) est **abandonné**. La difficulté à discriminer quelle cible contient le plus de bugs verts est obtenue **par le contenu lui-même** : une cible dure à discriminer est une cible dont les quantités verte et rouge sont proches (ratio proche de 0,5), et deux cibles dures à départager sont deux cibles aux ratios proches (`gap` faible). Aucun brouillage perceptif de rendu ne sera implémenté.
+- **Raison :** Vu et acté avec les chercheurs : le pilotage de la difficulté par `min/max_green_ratio` + `gap_min`/`gap_max` — déjà implémenté, configurable par bloc et exporté — couvre le besoin expérimental sans chantier shader/particules supplémentaire. Clôt **Q-013** (ouverte depuis le 12/05/26) et l'écart fonctionnel **F1** (revues du 28/07 et du 08/09).
+- **Impact :** F1 clos par décision. Les **7 colonnes client** `visibility_noise` du CSV V1 (n°12-14 `min/max_visibility_noise`/`variance`, n°32/35 `left/right_valley_visibility_noise`, n°47/51 `cloud_a/b_visiblity_noise`) sont **abandonnées** — écart au template CSV à faire acter avec le retrait de `final_comments` (DEC-024). L'écart au GDD et à `specs-light.md` §2 est assumé et documenté ici (les documents de référence ne sont pas modifiés). ⚠️ Effet de bord : le ratio réalisé devient **la** mesure de difficulté — cela renforce **Q-DISTAL-1/N1-C** (côté distal, les valeurs réellement affichées ne sont toujours pas exportées ; côté proximal, `map_config` les porte déjà).
+- **Statut :** ACTIF
+
+### DEC-032 — Le retour en arrière n'est pas interdit : le budget de pas remplace l'interdiction de specs-light §4
+- **Date :** 2026-09-09
+- **Tag :** [FONC]
+- **Décision :** La règle de `specs-light.md` §4 (« le joueur ne peut pas revenir en arrière, il ne peut pas aller sur une case déjà visitée ») est **abandonnée**. Le retour en arrière reste autorisé ; le coût de l'inefficacité de navigation est porté par le **budget de pas** : `stepBudget` = distance de Manhattan joueur→nuage, chaque pas au-delà coûte −1 bug vert par nuage (`GameManager.OnStepBudgetExceeded`) et est compté dans `overtime_steps`. Option A de Q-BACK-1.
+- **Raison :** (1) Le budget étant égal au chemin minimum, **tout retour en arrière coûte mécaniquement** (un aller-retour = 2 pas de dépassement pénalisés) — l'intention de la règle (l'inefficacité a un coût) est préservée. (2) Le comportement est **mesuré**, pas seulement empêché : `overtime_steps` + `player_path_log` (pas horodatés) permettent de compter les revisites post-hoc. (3) L'interdiction dure pouvait **soft-locker le trial** : `CorridorWallsGenerator` réduit les culs-de-sac sans les éliminer — un joueur engagé dans une impasse sans pouvoir revenir serait définitivement coincé ; l'implémenter proprement exigerait une génération garantie sans impasse (chantier significatif).
+- **Impact :** F2 clos (revues du 28/07 et 08/09), Q-BACK-1 fermée (option A). `IsWalkable` reste `InBounds && !IsWall` (`LevelRegistry.cs:187`) ; le flag `Visited` continue de ne servir qu'au brouillard. L'écart à `specs-light.md` §4 est assumé et tracé ici (le document de référence n'est pas modifié). ⚠️ **Dépendance** : le budget de pas est lui-même un ajout de design hors GDD en attente du sign-off chercheur **Q-007** (constat N2-F) — si Q-007 aboutissait à retirer cette pénalité, le mécanisme de remplacement devrait être rediscuté ; cette décision resterait valable sur l'interdiction (le soft-lock suffit à la proscrire) mais perdrait son volet « coût ».
+- **Statut :** ACTIF
+
+### DEC-033 — Pas de protocole de sortie in-game : le QUIT_OVERLAY du plan §2.8 est abandonné (re-scope WebGL)
+- **Date :** 2026-09-09
+- **Tag :** [SCOPE] / [FONC]
+- **Décision :** L'overlay de sortie prévu par le plan de référence §2.8 (bouton persistant sur tous les écrans, modale de confirmation, sauvegarde partielle au quit, flag `session_abandoned` + timestamp + dernier écran) est **abandonné**. Il n'y a **pas de bouton « Quitter »** dans le jeu (le `QuitButton` de `SettingsOverlay.prefab` est désactivé, `m_IsActive: 0` — il le reste) ; la sortie du participant est la **fermeture de l'onglet navigateur**. La conservation des données repose sur **l'envoi continu + la persistance de la file d'envoi** (Lot A2/A3). `session_abandoned` est **dérivé côté serveur**, aucune colonne nouvelle n'est ajoutée au contrat.
+- **Raison :** Le §2.8 est une architecture de desktop, la prod est WebGL. (1) `Application.Quit()` est ignoré en WebGL — un bouton « Quitter » y est inerte, il ne fonctionne qu'en éditeur. (2) La vraie sortie du participant est la fermeture d'onglet, que rien n'intercepte, et qu'aucun hook Unity n'intercepte fiablement (même `OnApplicationQuit` est aléatoire en WebGL) : une « sauvegarde au moment du quit » est donc **structurellement fragile** — la conservation des données ne peut reposer que sur l'envoi continu + la persistance de la file, c'est exactement le Lot A2/A3, déjà priorisé. (3) Le flag `session_abandoned` n'a pas besoin d'être émis par le client : une session abandonnée est **dérivable côté serveur** (des lignes de trials existent mais la session n'atteint jamais son dernier trial / l'écran de fin) ; l'émettre côté client ajouterait une colonne au contrat backend (Zod, D-003) pour une information reconstructible.
+- **Impact :** F4 clos (revues du 28/07 et 08/09) ; l'écart au plan §2.8 est assumé et tracé ici. **Conséquence de poids : le Lot A2/A3 devient l'unique mécanisme de conservation des données en cas de sortie** — il était déjà pré-requis de passation, cette décision le rend non négociable. Côté analyse/backend : définir la règle de dérivation de l'abandon (ex. session dont le dernier `trial_index` < `trial_count` du dernier bloc, ou absence de fin de session) — à consigner au codebook lors de la campagne. Nettoyage code possible (non urgent, YAGNI) : la méthode `SettingsPanelUI.Quit()` et le `QuitButton` désactivé peuvent être retirés lors de la même passe que les résidus `ConsentUI`/E3.
+- **Statut :** ACTIF
+
+### DEC-034 — La BreakScene est un écran de repos, pas un récapitulatif de bloc : le BLOCK_RECAP du plan §2.6 est abandonné
+- **Date :** 2026-09-09
+- **Tag :** [SCOPE] / [FONC]
+- **Décision :** L'écran récapitulatif de fin de bloc prévu par le plan de référence §2.6 (chiffres du bloc, trials complétés, advisor utilisé, vallée choisie, performance comparative — après **chaque** bloc) est **abandonné**. La BreakScene reste ce qu'elle est : un **écran de repos** (countdown `break_duration_seconds`, bouton de reprise verrouillé jusqu'à la fin du timer, total de bugs verts de la session). **Ce comportement a été revu et validé par le chercheur.** L'affichage du total de session y compris quand des blocs à `show_numerical_feedback = false` sont dans l'intervalle est acté comme **négligeable** (agrégat trop grossier pour compromettre la manipulation de feedback) — pas de gating supplémentaire.
+- **Raison :** (1) Validation chercheur du comportement actuel. (2) Incompatibilité structurelle : depuis DEC-022 les pauses sont déclenchées par un compteur global de trials (`break_every_trials`), affichées seulement quand le seuil est franchi et jamais après le dernier bloc — des blocs entiers s'enchaînent sans BreakScene, un « récap après chaque bloc » supposerait un écran systématique qui n'existe pas dans le flow. (3) Un récapitulatif chiffré est un feedback, donc une surface expérimentale : ne pas en ajouter est aussi le choix le plus conservateur vis-à-vis de la manipulation `show_numerical_feedback`.
+- **Impact :** F5 clos (revues du 28/07 et 08/09) ; l'écart au plan §2.6 est assumé et tracé ici. **DEC-003 (Mountain UI) est ANNULÉE** dans la foulée : jamais implémentée en 6 mois, le flow a vécu sans, et tout affichage de progression inter-bloc est écarté par la présente décision. Le prefab `EndOfBlockPanel_TODO.prefab` rejoint la liste d'hygiène à supprimer (cf. revue §5).
+- **Statut :** ACTIF
+
+### DEC-035 — Les textes des questions trial-wise sont portés par la scène (comme le consentement)
+- **Date :** 2026-09-09
+- **Tag :** [FONC]
+- **Décision :** Les énoncés des 4 questions de fin de trial vivent dans les **overrides sérialisés de `TrialQuestionsUI` dans `ProximalScene.unity`** — même modèle que le texte de consentement (E2) : figés dans la scène, pas éditables via l'API, un rebuild est nécessaire pour toute retouche. Les défauts « (a definir) » du code (`TrialQuestionsUI.cs:29-32`) sont des fallbacks jamais montrés tant que la scène les surcharge. Tranche le volet « qui édite » de **Q-011** (textes hardcodés en scène) et son volet « mapping » (les 4 champs sérialisés fixent la correspondance : acceptabilité ×2, agentivité, ressemblance humaine).
+- **Raison :** Les textes réels ont été posés dans l'éditeur ; c'est le modèle déjà retenu de facto pour le consentement (Q-CONSENT-1 option A). Pas de besoin exprimé d'édition à chaud côté chercheur.
+- **Impact :** **État vérifié au 09/09 dans `ProximalScene.unity`** : 3 textes sur 4 sont réels — `_acceptabilityQuestion1` = « How helpful did you find your advisor? », `_senseOfAgencyQuestion` = « How much control did you feel you had over the outcome of the mission? », `_humanLikenessQuestion` = « How human-like did you find your advisor? ». ⚠️ ~~`_acceptabilityQuestion2` porte encore le placeholder~~ → **Mise à jour 2026-09-09 (même jour)** : le libellé a été posé par PC dans le commit `746a4406` — `_acceptabilityQuestion2` = « **How satisfied were you with your advisor?** ». Les 4 textes sont désormais réels en scène : **F6 est intégralement clos**, Q-011 passe en RÉPONDU (résidu levé).
+- **Statut :** ACTIF
+
+### DEC-036 — Pas de boot hors-ligne : le jeu exige une session et un backend joignable
+- **Date :** 2026-09-09
+- **Tag :** [SCOPE] / [TECH]
+- **Décision :** Le constat F7 (« pas de boot hors-ligne » — `FlowController.BootstrapFlow` exige un `sessionId` et un `FetchSessionConfig` réussi, sinon `LogError` et arrêt) est **clos sans action** : aucun mode hors-ligne ne sera développé.
+- **Raison :** « Ce n'est pas un problème pour nous » (arbitrage équipe, 09/09) — le développement et les tests se font avec le backend accessible ; le confort d'un boot sans back-end n'a jamais manqué en pratique. En production le jeu est lancé via URL avec `sessionId` (DEC-009), le cas hors-ligne n'existe pas pour un participant.
+- **Impact :** F7 clos (revues du 28/07 et 08/09). Le seul retour visible d'un échec de boot reste la barre de chargement figée (`BootLoadingBar`) — assumé. Les scènes isolées se testent via les sandboxes existantes (fallbacks locaux type ordre advisor par défaut) plutôt que par un mode offline dédié.
 - **Statut :** ACTIF
 
 ## Index par tag
 
-- **[SCOPE]** : DEC-004, DEC-005, DEC-008, DEC-024
-- **[FONC]** : DEC-001, DEC-003, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023, DEC-025, DEC-028, DEC-029
-- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022, DEC-026, DEC-027, DEC-029
+- **[SCOPE]** : DEC-004, DEC-005, DEC-008, DEC-024, DEC-031, DEC-033, DEC-034, DEC-036
+- **[FONC]** : DEC-001, DEC-003 *(annulée)*, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018, DEC-019, DEC-023, DEC-025, DEC-028, DEC-029, DEC-031, DEC-032, DEC-033, DEC-034, DEC-035
+- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022, DEC-026, DEC-027, DEC-029, DEC-030, DEC-036
 - **[PLANNING]** : _(aucune pour l'instant)_
 - **[CLIENT]** : _(aucune pour l'instant)_

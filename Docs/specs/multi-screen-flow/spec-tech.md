@@ -653,10 +653,11 @@ Assets/Game/Scenes/GameScenes/
 
 ## 10. Schéma SQL Supabase complet
 
-> ⚠️ **Errata 08/09/26** : schéma de **référence historique** (mars 2026). Les colonnes questionnaire
+> ⚠️ **Errata 08/09/26 (MàJ 09/09/26)** : schéma de **référence historique** (mars 2026). Les colonnes questionnaire
 > réelles sont `acceptability_question_1`/`_2`, `sens_of_agency_question`, `human_likeness_question`
 > (D-003), et le modèle a depuis gagné ~30 champs (cf. `Docs/validation/matrice-tracabilite.md`,
-> 87 champs au 08/09/26). Ne pas créer de table depuis ce schéma.
+> **93 champs au 09/09/26** — dont 6 tirages réalisés ajoutés par `a919a683`/DEC-030 avec la
+> migration Supabase `20260908150000`). Ne pas créer de table depuis ce schéma.
 
 ### 10.1 Tables de configuration (remplies par les chercheurs via le dashboard)
 

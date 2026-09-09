@@ -2,8 +2,8 @@
 
 | Nom du projet :    | BUGS              |
 | :----------------- | :---------------- |
-| **Version :**      | 3.0               |
-| **Dernière MAJ :** | 23/03/26          |
+| **Version :**      | 3.2               |
+| **Dernière MAJ :** | 08/09/26          |
 | **Auteur(s) :**    | @florian, @pierre |
 | **Moteur :**       | Unity 6000.3.5f2  |
 | **Langage :**      | C#                |

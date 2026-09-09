@@ -1,5 +1,12 @@
 # Spec Fonctionnelle — Motor Advice
 
+> ⚠️ **Errata 09/09/2026** — les tableaux « Données collectées » (§2) et « Matrice de traçabilité » (§4)
+> sont partiellement dépassés : **2 des 4 colonnes `TBD` existent désormais** dans `trial_responses`
+> depuis le 08/09/26 (commit `a919a683`, DEC-030) — « Advice affiché » → **`motor_advice_visible`** et
+> « Advice fiable » → **`motor_advice_reliable`**. « Set actif » et « Set affiché » restent non exportés
+> (arbitrage Q-MOTOR-1, cf. `questions-client.md`). La question ouverte n°1 (§5) ne porte plus que sur
+> ces deux colonnes restantes.
+
 > Produit par le Rôle 2 (Analyse Fonctionnelle).
 > Decrit le QUOI et le POURQUOI. Jamais le COMMENT technique.
 
@@ -78,10 +85,10 @@ Si l advice n est pas actif, aucun indicateur n est affiche a cet emplacement.
 #### Donnees collectees
 | Donnee | Colonne CSV V1 | Valeurs possibles | Quand enregistree |
 |:---|:---|:---|:---|
-| Set actif | TBD | ZQSD / TFGH / IJKL | Debut d essai |
-| Advice affiche | TBD | true / false | Debut d essai |
-| Advice fiable | TBD | true / false | Debut d essai |
-| Set affiche | TBD | ZQSD / TFGH / IJKL / none | Debut d essai |
+| Set actif | TBD *(Q-MOTOR-1)* | ZQSD / TFGH / IJKL | Debut d essai |
+| Advice affiche | `motor_advice_visible` *(errata 09/09/26)* | true / false | Debut d essai |
+| Advice fiable | `motor_advice_reliable` *(errata 09/09/26)* | true / false | Debut d essai |
+| Set affiche | TBD *(Q-MOTOR-1)* | ZQSD / TFGH / IJKL / none | Debut d essai |
 
 ---
 
@@ -97,10 +104,10 @@ Si l advice n est pas actif, aucun indicateur n est affiche a cet emplacement.
 
 | Colonne CSV V1 | Ecran / Composant | Comportement source | Valeurs possibles |
 |:---|:---|:---|:---|
-| TBD | Forest Screen / Motor Advice | Enregistrer set actif | ZQSD / TFGH / IJKL |
-| TBD | Forest Screen / Motor Advice | Enregistrer advice affiche | true / false |
-| TBD | Forest Screen / Motor Advice | Enregistrer advice fiable | true / false |
-| TBD | Forest Screen / Motor Advice | Enregistrer set affiche | ZQSD / TFGH / IJKL / none |
+| TBD *(Q-MOTOR-1)* | Forest Screen / Motor Advice | Enregistrer set actif | ZQSD / TFGH / IJKL |
+| `motor_advice_visible` *(errata 09/09/26)* | Forest Screen / Motor Advice | Enregistrer advice affiche | true / false |
+| `motor_advice_reliable` *(errata 09/09/26)* | Forest Screen / Motor Advice | Enregistrer advice fiable | true / false |
+| TBD *(Q-MOTOR-1)* | Forest Screen / Motor Advice | Enregistrer set affiche | ZQSD / TFGH / IJKL / none |
 
 ---
 

@@ -3,7 +3,7 @@
 > Ce fichier est le résumé condensé de l'état du projet.
 > Objectif : un rôle peut comprendre où en est le projet en lisant CE SEUL FICHIER.
 > Mis à jour après chaque session qui fait avancer le projet.
-> Dernière mise à jour : 2026-09-08 (revue de livraison — cf. `revue-livraison-2026-09-08.md`)
+> Dernière mise à jour : 2026-09-09 (passe de réconciliation post-revue — intègre les commits `a919a683`/DEC-030 et `88899e9a`/DEC-029 livrés le 08/09 au soir, après la revue `revue-livraison-2026-09-08.md`)
 
 ---
 
@@ -16,8 +16,8 @@
 
 1. 🔴 **Deux écrans incomplets** (était trois) — QuestionnaireScene ne collecte rien (et n'est **jamais chargée**, cf. E1 révisé) ; AdvisorChoiceScene montre encore un texte de dev (E3). ✅ **E2 réglé le 08/09/26** : les vrais textes de consentement vivent dans `ConsentScene.unity` (commits `78f9b6e1`, `a4a98569`) et l'écrasement placeholder de `ConsentUI.Start` est neutralisé (`_titleText`/`_bodyText` débranchés dans la scène). Résidus : code mort dans `ConsentUI.cs`, texte non éditable via l'API (pas de champ `consent_text`, cf. Q-CONSENT-1).
 2. 🟠 **Le pipeline de données peut encore perdre des trials** (était 🔴) — ✅ la perte systématique de la condition `advisor = none` est **corrigée depuis le 26/08** (commit `fe5fc771`, DEC-026). Restent : aucune persistance locale de la file (`ApiClient.cs:58`, Lot A2), file bloquée après échec (`ApiClient.cs:295-301`, Lot A3), et la ligne encore jetée si le participant abandonne réellement le questionnaire (`TrialManager.cs:145-147`).
-3. 🔴 **La donnée de sortie ne couvre pas tout le protocole** — le niveau moteur et le stimulus distal ne sont toujours pas mesurés, l'advice-taking n'a pas de colonne. Progrès depuis le 28/07 : `advisor_path_config`, `map_config.cells[]`, `proximal_advice_reliable` ferment 3 colonnes client ; les valeurs réalisées du motor advice existent désormais en mémoire structurée (`TrialDrawResolver.MotorAdviceDraw`) — **l'export est devenu un branchement trivial**, il ne manque que l'arbitrage Q-MOTOR-1. Voir section ci-dessous.
-4. 🔴 **Arbitrages chercheur bloquants** — Q-010 (pattern de fiabilité), Q-011 (mapping des questions + textes réels), **Q-MOTOR-1**, **Q-DISTAL-1**, **Q-RANDOM-1** (volet ordre des advisors ; le volet genre du badge est réglé, cf. `AdvisorBadgeUtility`, commit `48b05b25`).
+3. 🔴 **La donnée de sortie ne couvre pas tout le protocole** — le stimulus distal n'est toujours pas mesuré, l'advice-taking n'a pas de colonne, et le niveau moteur n'est mesuré **qu'à moitié** : depuis le 08/09 au soir (`a919a683`, DEC-030), `motor_advice_visible` et `motor_advice_reliable` **sont exportés**, mais le **set actif** et le **set affiché** manquent encore (non reconstructibles hors re-simulation RNG sur les trials free — résidu Q-MOTOR-1). Progrès depuis le 28/07 : `advisor_path_config`, `map_config.cells[]`, `proximal_advice_reliable` ferment 3 colonnes client ; `a919a683` en ferme 2 de plus (64 `motor_advice_given`, réalisé de la 23). Voir section ci-dessous.
+4. 🔴 **Arbitrages chercheur bloquants** — Q-010 (pattern de fiabilité), ~~Q-011~~ (✅ RÉPONDUE le 09/09 : les 4 textes en scène, DEC-035 + `746a4406`), **Q-MOTOR-1** (résidu : colonnes set actif/affiché), **Q-DISTAL-1**, **Q-RANDOM-1** (résidu : export du tirage réalisé de l'ordre des advisors — le seed est réglé par DEC-029, le genre du badge par `AdvisorBadgeUtility`, commit `48b05b25`).
 
 > ⚠️ Les deux chantiers les plus critiques scientifiquement (`free-forced-choices`, `explanations-short-long`) ont été **implémentés sans que leur `spec-tech.md` soit produite**. Aucune référence technique écrite pour les features qui portent H1–H8.
 
@@ -41,6 +41,8 @@
 | **Consent / Welcome** | Vrais textes de consentement et d'accueil posés dans les scènes (feedbacks Mark) — règle E2 | `78f9b6e1`, `a4a98569` (08/09) |
 | **Questionnaire 7 points + 2ᵉ acceptabilité** | Échelle Likert 7 points ; 2 questions d'acceptabilité par trial (sliders 1-7) ; agentivité et human-likeness en 7 radios ; colonnes `acceptability_question_1`/`_2` remplacent `acceptability_question` | `ec18eff1`, `128bdcd4`, `e4bd00c7` (07-08/09), DEC-025, DEC-028 |
 | **Murs organiques** | Réécriture de `CorridorWallsGenerator` (génération moins rectiligne) | `624f9a99` (PR #3) |
+| **Export des tirages réalisés** *(post-revue)* | +6 champs `TrialResponseRow` (93 au total) : `proximal_forced`/`_value`/`_was_optimal`, `motor_forced`, `motor_advice_visible`, `motor_advice_reliable` ; migration Supabase `20260908150000` — ferme partiellement N1-B/D-008 | `a919a683` (08/09 soir), DEC-030 |
+| **Ordre advisors seedé** *(post-revue)* | Ordre des 3 options tiré 1×/bloc (`BlockDrawResolver.DrawAdvisorDisplayOrder`, salt 7), non exporté — export du réalisé requis (MàJ DEC-029 du 09/09) | `88899e9a` (08/09 soir), DEC-029 |
 
 ---
 
@@ -57,26 +59,32 @@ fonctionnent — mais une partie des variables dépendantes du protocole n'attei
 | Réf | Constat | Impact scientifique | Divergence |
 | :-- | :-- | :-- | :-- |
 | **N1-A** | **Les 3 colonnes `*_match_advice` n'existent pas.** `free-forced-choices/spec-fonc.md:216,319` les déclare « colonnes existantes » — elles venaient du CSV client, jamais implémentées | **L'advice-taking, variable dépendante n°1 (H1, H4, H6), n'a aucune colonne.** Recalculable au distal et sur le chemin ; pas au moteur | D-007 |
-| **N1-B** | **Le motor advice n'émet aucune donnée de résultat** — seulement des probabilités de config. Set actif, set affiché, advice donné, advice fiable : rien. ⚠️ MàJ 08/09 : les 4 valeurs réalisées existent désormais proprement dans `TrialDrawResolver.MotorAdviceDraw` — **l'export est devenu un branchement trivial**, seul l'arbitrage Q-MOTOR-1 manque | **Le niveau moteur est inanalysable.** Requalifie Q-002 de « traçabilité » 🟠 en arbitrage 🔴 | D-008 |
+| **N1-B** | **Le motor advice n'émettait aucune donnée de résultat.** ✅ MàJ 09/09 : **partiellement fermé** — `a919a683` (DEC-030) exporte `motor_advice_visible` et `motor_advice_reliable` (réalisés). **Restent absents : le set actif et le set affiché** (`TrialDrawResolver.MotorAdviceDraw.active_set`/`displayed_set` ne remontent pas ; sur un trial free le set actif n'est reconstructible que par re-simulation du RNG) | Le niveau moteur est **à moitié analysable** : on sait si l'advice a été vu et s'il était fiable, pas quel set était actif ni lequel était affiché. Résidu porté par Q-MOTOR-1 | D-008 — partiellement clos le 08/09 |
 | **N1-C** | **Le stimulus distal réel n'est pas enregistré.** `DistalChoiceUI.LeftScanData`/`RightScanData` ne sont lues nulle part. On logge les bornes de tirage, pas ce que le participant voit. Le proximal, lui, logge les valeurs réalisées (`map_config`) | Choix distal non analysable contre le stimulus | D-009 |
 | **N1-D** | **E1 révisé : la QuestionnaireScene n'est jamais chargée** — `AdvanceToPhase(GamePhase.Questionnaire)` n'existe nulle part. Et `QuestionConfig` est un **type orphelin** (aucun champ de config ne le porte), et le PATCH ne conserve qu'1 réponse sur N | **Trust in Technology Questionnaire sans chemin de données**, ni en entrée ni en sortie. Q-QUEST-1 à reformuler : câbler ≠ branchement | D-010 |
-| **N2-A** | **Aléas non seedés sur des manipulations** : ✅ Volet ordre des 3 options d'advisor **réglé le 08/09** (DEC-029) : tirage unique par bloc, seedé salt 7, champ local `advisor_display_order` consommé par `AdvisorChoiceUI` — **volontairement non exporté** vers l'API (décision PC). ✅ Volet genre du badge **réglé le 29/08** (`AdvisorBadgeUtility`, tirage unique par bloc, seedé salt 6, champ `advisor_display_is_male`) | Ordre reproductible depuis la seed de bloc ; le biais de position reste invérifiable post-hoc dans les données (recalculable hors ligne depuis la seed si besoin) | D-012 — résorbé côté seed |
+| **N2-A** | **Aléas non seedés sur des manipulations** : 🟡 Volet ordre des 3 options d'advisor **seedé le 08/09** (DEC-029) : tirage unique par bloc, salt 7, champ local `advisor_display_order` consommé par `AdvisorChoiceUI` — mais non exporté vers l'API. ⚠️ **MàJ 09/09 : le non-export n'est pas validé** — le pilotage requiert l'enregistrement du tirage réalisé (l'ordre présenté au participant au moment de son choix), cf. MàJ DEC-029. Action code à planifier (Lot E5 résiduel). ✅ Volet genre du badge **réglé le 29/08** (`AdvisorBadgeUtility`, tirage unique par bloc, seedé salt 6, champ `advisor_display_is_male` — ⚠️ état de session, **non exporté** lui non plus, précision du 09/09) | Ordre reproductible depuis la seed de bloc, mais le chercheur n'a pas la trace de ce qui a été présenté ; le biais de position reste invérifiable directement dans les données | D-012 — clos côté seed, **ouvert côté export** |
 | **N2-B** | **`human_likeness_question` est répliqué sur tous les trials du bloc**, pas la dernière ligne — contredit DEC-013 et le codebook | Surpondération ×`trial_count` en analyse. **Ferme PC-7** | D-011 |
 | **N2-C** | **`display_probability`** : tirage par trial de l'affichage des explanations proximale/motrice. ⚠️ MàJ 08/09 : mécanisme **étendu** (`3e5560e5`) — `display_mode = "forced/opt-in"` et `content_variant = "short/long"` résolus par trial via `display_mode_forced_probability`/`content_variant_long_probability` ; désormais **documenté** (spec-fonc explanations R9, dictionnaire). L'asymétrie distale demeure (commentée dans le code) | La manipulation de **H8** est maintenant documentée ; reste l'alignement TR7 historique | D-013 — largement résorbé |
 
-**Bilan de la confrontation au CSV client** *(MàJ 08/09/26)* : 76 colonnes attendues, **87 champs émis**
-(82 au 28/07). Colonnes client **fermées depuis le 28/07** : n°22 (`proximal_advice_reliability` →
-`proximal_advice_reliable_probability` + réalisé), n°55 (`map_layout` → `map_config.cells[]` complet,
-ferme PC-8), n°58 (`proximal_advice_path` → `advisor_path_config`). Colonne n°72 : `acceptability_question`
+**Bilan de la confrontation au CSV client** *(MàJ 09/09/26)* : 76 colonnes attendues, **93 champs émis**
+(82 au 28/07, 87 à la revue du 08/09, +6 par `a919a683`/DEC-030). Colonnes client **fermées depuis le
+28/07** : n°22 (`proximal_advice_reliability` → `proximal_advice_reliable_probability` + réalisé),
+n°55 (`map_layout` → `map_config.cells[]` complet, ferme PC-8), n°58 (`proximal_advice_path` →
+`advisor_path_config`), et depuis le 08/09 au soir n°64 (`motor_advice_given` → `motor_advice_visible`)
+et le réalisé de la n°23 (`motor_advice_reliability` → `motor_advice_reliable`). Colonne n°72 : `acceptability_question`
 **remplacée par 2 colonnes** `acceptability_question_1`/`_2` (DEC-028). Colonne n°76 (`final_comments`) :
 **redevient ❌** — le recueil in-game est supprimé, repris par la partie 2 (DEC-024). Le reste du bilan
 du 28/07 tient : l'écart global n'a jamais été acté formellement avec le chercheur.
 
 **Lot E — Couverture de la donnée de sortie** *(à traiter au même rang que le Lot A)* :
-E1 logger le résultat du motor advice (**devenu trivial** : lire `TrialDrawResolver.MotorAdviceDraw`) ·
+E1 logger le résultat du motor advice — 🟡 **partiellement fait le 08/09** (`a919a683`/DEC-030 :
+visible + fiable exportés) ; **reste** l'export du set actif et du set affiché
+(`TrialDrawResolver.MotorAdviceDraw.active_set`/`displayed_set`, arbitrage Q-MOTOR-1) ·
 E2 logger le stimulus distal réalisé · E3 colonnes `*_match_advice` (ou acter qu'elles sont
 recalculables — la recalculabilité s'est améliorée avec `advisor_path_config` et `map_config.cells`) ·
-E4 compteur de touches invalides · E5 seeder et logger l'ordre des advisors (~~genre du badge~~ ✅ fait le 29/08).
+E4 compteur de touches invalides · E5 ordre des advisors — 🟡 **seed fait le 08/09** (DEC-029) ;
+**reste** l'export du tirage réalisé, requis par le pilotage (MàJ DEC-029 du 09/09)
+(~~genre du badge~~ ✅ fait le 29/08).
 
 > **Le Lot A garantit qu'aucune ligne ne se perd. Le Lot E garantit que les lignes qui
 > arrivent permettent de tester les hypothèses.** Les deux sont des pré-requis à une passation.
@@ -130,7 +138,7 @@ inventaire des packages incomplet (N2-M — à revoir lors de la passe TDD) ·
 | **Redirect post-expérience (platform_url)** | ✅ Implémenté — `PlatformUrlDisplay.cs` | 28/07/26 (constaté) |
 | Spec tech multi-écran flow | ✅ Finalisée | 16/03/26 |
 | Data model Supabase (`trial_responses` plate) | ✅ Finalisé | 16/03/26 |
-| Décisions DEC-001 à DEC-028 | ✅ Enregistrées | 08/09/26 |
+| Décisions DEC-001 à DEC-034 | ✅ Enregistrées (DEC-003 annulée) | 09/09/26 |
 | **Spec tech `free-forced-choices`** | ❌ **Jamais produite** — code livré sans référence technique | — |
 | **Spec tech `explanations-short-long`** | ❌ **Jamais produite** — code livré sans référence technique | — |
 
@@ -146,7 +154,7 @@ inventaire des packages incomplet (N2-M — à revoir lors de la passe TDD) ·
 | ProximalScene (forest screen) + RoundUI + TrialQuestionsUI | ✅ Implémentée — c'est **ici** que les dimensions sont réellement collectées. Depuis le 08/09 : **4 questions** (2 acceptabilité en slider 1-7, agentivité et human-likeness en 7 radios), échelle 7 points (DEC-025, DEC-028). RoundUI a des panneaux dédiés aux trials proximal forced (`dd5877ac`) |
 | QuestionnaireScene + QuestionnaireUI (DEC-008) | 🔴 **Coquille vide** — s'auto-enchaîne avec zéro réponse, cf. E1 |
 | EndSessionScene + PlatformUrlDisplay | ✅ Implémentée — **écran de transition vers la partie 2** (DEC-024, 07/09/26), plus l'écran terminal. Le recueil de commentaire libre a été retiré ; le bouton vers `platform_url` est toujours visible. ⚠️ `platform_url` doit être renseigné dans le dashboard, sinon la partie 2 est inatteignable |
-| BreakScene + countdown et reprise verrouillée | ✅ Scène créée, bindée et dans le build — affiche depuis le 24/08 le **total de bugs verts de la session** (`c428bac8`). Le BLOCK_RECAP complet du plan §2.6 (advisor utilisé, vallée choisie, perf comparative) reste non fait (F5) |
+| BreakScene + countdown et reprise verrouillée | ✅ Scène créée, bindée et dans le build — affiche depuis le 24/08 le **total de bugs verts de la session** (`c428bac8`). ✅ **F5 clos le 09/09/26** (DEC-034) : c'est un écran de repos, comportement revu et validé par le chercheur — le BLOCK_RECAP complet du plan §2.6 est abandonné |
 
 #### 🔴 Écrans incomplets — détail
 
@@ -190,11 +198,11 @@ inventaire des packages incomplet (N2-M — à revoir lors de la passe TDD) ·
 
 | Périmètre GDD | Gap identifié |
 |:---|:---|
-| **Distal advice / écran distal** | UI créée mais le GDD demande des "shimmering lights" green/red et un paramètre de **visibility/saturation noise**. À auditer. |
+| **Distal advice / écran distal** | UI créée mais le GDD demande des "shimmering lights" green/red et un paramètre de **visibility/saturation noise**. ✅ Volet noise **clos le 09/09/26** (DEC-031 : difficulté portée par ratio/gap, pas de bruit de rendu). |
 | **Proximal advice reliability** | Path optimal calculé, mais la notion de **sub-optimal path avec pièges en cas d'advice unreliable** n'est pas confirmée. |
 | **Frequency/pattern d'apparition de l'advice** | GDD : "advice provided periodically following a given pattern". Pas de paramètre fréquence trouvé. |
-| **Questionnaire in-game (3 dimensions)** | Collecte fonctionnelle via `TrialQuestionsUI` — depuis le 08/09 : **4 questions** (acceptability ×2 en slider 1-7, sens_of_agency et human_likeness en 7 radios, DEC-025/DEC-028). Mais les **4 textes sont des placeholders** (`TrialQuestionsUI.cs:29-32` : « (a definir) ») et le mapping aux dimensions GDD reste à confirmer (Q-011). |
-| **Saturation/blur noise sur clouds proximaux** | Ratio bug exposé, pas de paramètre de **visibility noise** sur le rendu. À vérifier shader/particules. |
+| **Questionnaire in-game (3 dimensions)** | Collecte fonctionnelle via `TrialQuestionsUI` — depuis le 08/09 : **4 questions** (acceptability ×2 en slider 1-7, sens_of_agency et human_likeness en 7 radios, DEC-025/DEC-028). ✅ MàJ 09/09 (DEC-035) : les textes réels vivent en scène — **4 sur 4 posés** (vérifié dans `ProximalScene.unity`, dernier libellé via `746a4406`) ; Q-011 RÉPONDUE, F6 clos. Les défauts code `TrialQuestionsUI.cs:29-32` sont des fallbacks. |
+| **Saturation/blur noise sur clouds proximaux** | ✅ **Clos le 09/09/26** (DEC-031) — pas de bruit de rendu : la difficulté de discrimination est portée par le ratio vert/rouge et le `gap` (paramètres existants `min/max_green_ratio`, `gap_min`/`gap_max`). |
 | **Motor advice — colonnes CSV, explanation, format** | Q-002 et Q-004 toujours en attente. Q-003 RÉSOLUE par DEC-017 (explanation motor confirmée, cf. spec explanations-short-long). |
 
 ### 🔴 Non couvert ou non démarré
@@ -203,15 +211,15 @@ inventaire des packages incomplet (N2-M — à revoir lors de la passe TDD) ·
 |:---|:---|
 | **Écrans incomplets E1 / E3** (E2 réglé le 08/09) | QuestionnaireScene vide et jamais chargée, texte de dev en prod sur AdvisorChoice. Cf. section « Scènes du flow ». |
 | **Pertes de trials silencieuses** (réduites depuis le 26/08) | ✅ Trials `advisor = none` corrigés (`fe5fc771`, DEC-026). Restent : ligne jetée si abandon réel du questionnaire (`TrialManager.cs:145-147`) ; file d'envoi en mémoire seule (`ApiClient.cs:58`) ; file bloquée après échec (`ApiClient.cs:295-301`). |
-| **Pas de protocole de sortie** | `SettingsPanelUI.cs:61-68` = `Application.Quit()` sec. Ni confirmation, ni sauvegarde partielle, ni flag `session_abandoned` (plan de référence §2.8). |
-| **`visibility_noise`** | Inexistant dans le code et dans `TrialResponseRow`. Attendu par `specs-light` §2 et le plan de référence §2.3. Q-013. |
-| **Retour en arrière non bloqué** | `LevelRegistry.cs:266` : `IsWalkable = InBounds && !IsWall`. `specs-light` §4 l'interdit. Le flag `Visited` existe mais ne sert qu'au fog. **À trancher : probablement remplacé de fait par le budget de pas.** |
+| **Pas de protocole de sortie** | ✅ **Clos par décision le 09/09/26** (DEC-033, re-scope WebGL) — le QUIT_OVERLAY du plan §2.8 est abandonné : en WebGL `Application.Quit()` est inerte et la fermeture d'onglet n'est pas interceptable fiablement. Pas de bouton Quitter (`QuitButton` désactivé dans `SettingsOverlay.prefab`) ; conservation des données = Lot A2/A3 ; `session_abandoned` dérivé côté serveur. |
+| **`visibility_noise`** | ✅ **Clos par décision le 09/09/26** (DEC-031, F1/Q-013 fermés) — abandonné avec l'accord des chercheurs : la difficulté de discrimination vient du contenu (ratio proche de 0,5, `gap` faible), pas d'un bruit de rendu. Les 7 colonnes client `visibility_noise` sont abandonnées (écart CSV à faire acter). L'écart à `specs-light` §2 et au plan §2.3 est assumé. |
+| **Retour en arrière non bloqué** | ✅ **Clos par décision le 09/09/26** (DEC-032, Q-BACK-1 option A) — le budget de pas remplace l'interdiction de `specs-light` §4 : tout détour coûte et est mesuré (`overtime_steps`, `player_path_log`). Écart assumé ; dépendance au sign-off Q-007 tracée dans la décision. |
 | **4 paths visibles (2 par cloud)** | GDD : 4 paths. Code : 2 paths (`PathSpawner.cs:129-130`). Q-008. |
 | **Smooth camera pan + auto-walk entre trials** | GDD demande transition smooth verticale ; DEC-002 a tranché fade noir → écart à reconfirmer. |
-| **Mountain UI** (progression dans le bloc, DEC-003) | Criticité basse, mais prévue. Prefab `EndOfBlockPanel_TODO.prefab` non fini. |
+| **Mountain UI** (progression dans le bloc, DEC-003) | ✅ **Abandonnée le 09/09/26** — DEC-003 ANNULÉE par DEC-034 (jamais implémentée en 6 mois, tout affichage de progression/récap inter-bloc écarté). Prefab `EndOfBlockPanel_TODO.prefab` à supprimer (hygiène). |
 | **Reliability manipulation pattern documenté** | Section GDD vide ("...") → spec chercheur manquante. Q-010. |
 | **Nb trials/block = 36 et nb training blocks** | Paramètres existent, valeurs cibles non actées. Q-012. |
-| **Boot hors-ligne impossible** | `FlowController.cs:392-434` exige un `sessionId` + fetch réussi. Seul retour d'erreur visible : barre de chargement figée à 90 %. |
+| **Boot hors-ligne impossible** | ✅ **Clos par décision le 09/09/26** (DEC-036, F7) — aucun mode hors-ligne ne sera développé : pas un problème pour l'équipe, et le cas n'existe pas pour un participant (lancement URL + `sessionId`). Barre figée à 90 % en cas d'échec : assumé. |
 
 > ✅ **Sorti de cette liste depuis la revue du 28/07/26** : free/forced, explanations short/long, redirect post-expérience, modèle de perte de bugs (le code applique bien −1 vert par nuage par piège, cf. `GameManager.cs:262-275` + `BugCloud.cs:67-84` — conforme GDD, reste le sign-off chercheur), end-of-block (BreakScene + RoundUI).
 
@@ -221,9 +229,9 @@ inventaire des packages incomplet (N2-M — à revoir lors de la passe TDD) ·
 
 | Réf | Sujet | Bloque quoi | Urgence |
 |:---|:---|:---|:---|
-| Q-002 → **Q-MOTOR-1** | Colonnes CSV motor advice | ~~Traçabilité data~~ → **le niveau moteur n'a aucune donnée de résultat** (N1-B) | 🔴 **Arbitrage bloquant** — rejoint Q-010/Q-011 |
+| Q-002 → **Q-MOTOR-1** | Colonnes CSV motor advice | ~~Traçabilité data~~ → **le niveau moteur n'a que 2 données de résultat sur 4** (N1-B ; visible/fiable exportés depuis le 08/09, `a919a683`/DEC-030) — restent set actif et set affiché | 🔴 **Arbitrage bloquant** — rejoint Q-010/Q-011 (résidu réduit le 08/09) |
 | **Q-DISTAL-1** | Logger le stimulus distal réellement affiché ? | Analyse du choix distal | 🔴 **Nouveau 28/07/26** (N1-C) |
-| **Q-RANDOM-1** | Ordre des advisors et apparence de l'advisor humain : à contrôler ? | Biais de position sur le méta-choix (H1) | 🔴 **Nouveau 28/07/26** (N2-A) |
+| **Q-RANDOM-1** | Ordre des advisors et apparence de l'advisor humain : à contrôler ? | Biais de position sur le méta-choix (H1) | 🟡 **MàJ 09/09/26** : seed ✅ (DEC-029), genre du badge ✅ (29/08) — reste l'**export du tirage réalisé**, requis par le pilotage (MàJ DEC-029) |
 | **Q-ROW-1** | 1 ligne par écran vs 1 ligne par trial : acter la divergence | Interprétation de tout export | 🟠 **Nouveau 28/07/26** |
 | **Q-TRUST-1** | Trust in Technology dans le jeu ou via Qualtrics (DEC-005) ? | H7 ; conditionne Q-QUEST-1 | 🔴 **Nouveau 28/07/26** (N1-D) |
 | **Q-FREQ-1** | Fréquence des questions trial-wise (volet échelle ✅ tranché par DEC-025 : 7 points) | Charge participant — désormais **3 questions/trial** (+1 fin de bloc) soit ≈ **108 interruptions** à 36 trials/bloc | 🟠 **Nouveau 28/07/26** — volet fréquence toujours ouvert |
@@ -241,7 +249,7 @@ inventaire des packages incomplet (N2-M — à revoir lors de la passe TDD) ·
 | — | Modèle de perte de bugs (1 green/piège/cloud vs total décrémenté) | Cohérence protocole | 🟡 **Le code applique déjà le modèle GDD** — reste le sign-off chercheur (Q-007) |
 | — | 4 paths visibles vs 2 paths | Cohérence GDD | 🟡 Écart design assumé ? |
 | — | Smooth pan vs fade noir | Cohérence GDD | 🟡 DEC-002 à reconfirmer |
-| — | Retour en arrière autorisé (specs-light §4) | Cohérence protocole | 🟡 **Nouveau 28/07/26** — non implémenté, sans doute remplacé par le budget de pas |
+| Q-BACK-1 | Retour en arrière autorisé (specs-light §4) | Cohérence protocole | ✅ **RÉSOLUE le 09/09/26** par DEC-032 — le budget de pas remplace l'interdiction (option A) |
 | — | Preview floue distal screen | Rendu : statique vs dynamique | 🟢 Peut attendre design |
 
 ---
@@ -252,12 +260,12 @@ inventaire des packages incomplet (N2-M — à revoir lors de la passe TDD) ·
 |:---|:---|:---|
 | **Toute trial en condition `advisor = none` est perdue** | **La condition contrôle de l'étude ne remonte jamais en base** | ✅ **Levé le 26/08/26** (`fe5fc771`, DEC-026) — `TrialManager.cs:143-148` envoie la ligne avec les champs questionnaire à `null` (omis du payload). Reste le sign-off Q-DATA-1 (option A « null assumé » tranchée de facto) |
 | **Trial jeté si questionnaire réellement incomplet** (participant qui abandonne en cours de questionnaire) | Perte sèche de tout le gameplay du trial | 🟠 **Résidu du Lot A1** — un `sens_of_agency_question` vide annule encore l'envoi avec un simple `LogWarning` (`TrialManager.cs:145-147`) |
-| **Aucune persistance locale de la file d'envoi** (`ApiClient.cs:58`) | Fermeture navigateur / crash = trials perdus | 🔴 **Lot A2** — non corrigé. Confirme PC-3 de `journal-divergences.md` |
+| **Aucune persistance locale de la file d'envoi** (`ApiClient.cs:58`) | Fermeture navigateur / crash = trials perdus | 🔴 **Lot A2** — non corrigé. Confirme PC-3 de `journal-divergences.md`. ⚠️ **Poids accru par DEC-033** (09/09) : le protocole de sortie in-game étant abandonné (re-scope WebGL), l'envoi continu + la persistance de la file sont **l'unique mécanisme** de conservation des données à la sortie |
 | **File d'envoi bloquée après échec** (`ApiClient.cs:295-301`) | Échec sur le dernier trial = jamais rejoué | 🔴 **Lot A3** — non corrigé. Confirme PC-2 |
 | **QuestionnaireScene ne collecte rien** (E1) | Écran mort dans le flow | 🔴 À câbler ou retirer |
 | **Texte de consentement inaffichable** (E2) | Conformité éthique | ✅ **Levé le 08/09/26** — vrais textes en scène, écrasement placeholder neutralisé |
 | **Reliability pattern non spécifié côté chercheur** | Impossible d'implémenter la manipulation | 🔴 Q-010 — spec chercheur manquante |
-| **Mapping des 3 questions non tranché + textes placeholders** | Validité du questionnaire | 🔴 Q-011 |
+| **Mapping des 3 questions non tranché + textes placeholders** | Validité du questionnaire | ✅ **Levé le 09/09/26** (DEC-035 + `746a4406`) — mapping fixé, les 4 textes réels posés en scène, Q-011 RÉPONDUE |
 | **`spec-tech` absentes pour free/forced et explanations** | Aucune référence opposable sur H1–H8 | 🟠 Rétro-documentation à produire |
 | `motor_forced_set` : fallback silencieux vers ZQSD | Condition expérimentale fausse sans trace | 🟠 **Lot A4** — non corrigé (`FlowValueConverters.ToMotorKeySet`, `FlowDataModels.cs:682-683` ; accepte désormais aussi les graphies `ZQSD`/`TFGH`/`IJKL`, mais une valeur inconnue retombe toujours sur ZQSD sans log). Atténué par DEC-027 : la validation Zod côté backend est censée garantir le domaine |
 | `build_version` incohérent (0.4.0 vs 1.0.0) | Colonne CSV ambiguë | ✅ **Levé le 28/08/26** — constante unique `BuildInfo.Version` (Lot A5) |
@@ -277,11 +285,11 @@ inventaire des packages incomplet (N2-M — à revoir lors de la passe TDD) ·
 
 > Détail complet des lots dans `revue-completude-2026-07-28.md`.
 
-1. **Arbitrages chercheur bloquants** — Q-010 (pattern de fiabilité), Q-011 (mapping des 4 questions + textes réels), **décision sur QuestionnaireScene** (E1). ~~Texte de consentement (E2)~~ ✅ réglé le 08/09. Rien d'autre ne peut être figé sans ça.
+1. **Arbitrages chercheur bloquants** — Q-010 (pattern de fiabilité) et **décision sur QuestionnaireScene** (E1). (~~Q-011~~ ✅ RÉPONDUE le 09/09 — DEC-035 + `746a4406`.) ~~Texte de consentement (E2)~~ ✅ réglé le 08/09. Rien d'autre ne peut être figé sans ça.
 2. **Lot A — fiabiliser le pipeline de données.** A1 ne plus jeter le trial si le questionnaire est incomplet (✅ **fait le 26/08/26**, `fe5fc771`/DEC-026 — reste le résidu « abandon réel », `TrialManager.cs:145-147`) · A2 persister la file d'envoi · A3 débloquer la file après échec · A4 supprimer le fallback silencieux `motor_forced_set` · A5 unifier `build_version` (✅ fait le 28/08/26, `BuildInfo.Version`). **Aucune passation avec de vrais participants avant A2/A3.**
-2 bis. **Lot E — couvrir la donnée de sortie** (même rang de priorité que le Lot A) : E1 résultat du motor advice (**devenu trivial** via `TrialDrawResolver.MotorAdviceDraw`) · E2 stimulus distal réalisé · E3 colonnes `*_match_advice` · E4 compteur de touches invalides · E5 ordre des advisors seedé et loggé (volet genre du badge ✅ fait le 29/08). Dépend des arbitrages Q-MOTOR-1 / Q-DISTAL-1 / Q-RANDOM-1.
-3. **Nettoyer les textes placeholders** — E3 (`AdvisorChoiceUI.cs:56`) et F6 (`TrialQuestionsUI.cs:29-32`, 4 textes). Rapide et visible par le participant.
+2 bis. **Lot E — couvrir la donnée de sortie** (même rang de priorité que le Lot A) : E1 résultat du motor advice (🟡 visible/fiable ✅ faits le 08/09 via `a919a683`/DEC-030 — reste set actif/affiché) · E2 stimulus distal réalisé · E3 colonnes `*_match_advice` · E4 compteur de touches invalides · E5 ordre des advisors (🟡 seed ✅ fait le 08/09, DEC-029 — reste l'export du tirage réalisé, requis par MàJ DEC-029). Dépend des arbitrages Q-MOTOR-1 / Q-DISTAL-1 / Q-RANDOM-1.
+3. **Nettoyer les textes placeholders** — E3 (`AdvisorChoiceUI.cs:56`), dernier texte de dev visible participant. (~~F6~~ ✅ clos le 09/09 — les 4 textes réels en scène, DEC-035 + `746a4406`.)
 4. **Lot D — exécuter la campagne de validation** (`Docs/validation/`) : ouvrir G0, dérouler les axes 1→7, jusqu'au codebook signé (G5).
-5. **Arbitrer les écarts GDD restants** : 4 paths vs 2, smooth pan vs fade, retour en arrière, `visibility_noise`.
+5. **Arbitrer les écarts GDD restants** : 4 paths vs 2, smooth pan vs fade (~~`visibility_noise`~~ ✅ DEC-031, ~~retour en arrière~~ ✅ DEC-032 — clos le 09/09/26).
 6. **Dette documentaire** — produire a posteriori les 2 `spec-tech.md` manquantes par rétro-documentation du code, et compléter le TDD (section 7 manquante, ~27 classes non documentées, type `ValleyPreview` fantôme).
-7. **Compléter** Mountain UI et le protocole de sortie (F4) — criticité moyenne, après les blocs scientifiques.
+7. ~~Compléter Mountain UI et le protocole de sortie~~ ✅ **Point entièrement clos le 09/09/26** — F4 par DEC-033 (re-scope WebGL), Mountain UI par DEC-034 (DEC-003 annulée). Plus rien à développer ici hors Lot A2/A3 déjà listé.

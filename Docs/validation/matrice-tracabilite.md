@@ -151,10 +151,14 @@
 | :- | :-- | :-- | :-- | :-- | :-- |
 | | | | | | |
 
-> Total champs code = **87** (décompte vérifié le 08/09/26 sur `FlowDataModels.cs:487-578`).
+> Total champs code = **93** (décompte re-vérifié le 09/09/26 sur `FlowDataModels.cs:491-591`).
 > Depuis le décompte de 82 du 28/07/26 : +`proximal_advice_reliable_probability`,
 > +`proximal_advice_reliable`, +`green_bugs_session_total`, +`advisor_path_config`,
-> +`acceptability_question_1`/`_2` (−`acceptability_question`, remplacé).
+> +`acceptability_question_1`/`_2` (−`acceptability_question`, remplacé) — soit 87 au 08/09 —
+> puis +6 le 08/09 au soir (`a919a683`, DEC-030) : +`proximal_forced`, +`proximal_forced_value`,
+> +`proximal_forced_was_optimal`, +`motor_forced`, +`motor_advice_visible`, +`motor_advice_reliable`.
+> ⚠️ Le total annoncé ici a été faux deux fois de suite (80→82 en juillet, 87→93 en septembre, cf.
+> D-014) — re-vérifier sur le code à chaque évolution de `TrialResponseRow`.
 > Reporter chaque ligne `❌`/`🔁`/`⚠️` ici et dans `journal-divergences.md`.
 
 ---
@@ -176,7 +180,7 @@ Elle n'est pas dupliquée ici pour éviter deux sources de vérité divergentes.
 | | Nombre |
 | :-- | :-: |
 | Colonnes attendues par le client | 76 |
-| Champs émis par le code | 87 (08/09/26 ; 82 au 28/07) |
+| Champs émis par le code | 93 (09/09/26 ; 87 au 08/09, 82 au 28/07) |
 | Correspondances de **nom exact** | 10 |
 | Renommages à équivalence sémantique | ~16 |
 | Colonnes client **absentes** du code | **29** |
@@ -186,9 +190,9 @@ Elle n'est pas dupliquée ici pour éviter deux sources de vérité divergentes.
 
 | Famille | Colonnes | Réf |
 | :-- | :-: | :-- |
-| `visibility_noise` (feature inexistante) | 7 | F1 / Q-013 |
+| ~~`visibility_noise` (feature inexistante)~~ → **retirées par décision le 09/09/26** (DEC-031 : difficulté portée par ratio/gap) | ~~7~~ | F1 / Q-013 — **clos** |
 | Stimulus distal réalisé (`*_valley_*_bugs_nb`) | 5 | **D-009** / Q-DISTAL-1 |
-| Niveau moteur (set actif, affiché, donné, choix) | 4 | **D-008** / Q-MOTOR-1 |
+| Niveau moteur (set actif, affiché, ~~donné~~ ✅ `motor_advice_visible` 08/09, choix) | 3 *(était 4)* | **D-008** / Q-MOTOR-1 |
 | Adhérence au conseil (`*_match_advice`) | 3 | **D-007** |
 | Granularité de ligne (`screen_type`, `screen_id`) | 2 | Q-ROW-1 |
 | Conseil proximal (cible et chemin affichés) | 2 | — |
@@ -207,6 +211,16 @@ Elle n'est pas dupliquée ici pour éviter deux sources de vérité divergentes.
 >   est gelée (DEC-024), le commentaire libre est désormais couvert par la partie 2 hors Unity.
 > - Le solde des absences reste dominé par `visibility_noise` (7), le stimulus distal (5),
 >   le niveau moteur (4) et les `*_match_advice` (3) — inchangés.
+
+> **Actualisation du 09/09/26** — deux mouvements supplémentaires :
+>
+> - **Retirées par décision** : les 7 colonnes `visibility_noise` (12-14, 32, 35, 47, 51) —
+>   **DEC-031** : la difficulté de discrimination est portée par le ratio vert/rouge et le `gap`
+>   (paramètres existants), aucun bruit de rendu ne sera implémenté. F1 et Q-013 clos.
+> - **Fermées par `a919a683`** (DEC-030) : colonne 64 `motor_advice_given` (→ `motor_advice_visible`)
+>   et le réalisé de la colonne 23 (→ `motor_advice_reliable`).
+> - Le recompte exact des absences restantes est à refaire lors de la campagne (G4) — les totaux
+>   de ce fichier ont déjà été faux deux fois (cf. D-014), ne pas les corriger de tête.
 
 > ⚠️ **Lecture équitable.** Le template CSV V1 date de mars 2026 et précède DEC-017, DEC-018,
 > DEC-019 et DEC-022. Une bonne part de l'écart est une **évolution légitime du design**.
