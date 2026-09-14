@@ -392,14 +392,12 @@ public class ExplanationVariantSet
 [Serializable]
 public class ExplanationText
 {
-    public string id = "";
     public string text = "";
 
     public ExplanationText DeepClone()
     {
         return new ExplanationText
         {
-            id = id,
             text = text
         };
     }
@@ -498,9 +496,18 @@ public class TrialResponseRow
     public string distal_advice_choice;
     public string distal_best_valley;
     public string distal_scan_choice;
+    // Echo de la config explanations du bloc pour ce niveau (valeurs mixtes
+    // incluses, probabilites recopiees telles que stockees), puis etat realise
+    // du trial (FlowSerializationUtility.ApplyExplanationState). Le texte est
+    // celui propose sur le trial, ouvert ou non ; null quand rien n'a ete
+    // propose (display_mode "none").
+    public string distal_advice_explanation_configured_display_mode;
+    public float distal_advice_explanation_display_mode_forced_probability;
+    public string distal_advice_explanation_configured_content_variant;
+    public float distal_advice_explanation_content_variant_long_probability;
     public string distal_advice_explanation_display_mode = ExplanationDisplayMode.None;
     [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string distal_advice_explanation_content_variant;
-    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string distal_advice_explanation_text_id;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string distal_advice_explanation_text;
     [JsonProperty(NullValueHandling = NullValueHandling.Include)] public bool? distal_advice_explanation_clicked;
     [JsonProperty(NullValueHandling = NullValueHandling.Include)] public int? distal_advice_explanation_display_duration_ms;
     public DistalSceneConfig distal_scene;
@@ -521,9 +528,21 @@ public class TrialResponseRow
     public float proximal_advice_reliable_probability;
     public float motor_advice_visible_probability;
     public float motor_advice_reliable_probability;
+    // Echo de la config explanations du bloc pour ce niveau (valeurs mixtes
+    // incluses, probabilites recopiees telles que stockees), puis etat realise
+    // du trial (FlowSerializationUtility.ApplyExplanationState). visible est le
+    // resultat du tirage display_probability (null si l'advice etait cache). Le
+    // texte est celui propose sur le trial, ouvert ou non ; null quand rien n'a
+    // ete propose (display_mode "none").
+    public string motor_advice_explanation_configured_display_mode;
+    public float motor_advice_explanation_display_mode_forced_probability;
+    public string motor_advice_explanation_configured_content_variant;
+    public float motor_advice_explanation_content_variant_long_probability;
+    public float motor_advice_explanation_display_probability;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public bool? motor_advice_explanation_visible;
     public string motor_advice_explanation_display_mode = ExplanationDisplayMode.None;
     [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string motor_advice_explanation_content_variant;
-    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string motor_advice_explanation_text_id;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string motor_advice_explanation_text;
     [JsonProperty(NullValueHandling = NullValueHandling.Include)] public bool? motor_advice_explanation_clicked;
     [JsonProperty(NullValueHandling = NullValueHandling.Include)] public int? motor_advice_explanation_display_duration_ms;
     public float suboptimal_trap_probability;
@@ -538,9 +557,21 @@ public class TrialResponseRow
     public bool path_is_suboptimal;
     public bool proximal_advice_reliable;
     public string proximal_choice;
+    // Echo de la config explanations du bloc pour ce niveau (valeurs mixtes
+    // incluses, probabilites recopiees telles que stockees), puis etat realise
+    // du trial (FlowSerializationUtility.ApplyExplanationState). visible est le
+    // resultat du tirage display_probability (null si l'advice etait cache). Le
+    // texte est celui propose sur le trial, ouvert ou non ; null quand rien n'a
+    // ete propose (display_mode "none").
+    public string proximal_advice_explanation_configured_display_mode;
+    public float proximal_advice_explanation_display_mode_forced_probability;
+    public string proximal_advice_explanation_configured_content_variant;
+    public float proximal_advice_explanation_content_variant_long_probability;
+    public float proximal_advice_explanation_display_probability;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public bool? proximal_advice_explanation_visible;
     public string proximal_advice_explanation_display_mode = ExplanationDisplayMode.None;
     [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string proximal_advice_explanation_content_variant;
-    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string proximal_advice_explanation_text_id;
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string proximal_advice_explanation_text;
     [JsonProperty(NullValueHandling = NullValueHandling.Include)] public bool? proximal_advice_explanation_clicked;
     [JsonProperty(NullValueHandling = NullValueHandling.Include)] public int? proximal_advice_explanation_display_duration_ms;
     public bool choice_correct;

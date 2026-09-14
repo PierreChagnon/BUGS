@@ -404,7 +404,7 @@
   - B : **Id du texte affiché** → permet de retrouver le contenu exact
   - C : **Enum + id (deux colonnes)** → maximum de traçabilité
 - **Statut :** RÉPONDU
-- **Réponse :** Option C — **Enum + id**. Valerian : « Maximum traceability! ». Enrichi du tracking opt-in (clic + durée d'affichage) demandé par Mark. Schéma final : 5 colonnes par advice × 3 advices = 15 colonnes (`*_display_mode`, `*_content_variant`, `*_text_id`, `*_clicked`, `*_display_duration_ms`). Tranché par DEC-018. Date : 2026-05-26.
+- **Réponse :** Option C — **Enum + id**. Valerian : « Maximum traceability! ». Enrichi du tracking opt-in (clic + durée d'affichage) demandé par Mark. Schéma final : 5 colonnes par advice × 3 advices = 15 colonnes (`*_display_mode`, `*_content_variant`, `*_text_id`, `*_clicked`, `*_display_duration_ms`). Tranché par DEC-018. Date : 2026-05-26. **Amendement 2026-09-14 (DEC-046)** : l'id n'étant attribué par personne ni joignable à un texte, `*_text_id` est remplacé par `*_text` (texte proposé, archivé en dur) et la config du bloc est échoée dans la ligne — même finalité, traçabilité effective.
 
 ### Q-EXP-10 — Explanations : localisation du corpus ?
 - **Posée le :** 2026-05-20

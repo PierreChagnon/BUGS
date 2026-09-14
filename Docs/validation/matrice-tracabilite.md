@@ -92,23 +92,39 @@
 
 ## Explanations (× distal / motor / proximal)
 
-> Structure identique pour les 3 advices. `display_mode` défaut = `none` (jamais null). Les 4 champs de contenu portent `[JsonProperty(NullValueHandling = Include)]` → **toujours présents** (null si non applicable).
+> Structure identique pour les 3 advices : écho de la config du bloc (`*_configured_*` et probabilités, recopiés tels quels ; proximal et motor ont en plus `*_display_probability`), puis état réalisé. `display_mode` réalisé défaut = `none` (jamais null). Les 4 champs de contenu réalisés portent `[JsonProperty(NullValueHandling = Include)]` → **toujours présents** (null si non applicable). `*_text` est le texte du corpus proposé sur le trial, ouvert ou non (remplace `*_text_id`, DEC-046).
 
 | Champ (code) | Type | Domaine / valeurs | Omis si null | CSV ? | Statut |
 | :-- | :-- | :-- | :-: | :-: | :-- |
+| `distal_advice_explanation_configured_display_mode` | string | `forced`/`opt-in`/`none`/`forced/opt-in` (écho config) | oui (bloc absent) | | |
+| `distal_advice_explanation_display_mode_forced_probability` | float | 0–1 (écho config) | non | | |
+| `distal_advice_explanation_configured_content_variant` | string | `short`/`long`/`short/long` (écho config) | oui (bloc absent) | | |
+| `distal_advice_explanation_content_variant_long_probability` | float | 0–1 (écho config) | non | | |
 | `distal_advice_explanation_display_mode` | string | `forced`/`opt-in`/`none` | non | | |
 | `distal_advice_explanation_content_variant` | string | `short`/`long`/null | non (`[IncludeNull]`) | | |
-| `distal_advice_explanation_text_id` | string | id chercheur/null | non (`[IncludeNull]`) | | |
+| `distal_advice_explanation_text` | string | texte corpus/null | non (`[IncludeNull]`) | | |
 | `distal_advice_explanation_clicked` | bool? | true/false/null | non (`[IncludeNull]`) | | |
 | `distal_advice_explanation_display_duration_ms` | int? | ms/null | non (`[IncludeNull]`) | | |
+| `motor_advice_explanation_configured_display_mode` | string | `forced`/`opt-in`/`none`/`forced/opt-in` (écho config) | oui (bloc absent) | | |
+| `motor_advice_explanation_display_mode_forced_probability` | float | 0–1 (écho config) | non | | |
+| `motor_advice_explanation_configured_content_variant` | string | `short`/`long`/`short/long` (écho config) | oui (bloc absent) | | |
+| `motor_advice_explanation_content_variant_long_probability` | float | 0–1 (écho config) | non | | |
+| `motor_advice_explanation_display_probability` | float | 0–1 (écho config) | non | | |
+| `motor_advice_explanation_visible` | bool? | tirage display_probability : true/false/null (advice caché) | non (`[IncludeNull]`) | | |
 | `motor_advice_explanation_display_mode` | string | `forced`/`opt-in`/`none` | non | | |
 | `motor_advice_explanation_content_variant` | string | `short`/`long`/null | non (`[IncludeNull]`) | | |
-| `motor_advice_explanation_text_id` | string | id/null | non (`[IncludeNull]`) | | |
+| `motor_advice_explanation_text` | string | texte corpus/null | non (`[IncludeNull]`) | | |
 | `motor_advice_explanation_clicked` | bool? | true/false/null | non (`[IncludeNull]`) | | |
 | `motor_advice_explanation_display_duration_ms` | int? | ms/null | non (`[IncludeNull]`) | | |
+| `proximal_advice_explanation_configured_display_mode` | string | `forced`/`opt-in`/`none`/`forced/opt-in` (écho config) | oui (bloc absent) | | |
+| `proximal_advice_explanation_display_mode_forced_probability` | float | 0–1 (écho config) | non | | |
+| `proximal_advice_explanation_configured_content_variant` | string | `short`/`long`/`short/long` (écho config) | oui (bloc absent) | | |
+| `proximal_advice_explanation_content_variant_long_probability` | float | 0–1 (écho config) | non | | |
+| `proximal_advice_explanation_display_probability` | float | 0–1 (écho config) | non | | |
+| `proximal_advice_explanation_visible` | bool? | tirage display_probability : true/false/null (advice caché) | non (`[IncludeNull]`) | | |
 | `proximal_advice_explanation_display_mode` | string | `forced`/`opt-in`/`none` | non | | |
 | `proximal_advice_explanation_content_variant` | string | `short`/`long`/null | non (`[IncludeNull]`) | | |
-| `proximal_advice_explanation_text_id` | string | id/null | non (`[IncludeNull]`) | | |
+| `proximal_advice_explanation_text` | string | texte corpus/null | non (`[IncludeNull]`) | | |
 | `proximal_advice_explanation_clicked` | bool? | true/false/null | non (`[IncludeNull]`) | | |
 | `proximal_advice_explanation_display_duration_ms` | int? | ms/null | non (`[IncludeNull]`) | | |
 

@@ -82,26 +82,25 @@
 
 ## Explanations (distal / motor / proximal)
 
-Pour chaque advice `X` ∈ {`distal`, `motor`, `proximal`}, 5 colonnes `X_advice_explanation_*` :
+Pour chaque advice `X` ∈ {`distal`, `motor`, `proximal`}, 9 colonnes `X_advice_explanation_*` (11 pour `motor` et `proximal`, qui ont en plus `_display_probability` et `_visible`) : d'abord l'écho de la config du bloc, puis l'état réalisé du trial.
 
 | Suffixe | Type | Domaine | Description |
 | :-- | :-- | :-- | :-- |
-| `_display_mode` | string | `forced`/`opt-in`/`none` | Mode d'affichage de l'explication. |
-| `_content_variant` | string | `short`/`long`/∅ | Variante de contenu affichée. |
-| `_text_id` | string | id/∅ | Identifiant (chercheur) du texte affiché. |
-| `_clicked` | bool | true/false/∅ | En mode opt-in : le participant a-t-il ouvert l'explication ? |
+| `_configured_display_mode` | string | `forced`/`opt-in`/`none`/`forced/opt-in`/∅ | Mode d'affichage **configuré** sur le bloc (écho). ∅ sur les lignes antérieures au 14/09/26. |
+| `_display_mode_forced_probability` | float | 0–1/∅ | Probabilité configurée de tirer `forced` ; lue seulement si le mode configuré est `forced/opt-in`, recopiée telle quelle sinon. |
+| `_configured_content_variant` | string | `short`/`long`/`short/long`/∅ | Variante **configurée** sur le bloc (écho). |
+| `_content_variant_long_probability` | float | 0–1/∅ | Probabilité configurée de tirer `long` ; lue seulement si la variante configurée est `short/long`. |
+| `_display_probability` | float | 0–1/∅ | **`motor` et `proximal` seulement.** Probabilité configurée d'apparition de l'explication à chaque trial. |
+| `_visible` | bool | true/false/∅ | **`motor` et `proximal` seulement.** Résultat du tirage `display_probability` : ∅ quand l'advice était caché (aucun tirage). `true` avec `_display_mode = none` = texte de corpus vide. |
+| `_display_mode` | string | `forced`/`opt-in`/`none` | Mode d'affichage **réalisé**. `none` = rien n'a été proposé (config, advisor absent, advice caché ou tirage `display_probability` négatif). |
+| `_content_variant` | string | `short`/`long`/∅ | Variante de contenu réalisée. |
+| `_text` | string | texte/∅ | Texte du corpus proposé sur le trial, copié tel quel — présent même en opt-in non ouvert ; ∅ si `_display_mode = none`. Remplace `_text_id` (toujours vide) depuis le 14/09/26. |
+| `_clicked` | bool | true/false/∅ | En mode opt-in : le participant a-t-il ouvert l'explication ? `false` = bouton proposé, jamais cliqué. |
 | `_display_duration_ms` | int | ms/∅ | Durée d'affichage de l'explication (opt-in). |
 
-> ⚠️ **Paramètre `display_probability` — non exporté mais déterminant** (ajouté le 28/07/26,
-> divergence D-013). Chaque advice porte en configuration un `display_probability ∈ [0,1]`
-> (`AdviceExplanationConfig`) qui déclenche, **à chaque trial**, un tirage décidant si
-> l'explication s'affiche. **Ce paramètre n'apparaît dans aucune colonne** : quand le tirage
-> est négatif, la seule trace est `*_display_mode = none`, indistinguable d'un bloc
-> volontairement configuré en `none`.
-> Deux points à connaître avant analyse : (1) il **contredit TR7** de la spec explanations
-> (« granularité blockwise ») — la manipulation d'explication n'est donc pas constante à
-> l'intérieur d'un bloc ; (2) **seuls le proximal et le motor ont ce tirage**, le distal est
-> résolu au niveau bloc. Mettre ce paramètre à 0 ou 1 dans les sessions de couverture.
+> ℹ️ **`display_probability` exporté depuis le 14/09/26** (`_display_probability`, résout la
+> divergence D-013), et son tirage réalisé aussi (`_visible`) : un `_display_mode = none` se lit
+> directement — `_visible = false` tirage négatif, `_visible = ∅` advice caché ou pas d'advisor.
 
 ## Résultats & performance
 

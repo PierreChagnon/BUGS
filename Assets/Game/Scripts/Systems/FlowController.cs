@@ -618,8 +618,9 @@ public class FlowController : MonoBehaviour
 
     public void ResolveProximalExplanationForCurrentTrial(bool adviceVisible)
     {
-        bool showExplanation = adviceVisible && RollExplanationProbability(
+        bool? visible = RollExplanationProbability(
             nameof(ResolveProximalExplanationForCurrentTrial),
+            adviceVisible,
             CurrentBlock?.explanations?.proximal != null
                 ? CurrentBlock.explanations.proximal.display_probability
                 : 0f);
@@ -628,14 +629,16 @@ public class FlowController : MonoBehaviour
             CurrentBlock,
             AdviceLevel.Proximal,
             State != null ? State.advisor_choice : AdvisorType.None,
-            showExplanation,
+            visible == true,
             CreateCurrentTrialRandom(ExplanationMixScope(nameof(ResolveProximalExplanationForCurrentTrial))));
+        ProximalAdviceExplanation.visible = visible;
     }
 
     public void ResolveMotorExplanationForCurrentTrial(bool adviceVisible)
     {
-        bool showExplanation = adviceVisible && RollExplanationProbability(
+        bool? visible = RollExplanationProbability(
             nameof(ResolveMotorExplanationForCurrentTrial),
+            adviceVisible,
             CurrentBlock?.explanations?.motor != null
                 ? CurrentBlock.explanations.motor.display_probability
                 : 0f);
@@ -644,13 +647,19 @@ public class FlowController : MonoBehaviour
             CurrentBlock,
             AdviceLevel.Motor,
             State != null ? State.advisor_choice : AdvisorType.None,
-            showExplanation,
+            visible == true,
             CreateCurrentTrialRandom(ExplanationMixScope(nameof(ResolveMotorExplanationForCurrentTrial))));
+        MotorAdviceExplanation.visible = visible;
     }
 
     // Tirage independant a chaque trial (remplace l'ancienne restriction "1er trial du bloc uniquement").
-    bool RollExplanationProbability(string scope, float probability)
+    // Le resultat remonte tel quel dans la ligne (*_advice_explanation_visible) :
+    // null quand l'advice est cache, le tirage n'a alors pas lieu.
+    bool? RollExplanationProbability(string scope, bool adviceVisible, float probability)
     {
+        if (!adviceVisible)
+            return null;
+
         return ExplanationResolver.DrawShouldDisplay(probability, CreateCurrentTrialRandom(scope));
     }
 
@@ -695,9 +704,13 @@ public class FlowController : MonoBehaviour
         if (row == null)
             return;
 
-        FlowSerializationUtility.ApplyExplanationState(row, AdviceLevel.Distal, DistalAdviceExplanation);
-        FlowSerializationUtility.ApplyExplanationState(row, AdviceLevel.Proximal, ProximalAdviceExplanation);
-        FlowSerializationUtility.ApplyExplanationState(row, AdviceLevel.Motor, MotorAdviceExplanation);
+        ExplanationsConfig explanations = CurrentBlock?.explanations;
+        FlowSerializationUtility.ApplyExplanationState(
+            row, AdviceLevel.Distal, explanations?.GetConfig(AdviceLevel.Distal), DistalAdviceExplanation);
+        FlowSerializationUtility.ApplyExplanationState(
+            row, AdviceLevel.Proximal, explanations?.GetConfig(AdviceLevel.Proximal), ProximalAdviceExplanation);
+        FlowSerializationUtility.ApplyExplanationState(
+            row, AdviceLevel.Motor, explanations?.GetConfig(AdviceLevel.Motor), MotorAdviceExplanation);
     }
 
     public bool IsAdvisorChoiceAllowed(AdvisorType type)

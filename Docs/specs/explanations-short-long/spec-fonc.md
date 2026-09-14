@@ -3,7 +3,7 @@
 > Produit par le Rôle 2 (Analyse Fonctionnelle).
 > Décrit le QUOI et le POURQUOI. Jamais le COMMENT technique.
 
-**Date :** 2026-09-09 *(révisée — explanations affichées en bloc tutoriel, DEC-045 : R4/TR4 réécrites ; révisions précédentes : 2026-08-27 ajout §2.4 Communication Report DEC-023 ; 2026-05-26 consolidation post-échange chercheurs)*
+**Date :** 2026-09-14 *(révisée — `*_text_id` remplacé par `*_text` et écho de la config explanations dans `trial_responses`, DEC-046 ; révision précédente : 2026-09-09 explanations affichées en bloc tutoriel, DEC-045 : R4/TR4 réécrites ; révisions précédentes : 2026-08-27 ajout §2.4 Communication Report DEC-023 ; 2026-05-26 consolidation post-échange chercheurs)*
 **Statut :** `draft`
 **Chantier :** Explanations short/long
 **Spec tech associée :** `Docs/specs/explanations-short-long/spec-tech.md` (à produire)
@@ -105,9 +105,13 @@ Le texte affiché est sélectionné dans le corpus du bloc indexé par l'`adviso
 
 | Donnée | Colonne CSV V1 | Valeurs possibles | Quand enregistrée |
 |:---|:---|:---|:---|
+| Mode d'affichage configuré sur le bloc | `distal_advice_explanation_configured_display_mode` | `forced` / `opt-in` / `none` / `forced/opt-in` (écho de la config) | À l'affichage de la scène distale |
+| Probabilité configurée de tirer `forced` | `distal_advice_explanation_display_mode_forced_probability` | 0–1 (écho de la config, lue seulement en `forced/opt-in`) | À l'affichage de la scène distale |
+| Variante éditoriale configurée sur le bloc | `distal_advice_explanation_configured_content_variant` | `short` / `long` / `short/long` (écho de la config) | À l'affichage de la scène distale |
+| Probabilité configurée de tirer `long` | `distal_advice_explanation_content_variant_long_probability` | 0–1 (écho de la config, lue seulement en `short/long`) | À l'affichage de la scène distale |
 | Mode d'affichage de l'explanation distale | `distal_advice_explanation_display_mode` | `forced` / `opt-in` / `none` | À l'affichage de la scène distale |
 | Variante éditoriale active | `distal_advice_explanation_content_variant` | `short` / `long` / `null` (si `display_mode = none`) | À l'affichage de la scène distale |
-| Id du texte effectivement affiché | `distal_advice_explanation_text_id` | id chercheur / `null` | À l'affichage de la scène distale |
+| Texte effectivement proposé (ouvert ou non) | `distal_advice_explanation_text` | texte du corpus / `null` (si `display_mode = none`) | À l'affichage de la scène distale |
 | Clic sur « show explanation » | `distal_advice_explanation_clicked` | `true` / `false` / `null` (si `display_mode ≠ opt-in`) | À la sortie de la scène distale |
 | Durée d'affichage de l'explication | `distal_advice_explanation_display_duration_ms` | int (ms) / `null` (si `display_mode ≠ opt-in`) | À la sortie de la scène distale |
 
@@ -142,9 +146,15 @@ Le texte affiché est sélectionné dans le corpus du bloc indexé par l'`adviso
 
 | Donnée | Colonne CSV V1 | Valeurs possibles | Quand enregistrée |
 |:---|:---|:---|:---|
+| Mode d'affichage configuré sur le bloc | `proximal_advice_explanation_configured_display_mode` | `forced` / `opt-in` / `none` / `forced/opt-in` (écho de la config) | Au début du trial |
+| Probabilité configurée de tirer `forced` | `proximal_advice_explanation_display_mode_forced_probability` | 0–1 (écho de la config, lue seulement en `forced/opt-in`) | Au début du trial |
+| Variante éditoriale configurée sur le bloc | `proximal_advice_explanation_configured_content_variant` | `short` / `long` / `short/long` (écho de la config) | Au début du trial |
+| Probabilité configurée de tirer `long` | `proximal_advice_explanation_content_variant_long_probability` | 0–1 (écho de la config, lue seulement en `short/long`) | Au début du trial |
+| Probabilité configurée d'apparition de l'explanation | `proximal_advice_explanation_display_probability` | 0–1 (écho de la config) | Au début du trial |
+| Tirage `display_probability` réalisé | `proximal_advice_explanation_visible` | `true` / `false` / `null` (advice caché : pas de tirage) | Au début du trial |
 | Mode d'affichage de l'explanation proximale | `proximal_advice_explanation_display_mode` | `forced` / `opt-in` / `none` | Au début du trial |
 | Variante éditoriale active | `proximal_advice_explanation_content_variant` | `short` / `long` / `null` | Au début du trial |
-| Id du texte affiché | `proximal_advice_explanation_text_id` | id / `null` | Au début du trial |
+| Texte effectivement proposé (ouvert ou non) | `proximal_advice_explanation_text` | texte du corpus / `null` | Au début du trial |
 | Clic sur « show explanation » | `proximal_advice_explanation_clicked` | `true` / `false` / `null` | À la fin du trial |
 | Durée d'affichage de l'explication | `proximal_advice_explanation_display_duration_ms` | int (ms) / `null` | À la fin du trial |
 
@@ -180,9 +190,15 @@ Le texte affiché est sélectionné dans le corpus du bloc indexé par l'`adviso
 
 | Donnée | Colonne CSV V1 | Valeurs possibles | Quand enregistrée |
 |:---|:---|:---|:---|
+| Mode d'affichage configuré sur le bloc | `motor_advice_explanation_configured_display_mode` | `forced` / `opt-in` / `none` / `forced/opt-in` (écho de la config) | Au début du trial |
+| Probabilité configurée de tirer `forced` | `motor_advice_explanation_display_mode_forced_probability` | 0–1 (écho de la config, lue seulement en `forced/opt-in`) | Au début du trial |
+| Variante éditoriale configurée sur le bloc | `motor_advice_explanation_configured_content_variant` | `short` / `long` / `short/long` (écho de la config) | Au début du trial |
+| Probabilité configurée de tirer `long` | `motor_advice_explanation_content_variant_long_probability` | 0–1 (écho de la config, lue seulement en `short/long`) | Au début du trial |
+| Probabilité configurée d'apparition de l'explanation | `motor_advice_explanation_display_probability` | 0–1 (écho de la config) | Au début du trial |
+| Tirage `display_probability` réalisé | `motor_advice_explanation_visible` | `true` / `false` / `null` (advice caché : pas de tirage) | Au début du trial |
 | Mode d'affichage de l'explanation motor | `motor_advice_explanation_display_mode` | `forced` / `opt-in` / `none` | Au début du trial |
 | Variante éditoriale active | `motor_advice_explanation_content_variant` | `short` / `long` / `null` | Au début du trial |
-| Id du texte affiché | `motor_advice_explanation_text_id` | id / `null` | Au début du trial |
+| Texte effectivement proposé (ouvert ou non) | `motor_advice_explanation_text` | texte du corpus / `null` | Au début du trial |
 | Clic sur « show explanation » | `motor_advice_explanation_clicked` | `true` / `false` / `null` | À la fin du trial |
 | Durée d'affichage de l'explication | `motor_advice_explanation_display_duration_ms` | int (ms) / `null` | À la fin du trial |
 
@@ -246,15 +262,19 @@ Aucune — le Communication Report n'émet aucune colonne `trial_responses`.
 
 ## 4. Matrice de traçabilité
 
-**15 colonnes** au total (5 par advice × 3 advices). Renommages depuis la version initiale de la spec : `*_advice_explanation_mode` → `*_advice_explanation_content_variant`. Ajout des colonnes `*_display_mode`, `*_clicked`, `*_display_duration_ms`.
+**31 colonnes** au total : par advice, l'écho de la config du bloc (`*_configured_display_mode`, `*_display_mode_forced_probability`, `*_configured_content_variant`, `*_content_variant_long_probability`, plus `*_display_probability` sur proximal et motor) puis l'état réalisé (`*_visible` sur proximal et motor — le tirage `display_probability` —, `*_display_mode`, `*_content_variant`, `*_text`, `*_clicked`, `*_display_duration_ms`). Historique : `*_advice_explanation_mode` → `*_advice_explanation_content_variant` ; `*_text_id` (jamais alimenté) → `*_text` et ajout de l'écho de config le 2026-09-14 (DEC-046).
 
 ### Distal
 
 | Colonne CSV V1 | Écran / Composant | Comportement source | Valeurs possibles |
 |:---|:---|:---|:---|
-| `distal_advice_explanation_display_mode` | DistalChoiceScene | Mode d'affichage du bloc | `forced` / `opt-in` / `none` |
+| `distal_advice_explanation_configured_display_mode` | DistalChoiceScene | Écho de `explanations.distal.display_mode` | `forced` / `opt-in` / `none` / `forced/opt-in` |
+| `distal_advice_explanation_display_mode_forced_probability` | DistalChoiceScene | Écho de `explanations.distal.display_mode_forced_probability` | 0–1 |
+| `distal_advice_explanation_configured_content_variant` | DistalChoiceScene | Écho de `explanations.distal.content_variant` | `short` / `long` / `short/long` |
+| `distal_advice_explanation_content_variant_long_probability` | DistalChoiceScene | Écho de `explanations.distal.content_variant_long_probability` | 0–1 |
+| `distal_advice_explanation_display_mode` | DistalChoiceScene | Mode d'affichage **réalisé** sur le trial | `forced` / `opt-in` / `none` |
 | `distal_advice_explanation_content_variant` | DistalChoiceScene | Variante éditoriale active | `short` / `long` / `null` |
-| `distal_advice_explanation_text_id` | DistalChoiceScene | Id du texte chercheur effectivement affiché | id / `null` |
+| `distal_advice_explanation_text` | DistalChoiceScene | Texte du corpus proposé sur le trial, copié tel quel (ouvert ou non) | texte / `null` |
 | `distal_advice_explanation_clicked` | DistalChoiceScene | Clic sur « show explanation » (opt-in uniquement) | `true` / `false` / `null` |
 | `distal_advice_explanation_display_duration_ms` | DistalChoiceScene | Durée d'affichage en ms (opt-in uniquement) | int / `null` |
 
@@ -262,9 +282,15 @@ Aucune — le Communication Report n'émet aucune colonne `trial_responses`.
 
 | Colonne CSV V1 | Écran / Composant | Comportement source | Valeurs possibles |
 |:---|:---|:---|:---|
-| `proximal_advice_explanation_display_mode` | ProximalScene | Mode d'affichage du bloc | `forced` / `opt-in` / `none` |
+| `proximal_advice_explanation_configured_display_mode` | ProximalScene | Écho de `explanations.proximal.display_mode` | `forced` / `opt-in` / `none` / `forced/opt-in` |
+| `proximal_advice_explanation_display_mode_forced_probability` | ProximalScene | Écho de `explanations.proximal.display_mode_forced_probability` | 0–1 |
+| `proximal_advice_explanation_configured_content_variant` | ProximalScene | Écho de `explanations.proximal.content_variant` | `short` / `long` / `short/long` |
+| `proximal_advice_explanation_content_variant_long_probability` | ProximalScene | Écho de `explanations.proximal.content_variant_long_probability` | 0–1 |
+| `proximal_advice_explanation_display_probability` | ProximalScene | Écho de `explanations.proximal.display_probability` | 0–1 |
+| `proximal_advice_explanation_visible` | ProximalScene | Résultat du tirage `display_probability` (null si l'advice était caché) | `true` / `false` / `null` |
+| `proximal_advice_explanation_display_mode` | ProximalScene | Mode d'affichage **réalisé** sur le trial | `forced` / `opt-in` / `none` |
 | `proximal_advice_explanation_content_variant` | ProximalScene | Variante éditoriale active | `short` / `long` / `null` |
-| `proximal_advice_explanation_text_id` | ProximalScene | Id du texte chercheur effectivement affiché | id / `null` |
+| `proximal_advice_explanation_text` | ProximalScene | Texte du corpus proposé sur le trial, copié tel quel (ouvert ou non) | texte / `null` |
 | `proximal_advice_explanation_clicked` | ProximalScene | Clic sur « show explanation » (opt-in uniquement) | `true` / `false` / `null` |
 | `proximal_advice_explanation_display_duration_ms` | ProximalScene | Durée d'affichage en ms (opt-in uniquement) | int / `null` |
 
@@ -272,13 +298,19 @@ Aucune — le Communication Report n'émet aucune colonne `trial_responses`.
 
 | Colonne CSV V1 | Écran / Composant | Comportement source | Valeurs possibles |
 |:---|:---|:---|:---|
-| `motor_advice_explanation_display_mode` | ProximalScene (motor UI) | Mode d'affichage du bloc | `forced` / `opt-in` / `none` |
+| `motor_advice_explanation_configured_display_mode` | ProximalScene (motor UI) | Écho de `explanations.motor.display_mode` | `forced` / `opt-in` / `none` / `forced/opt-in` |
+| `motor_advice_explanation_display_mode_forced_probability` | ProximalScene (motor UI) | Écho de `explanations.motor.display_mode_forced_probability` | 0–1 |
+| `motor_advice_explanation_configured_content_variant` | ProximalScene (motor UI) | Écho de `explanations.motor.content_variant` | `short` / `long` / `short/long` |
+| `motor_advice_explanation_content_variant_long_probability` | ProximalScene (motor UI) | Écho de `explanations.motor.content_variant_long_probability` | 0–1 |
+| `motor_advice_explanation_display_probability` | ProximalScene (motor UI) | Écho de `explanations.motor.display_probability` | 0–1 |
+| `motor_advice_explanation_visible` | ProximalScene (motor UI) | Résultat du tirage `display_probability` (null si l'advice était caché) | `true` / `false` / `null` |
+| `motor_advice_explanation_display_mode` | ProximalScene (motor UI) | Mode d'affichage **réalisé** sur le trial | `forced` / `opt-in` / `none` |
 | `motor_advice_explanation_content_variant` | ProximalScene (motor UI) | Variante éditoriale active | `short` / `long` / `null` |
-| `motor_advice_explanation_text_id` | ProximalScene (motor UI) | Id du texte chercheur effectivement affiché | id / `null` |
+| `motor_advice_explanation_text` | ProximalScene (motor UI) | Texte du corpus proposé sur le trial, copié tel quel (ouvert ou non) | texte / `null` |
 | `motor_advice_explanation_clicked` | ProximalScene (motor UI) | Clic sur « show explanation » (opt-in uniquement) | `true` / `false` / `null` |
 | `motor_advice_explanation_display_duration_ms` | ProximalScene (motor UI) | Durée d'affichage en ms (opt-in uniquement) | int / `null` |
 
-**Note** : le couple `display_mode + content_variant` couvre l'option C de Q-EXP-9 (enum + id, max traçabilité), enrichi par le tracking opt-in demandé par les chercheurs (DEC-018, R7).
+**Note** : l'option C de Q-EXP-9 (enum + id, max traçabilité) est couverte par `display_mode + content_variant` **et le texte lui-même** (`*_text`) : l'id prévu par DEC-018 n'était attribué par personne et ne permettait aucune jointure, le texte proposé est donc archivé en dur dans la ligne (DEC-046). Enrichi par le tracking opt-in demandé par les chercheurs (DEC-018, R7). `display_mode = none` signale qu'aucune explanation n'a été proposée, et `*_visible` en donne la cause côté tirage (`false` = tirage négatif, `null` = advice caché) : en `opt-in` non cliqué, le texte est présent, `clicked = false` et `display_duration_ms = 0`.
 
 **Correspondance avec le GDD V1** :
 - `distal_advice_explanation_*` ↔ `ValleyAdviseExplanation` du GDD (« Did the advisor include explanation? Which one? »).

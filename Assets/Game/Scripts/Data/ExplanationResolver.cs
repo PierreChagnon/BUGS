@@ -6,8 +6,11 @@ public class ExplanationRuntimeState
 {
     public string display_mode = ExplanationDisplayMode.None;
     public string content_variant;
-    public string text_id;
     public string text;
+    // Resultat du tirage display_probability (proximal/motor), pose par
+    // FlowController : null quand il n'a pas eu lieu (advice cache, donc aussi
+    // sans advisor) ou n'existe pas (distal).
+    public bool? visible;
     public bool? clicked;
     public int? display_duration_ms;
 
@@ -23,7 +26,6 @@ public class ExplanationRuntimeState
         {
             display_mode = ExplanationDisplayMode.None,
             content_variant = null,
-            text_id = null,
             text = null,
             clicked = null,
             display_duration_ms = null
@@ -39,7 +41,6 @@ public class ExplanationRuntimeState
         {
             display_mode = displayMode,
             content_variant = contentVariant,
-            text_id = explanationText != null ? explanationText.id ?? "" : "",
             text = explanationText != null ? explanationText.text : null,
             clicked = null,
             display_duration_ms = null

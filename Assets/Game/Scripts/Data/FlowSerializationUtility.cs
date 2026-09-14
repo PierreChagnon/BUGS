@@ -101,9 +101,16 @@ public static class FlowSerializationUtility
         }
     }
 
+    // Echo de la config explanations du bloc pour le niveau (valeurs mixtes et
+    // probabilites recopiees telles quelles, config null => chaines null et
+    // probabilites 0 comme les autres echos de config), puis etat realise du
+    // trial. visible (proximal/motor) est le resultat du tirage display_probability,
+    // null si le tirage n'a pas eu lieu. Le texte est celui propose, qu'il ait ete
+    // ouvert ou non ; il reste null quand rien n'a ete propose (display_mode "none").
     public static void ApplyExplanationState(
         TrialResponseRow row,
         AdviceLevel level,
+        AdviceExplanationConfig config,
         ExplanationRuntimeState state)
     {
         if (row == null)
@@ -111,32 +118,53 @@ public static class FlowSerializationUtility
 
         state ??= ExplanationRuntimeState.None();
 
+        string configuredDisplayMode = config?.display_mode;
+        float displayModeForcedProbability = config?.display_mode_forced_probability ?? 0f;
+        string configuredContentVariant = config?.content_variant;
+        float contentVariantLongProbability = config?.content_variant_long_probability ?? 0f;
+        float displayProbability = config?.display_probability ?? 0f;
+
         switch (level)
         {
             case AdviceLevel.Distal:
+                row.distal_advice_explanation_configured_display_mode = configuredDisplayMode;
+                row.distal_advice_explanation_display_mode_forced_probability = displayModeForcedProbability;
+                row.distal_advice_explanation_configured_content_variant = configuredContentVariant;
+                row.distal_advice_explanation_content_variant_long_probability = contentVariantLongProbability;
                 row.distal_advice_explanation_display_mode = state.display_mode;
                 row.distal_advice_explanation_content_variant = state.content_variant;
-                row.distal_advice_explanation_text_id = state.text_id;
+                row.distal_advice_explanation_text = state.text;
                 row.distal_advice_explanation_clicked = state.clicked;
                 row.distal_advice_explanation_display_duration_ms = state.display_duration_ms;
                 break;
 
             case AdviceLevel.Proximal:
+                row.proximal_advice_explanation_configured_display_mode = configuredDisplayMode;
+                row.proximal_advice_explanation_display_mode_forced_probability = displayModeForcedProbability;
+                row.proximal_advice_explanation_configured_content_variant = configuredContentVariant;
+                row.proximal_advice_explanation_content_variant_long_probability = contentVariantLongProbability;
+                row.proximal_advice_explanation_display_probability = displayProbability;
+                row.proximal_advice_explanation_visible = state.visible;
                 row.proximal_advice_explanation_display_mode = state.display_mode;
                 row.proximal_advice_explanation_content_variant = state.content_variant;
-                row.proximal_advice_explanation_text_id = state.text_id;
+                row.proximal_advice_explanation_text = state.text;
                 row.proximal_advice_explanation_clicked = state.clicked;
                 row.proximal_advice_explanation_display_duration_ms = state.display_duration_ms;
                 break;
 
             case AdviceLevel.Motor:
+                row.motor_advice_explanation_configured_display_mode = configuredDisplayMode;
+                row.motor_advice_explanation_display_mode_forced_probability = displayModeForcedProbability;
+                row.motor_advice_explanation_configured_content_variant = configuredContentVariant;
+                row.motor_advice_explanation_content_variant_long_probability = contentVariantLongProbability;
+                row.motor_advice_explanation_display_probability = displayProbability;
+                row.motor_advice_explanation_visible = state.visible;
                 row.motor_advice_explanation_display_mode = state.display_mode;
                 row.motor_advice_explanation_content_variant = state.content_variant;
-                row.motor_advice_explanation_text_id = state.text_id;
+                row.motor_advice_explanation_text = state.text;
                 row.motor_advice_explanation_clicked = state.clicked;
                 row.motor_advice_explanation_display_duration_ms = state.display_duration_ms;
                 break;
         }
     }
-
 }
