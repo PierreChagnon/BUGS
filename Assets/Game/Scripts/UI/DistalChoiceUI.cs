@@ -20,6 +20,9 @@ public class DistalChoiceUI : MonoBehaviour
     [SerializeField] private Button _valleyAButton;
     [SerializeField] private Button _valleyBButton;
 
+    public bool IsEnteringExplanationBlockPanelOpen =>
+        _enteringExplanationBlockPanel != null && _enteringExplanationBlockPanel.activeSelf;
+
     public bool AdviceVisible { get; private set; }
     public string AdvisedScanSide { get; private set; }
     public BugCloudSample LeftScanData { get; private set; }
@@ -87,6 +90,16 @@ public class DistalChoiceUI : MonoBehaviour
     public void CloseEnteringExplanationBlockPanel()
     {
         SetExplanationBlockPanelVisible(false);
+        RefreshDistalExplanationUI();
+    }
+
+    // L'explanation distale forced est differee tant que le Communication Report est ouvert :
+    // on la rafraichit a la fermeture pour qu'elle apparaisse et que son chrono demarre.
+    static void RefreshDistalExplanationUI()
+    {
+        var explanationUi = FindFirstObjectByType<DistalExplanationUI>(FindObjectsInactive.Include);
+        if (explanationUi != null)
+            explanationUi.Refresh();
     }
 
     static void ApplyValleyScan(DistalValleyScanView view, BugCloudSample scanData, string valleyLabel)

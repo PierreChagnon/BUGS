@@ -19,6 +19,10 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
     protected abstract AdviceLevel Level { get; }
     protected virtual bool ShowAdvisorBadgesFromExplanation => true;
 
+    // Une explanation forced peut etre differee si un autre element recouvre l'ecran :
+    // elle reste cachee et son chrono ne demarre pas tant que ce n'est pas le cas.
+    protected virtual bool IsForcedExplanationDeferred() => false;
+
     ExplanationRuntimeState _state;
     bool _hasLoggedDebugState;
 
@@ -89,7 +93,7 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
         }
 
         bool isForced = !_state.IsNone && !_state.IsOptIn;
-        if (isForced && ShouldHideForcedExplanation())
+        if (isForced && (ShouldHideForcedExplanation() || IsForcedExplanationDeferred()))
         {
             SetExplanationVisible(false);
             SetShowButtonVisible(false);
