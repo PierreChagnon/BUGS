@@ -1,6 +1,6 @@
 # BUGS — jeu de collecte de bugs sur grille (étude de recherche)
 
-Unity **6000.3.5f2** · URP 17.3.0 · New Input System · WebGL. Version build : `BuildInfo.Version` (**1.1.0**).
+Unity **6000.3.5f2** · URP 17.3.0 · New Input System · WebGL. Version build : `BuildInfo.Version` (**1.2.0**, bumpée à chaque build livrée — convention dans `backend-bugs/AGENTS.md`).
 
 Le participant se déplace sur une grille pour collecter des nuages de bugs en évitant des pièges,
 dans un flow expérimental multi-écrans piloté par une configuration de session distante.

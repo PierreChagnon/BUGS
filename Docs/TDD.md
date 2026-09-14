@@ -2479,7 +2479,7 @@ public class TrialResponseRow
 | :------------------------------------------ | :----- | :--------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | participant_id                              | string | BuildBaseRow (FlowController)                  | ID participant extrait de l'URL WebGL                                                                                                                                    |
 | session_template_id                         | string | BuildBaseRow (FlowController)                  | ID du template de session backend                                                                                                                                        |
-| build_version                               | string | constante `BuildInfo.Version`                  | Version du build Unity (ex: "0.4.0")                                                                                                                                |
+| build_version                               | string | constante `BuildInfo.Version`                  | Version du build Unity (ex: "1.2.0"), bumpée à chaque build livrée                                                                                                                                |
 | block_index                                 | int    | BuildBaseRow (FlowController)                  | Index du bloc courant (0-based)                                                                                                                                          |
 | trial_index                                 | int    | BuildBaseRow (FlowController)                  | Index du trial dans le bloc (0-based)                                                                                                                                    |
 | trial_count                                 | int    | BuildBaseRow (FlowController)                  | Nombre total de trials dans le bloc                                                                                                                                      |
@@ -2567,7 +2567,7 @@ Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJso
 {
   "participant_id": "abc-123",
   "session_template_id": "tmpl-456",
-  "build_version": "0.4.0",
+  "build_version": "1.2.0",
   "block_index": 0,
   "trial_index": 2,
   "trial_count": 4,
