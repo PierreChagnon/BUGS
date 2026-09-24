@@ -2067,9 +2067,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 300830886351149073, guid: efd298c7ad06cad42af085149b09f8dc, type: 3}
       insertIndex: -1
       addedObject: {fileID: 9059662312551534289}
-    - targetCorrespondingSourceObject: {fileID: 300830886351149073, guid: efd298c7ad06cad42af085149b09f8dc, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 6217553400918277341}
   m_SourcePrefab: {fileID: 100100000, guid: efd298c7ad06cad42af085149b09f8dc, type: 3}
 --- !u!1 &5215957662518278100 stripped
 GameObject:
@@ -2089,18 +2086,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SliderValueLabel
   _valueText: {fileID: 5645019989546159188}
---- !u!114 &6217553400918277341
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5215957662518278100}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e905ef24787a440b8921820842e79a6b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SliderFullscreenDragFix
 --- !u!224 &5215957662518278101 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 300830886351149072, guid: efd298c7ad06cad42af085149b09f8dc, type: 3}
@@ -2637,7 +2622,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7830747130826246613, guid: 85c08e1d6a0e8480e93ae3c3b20db070, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -81.84367
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7830747130826246613, guid: 85c08e1d6a0e8480e93ae3c3b20db070, type: 3}
       propertyPath: m_LocalRotation.w

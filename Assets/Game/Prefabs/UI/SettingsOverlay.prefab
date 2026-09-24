@@ -601,7 +601,6 @@ GameObject:
   m_Component:
   - component: {fileID: 7164043798813361547}
   - component: {fileID: 8704667373927135730}
-  - component: {fileID: 4406071952100221793}
   m_Layer: 5
   m_Name: SfxSlider
   m_TagString: Untagged
@@ -682,18 +681,6 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
---- !u!114 &4406071952100221793
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1726850298316566254}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e905ef24787a440b8921820842e79a6b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SliderFullscreenDragFix
 --- !u!1 &2027676537221648451
 GameObject:
   m_ObjectHideFlags: 0
@@ -1089,7 +1076,6 @@ GameObject:
   m_Component:
   - component: {fileID: 7230096366250525573}
   - component: {fileID: 5664499594825693685}
-  - component: {fileID: 4406071952100221794}
   m_Layer: 5
   m_Name: MasterSlider
   m_TagString: Untagged
@@ -1170,18 +1156,6 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
---- !u!114 &4406071952100221794
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2961323011123856604}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e905ef24787a440b8921820842e79a6b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SliderFullscreenDragFix
 --- !u!1 &3637306143303138038
 GameObject:
   m_ObjectHideFlags: 0
@@ -1666,7 +1640,6 @@ GameObject:
   m_Component:
   - component: {fileID: 8945208118652759538}
   - component: {fileID: 8530799539537700908}
-  - component: {fileID: 4406071952100221795}
   m_Layer: 5
   m_Name: MusicSlider
   m_TagString: Untagged
@@ -1747,18 +1720,6 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
---- !u!114 &4406071952100221795
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5547033998430862861}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e905ef24787a440b8921820842e79a6b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SliderFullscreenDragFix
 --- !u!1 &5580085296148392078
 GameObject:
   m_ObjectHideFlags: 0
