@@ -99,6 +99,9 @@ public class BlockConfig
     public int block_order;
     public bool is_order_locked;
     public string config_fingerprint;
+    // Lettre de type du dashboard ('-' = sans type). Recopiee telle quelle
+    // dans trial_responses.block_type_tag, jamais lue par le gameplay.
+    public string type_tag;
     public int trial_count;
     public bool is_tutorial;
     public bool advisor_forced;
@@ -126,6 +129,7 @@ public class BlockConfig
             block_order = block_order,
             is_order_locked = is_order_locked,
             config_fingerprint = config_fingerprint,
+            type_tag = type_tag,
             trial_count = trial_count,
             is_tutorial = is_tutorial,
             advisor_forced = advisor_forced,
@@ -466,6 +470,7 @@ public class TrialResponseRow
     public string build_version;
     public string block_template_id;
     public int block_index;
+    public string block_type_tag;
     public int trial_index;
     public int trial_count;
     public bool is_tutorial;
@@ -582,6 +587,7 @@ public class TrialResponseRow
     public int traps_hit;
     public int steps;
     public int overtime_steps;
+    public int invalid_key_presses;
     public bool followed_advisor_path;
     public string player_path_log;
     [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string advisor_path_config;

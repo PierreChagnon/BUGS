@@ -50,7 +50,7 @@ public class GridMover : MonoBehaviour
         if (GameManager.Instance != null && LevelRegistry.Instance != null)
         {
             var cell = LevelRegistry.Instance.WorldToCell(transform.position);
-            GameManager.Instance.OnPlayerStep(cell);
+            GameManager.Instance.OnPlayerSpawned(cell);
         }
     }
 

@@ -18,6 +18,7 @@
 | `build_version` | string | ex. `1.1.0` | Version du build ayant produit la donnée (constante `BuildInfo.Version`, source unique depuis le 28/08/26). |
 | `block_template_id` | string | id | Modèle du bloc effectivement joué. **Indispensable quand `randomize_blocks = true`** (DEC-022) : `block_index` donne la position jouée, `block_template_id` donne le bloc expérimental. Grouper les analyses par condition sur **cette** colonne, pas sur `block_index`. |
 | `block_index` | int | ≥ 1 | Numéro du bloc dans la session (1-based) — **position jouée**, pas identité du bloc (cf. `block_template_id`). |
+| `block_type_tag` | string | `-`, `A`…`Z` | Lettre de type du bloc (regroupement dashboard), recopiée au moment du jeu depuis la config (build ≥ 1.3.0 ; lignes antérieures rétro-remplies le 24/09/26 depuis le tag courant du bloc). |
 | `trial_index` | int | ≥ 1 | Numéro du trial dans le bloc (1-based). |
 | `trial_count` | int | ≥ 1 | Nombre total de trials prévus dans le bloc. |
 | `is_tutorial` | bool | — | Toujours `false` dans l'export (les tutorials ne sont pas envoyés). |
@@ -116,8 +117,9 @@ Pour chaque advice `X` ∈ {`distal`, `motor`, `proximal`}, 9 colonnes `X_advice
 | `green_bugs_accumulated` | int | ≥ 0 | Score vert cumulé dans le bloc (monotone croissant). |
 | `green_bugs_session_total` | int | ≥ 0 | Score vert cumulé sur toute la session, blocs tutoriels exclus (monotone croissant, jamais remis à zéro entre les blocs). |
 | `traps_hit` | int | ≥ 0 | Nombre de pièges déclenchés. |
-| `steps` | int | ≥ 0 | Nombre de pas effectués. |
-| `overtime_steps` | int | ≥ 0 | Pas au-delà du budget (`cloud_distance`). |
+| `steps` | int | ≥ 0 | Déplacements effectués, case de départ non comptée : sur un trajet direct, `steps` = `cloud_distance`. **Avant la build 1.3.0, la case de départ était comptée (`steps` = déplacements + 1).** |
+| `overtime_steps` | int | ≥ 0 | Déplacements au-delà du budget : max(0, `steps` − `cloud_distance`) depuis la build 1.3.0. |
+| `invalid_key_presses` | int | ≥ 0, ∅ | Touches hors set actif ayant coûté une pénalité (1 vert par nuage chacune). ∅ avant la build 1.3.0. |
 | `followed_advisor_path` | bool | — | A suivi le chemin **affiché** (⚠️ pas forcément optimal — voir §Limites). |
 | `player_path_log` | JSON array | `[{x,y,t}]` | Trajectoire complète, `t` = timestamp ISO UTC par pas. |
 | `advisor_path_config` | JSON array | `[{x,y}]` ou ∅ | Cases ordonnées du chemin advisor **affiché** (même forme que `player_path_log`, sans timestamps). Vide quand `optimal_path_visible` est faux ou sur les lignes de builds antérieurs au champ. À croiser avec `player_path_log` pour repérer les cases parcourues hors du chemin conseillé. |

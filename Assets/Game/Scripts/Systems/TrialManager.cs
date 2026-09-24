@@ -83,6 +83,7 @@ public class TrialManager : MonoBehaviour
         int trapsHit,
         int steps,
         int overtimeSteps,
+        int invalidKeyPresses,
         bool followedAdvisorPath,
         IReadOnlyList<Vector2Int> advisorPathCells,
         bool optimalPathVisible,
@@ -109,6 +110,7 @@ public class TrialManager : MonoBehaviour
         _currentTrialRow.traps_hit = trapsHit;
         _currentTrialRow.steps = steps;
         _currentTrialRow.overtime_steps = overtimeSteps;
+        _currentTrialRow.invalid_key_presses = invalidKeyPresses;
         _currentTrialRow.followed_advisor_path = followedAdvisorPath;
         _currentTrialRow.optimal_path_visible = optimalPathVisible;
         _currentTrialRow.path_is_suboptimal = pathIsSuboptimal;
@@ -291,6 +293,7 @@ public class TrialManager : MonoBehaviour
             build_version = BuildInfo.Version,
             block_template_id = block != null ? block.block_template_id : null,
             block_index = blockIndex,
+            block_type_tag = block != null ? block.type_tag : null,
             trial_index = trialIndex,
             trial_count = block != null ? block.trial_count : 1,
             is_tutorial = block != null && block.is_tutorial,

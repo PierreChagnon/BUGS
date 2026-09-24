@@ -326,11 +326,10 @@ MonoBehaviour:
   _advisorChoiceSceneName: AdvisorChoiceScene
   _distalChoiceSceneName: DistalChoiceScene
   _proximalSceneName: ProximalScene
-  _questionnaireSceneName: QuestionnaireScene
   _breakSceneName: BreakScene
   _endSessionSceneName: EndSessionScene
-  _buildVersion: 0.4.0
-  _editorSessionId: 85869403-2c6c-458a-af16-e10598478df4
+  _breakFadeDuration: 2
+  _editorSessionId: 560b4f29-a2ea-4701-aacc-8ccfce80643e
 --- !u!4 &530388671
 Transform:
   m_ObjectHideFlags: 0

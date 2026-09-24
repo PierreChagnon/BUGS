@@ -27,6 +27,10 @@ public class GameManager : MonoBehaviour
     public int steps;
     public int trapsHit;
     public int overtimeSteps;
+    // Touches hors set actif ayant coute une penalite (hors cooldown). Remonte dans
+    // trial_responses.invalid_key_presses : sans lui, green_bugs_collected n'est pas
+    // reconstructible depuis traps_hit + overtime_steps.
+    public int invalidKeyPresses;
     public int bugsCollected;
     public int bugsEscaped;
     public bool followedAdvisorPath = true;
@@ -202,12 +206,20 @@ public class GameManager : MonoBehaviour
         FlowController.Instance?.ResolveProximalExplanationForCurrentTrial(isVisible);
     }
 
-    public void OnPlayerStep(Vector2Int cell)
+    // Case de depart : visitee, revelee et tracee comme les autres, mais ce n'est
+    // pas un deplacement. steps ne compte que les deplacements, comme
+    // cloud_distance (build 1.3.0 ; avant, steps valait deplacements + 1).
+    public void OnPlayerSpawned(Vector2Int cell) => RegisterPlayerCell(cell, isMove: false);
+
+    public void OnPlayerStep(Vector2Int cell) => RegisterPlayerCell(cell, isMove: true);
+
+    void RegisterPlayerCell(Vector2Int cell, bool isMove)
     {
         if (_roundOver)
             return;
 
-        steps++;
+        if (isMove)
+            steps++;
 
         LevelRegistry.Instance?.MarkVisited(cell);
         if (!IsHiddenForcedCloudCell(cell))
@@ -216,9 +228,8 @@ public class GameManager : MonoBehaviour
         if (_advisorPath.Count > 0 && !_advisorPath.Contains(cell))
             followedAdvisorPath = false;
 
-        int movesMade = steps - 1;
         var registry = LevelRegistry.Instance;
-        if (registry != null && registry.stepBudget > 0 && movesMade > registry.stepBudget)
+        if (isMove && registry != null && registry.stepBudget > 0 && steps > registry.stepBudget)
             OnStepBudgetExceeded();
 
         trialManager?.RecordMove(cell);
@@ -294,6 +305,7 @@ public class GameManager : MonoBehaviour
         if (_roundOver || IsWrongInputCooldownActive)
             return false;
 
+        invalidKeyPresses++;
         _leftCloud?.AddBugs(-1);
         _rightCloud?.AddBugs(-1);
 
@@ -386,6 +398,7 @@ public class GameManager : MonoBehaviour
                 trapsHit,
                 steps,
                 overtimeSteps,
+                invalidKeyPresses,
                 followedAdvisorPath,
                 _advisorPathCells,
                 _advisorPathVisible,

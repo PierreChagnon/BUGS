@@ -63,7 +63,7 @@ Champs pilotant les colonnes (source : `BlockConfig` lu par `TrialManager.BuildB
 `proximal_forced_probability`, `proximal_forced_optimal_probability`,
 `motor_forced_probability`, `motor_forced_set`,
 `distal_advice_visible_probability`, `distal_advice_reliable_probability`, `show_numerical_feedback`,
-`distal_scene`, `trial_count`, `is_tutorial`, `block_order`, `is_order_locked`, `config_fingerprint`,
+`distal_scene`, `trial_count`, `is_tutorial`, `block_order`, `is_order_locked`, `config_fingerprint`, `type_tag`,
 
 - paramètres map (`trap_count`, `min/max_distance`, `min/max_total_bugs`, `min/max_green_ratio`, `gap_min/max`, `fog_probability`, `path_visible_probability`, `suboptimal_path_probability`, `detour_probability`, `motor_advice_visible/reliable_probability`, `suboptimal_trap_probability`, `min/max_suboptimal_traps`)
 - config explanations (display_mode / content_variant / corpus `text` — plus d'`id` depuis le 14/09/26, **`display_probability`**, et depuis le 27/08/26 `display_mode_forced_probability` / `content_variant_long_probability` pour les valeurs mixtes `forced/opt-in` et `short/long`, par advice).

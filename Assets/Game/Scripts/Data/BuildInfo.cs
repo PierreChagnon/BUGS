@@ -5,5 +5,5 @@ public static class BuildInfo
 {
     // Bump a chaque build livree dans backend-bugs/public/unity/Build — minor quand le
     // contrat trial_responses change, patch sinon. Convention : backend-bugs/AGENTS.md.
-    public const string Version = "1.2.0";
+    public const string Version = "1.3.0";
 }

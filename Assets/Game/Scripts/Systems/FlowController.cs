@@ -21,6 +21,10 @@ public class FlowController : MonoBehaviour
     [SerializeField] private string _breakSceneName = "BreakScene";
     [SerializeField] private string _endSessionSceneName = "EndSessionScene";
 
+    [Header("Transitions")]
+    [Tooltip("Duree du fondu au noir (aller et retour) pour entrer dans la salle de pause et en sortir. Les autres transitions gardent la duree par defaut de FadeTransition.")]
+    [SerializeField] private float _breakFadeDuration = 2f;
+
     [Header("Editor Test")]
     [SerializeField] private string _editorSessionId;
 
@@ -452,6 +456,9 @@ public class FlowController : MonoBehaviour
         if (next == GamePhase.Proximal)
             RollTrialForcedChoicesForCurrentTrial();
 
+        // La pause est un changement de contexte pour le participant : fondu
+        // plus long a l'entree comme a la sortie, les autres scenes s'enchainent vite.
+        bool slowFade = next == GamePhase.Break || State.current_phase == GamePhase.Break;
         State.current_phase = next;
         OnPhaseChanged?.Invoke(next);
 
@@ -467,19 +474,20 @@ public class FlowController : MonoBehaviour
         if (_sceneTransitionCoroutine != null)
             StopCoroutine(_sceneTransitionCoroutine);
 
-        _sceneTransitionCoroutine = StartCoroutine(TransitionToScene(sceneName));
+        _sceneTransitionCoroutine = StartCoroutine(
+            TransitionToScene(sceneName, slowFade ? _breakFadeDuration : (float?)null));
     }
 
-    IEnumerator TransitionToScene(string sceneName)
+    IEnumerator TransitionToScene(string sceneName, float? fadeDuration = null)
     {
         if (FadeTransition.Instance != null)
-            yield return FadeTransition.Instance.FadeOut();
+            yield return FadeTransition.Instance.FadeOut(fadeDuration);
 
         SceneManager.LoadScene(sceneName, LoadSceneMode.Single);
         yield return null;
 
         if (FadeTransition.Instance != null)
-            yield return FadeTransition.Instance.FadeIn();
+            yield return FadeTransition.Instance.FadeIn(fadeDuration);
 
         _sceneTransitionCoroutine = null;
     }

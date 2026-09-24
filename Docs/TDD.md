@@ -811,7 +811,7 @@ public class GridMover : MonoBehaviour
 
 ### 3.5.3 Dépendances
 
-- **Nécessite :** `LevelRegistry.Instance` (WorldToCell, CellToWorld, InBounds, IsWalkable, SnapWorldToCellCenter), `GameManager.Instance` (inputLocked, OnPlayerStep, OnInvalidMoveKeyPressed), `MotorAdviceController.Instance` (TryGetStep, IsActiveMoveKey)
+- **Nécessite :** `LevelRegistry.Instance` (WorldToCell, CellToWorld, InBounds, IsWalkable, SnapWorldToCellCenter), `GameManager.Instance` (inputLocked, OnPlayerSpawned, OnPlayerStep, OnInvalidMoveKeyPressed), `MotorAdviceController.Instance` (TryGetStep, IsActiveMoveKey)
 - **Ne dépend plus de :** `FogController` (la révélation du brouillard et le marquage visited sont gérés par `GameManager.OnPlayerStep`)
 - **Est utilisé par :** Aucun — composant terminal sur le GameObject joueur
 - **Package requis :** `com.unity.inputsystem` 1.17.0 (`using UnityEngine.InputSystem`, `using UnityEngine.InputSystem.Controls`)
@@ -821,7 +821,7 @@ public class GridMover : MonoBehaviour
 ```mermaid
 graph TD
     A["Start()"] --> B["SnapToGrid()"]
-    B --> C["GameManager.OnPlayerStep(startCell) — fog + visited délégués"]
+    B --> C["GameManager.OnPlayerSpawned(startCell) — fog + visited délégués, pas compté comme déplacement"]
 
     E["Update() — chaque frame"] --> F{_isMoving ?}
     F -->|Oui| G[return]
@@ -2479,8 +2479,9 @@ public class TrialResponseRow
 | :------------------------------------------ | :----- | :--------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | participant_id                              | string | BuildBaseRow (FlowController)                  | ID participant extrait de l'URL WebGL                                                                                                                                    |
 | session_template_id                         | string | BuildBaseRow (FlowController)                  | ID du template de session backend                                                                                                                                        |
-| build_version                               | string | constante `BuildInfo.Version`                  | Version du build Unity (ex: "1.2.0"), bumpée à chaque build livrée                                                                                                                                |
+| build_version                               | string | constante `BuildInfo.Version`                  | Version du build Unity (ex: "1.3.0"), bumpée à chaque build livrée                                                                                                                                |
 | block_index                                 | int    | BuildBaseRow (FlowController)                  | Index du bloc courant (0-based)                                                                                                                                          |
+| block_type_tag                              | string | BuildBaseRow (BlockConfig.type_tag)            | Lettre de type du bloc dans le dashboard ('-' = sans type), figée au moment du jeu                                                                                      |
 | trial_index                                 | int    | BuildBaseRow (FlowController)                  | Index du trial dans le bloc (0-based)                                                                                                                                    |
 | trial_count                                 | int    | BuildBaseRow (FlowController)                  | Nombre total de trials dans le bloc                                                                                                                                      |
 | advisor_choice                              | string | BuildBaseRow (FlowController)                  | "human", "robot" ou "none"                                                                                                                                               |
@@ -2526,8 +2527,9 @@ public class TrialResponseRow
 | green_bugs_accumulated                      | int    | EndCurrentTrial                                | Score accumulé dans le bloc (FlowController.GetAccumulatedScoreAfterTrial)                                                                                               |
 | green_bugs_session_total                    | int    | EndCurrentTrial                                | Score accumulé sur toute la session, tutoriels exclus (FlowController.GetSessionScoreAfterTrial)                                                                         |
 | traps_hit                                   | int    | EndCurrentTrial                                | Nombre de pièges déclenchés                                                                                                                                              |
-| steps                                       | int    | EndCurrentTrial                                | Nombre total de pas du joueur                                                                                                                                            |
-| overtime_steps                              | int    | EndCurrentTrial                                | Pas au-delà du budget (steps − cloud_distance, min 0)                                                                                                                    |
+| steps                                       | int    | EndCurrentTrial                                | Déplacements effectués ; la case de départ n'est pas comptée (build ≥ 1.3.0, avant : déplacements + 1)                                                                  |
+| overtime_steps                              | int    | EndCurrentTrial                                | Déplacements au-delà du budget : max(0, steps − cloud_distance)                                                                                                          |
+| invalid_key_presses                         | int    | EndCurrentTrial                                | Touches hors set actif ayant coûté une pénalité (1 vert par nuage chacune, hors cooldown d'1 s)                                                                          |
 | followed_advisor_path                       | bool   | EndCurrentTrial                                | `true` si le joueur a suivi le chemin conseillé                                                                                                                          |
 | player_path_log                             | string | EndCurrentTrial                                | JSON sérialisé de `List<PlayerStep>` (coordonnées + timestamps)                                                                                                          |
 | acceptability_question_1                    | string | TrialQuestionsUI → SubmitCurrentTrialResponses | Réponse 1-7 au slider (1re question d'acceptabilité). ⚠️ **Non posée si `advisor_choice == None`** — le champ reste `null` et est omis du payload, la ligne part quand même         |
@@ -2567,8 +2569,9 @@ Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJso
 {
   "participant_id": "abc-123",
   "session_template_id": "tmpl-456",
-  "build_version": "1.2.0",
+  "build_version": "1.3.0",
   "block_index": 0,
+  "block_type_tag": "A",
   "trial_index": 2,
   "trial_count": 4,
   "advisor_choice": "human",
@@ -2614,6 +2617,7 @@ Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJso
   "traps_hit": 2,
   "steps": 14,
   "overtime_steps": 2,
+  "invalid_key_presses": 1,
   "followed_advisor_path": true,
   "player_path_log": "[{\"x\":5,\"y\":0,\"t\":\"2026-02-17T14:30:01.000Z\"},{\"x\":5,\"y\":1,\"t\":\"2026-02-17T14:30:01.500Z\"}]",
   "advisor_path_config": "[{\"x\":5,\"y\":0},{\"x\":5,\"y\":1}]",
