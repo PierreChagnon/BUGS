@@ -17,7 +17,6 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
     [SerializeField] private GameObject _advisorRobotBadge;
 
     protected abstract AdviceLevel Level { get; }
-    protected virtual bool ShowAdvisorBadgesFromExplanation => true;
 
     // Une explanation forced peut etre differee si un autre element recouvre l'ecran :
     // elle reste cachee et son chrono ne demarre pas tant que ce n'est pas le cas.
@@ -32,6 +31,8 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
 
         if (_explanationRoot == null)
             _explanationRoot = gameObject;
+
+        CacheAdvisorBadges();
 
         if (_showButtonRoot == null && _showButton != null)
             _showButtonRoot = _showButton.gameObject;
@@ -180,11 +181,27 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
             _showButton.gameObject.SetActive(visible);
     }
 
+    // Icone advisor en bulle, au coin de la boite : les badges non cables dans
+    // l'inspecteur sont retrouves par leur nom standard sous la racine de l'explanation.
+    // Le slot est marque pilote : il ne masque plus ses badges de lui-meme.
+    void CacheAdvisorBadges()
+    {
+        Transform root = _explanationRoot.transform;
+
+        var slot = root.GetComponentInChildren<AdvisorBadgesSlot>(true);
+        if (slot != null)
+            slot.IsDriven = true;
+
+        if (_advisorHumanMaleBadge == null)
+            _advisorHumanMaleBadge = AdvisorBadgeUtility.FindDescendant(root, AdvisorBadgeUtility.HumanMaleName);
+        if (_advisorHumanFemaleBadge == null)
+            _advisorHumanFemaleBadge = AdvisorBadgeUtility.FindDescendant(root, AdvisorBadgeUtility.HumanFemaleName);
+        if (_advisorRobotBadge == null)
+            _advisorRobotBadge = AdvisorBadgeUtility.FindDescendant(root, AdvisorBadgeUtility.RobotName);
+    }
+
     void SetAdvisorBadgesVisible(bool explanationVisible)
     {
-        if (!ShowAdvisorBadgesFromExplanation)
-            return;
-
         AdvisorBadgeUtility.ApplyBadges(
             _advisorHumanMaleBadge,
             _advisorHumanFemaleBadge,

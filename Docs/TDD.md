@@ -755,6 +755,7 @@ Exclusion          = les cellules suboptimalPath sont exclues des candidats norm
 - **⚠️ trapCount :** Pas de champ `trapCount` sur TrapSpawner — la valeur est lue depuis `SessionManager.Instance.trapCount` au Start. Le pipeline est : CLI arg → SessionManager.Awake (parsing) → TrapSpawner.Start (lecture directe)
 - **⚠️ Suboptimal traps prioritaires :** `PlaceSuboptimalTraps` est appelé **avant** le placement normal. Les pièges suboptimaux comptent dans le budget `trapCount`. Si `suboptimalPlaced >= trapCount`, aucun piège normal n'est placé
 - **⚠️ Exclusion croisée :** Les cellules du chemin suboptimal sont retirées des candidats normaux via `RemoveAll(c => registry.IsOnSuboptimalPath(c))` — pas de double placement possible
+- **⚠️ Visibilité sur le chemin advisor :** un piège posé sur le chemin advisor **affiché** reste caché tant que le joueur n'a pas marché sur sa case, avec ou sans brouillard (`GameManager.IsTrapHiddenOnAdvisorPath`, lu par `TrapVisibility`, rafraîchi par `GameManager.OnPlayerCellVisited`). Les autres pièges restent visibles dès que leur case sort du brouillard. Le `RevealAll` de fin de trial ne les montre pas.
 
 ### 3.4.7 Journal d'implémentation
 
@@ -765,6 +766,7 @@ Exclusion          = les cellules suboptimalPath sont exclues des candidats norm
 | 02/03/26 | @pierre     | Refacto SRP : TrapSpawner lit `trapCount` directement depuis `SessionManager.Instance` (nouveau Singleton). Plus de transit par LevelRegistry pour les paramètres recherche.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | 12/03/26 | @auteur     | Feature suboptimal traps : ajout `PlaceSuboptimalTraps()` (tirage probabiliste + bornes min/max). Les pièges suboptimaux comptent dans le budget `trapCount`. Cellules suboptimalPath exclues des candidats normaux. Params lus depuis SessionManager : `suboptimalTrapProbability`, `minSuboptimalTraps`, `maxSuboptimalTraps`.                                                                                                                                                                                                                                                                                                                |
 | 28/07/26 | @florian    | **Correction documentaire — aucune modification de code.** Revue de couverture (`Docs/project-state/revue-couverture-2026-07-28.md`, constat N2-K) : §3.4.5 annonçait `trapCount` « overridable via arg CLI "trapCount=N" ». Aucun parsing de cet argument n'existe dans le code — le seul argument lu est `sessionId=`, dans `FlowController.cs:389`. `trapCount` vient de la config de session (`MapGenConfig`) recopiée par `SessionManager.CopyConfigFromFlowController()`. La même erreur subsiste dans `CLAUDE.md:116` (corrigée en parallèle). L'entrée du 17/02/26 ci-dessus est conservée : elle décrit un état initial depuis révisé. |
+| 28/09/26 | @pierre     | Pièges du chemin advisor affiché cachés jusqu'au pas du joueur (retour Mark 24/09, point 14) : le chemin lève le brouillard dès le début du trial et révélait ses propres pièges. `TrapVisibility` interroge `GameManager.IsTrapHiddenOnAdvisorPath` et se rafraîchit sur `GameManager.OnPlayerCellVisited`. Aucune colonne exportée ne change. |
 
 ## 3.5 GridMover
 
@@ -2236,6 +2238,7 @@ public class ApiClient : MonoBehaviour
 | supabaseAnonKey                                                                                       | string             | Clé anonyme Supabase — envoyée en `apikey` et `Bearer` headers                  |
 | \_sessionConfigPath                                                                                   | string             | Chemin GET sessions (défaut : `api/sessions`)                                   |
 | \_trialResponsesPath                                                                                  | string             | Chemin POST/PATCH trial responses (défaut : `api/trial-responses`)              |
+| \_participantUsernamesPath | string | Chemin POST username de fin de partie 1 (défaut : `api/participant-usernames`, DEC-048) |
 | \_maxImmediateRetries                                                                                 | int                | Nombre max de tentatives par trial (défaut : 3)                                 |
 | \_retryDelaySeconds                                                                                   | float              | Délai entre retries (défaut : 1s)                                               |
 | \_pendingTrialRequests                                                                                | Queue (privé)      | File d'attente FIFO des trials à envoyer                                        |
@@ -2247,6 +2250,7 @@ public class ApiClient : MonoBehaviour
 | PatchQuestionnaireResponses(trialResponseId, q1..q3, onSuccess, onError)                              | void               | PATCH `/api/trial-responses/{id}` avec les réponses questionnaire               |
 | QueueQuestionnairePatchForTrial(participantId, blockIndex, trialIndex, responses, onSuccess, onError) | void               | Met en queue un PATCH qui sera exécuté quand le trialResponseId sera disponible |
 | RetryPendingTrialUploads()                                                                            | void               | Relance le processing de la queue si pas déjà en cours                          |
+| SendParticipantUsername(participantId, sessionTemplateId, username, onSuccess, onError) | void | POST `/api/participant-usernames` (username trimé, 3 tentatives) — appelé par `ParticipantUsernameUI` sur EndSessionScene (DEC-048) |
 | CompleteSession(participantId)                                                                        | void               | Flush tous les pending (trials + questionnaires), log completion                |
 
 ### 4.10.3 Dépendances
@@ -2384,6 +2388,7 @@ graph TD
 
 - **⚠️ DDOL :** L'overlay persiste entre scènes — pas besoin de le recréer
 - **⚠️ UnscaledDeltaTime :** Le fade fonctionne même si `Time.timeScale == 0`
+- **⚠️ MaxFadeStep (0.1 s) :** une frame n'avance jamais le fade de plus de 0.1 s. La première frame d'une scène chargée peut durer plusieurs secondes en WebGL (compilation des shaders à la première visite) ; comptée en entier, elle consommait tout le fondu d'entrée
 - **⚠️ sortingOrder :** `short.MaxValue` (32767) garantit que l'overlay est au-dessus de tout
 - **⚠️ EnsureOverlay :** Idempotent — appelé à chaque FadeOut/FadeIn pour garantir l'existence du Canvas
 
@@ -2392,6 +2397,7 @@ graph TD
 | Date     | Développeur | Note / Décision Technique                                                                                           |
 | :------- | :---------- | :------------------------------------------------------------------------------------------------------------------ |
 | 23/03/26 | @pierre     | Création. Overlay dynamique DDOL, Canvas ScreenSpaceOverlay, CanvasGroup alpha pour transitions, unscaledDeltaTime. |
+| 28/09/26 | @pierre     | Pas de fade plafonné à `MaxFadeStep` : le fondu d'entrée dans la salle de pause (2 s) n'était pas visible (retour Mark 24/09, point 8). |
 
 # 5. Gestion des données
 

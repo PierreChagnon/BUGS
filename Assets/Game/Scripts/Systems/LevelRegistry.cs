@@ -90,6 +90,7 @@ public class LevelRegistry : MonoBehaviour
         => _cells.TryGetValue(c, out var f) ? f : CellFlags.None;
 
     public void MarkVisited(Vector2Int c) => AddFlags(c, CellFlags.Visited);
+    public bool IsVisited(Vector2Int c) => (GetFlags(c) & CellFlags.Visited) != 0;
 
     public void RegisterPlayerStart(Vector2Int c)
     {

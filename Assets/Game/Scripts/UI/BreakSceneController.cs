@@ -28,13 +28,19 @@ public class BreakSceneController : MonoBehaviour
     [SerializeField] private TMP_Text _totalBugsText;
 
     int _lastDisplayedSeconds = -1;
+    TMP_Text _resumeLabel;
+    Color _resumeLabelColor;
 
     void Awake()
     {
         if (_resumeButton == null)
             return;
 
-        _resumeButton.interactable = false;
+        _resumeLabel = _resumeButton.GetComponentInChildren<TMP_Text>(true);
+        if (_resumeLabel != null)
+            _resumeLabelColor = _resumeLabel.color;
+
+        SetResumeInteractable(false);
         _resumeButton.onClick.AddListener(OnResumeClicked);
     }
 
@@ -53,7 +59,7 @@ public class BreakSceneController : MonoBehaviour
         if (flow == null || flow.State == null || flow.State.current_phase != GamePhase.Break)
         {
             _countdownText.text = string.Empty;
-            _resumeButton.interactable = false;
+            SetResumeInteractable(false);
             Debug.LogError("[BreakSceneController] FlowController absent ou hors phase Break.");
             enabled = false;
             return;
@@ -91,7 +97,19 @@ public class BreakSceneController : MonoBehaviour
         int minutes = remainingSeconds / 60;
         int seconds = remainingSeconds % 60;
         _countdownText.text = $"{minutes:00}:{seconds:00}";
-        _resumeButton.interactable = remainingSeconds <= 0;
+        SetResumeInteractable(remainingSeconds <= 0);
+    }
+
+    // Le Button ne teinte que son image : le libelle recoit la meme teinte
+    // disabledColor, sinon il reste plein sur un bouton grise.
+    void SetResumeInteractable(bool interactable)
+    {
+        _resumeButton.interactable = interactable;
+
+        if (_resumeLabel != null)
+            _resumeLabel.color = interactable
+                ? _resumeLabelColor
+                : _resumeLabelColor * _resumeButton.colors.disabledColor;
     }
 
     void OnResumeClicked()

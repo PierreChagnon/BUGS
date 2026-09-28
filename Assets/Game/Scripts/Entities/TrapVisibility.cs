@@ -7,6 +7,7 @@ public class TrapVisibility : MonoBehaviour
     bool _hasCell;
     Renderer[] _renderers;
     FogController _subscribedFog;
+    GameManager _subscribedGameManager;
 
     public void Initialize(Vector2Int cell)
     {
@@ -28,11 +29,45 @@ public class TrapVisibility : MonoBehaviour
     void OnDisable()
     {
         UnbindFog();
+        UnbindGameManager();
     }
 
     void OnDestroy()
     {
         UnbindFog();
+        UnbindGameManager();
+    }
+
+    // Un piege du chemin advisor se revele quand le joueur marche dessus :
+    // sa case est deja sans brouillard, donc le fog ne previent pas.
+    void BindGameManager()
+    {
+        var gameManager = GameManager.Instance;
+        if (_subscribedGameManager == gameManager)
+            return;
+
+        UnbindGameManager();
+
+        if (gameManager == null)
+            return;
+
+        gameManager.OnPlayerCellVisited += HandlePlayerCellVisited;
+        _subscribedGameManager = gameManager;
+    }
+
+    void UnbindGameManager()
+    {
+        if (_subscribedGameManager == null)
+            return;
+
+        _subscribedGameManager.OnPlayerCellVisited -= HandlePlayerCellVisited;
+        _subscribedGameManager = null;
+    }
+
+    void HandlePlayerCellVisited(Vector2Int cell)
+    {
+        if (_hasCell && cell == _cell)
+            RefreshVisibility();
     }
 
     void BindFog()
@@ -84,6 +119,7 @@ public class TrapVisibility : MonoBehaviour
     {
         CacheRenderers();
         BindFog();
+        BindGameManager();
         EnsureCellFromPosition();
 
         bool isVisible = ShouldShowTrap();
@@ -98,6 +134,9 @@ public class TrapVisibility : MonoBehaviour
     {
         if (!_hasCell)
             return true;
+
+        if (GameManager.Instance != null && GameManager.Instance.IsTrapHiddenOnAdvisorPath(_cell))
+            return false;
 
         var fog = FogController.Instance;
         if (fog == null || !fog.IsInitialized)

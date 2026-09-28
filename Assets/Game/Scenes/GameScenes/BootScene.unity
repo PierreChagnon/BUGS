@@ -305,6 +305,7 @@ MonoBehaviour:
   supabaseAnonKey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zbHZtenFnaXp5aXF1dndqb291Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkzMDg3MzMsImV4cCI6MjA3NDg4NDczM30._jIlaU-PkhQZJdbO4ce5QvBgguBEV1aW66nhTHQHrR8
   _sessionConfigPath: api/sessions
   _trialResponsesPath: api/trial-responses
+  _participantUsernamesPath: api/participant-usernames
   _maxImmediateRetries: 3
   _retryDelaySeconds: 1
 --- !u!114 &530388670
@@ -329,7 +330,7 @@ MonoBehaviour:
   _breakSceneName: BreakScene
   _endSessionSceneName: EndSessionScene
   _breakFadeDuration: 2
-  _editorSessionId: 560b4f29-a2ea-4701-aacc-8ccfce80643e
+  _editorSessionId: 3e3d2ddb-0b72-4fe6-a155-f6cd6cea549e
 --- !u!4 &530388671
 Transform:
   m_ObjectHideFlags: 0

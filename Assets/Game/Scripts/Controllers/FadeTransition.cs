@@ -8,6 +8,12 @@ public class FadeTransition : MonoBehaviour
 
     [SerializeField] private float _defaultDuration = 0.2f;
 
+    // Pas maximal compte par frame. La premiere frame d'une scene fraichement
+    // chargee peut durer plusieurs secondes en WebGL (compilation des shaders a
+    // la premiere visite) : comptee en entier, elle consommait tout le fondu
+    // d'entree, et la salle de pause apparaissait d'un coup.
+    const float MaxFadeStep = 0.1f;
+
     [Header("Audio")]
     [Tooltip("SFX joué au début d'un fade-to-black (canal UI). Laisser vide pour transition silencieuse.")]
     [SerializeField] private SoundEffect _sfxTransition;
@@ -81,7 +87,7 @@ public class FadeTransition : MonoBehaviour
 
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += Mathf.Min(Time.unscaledDeltaTime, MaxFadeStep);
             float t = duration <= 0f ? 1f : Mathf.Clamp01(elapsed / duration);
             _canvasGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, t);
             yield return null;

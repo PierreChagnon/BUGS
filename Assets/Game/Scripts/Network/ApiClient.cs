@@ -23,6 +23,15 @@ public class ApiClient : MonoBehaviour
         public string human_likeness_question;
     }
 
+    // Contrat : POST /api/participant-usernames (docs/payload-examples.md).
+    [Serializable]
+    class ParticipantUsernamePayload
+    {
+        public string participant_id;
+        public string session_template_id;
+        public string username;
+    }
+
     class PendingQuestionnairePatch
     {
         public QuestionnairePatchPayload payload;
@@ -52,6 +61,7 @@ public class ApiClient : MonoBehaviour
     public string supabaseAnonKey;
     [SerializeField] private string _sessionConfigPath = "api/sessions";
     [SerializeField] private string _trialResponsesPath = "api/trial-responses";
+    [SerializeField] private string _participantUsernamesPath = "api/participant-usernames";
     [SerializeField] private int _maxImmediateRetries = 3;
     [SerializeField] private float _retryDelaySeconds = 1f;
 
@@ -198,6 +208,63 @@ public class ApiClient : MonoBehaviour
         RetryPendingTrialUploads();
         FlushPendingQuestionnairePatches();
         Debug.Log($"[ApiClient] Session complete pour participant={participantId}");
+    }
+
+    public void SendParticipantUsername(
+        string participantId,
+        string sessionTemplateId,
+        string username,
+        Action onSuccess,
+        Action<string> onError)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            onError?.Invoke("username vide");
+            return;
+        }
+
+        StartCoroutine(SendParticipantUsernameCoroutine(
+            new ParticipantUsernamePayload
+            {
+                participant_id = participantId,
+                session_template_id = sessionTemplateId,
+                username = username.Trim()
+            },
+            onSuccess,
+            onError));
+    }
+
+    // Le participant part vers la partie 2 juste apres : on retente sur place,
+    // comme pour les trials, plutot que de perdre la cle de jointure.
+    IEnumerator SendParticipantUsernameCoroutine(
+        ParticipantUsernamePayload payload,
+        Action onSuccess,
+        Action<string> onError)
+    {
+        string url = CombineUrl(backendRootUrl, _participantUsernamesPath);
+        string body = ToJson(payload);
+        string errorMessage = null;
+
+        for (int attempt = 1; attempt <= Mathf.Max(1, _maxImmediateRetries); attempt++)
+        {
+            using (var request = BuildJsonRequest(url, "POST", body))
+            {
+                yield return request.SendWebRequest();
+
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    onSuccess?.Invoke();
+                    yield break;
+                }
+
+                errorMessage = BuildRequestError("SendParticipantUsername", request);
+            }
+
+            if (attempt < _maxImmediateRetries)
+                yield return new WaitForSeconds(_retryDelaySeconds);
+        }
+
+        onError?.Invoke(errorMessage);
     }
 
     IEnumerator FetchSessionConfigCoroutine(string sessionId, Action<SessionConfig> onSuccess, Action<string> onError)

@@ -35,7 +35,12 @@ public class AdvisorChoiceUI : MonoBehaviour
 
             if (prefab != null && slot != null)
             {
-                Instantiate(prefab, slot.transform);
+                GameObject instance = Instantiate(prefab, slot.transform);
+
+                // Le groupe humain porte les deux personnages : on garde celui du
+                // genre tire pour le bloc, repris ensuite par tous les badges.
+                if (prefab == _humanPrefab)
+                    AdvisorBadgeUtility.ApplyBadgesByName(instance.transform, true, AdvisorType.Human);
             }
         }
     }

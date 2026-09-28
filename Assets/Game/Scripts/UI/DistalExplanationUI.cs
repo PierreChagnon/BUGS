@@ -4,7 +4,6 @@ using UnityEngine;
 public class DistalExplanationUI : AdviceExplanationUIBase
 {
     protected override AdviceLevel Level => AdviceLevel.Distal;
-    protected override bool ShowAdvisorBadgesFromExplanation => false;
 
     // Le Communication Report recouvre l'ecran a l'arrivee sur la scene distale : l'explanation
     // forced attend sa fermeture pour s'afficher, sinon le chrono de lecture compterait le temps

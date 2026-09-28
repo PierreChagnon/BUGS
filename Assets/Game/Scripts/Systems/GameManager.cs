@@ -89,6 +89,7 @@ public class GameManager : MonoBehaviour
     }
 
     public event Action<RoundEndInfo> OnRoundEnded;
+    public event Action<Vector2Int> OnPlayerCellVisited;
 
     void Awake()
     {
@@ -206,6 +207,17 @@ public class GameManager : MonoBehaviour
         FlowController.Instance?.ResolveProximalExplanationForCurrentTrial(isVisible);
     }
 
+    // Le chemin affiche leve le brouillard sur ses cases des le debut du trial :
+    // un piege pose dessus trahirait le conseil. Il reste donc cache jusqu'a ce
+    // que le joueur marche dessus, avec ou sans brouillard (Mark, 24/09/2026).
+    public bool IsTrapHiddenOnAdvisorPath(Vector2Int cell)
+    {
+        var registry = LevelRegistry.Instance;
+        return _advisorPathVisible &&
+            _advisorPath.Contains(cell) &&
+            (registry == null || !registry.IsVisited(cell));
+    }
+
     // Case de depart : visitee, revelee et tracee comme les autres, mais ce n'est
     // pas un deplacement. steps ne compte que les deplacements, comme
     // cloud_distance (build 1.3.0 ; avant, steps valait deplacements + 1).
@@ -224,6 +236,7 @@ public class GameManager : MonoBehaviour
         LevelRegistry.Instance?.MarkVisited(cell);
         if (!IsHiddenForcedCloudCell(cell))
             FogController.Instance?.RevealCell(cell);
+        OnPlayerCellVisited?.Invoke(cell);
 
         if (_advisorPath.Count > 0 && !_advisorPath.Contains(cell))
             followedAdvisorPath = false;

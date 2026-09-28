@@ -148,7 +148,26 @@ Pour chaque advice `X` ∈ {`distal`, `motor`, `proximal`}, 9 colonnes `X_advice
 > Ajouté le 2026-07-28 (revue de couverture, constat N1-F / divergence D-015). Cette table
 > existait depuis le 16/06/2026 et n'était documentée nulle part.
 
-### Table `participant_notes` — ⚠️ GELÉE depuis le 2026-09-07 (DEC-024)
+### Table `participant_usernames` — depuis la build 1.4.0 (2026-09-28, DEC-048)
+
+Username saisi par le participant sur l'écran de fin de partie 1 (`ParticipantUsernameUI`,
+EndSessionScene → `POST api/participant-usernames`), obligatoire pour activer le bouton vers la
+partie 2. Le même username est redemandé au début de la partie 2 : avec les timestamps, c'est la
+clé de jointure entre les deux parties. Exporté en colonne 113 `username` du CSV, répété sur
+chaque ligne du participant.
+
+| Colonne | Type | Description |
+| :-- | :-- | :-- |
+| `participant_id` | string (UUID) | Jointure avec `trial_responses.participant_id`. |
+| `session_template_id` | string | Modèle de session. |
+| `username` | string | 1 à 64 caractères, sans espaces en tête ni en fin. Un nouvel envoi remplace la valeur. |
+| `submitted_at` | timestamptz | Horodatage serveur du dernier envoi. |
+
+**Limites** : absent si le participant abandonne avant l'écran de fin ; aucune normalisation
+au-delà du trim (casse conservée) ; rien n'empêche un participant de saisir un username différent
+en partie 2.
+
+### Table `participant_notes_legacy` (ex-`participant_notes`) — ⚠️ ARCHIVE depuis le 2026-09-07 (DEC-024), renommée le 2026-09-28 (DEC-048)
 
 > **Cette table n'est plus alimentée par le jeu.** La scission de l'expérience en deux parties
 > (DEC-024) a supprimé la boîte de commentaire de `EndSessionScene` ainsi que tout le code client

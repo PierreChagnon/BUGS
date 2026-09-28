@@ -2,11 +2,12 @@ using UnityEngine;
 
 // -----------------------------
 // Affichage unique des badges advisor (humain homme/femme, robot), partagé
-// par AdviceExplanationUIBase, DistalChoiceUI et MotorAdviceUI.
+// par AdvisorChoiceUI, AdviceExplanationUIBase, DistalChoiceUI et MotorAdviceUI.
 //
 // Le genre du conseiller humain est tiré une seule fois par bloc, de façon
-// seedée, dans FlowController (salt 6 → PlayerSessionState.advisor_display_is_male) :
-// les trois UI affichent donc le même personnage sur tout le bloc. Le repli
+// seedée, à l'entrée de AdvisorChoice dans FlowController (salt 6 →
+// PlayerSessionState.advisor_display_is_male) : le personnage présenté au
+// choix et tous les badges du bloc sont donc le même. Le repli
 // sandbox (FlowController absent) tire une seule valeur par lancement.
 // -----------------------------
 

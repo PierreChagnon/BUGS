@@ -448,6 +448,9 @@ public class FlowController : MonoBehaviour
             RollMetaForcedForCurrentBlock();
             // Salt 7 : les salts 0 a 6 sont deja pris par les autres tirages de bloc.
             State.advisor_display_order = BlockDrawResolver.DrawAdvisorDisplayOrder(CreateCurrentBlockRandom(7));
+            // Salt 6 : tire avant AdvisorChoiceScene, qui montre deja le conseiller humain ;
+            // le meme genre est ensuite repris par tous les badges du bloc.
+            State.advisor_display_is_male = BlockDrawResolver.DrawAdvisorDisplayIsMale(CreateCurrentBlockRandom(6));
         }
 
         if (next == GamePhase.DistalChoice)
@@ -748,8 +751,6 @@ public class FlowController : MonoBehaviour
         }
 
         State.distal_best_valley = BlockDrawResolver.DrawBestValleySide(CreateCurrentBlockRandom(0));
-        // Salt 6 : les salts 0 a 5 sont deja pris par les autres tirages de bloc.
-        State.advisor_display_is_male = BlockDrawResolver.DrawAdvisorDisplayIsMale(CreateCurrentBlockRandom(6));
 
         RollDistalForcedForCurrentBlock(block);
 

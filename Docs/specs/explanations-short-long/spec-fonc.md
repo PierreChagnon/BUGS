@@ -220,9 +220,9 @@ Le texte est choisi selon 2 axes : la **qualité de communication du bloc** (3 c
 |:---|:---|:---|:---|
 | **3 — Nulle** *(évalué en premier)* | Les 3 probabilités de visibilité d'advisor = 0, **OU** aucune des 3 explanations ne peut apparaître (proximal et motor : `display_mode` = `none` **ou** `display_probability` = 0 ; distal : `display_mode` = `none`) | Choisi | "Radio reception is terrible in this area. Your advisor can give you advice, but cannot communicate with you and provide explanations." |
 | | | `none` | "Radio reception is terrible in this area. If you had an advisor, they would not be able to communicate with you." |
-| **1 — Parfaite** | Les 3 probabilités de visibilité d'advisor = 1, **ET** les 3 explanations apparaissent à coup sûr (proximal et motor : `display_mode` ≠ `none` **et** `display_probability` = 1 ; distal : `display_mode` ≠ `none`) | Choisi | "Your advisor can give you advice, and communicate freely with you and provide explanations." |
+| **1 — Parfaite** | Les 3 probabilités de visibilité d'advisor = 1, **ET** les 3 explanations apparaissent à coup sûr (proximal et motor : `display_mode` ≠ `none` **et** `display_probability` = 1 ; distal : `display_mode` ≠ `none`) | Choisi | "Radio reception is excellent in this area. Your advisor can give you advice, and communicate freely with you and provide explanations." |
 | | | `none` | "Radio reception is excellent in this area. However, you do not have an advisor to communicate with you." |
-| **2 — Partielle** | Tous les autres cas (au moins une probabilité intermédiaire) | Choisi | "Radio reception is disrupted but partially functional in this area." |
+| **2 — Partielle** | Tous les autres cas (au moins une probabilité intermédiaire) | Choisi | "Radio reception is disrupted but partially functional in this area. Your advisor can give you advice, and can sometimes communicate with you and provide explanations." |
 | | | `none` | "Radio reception is disrupted but partially functional in this area. However, you do not have an advisor to communicate with you." |
 
 #### Règles métier
