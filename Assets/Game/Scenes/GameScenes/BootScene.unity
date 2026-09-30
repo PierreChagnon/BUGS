@@ -330,6 +330,8 @@ MonoBehaviour:
   _breakSceneName: BreakScene
   _endSessionSceneName: EndSessionScene
   _breakFadeDuration: 2
+  _breakFadeInDuration: 2.5
+  _breakBlackHoldDuration: 0.4
   _editorSessionId: 3e3d2ddb-0b72-4fe6-a155-f6cd6cea549e
 --- !u!4 &530388671
 Transform:

@@ -2121,7 +2121,7 @@ public class FlowController : MonoBehaviour
 | BootstrapFlow()                                   | IEnumerator (privé)       | Extract sessionId from URL → ApiClient.FetchSessionConfig → Initialize → Welcome                 |
 | AdvanceToPhase(GamePhase)                         | void (privé)              | Met à jour State.current_phase, émet OnPhaseChanged, lance TransitionToScene                     |
 | AdvanceToNextBlockOrEnd()                         | void (privé)              | Reset score/choices, incrémente block_index, → AdvisorChoice ou EndSession                       |
-| TransitionToScene(string)                         | IEnumerator (privé)       | FadeOut → LoadScene → FadeIn                                                                     |
+| TransitionToScene(string, bool slowFade)          | IEnumerator (privé)       | FadeOut → LoadScene → FadeIn ; `slowFade` (entrée/sortie de pause) : FadeOut `_breakFadeDuration`, noir tenu `_breakBlackHoldDuration`, FadeIn `_breakFadeInDuration` à démarrage lent |
 | PrepareConfig(SessionConfig)                      | SessionConfig (privé)     | EnsureTutorialBlock, cleanup nulls, sanitize blocks                                              |
 | GetSceneName(GamePhase)                           | string (privé)            | Mapping phase → nom de scène (configurable via SerializeField)                                   |
 | ExtractSessionIdFromAbsoluteUrl(string, string)   | string (static)           | Parse query parameter depuis Application.absoluteURL                                             |
@@ -2351,9 +2351,9 @@ public class FadeTransition : MonoBehaviour
 | \_defaultDuration        | float               | Durée par défaut du fade (0.2s)                             |
 | \_canvasGroup            | CanvasGroup         | Contrôle l'opacité de l'overlay (alpha 0-1)                 |
 | FadeOut(float? duration) | IEnumerator         | Anime alpha 0→1 — appelé par FlowController avant LoadScene |
-| FadeIn(float? duration)  | IEnumerator         | Anime alpha 1→0 — appelé par FlowController après LoadScene |
+| FadeIn(float? duration, bool slowStart) | IEnumerator | Anime alpha 1→0 — appelé par FlowController après LoadScene. `slowStart` : alpha = 1 − t³ au lieu de 1 − t |
 | EnsureOverlay()          | void (privé)        | Crée Canvas + Image noire + CanvasGroup si pas déjà créé    |
-| FadeTo(float, float)     | IEnumerator (privé) | Lerp alpha avec unscaledDeltaTime                           |
+| FadeTo(float, float, float exponent) | IEnumerator (privé) | Lerp alpha avec unscaledDeltaTime, progression t^exponent |
 
 ### 4.11.3 Dépendances
 
@@ -2389,6 +2389,7 @@ graph TD
 - **⚠️ DDOL :** L'overlay persiste entre scènes — pas besoin de le recréer
 - **⚠️ UnscaledDeltaTime :** Le fade fonctionne même si `Time.timeScale == 0`
 - **⚠️ MaxFadeStep (0.1 s) :** une frame n'avance jamais le fade de plus de 0.1 s. La première frame d'une scène chargée peut durer plusieurs secondes en WebGL (compilation des shaders à la première visite) ; comptée en entier, elle consommait tout le fondu d'entrée
+- **⚠️ Courbe du FadeIn lent :** le rendu est en espace linéaire et l'œil est plus sensible dans le sombre ; un fondu linéaire depuis le noir révèle presque toute l'image dans son premier quart. Les transitions de la salle de pause utilisent donc `slowStart` (`SlowStartExponent = 3`)
 - **⚠️ sortingOrder :** `short.MaxValue` (32767) garantit que l'overlay est au-dessus de tout
 - **⚠️ EnsureOverlay :** Idempotent — appelé à chaque FadeOut/FadeIn pour garantir l'existence du Canvas
 
@@ -2398,6 +2399,7 @@ graph TD
 | :------- | :---------- | :------------------------------------------------------------------------------------------------------------------ |
 | 23/03/26 | @pierre     | Création. Overlay dynamique DDOL, Canvas ScreenSpaceOverlay, CanvasGroup alpha pour transitions, unscaledDeltaTime. |
 | 28/09/26 | @pierre     | Pas de fade plafonné à `MaxFadeStep` : le fondu d'entrée dans la salle de pause (2 s) n'était pas visible (retour Mark 24/09, point 8). |
+| 30/09/26 | @pierre     | `FadeIn(duration, slowStart)` : courbe 1 − t³ pour les transitions de pause, qui révélaient encore la scène trop brusquement. `FlowController` ajoute `_breakFadeInDuration` (2.5 s) et `_breakBlackHoldDuration` (0.4 s de noir avant le FadeIn). |
 
 # 5. Gestion des données
 

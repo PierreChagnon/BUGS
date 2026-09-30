@@ -14,6 +14,12 @@ public class FadeTransition : MonoBehaviour
     // d'entree, et la salle de pause apparaissait d'un coup.
     const float MaxFadeStep = 0.1f;
 
+    // Exposant de la courbe d'un FadeIn a demarrage lent (opacite = 1 - t^3).
+    // Le rendu est en espace lineaire et l'oeil est bien plus sensible dans le
+    // sombre : un fondu lineaire revele presque toute l'image dans son premier
+    // quart, la scene semble alors apparaitre d'un coup.
+    const float SlowStartExponent = 3f;
+
     [Header("Audio")]
     [Tooltip("SFX joué au début d'un fade-to-black (canal UI). Laisser vide pour transition silencieuse.")]
     [SerializeField] private SoundEffect _sfxTransition;
@@ -41,10 +47,10 @@ public class FadeTransition : MonoBehaviour
         yield return FadeTo(1f, duration ?? _defaultDuration);
     }
 
-    public IEnumerator FadeIn(float? duration = null)
+    public IEnumerator FadeIn(float? duration = null, bool slowStart = false)
     {
         EnsureOverlay();
-        yield return FadeTo(0f, duration ?? _defaultDuration);
+        yield return FadeTo(0f, duration ?? _defaultDuration, slowStart ? SlowStartExponent : 1f);
     }
 
     void EnsureOverlay()
@@ -80,7 +86,7 @@ public class FadeTransition : MonoBehaviour
         _canvasGroup.interactable = false;
     }
 
-    IEnumerator FadeTo(float targetAlpha, float duration)
+    IEnumerator FadeTo(float targetAlpha, float duration, float exponent = 1f)
     {
         float startAlpha = _canvasGroup.alpha;
         float elapsed = 0f;
@@ -88,7 +94,7 @@ public class FadeTransition : MonoBehaviour
         while (elapsed < duration)
         {
             elapsed += Mathf.Min(Time.unscaledDeltaTime, MaxFadeStep);
-            float t = duration <= 0f ? 1f : Mathf.Clamp01(elapsed / duration);
+            float t = duration <= 0f ? 1f : Mathf.Pow(Mathf.Clamp01(elapsed / duration), exponent);
             _canvasGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, t);
             yield return null;
         }

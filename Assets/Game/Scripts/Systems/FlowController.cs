@@ -22,8 +22,12 @@ public class FlowController : MonoBehaviour
     [SerializeField] private string _endSessionSceneName = "EndSessionScene";
 
     [Header("Transitions")]
-    [Tooltip("Duree du fondu au noir (aller et retour) pour entrer dans la salle de pause et en sortir. Les autres transitions gardent la duree par defaut de FadeTransition.")]
+    [Tooltip("Duree du fondu vers le noir pour entrer dans la salle de pause et en sortir. Les autres transitions gardent la duree par defaut de FadeTransition.")]
     [SerializeField] private float _breakFadeDuration = 2f;
+    [Tooltip("Duree du fondu depuis le noir a l'entree et a la sortie de la salle de pause (courbe a demarrage lent).")]
+    [SerializeField] private float _breakFadeInDuration = 2.5f;
+    [Tooltip("Temps passe sur l'ecran noir, scene chargee, avant le fondu d'entree des transitions de la salle de pause.")]
+    [SerializeField] private float _breakBlackHoldDuration = 0.4f;
 
     [Header("Editor Test")]
     [SerializeField] private string _editorSessionId;
@@ -477,20 +481,22 @@ public class FlowController : MonoBehaviour
         if (_sceneTransitionCoroutine != null)
             StopCoroutine(_sceneTransitionCoroutine);
 
-        _sceneTransitionCoroutine = StartCoroutine(
-            TransitionToScene(sceneName, slowFade ? _breakFadeDuration : (float?)null));
+        _sceneTransitionCoroutine = StartCoroutine(TransitionToScene(sceneName, slowFade));
     }
 
-    IEnumerator TransitionToScene(string sceneName, float? fadeDuration = null)
+    IEnumerator TransitionToScene(string sceneName, bool slowFade)
     {
         if (FadeTransition.Instance != null)
-            yield return FadeTransition.Instance.FadeOut(fadeDuration);
+            yield return FadeTransition.Instance.FadeOut(slowFade ? _breakFadeDuration : (float?)null);
 
         SceneManager.LoadScene(sceneName, LoadSceneMode.Single);
         yield return null;
 
+        if (slowFade && _breakBlackHoldDuration > 0f)
+            yield return new WaitForSecondsRealtime(_breakBlackHoldDuration);
+
         if (FadeTransition.Instance != null)
-            yield return FadeTransition.Instance.FadeIn(fadeDuration);
+            yield return FadeTransition.Instance.FadeIn(slowFade ? _breakFadeInDuration : (float?)null, slowStart: slowFade);
 
         _sceneTransitionCoroutine = null;
     }
