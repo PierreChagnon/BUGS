@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using UnityEngine;
 
 public static class FlowSerializationUtility
@@ -39,6 +40,16 @@ public static class FlowSerializationUtility
             return "[]";
 
         return wrapped.Substring(prefix.Length, wrapped.Length - prefix.Length - 1);
+    }
+
+    // Newtonsoft plutot que JsonUtility : le set d'une touche hors des trois
+    // sets doit partir en null, que JsonUtility ecrirait "".
+    public static string ToKeyPressesJson(IReadOnlyList<PlayerKeyPress> presses)
+    {
+        if (presses == null || presses.Count == 0)
+            return "[]";
+
+        return JsonConvert.SerializeObject(presses);
     }
 
     public static string ToPathCellsJson(IReadOnlyList<Vector2Int> cells)

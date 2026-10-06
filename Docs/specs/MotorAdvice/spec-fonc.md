@@ -1,11 +1,12 @@
 # Spec Fonctionnelle — Motor Advice
 
-> ⚠️ **Errata 09/09/2026** — les tableaux « Données collectées » (§2) et « Matrice de traçabilité » (§4)
-> sont partiellement dépassés : **2 des 4 colonnes `TBD` existent désormais** dans `trial_responses`
-> depuis le 08/09/26 (commit `a919a683`, DEC-030) — « Advice affiché » → **`motor_advice_visible`** et
-> « Advice fiable » → **`motor_advice_reliable`**. « Set actif » et « Set affiché » restent non exportés
-> (arbitrage Q-MOTOR-1, cf. `questions-client.md`). La question ouverte n°1 (§5) ne porte plus que sur
-> ces deux colonnes restantes.
+> ⚠️ **Errata 09/09/2026, complété le 06/10/2026** — les tableaux « Données collectées » (§2) et
+> « Matrice de traçabilité » (§4) sont désormais à jour : les 4 colonnes existent dans `trial_responses`.
+> « Advice affiché » → **`motor_advice_visible`** et « Advice fiable » → **`motor_advice_reliable`**
+> depuis le 08/09/26 (commit `a919a683`, DEC-030) ; « Set actif » → **`motor_active_set`** et
+> « Set affiché » → **`motor_advised_set`** depuis le 06/10/26 (build 1.5.0, DEC-050, réponse de Mark
+> du 04/10/26 à Q-MOTOR-1). S'y ajoute **`player_press_log`**, le log de toutes les touches pressées
+> pendant l'essai, qui permet de mesurer l'adhérence au conseil moteur touche par touche.
 
 > Produit par le Rôle 2 (Analyse Fonctionnelle).
 > Decrit le QUOI et le POURQUOI. Jamais le COMMENT technique.
@@ -85,10 +86,11 @@ Si l advice n est pas actif, aucun indicateur n est affiche a cet emplacement.
 #### Donnees collectees
 | Donnee | Colonne CSV V1 | Valeurs possibles | Quand enregistree |
 |:---|:---|:---|:---|
-| Set actif | TBD *(Q-MOTOR-1)* | ZQSD / TFGH / IJKL | Debut d essai |
+| Set actif | `motor_active_set` *(DEC-050)* | QZD / FTH / JIL | Debut d essai |
 | Advice affiche | `motor_advice_visible` *(errata 09/09/26)* | true / false | Debut d essai |
 | Advice fiable | `motor_advice_reliable` *(errata 09/09/26)* | true / false | Debut d essai |
-| Set affiche | TBD *(Q-MOTOR-1)* | ZQSD / TFGH / IJKL / none | Debut d essai |
+| Set affiche | `motor_advised_set` *(DEC-050)* | QZD / FTH / JIL / NA (legende cachee) | Debut d essai |
+| Touches pressees | `player_press_log` *(DEC-050)* | `[{key, set, t}]` — key = etiquette Z/Q/S/D, T/F/G/H, I/J/K/L ou nom Unity ; set = QZD / FTH / JIL / null | Chaque pression, inputs deverrouilles |
 
 ---
 
@@ -104,10 +106,11 @@ Si l advice n est pas actif, aucun indicateur n est affiche a cet emplacement.
 
 | Colonne CSV V1 | Ecran / Composant | Comportement source | Valeurs possibles |
 |:---|:---|:---|:---|
-| TBD *(Q-MOTOR-1)* | Forest Screen / Motor Advice | Enregistrer set actif | ZQSD / TFGH / IJKL |
+| `motor_active_set` *(DEC-050)* | Forest Screen / Motor Advice | Enregistrer set actif | QZD / FTH / JIL |
 | `motor_advice_visible` *(errata 09/09/26)* | Forest Screen / Motor Advice | Enregistrer advice affiche | true / false |
 | `motor_advice_reliable` *(errata 09/09/26)* | Forest Screen / Motor Advice | Enregistrer advice fiable | true / false |
-| TBD *(Q-MOTOR-1)* | Forest Screen / Motor Advice | Enregistrer set affiche | ZQSD / TFGH / IJKL / none |
+| `motor_advised_set` *(DEC-050)* | Forest Screen / Motor Advice | Enregistrer set affiche | QZD / FTH / JIL / NA |
+| `player_press_log` *(DEC-050)* | Forest Screen / GridMover | Enregistrer chaque touche pressee (set actif ou non, cooldown inclus) | `[{key, set, t}]` |
 
 ---
 
@@ -115,6 +118,6 @@ Si l advice n est pas actif, aucun indicateur n est affiche a cet emplacement.
 
 | # | Question | Options | Impact | Urgence |
 |:---|:---|:---|:---|:---|
-| 1 | Quelles sont les colonnes CSV V1 exactes pour le motor advice (set actif, advice affiche, fiabilite, set affiche) ? | A: Definir 4 colonnes / B: Reutiliser colonnes existantes | Traçabilite et pipeline data | 🔴 |
+| 1 | ~~Quelles sont les colonnes CSV V1 exactes pour le motor advice (set actif, advice affiche, fiabilite, set affiche) ?~~ **Resolue le 06/10/26** (DEC-050, option A : 4 colonnes dediees + `player_press_log`) | A: Definir 4 colonnes / B: Reutiliser colonnes existantes | Traçabilite et pipeline data | ✅ |
 | 2 | Faut il afficher un texte d explanation (short/long) en plus du set ? | A: Oui / B: Non | UI et contenu | 🟡 |
 | 3 | Format d affichage exact du set (ordre, separators, labels) est il impose par le protocole ? | A: Libre / B: Template fixe | UI et comprehension | 🟡 |

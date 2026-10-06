@@ -45,6 +45,8 @@
 | `motor_forced` | bool | true/false | `flow.State.motor_choice_is_forced` (ApplyForcedChoiceState) | non | | ajouté le 08/09/26 |
 | `motor_advice_visible` | bool | true/false | `MotorAdviceController.AdviceVisible` (ApplyMotorAdviceState) | non | | ajouté le 08/09/26 |
 | `motor_advice_reliable` | bool | true/false | `MotorAdviceController.AdviceReliable` (ApplyMotorAdviceState) | non | | ajouté le 08/09/26 |
+| `motor_active_set` | string | `QZD`/`FTH`/`JIL` | `MotorAdviceController.ActiveSet` (ApplyMotorAdviceState) | non | | ajouté le 06/10/26 (DEC-050) |
+| `motor_advised_set` | string | `QZD`/`FTH`/`JIL`/`"NA"` (légende cachée) | `MotorAdviceController.DisplayedSet` si `AdviceVisible`, sinon `"NA"` (ApplyMotorAdviceState) | non | | ajouté le 06/10/26 (DEC-050) |
 
 ## Config map (paramètres expérimentaux)
 
@@ -146,6 +148,7 @@
 | `overtime_steps` | int | ≥ 0 | `EndCurrentTrial` | non | | |
 | `followed_advisor_path` | bool | true/false (chemin **affiché**) | `EndCurrentTrial` | non | | |
 | `player_path_log` | string (JSON array) | `[{x,y,t}]` t=ISO UTC | `ToPlayerStepsJson` | non | | |
+| `player_press_log` | string (JSON array) | `[{key,set,t}]` set=`QZD`/`FTH`/`JIL`/null, t=ISO UTC | `ToKeyPressesJson` (Newtonsoft) ← `RecordKeyPress` | non | | ajouté le 06/10/26 (DEC-050) |
 | `advisor_path_config` | string (JSON array) | `[{x,y}]` — chemin advisor **affiché**, null si non visible | `TrialManager` (ajouté `8c3baa07`, 24/08/26) | non (`[IncludeNull]`) | | |
 
 ## Questionnaire & timestamps
@@ -172,7 +175,8 @@
 > +`proximal_advice_reliable`, +`green_bugs_session_total`, +`advisor_path_config`,
 > +`acceptability_question_1`/`_2` (−`acceptability_question`, remplacé) — soit 87 au 08/09 —
 > puis +6 le 08/09 au soir (`a919a683`, DEC-030) : +`proximal_forced`, +`proximal_forced_value`,
-> +`proximal_forced_was_optimal`, +`motor_forced`, +`motor_advice_visible`, +`motor_advice_reliable`.
+> +`proximal_forced_was_optimal`, +`motor_forced`, +`motor_advice_visible`, +`motor_advice_reliable`,
+> puis +3 le 06/10 (DEC-050, build 1.5.0) : +`motor_active_set`, +`motor_advised_set`, +`player_press_log`.
 > ⚠️ Le total annoncé ici a été faux deux fois de suite (80→82 en juillet, 87→93 en septembre, cf.
 > D-014) — re-vérifier sur le code à chaque évolution de `TrialResponseRow`.
 > Reporter chaque ligne `❌`/`🔁`/`⚠️` ici et dans `journal-divergences.md`.
@@ -208,7 +212,7 @@ Elle n'est pas dupliquée ici pour éviter deux sources de vérité divergentes.
 | :-- | :-: | :-- |
 | ~~`visibility_noise` (feature inexistante)~~ → **retirées par décision le 09/09/26** (DEC-031 : difficulté portée par ratio/gap) | ~~7~~ | F1 / Q-013 — **clos** |
 | Stimulus distal réalisé (`*_valley_*_bugs_nb`) | 5 | **D-009** / Q-DISTAL-1 |
-| Niveau moteur (set actif, affiché, ~~donné~~ ✅ `motor_advice_visible` 08/09, choix) | 3 *(était 4)* | **D-008** / Q-MOTOR-1 |
+| ~~Niveau moteur (set actif, affiché, donné, choix)~~ → ✅ **clos le 06/10/26** (`motor_active_set`, `motor_advised_set`, `player_press_log`, DEC-050) | ~~4~~ 0 | **D-008** / Q-MOTOR-1 — **clos** |
 | Adhérence au conseil (`*_match_advice`) | 3 | **D-007** |
 | Granularité de ligne (`screen_type`, `screen_id`) | 2 | Q-ROW-1 |
 | Conseil proximal (cible et chemin affichés) | 2 | — |

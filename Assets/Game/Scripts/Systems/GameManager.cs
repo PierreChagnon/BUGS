@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem.Controls;
 using UnityEngine.SceneManagement;
 
 // -----------------------------
@@ -308,6 +309,17 @@ public class GameManager : MonoBehaviour
             AudioManager.Instance?.PlaySfx(_sfxTrap);
 
         Debug.Log($"[GameManager] Piege ! trapsHit={trapsHit}");
+    }
+
+    // Chaque touche pressee pendant le round (set actif ou non, cooldown inclus)
+    // est loggee dans player_press_log ; GridMover ne lit rien quand les inputs
+    // sont verrouilles ou pendant l'animation d'un pas.
+    public void OnKeyPressed(KeyControl key)
+    {
+        if (_roundOver)
+            return;
+
+        trialManager?.RecordKeyPress(key);
     }
 
     // Retourne true si le mauvais input a ete pris en compte (penalite + cooldown declenches),

@@ -59,7 +59,7 @@ public class GridMover : MonoBehaviour
         if (_isMoving) return;
         if (GameManager.Instance != null && GameManager.Instance.inputLocked) return;
 
-        bool invalidKeyPressed = IsAnyNonActiveMoveKeyPressedThisFrame();
+        bool invalidKeyPressed = ReportPressedKeys();
         Vector2Int step = ReadStep();
         if (invalidKeyPressed && GameManager.Instance != null
             && GameManager.Instance.OnInvalidMoveKeyPressed())
@@ -116,18 +116,22 @@ public class GridMover : MonoBehaviour
         return motorStep;
     }
 
-    bool IsAnyNonActiveMoveKeyPressedThisFrame()
+    // Signale chaque touche pressee cette frame au GameManager (player_press_log)
+    // et renvoie true si l'une d'elles est hors du set actif.
+    bool ReportPressedKeys()
     {
         var keyboard = Keyboard.current;
         if (keyboard == null) return false;
 
+        bool invalidKeyPressed = false;
         foreach (KeyControl key in keyboard.allKeys)
         {
             if (!key.wasPressedThisFrame) continue;
-            if (!IsActiveMoveKey(key)) return true;
+            GameManager.Instance?.OnKeyPressed(key);
+            if (!IsActiveMoveKey(key)) invalidKeyPressed = true;
         }
 
-        return false;
+        return invalidKeyPressed;
     }
 
     bool IsActiveMoveKey(KeyControl key)

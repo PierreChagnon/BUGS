@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem.Controls;
 
 // -----------------------------
 // Collecte les données du trial courant dans ProximalScene.
 //
 // Responsabilités :
 //   - Ouvrir un nouveau trial local au démarrage du gameplay
-//   - Enregistrer les pas du joueur et la config de map
+//   - Enregistrer les pas et les touches pressees du joueur, et la config de map
 //   - Assembler la TrialResponseRow complète en fin de trial (blocs tutorial inclus)
 //   - Déléguer l'envoi à ApiClient
 // -----------------------------
@@ -47,6 +48,7 @@ public class TrialManager : MonoBehaviour
     }
 
     readonly List<PlayerStep> _playerPathSteps = new();
+    readonly List<PlayerKeyPress> _playerKeyPresses = new();
 
     TrialResponseRow _currentTrialRow;
     string _startedAtIsoUtc;
@@ -56,6 +58,7 @@ public class TrialManager : MonoBehaviour
     public void StartNewTrial()
     {
         _playerPathSteps.Clear();
+        _playerKeyPresses.Clear();
         _startedAtIsoUtc = DateTime.UtcNow.ToString("o");
         _currentTrialRow = BuildBaseRow();
         _currentTrialSubmitted = false;
@@ -73,6 +76,18 @@ public class TrialManager : MonoBehaviour
             return;
 
         _playerPathSteps.Add(new PlayerStep(position, DateTime.UtcNow.ToString("o")));
+    }
+
+    public void RecordKeyPress(KeyControl key)
+    {
+        if (_currentTrialRow == null)
+            return;
+
+        MotorKeySet set = MotorAdviceController.ResolveMotorKey(key, out string label);
+        _playerKeyPresses.Add(new PlayerKeyPress(
+            label,
+            FlowValueConverters.ToApiValue(set),
+            DateTime.UtcNow.ToString("o")));
     }
 
     public void EndCurrentTrial(
@@ -116,6 +131,7 @@ public class TrialManager : MonoBehaviour
         _currentTrialRow.path_is_suboptimal = pathIsSuboptimal;
         _currentTrialRow.proximal_advice_reliable = proximalAdviceReliable;
         _currentTrialRow.player_path_log = FlowSerializationUtility.ToPlayerStepsJson(_playerPathSteps);
+        _currentTrialRow.player_press_log = FlowSerializationUtility.ToKeyPressesJson(_playerKeyPresses);
         _currentTrialRow.advisor_path_config = optimalPathVisible
             ? FlowSerializationUtility.ToPathCellsJson(advisorPathCells)
             : null;
@@ -379,8 +395,9 @@ public class TrialManager : MonoBehaviour
         row.motor_forced = state.motor_choice_is_forced;
     }
 
-    // Tirage realise de la legende moteur (visible / fidele au set actif),
-    // resolu par MotorAdviceController au chargement de la scene.
+    // Tirage realise de la legende moteur (visible / fidele au set actif), set
+    // actif et set montre, resolus par MotorAdviceController au chargement de la
+    // scene. Legende cachee : "NA" (non applicable), null restant "jamais mesure".
     static void ApplyMotorAdviceState(TrialResponseRow row)
     {
         var motor = MotorAdviceController.Instance;
@@ -389,6 +406,10 @@ public class TrialManager : MonoBehaviour
 
         row.motor_advice_visible = motor.AdviceVisible;
         row.motor_advice_reliable = motor.AdviceReliable;
+        row.motor_active_set = FlowValueConverters.ToApiValue(motor.ActiveSet);
+        row.motor_advised_set = motor.AdviceVisible
+            ? FlowValueConverters.ToApiValue(motor.DisplayedSet)
+            : "NA";
     }
 
     void EnsureCurrentTrialRow()

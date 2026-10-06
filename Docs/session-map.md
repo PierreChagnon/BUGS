@@ -7,7 +7,26 @@
 
 ## ✅ Aucune session en cours
 
-**Dernière session close :** Motor Advice — clôturée le 2026-07-28.
+**Dernière session close :** Motor Advice — export complet + log des touches (DEC-050) — clôturée le 2026-10-06.
+
+---
+
+## Session close — Motor Advice : export complet + log des touches (DEC-050)
+
+**Objectif :** répondre aux 3 points du mail de Mark du 04/10/26 — set actif, set conseillé et log des touches dans le CSV.
+**Démarrée le :** 2026-10-06 · **Clôturée le :** 2026-10-06 (code + docs ; build et déploiement à faire)
+
+```
+[████████░░] 4/5 tâches complétées
+```
+
+| # | Symbole | Tâche | État | Livré dans |
+|---|---------|-------|------|------------|
+| 1 | 🤖 | `motor_active_set` / `motor_advised_set` dans `TrialResponseRow` + `ApplyMotorAdviceState` | ✅ Fait | `FlowDataModels.cs`, `TrialManager.cs` |
+| 2 | 🤖 | `player_press_log` : `PlayerKeyPress`, `ResolveMotorKey`, `ReportPressedKeys` → `OnKeyPressed` → `RecordKeyPress`, `ToKeyPressesJson` | ✅ Fait | `Data/PlayerKeyPress.cs`, `MotorAdviceController.cs`, `GridMover.cs`, `GameManager.cs`, `TrialManager.cs`, `FlowSerializationUtility.cs` |
+| 3 | 🤖 | Backend : migration `20261006120000`, schéma Zod, ingestion, export CSV 113 → 116, docs | ✅ Fait | `backend-bugs` |
+| 4 | 🤖 | Docs BUGS : TDD, spec fonc, dictionnaire, matrice, journal, DEC-050, Q-MOTOR-1, avancement ; `BuildInfo.Version` 1.5.0 | ✅ Fait | `Docs/**`, `BuildInfo.cs` |
+| 5 | 👤 | Déployer backend + migration, recompiler, build WebGL 1.5.0, tester un export (trial libre, trial trompeur, log de touches) | ⬜ À faire | — |
 
 ---
 

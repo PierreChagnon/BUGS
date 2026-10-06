@@ -608,8 +608,8 @@
   - B : **Les 4 valeurs + une colonne `motor_choice_match_advice` pré-calculée** → impact : le CSV client est servi tel quel, aucun retraitement côté analyse
   - C : **Le minimum** — seulement « conseil affiché » et « conseil fiable » → impact : on sait quand le conseil est intervenu, mais pas ce que le participant a vu ni ce qu'il a fait ; l'adhérence reste non mesurable
 - **Note :** l'option retenue conditionne aussi Q-002 (qui peut alors être close) et le lot E1/E3 de la revue de couverture.
-- **Statut :** EN ATTENTE — **option C implémentée de facto le 08/09/26** (`a919a683`, DEC-030) ; l'arbitrage restant : faut-il aussi exporter le set actif et le set affiché (option A/B), et sous quels noms/formats ?
-- **Réponse :** —
+- **Statut :** RÉPONDU *(2026-10-04, mail de Mark « BUGS Status + CSV export reference » — DEC-050, livré en build 1.5.0 le 06/10/26)*
+- **Réponse :** **Option A, étendue.** En préparant son pipeline d'analyse, Mark demande explicitement (1) « the correct motor-set for the trial » → **`motor_active_set`** ; (2) « the suggested motor-set by the advisor » → **`motor_advised_set`** (`NA` quand la légende est cachée, convention DEC-040) ; (3) un log des touches pressées « like `player_path_log` but for key-presses » → **`player_press_log`** (`[{key,set,t}]`), qui rend l'adhérence au conseil moteur mesurable touche par touche sans colonne `motor_choice_match_advice` précalculée. Q-002 close par la même occasion.
 
 ### Q-DISTAL-1 — Faut-il enregistrer les valeurs réellement affichées sur l'écran distal ?
 - **Posée le :** 2026-07-28

@@ -148,6 +148,26 @@ public class MotorAdviceController : MonoBehaviour
         };
     }
 
+    // Set moteur et etiquette d'une touche pour player_press_log : l'etiquette
+    // suit la nomenclature des sets (Z/Q/S/D, T/F/G/H, I/J/K/L, labels AZERTY
+    // comme les valeurs API QZD/FTH/JIL), independante du layout du participant.
+    // Hors des trois sets : MotorKeySet.None et le nom Unity de la touche.
+    public static MotorKeySet ResolveMotorKey(KeyControl key, out string label)
+    {
+        foreach (MotorKeySet set in new[] { MotorKeySet.ZQSD, MotorKeySet.TFGH, MotorKeySet.IJKL })
+        {
+            foreach (string direction in new[] { "up", "left", "down", "right" })
+            {
+                if (GetKeyControl(set, direction) != key) continue;
+                label = FallbackLabel(set, direction);
+                return set;
+            }
+        }
+
+        label = key.name;
+        return MotorKeySet.None;
+    }
+
     public bool IsActiveMoveKey(KeyControl key)
     {
         if (Keyboard.current == null || key == null) return false;

@@ -26,6 +26,8 @@ Le projet intègre un pipeline complet de collecte de données de trial et une c
 
 ## Système de rôles
 
+N'activer les rôles que sur demande explicite !
+
 Le projet utilise 5 rôles spécialisés pour couvrir tout le cycle de vie : pilotage, analyse fonctionnelle, architecture technique, planification, et support développement.
 
 **Chaque rôle a ses propres instructions dans `Docs/roles/`. Ne pas lire tous les fichiers de rôle à chaque session — lire uniquement celui qui correspond à la demande.**

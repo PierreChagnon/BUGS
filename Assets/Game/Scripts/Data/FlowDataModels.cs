@@ -493,6 +493,11 @@ public class TrialResponseRow
     public bool motor_forced;
     public bool motor_advice_visible;
     public bool motor_advice_reliable;
+    // Set actif du trial et set montre par la legende (QZD / FTH / JIL), lus
+    // dans MotorAdviceController. motor_advised_set vaut "NA" quand la legende
+    // est cachee : null reste reserve a "jamais mesure" (DEC-040).
+    public string motor_active_set;
+    public string motor_advised_set;
     public float distal_advice_visible_probability;
     public float distal_advice_reliable_probability;
     public bool show_numerical_feedback;
@@ -590,6 +595,9 @@ public class TrialResponseRow
     public int invalid_key_presses;
     public bool followed_advisor_path;
     public string player_path_log;
+    // Toutes les touches pressees pendant le trial, inputs deverrouilles
+    // (JSON de PlayerKeyPress), meme forme que player_path_log.
+    public string player_press_log;
     [JsonProperty(NullValueHandling = NullValueHandling.Include)] public string advisor_path_config;
     public string acceptability_question_1;
     public string acceptability_question_2;
