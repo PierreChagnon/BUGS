@@ -234,7 +234,7 @@ sequenceDiagram
 | **PlayerStart registration**     | `PlayerSpawner` → `LevelRegistry.RegisterPlayerStart(cell, world)` → spawners lisent `TryGetPlayerStartCell()`                                                                                                     | Les spawners n'ont plus de `Transform player` en Inspector — ils interrogent LevelRegistry. Découple le placement du joueur de la construction de la map                                                                                                                                                                                                                                                                                        |
 | **Research Parameter Pipeline**  | `SessionManager.Instance` (Singleton, propriétaire unique) → Spawners `.Start()` (lecture directe)                                                                                                                 | Distinction claire entre **paramètre de protocole expérimental** (contrôlé par le chercheur, injectable via args CLI `key=value`, possédé par `SessionManager`) et **paramètre de game design** (fixé par le designer, reste sur le script qui l'utilise). Les spawners lisent directement `SessionManager.Instance.paramName` — les paramètres recherche ne transitent plus par LevelRegistry. Voir section 4.3 pour le détail du pipeline CLI |
 | **Step Budget Penalty**          | `GameManager.OnPlayerStep` → `OnStepBudgetExceeded`, `LevelRegistry.stepBudget`, `BugCloudSpawner.RegisterStepBudget`                                                                                              | Même pattern que `OnTrapTriggered` : quand le joueur dépasse la distance Manhattan (budget de pas enregistré par BugCloudSpawner), chaque pas supplémentaire retire 1 bug de chaque nuage. La donnée brute `cloud_distance` est transmise aux chercheurs via TrialData                                                                                                                                                                          |
-| **Motor Advice**                 | `MotorAdviceController.Instance` (Singleton) → `GridMover.ReadStep()` + `GridMover.IsActiveMoveKey()`                                                                                                              | Tirage seedé d'un jeu de touches actif (ZQSD/TFGH/IJKL) avec advice visible/fiable configurable par SessionManager. GridMover délègue la lecture d'input et la validation des touches actives à MotorAdviceController                                                                                                                                                                                                                           |
+| **Motor Advice**                 | `MotorAdviceController.Instance` (Singleton) → `GridMover.ReadStep()` + `GridMover.IsActiveMoveKey()`                                                                                                              | Tirage seedé d'un jeu de touches actif (WASD/TFGH/IJKL) avec advice visible/fiable configurable par SessionManager. GridMover délègue la lecture d'input et la validation des touches actives à MotorAdviceController                                                                                                                                                                                                                           |
 | **Invalid Key Penalty**          | `GridMover.ReportPressedKeys()` → `GameManager.OnInvalidMoveKeyPressed()`                                                                                                                      | Toute touche pressée hors du set actif déclenche une pénalité de -1 bug vert dans chaque nuage (même barème que le piège). Détection via itération `Keyboard.current.allKeys`                                                                                                                                                                                                                                                                   |
 | **Suboptimal Trap Placement**    | `TrapSpawner.PlaceSuboptimalTraps()` → `SessionManager.Instance.Map` (suboptimal_trap_probability, min/max_suboptimal_traps) + `TrialDrawResolver.DrawSuboptimalTrapCount()`                                        | Permet de placer des pièges spécifiquement sur le chemin suboptimal (avant les pièges normaux). Le nombre de pièges suboptimaux est tiré dans [min, max] et compte dans le budget total `trapCount`                                                                                                                                                                                                                                             |
 | **Scene Flow State Machine**     | `FlowController.AdvanceToPhase(GamePhase)` — enum `GamePhase` à 10 états (Boot → Welcome → Consent → Intro → Tutorial → AdvisorChoice → DistalChoice → Proximal → Questionnaire → EndSession)                      | Chaque phase correspond à une scène Unity. `FlowController` est DDOL : il survit aux `LoadScene` et orchestre les transitions. Les scènes UI appellent des callbacks typés (`OnConsentGiven`, `OnAdvisorChosen`, `OnValleyChosen`, `OnQuestionnaireComplete`) sans connaître la logique de séquencement                                                                                                                                         |
@@ -772,7 +772,7 @@ Exclusion          = les cellules suboptimalPath sont exclues des candidats norm
 
 ### 3.5.1 Responsabilités
 
-- Capturer les inputs clavier via le set de touches actif défini par `MotorAdviceController` (ZQSD, TFGH ou IJKL)
+- Capturer les inputs clavier via le set de touches actif défini par `MotorAdviceController` (WASD, TFGH ou IJKL)
 - Si `MotorAdviceController` est absent, fallback sur les flèches directionnelles
 - Tourner le joueur vers la direction demandée, même si la case cible est bloquée
 - Valider le mouvement cible via LevelRegistry (InBounds, IsWalkable)
@@ -852,7 +852,7 @@ graph TD
 ### 3.5.5 Formules et règles métier
 
 ```
-Input mapping      = Set actif défini par MotorAdviceController (ZQSD, TFGH ou IJKL)
+Input mapping      = Set actif défini par MotorAdviceController (WASD, TFGH ou IJKL)
                      Aucun fallback : si MotorAdviceController est absent, ReadStep() renvoie
                      Vector2Int.zero et aucun déplacement n'est possible (GridMover.cs:109-117)
                      wasPressedThisFrame → 1 step par appui (pas de repeat)
@@ -870,7 +870,7 @@ Touche invalide    = toute touche de Keyboard.current.allKeys pressée qui n'est
 
 ### 3.5.6 Points d'attention
 
-- **⚠️ Input :** Le set de touches actif est défini par `MotorAdviceController` (ZQSD, TFGH ou IJKL). Si `MotorAdviceController.Instance` est null, fallback sur les flèches directionnelles
+- **⚠️ Input :** Le set de touches actif est défini par `MotorAdviceController` (WASD, TFGH ou IJKL). Si `MotorAdviceController.Instance` est null, fallback sur les flèches directionnelles
 - **⚠️ Pénalité touches invalides :** `ReportPressedKeys()` itère sur `Keyboard.current.allKeys` — TOUTES les touches du clavier (y compris modificateurs Shift, Ctrl, Alt, Space) déclenchent la pénalité. Détection indépendante du mouvement : se produit même si le joueur ne bouge pas
 - **⚠️ Fallback :** Si `LevelRegistry.Instance` est null, le système bascule sur un snap local sans validation de marchabilité — le joueur peut sortir de la grille
 - **⚠️ Séparation des responsabilités :** GridMover ne sait rien du brouillard, des cellules visitées, ni du trial log. Il se contente de déplacer le joueur et signaler le pas au GameManager. C'est un design « entité signale, manager interprète ».
@@ -891,7 +891,7 @@ Touche invalide    = toute touche de Keyboard.current.allKeys pressée qui n'est
 
 ### 3.6.1 Responsabilités
 
-- Singleton gérant le **jeu de touches actif** pour le mouvement joueur (ZQSD, TFGH ou IJKL)
+- Singleton gérant le **jeu de touches actif** pour le mouvement joueur (WASD, TFGH ou IJKL)
 - Tirage seedé du set actif au Start (RNG déterministe via `LevelRegistry.CreateRng`)
 - Déterminer si l'**advice est visible** (tirage `rng.NextDouble() < motorAdviceVisibleProbability`)
 - Si visible, déterminer si l'**advice est fiable** (tirage `rng.NextDouble() < motorAdviceReliableProbability`)
@@ -910,7 +910,7 @@ public class MotorAdviceController : MonoBehaviour
 {
     public static MotorAdviceController Instance { get; private set; }
 
-    public MotorKeySet ActiveSet { get; private set; } = MotorKeySet.ZQSD;
+    public MotorKeySet ActiveSet { get; private set; } = MotorKeySet.WASD;
     public MotorKeySet DisplayedSet { get; private set; } = MotorKeySet.None;
     public bool AdviceVisible { get; private set; }
     public bool AdviceReliable { get; private set; }
@@ -924,7 +924,7 @@ public class MotorAdviceController : MonoBehaviour
 ```csharp
 public enum MotorKeySet
 {
-    ZQSD,   // W/A/S/D (layout AZERTY → ZQSD)
+    WASD,   // W/A/S/D physiques (Z/Q/S/D sur AZERTY) — valeur API "AWD" (DEC-051, ex-ZQSD)
     TFGH,   // T/F/G/H
     IJKL,   // I/J/K/L
     None
@@ -942,10 +942,10 @@ public enum MotorKeySet
 | _Lecture depuis SessionManager.Instance :_ |                                | `motorAdviceVisibleProbability` (float, 0-1), `motorAdviceReliableProbability` (float, 0-1) — **paramètres recherche** (Singleton, lecture directe)                                                |
 | TryGetStep(out Vector2Int)                 | bool                           | Teste `wasPressedThisFrame` sur les 4 directions du set actif (via `GetKeyControl` + `IsDirectionPressed`). Retourne `true` + direction si pressée                                                 |
 | IsActiveMoveKey(KeyControl)                | bool                           | Retourne `true` si la touche appartient au set actif (comparaison aux 4 `GetKeyControl` du set)                                                                                                    |
-| FormatSet(MotorKeySet, direction)          | string (statique)              | Renvoie le **label à afficher** pour une direction. Utilise `KeyControl.displayName` (libellé réel selon layout OS : "Z" AZERTY / "W" QWERTY). Fallback labels AZERTY si `Keyboard.current` absent |
+| FormatSet(MotorKeySet, direction)          | string (statique)              | Renvoie le **label à afficher** pour une direction. Utilise `KeyControl.displayName` (libellé réel selon layout OS : "Z" AZERTY / "W" QWERTY) : le participant voit les touches de son clavier. Fallback labels QWERTY (`SetLabel`) si `Keyboard.current` absent |
 | GetKeyControl(set, direction)              | KeyControl (statique privé)    | Source de vérité unique set+direction → `KeyControl` (position physique). Utilisé par TryGetStep, IsActiveMoveKey et FormatSet                                                                     |
 | IsDirectionPressed(set, direction)         | bool (statique privé)          | `true` si le `KeyControl` de la direction a `wasPressedThisFrame`                                                                                                                                  |
-| FallbackLabel(set, direction)              | string (statique privé)        | Labels AZERTY codés en dur, utilisés uniquement quand `displayName` indisponible                                                                                                                   |
+| SetLabel(set, direction)                   | string (statique privé)        | Étiquette QWERTY de la touche d'un set (W/A/S/D, T/F/G/H, I/J/K/L) : nomenclature du contrat de données, source de `player_press_log.key` via `ResolveMotorKey`, et fallback d'affichage quand `displayName` indisponible (DEC-051)                                                                                                                   |
 | PickOtherSet(rng, current)                 | MotorKeySet (statique privé)   | Choisit un set différent du set courant (pour advice non fiable)                                                                                                                                   |
 | CreateRng()                                | System.Random (statique privé) | Crée un RNG seedé via `LevelRegistry.CreateRng("MotorAdviceController")`                                                                                                                           |
 
@@ -965,7 +965,7 @@ graph TD
     A1 -->|Non| A3["Instance = this"]
 
     B["Start()"] --> C["CreateRng() → rng seedé (LevelRegistry)"]
-    C --> D["ActiveSet = rng.Next(0, 3) — ZQSD, TFGH ou IJKL"]
+    C --> D["ActiveSet = rng.Next(0, 3) — WASD, TFGH ou IJKL"]
     D --> E["Lire motorAdviceVisibleProbability depuis SessionManager"]
     E --> F{"rng.NextDouble() < visibleProb ?"}
     F -->|Non| G["AdviceVisible = false, AdviceReliable = false"]
@@ -980,7 +980,7 @@ graph TD
     M --> H
 
     subgraph "TryGetStep(out step) — appelé par GridMover.ReadStep()"
-        TS1["Switch sur ActiveSet"] --> TS2["ZQSD: W/A/S/D"]
+        TS1["Switch sur ActiveSet"] --> TS2["WASD: W/A/S/D"]
         TS1 --> TS3["TFGH: T/F/G/H"]
         TS1 --> TS4["IJKL: I/J/K/L"]
         TS2 --> TS5{"wasPressedThisFrame ?"}
@@ -998,15 +998,15 @@ graph TD
 ### 3.6.5 Formules et règles métier
 
 ```
-Tirage set actif    = rng.Next(0, 3) → index dans {ZQSD=0, TFGH=1, IJKL=2}
+Tirage set actif    = rng.Next(0, 3) → index dans {WASD=0, TFGH=1, IJKL=2}
 Tirage visible      = rng.NextDouble() < SessionManager.Instance.motorAdviceVisibleProbability
                       (défaut 1.0 = toujours visible)
 Tirage fiable       = rng.NextDouble() < SessionManager.Instance.motorAdviceReliableProbability
                       (défaut 1.0 = toujours fiable, uniquement si visible)
 Set affiché         = ActiveSet si fiable, PickOtherSet(rng, ActiveSet) si non fiable, None si invisible
-PickOtherSet        = retire le set courant de la liste [ZQSD, TFGH, IJKL], tire au hasard parmi les 2 restants
+PickOtherSet        = retire le set courant de la liste [WASD, TFGH, IJKL], tire au hasard parmi les 2 restants
 
-Mapping ZQSD : wKey=Haut, aKey=Gauche, sKey=Bas, dKey=Droite (POSITION PHYSIQUE, réf. layout US)
+Mapping WASD : wKey=Haut, aKey=Gauche, sKey=Bas, dKey=Droite (POSITION PHYSIQUE, réf. layout US)
 Mapping TFGH : tKey=Haut, fKey=Gauche, gKey=Bas, hKey=Droite
 Mapping IJKL : iKey=Haut, jKey=Gauche, kKey=Bas, lKey=Droite
 
@@ -1014,14 +1014,16 @@ Input   = position physique de la touche → comportement identique quel que soi
 Affichage = KeyControl.displayName → libellé réel selon le layout OS courant
             ex. wKey.displayName = "Z" (AZERTY) / "W" (QWERTY) / "Z" (QWERTZ)
             semicolonKey.displayName = "M" (AZERTY) / ";" (QWERTY)
-Fallback  = labels AZERTY codés en dur si Keyboard.current == null (hors Play Mode, headless)
+Fallback  = labels QWERTY (SetLabel) si Keyboard.current == null (hors Play Mode, headless)
+Log       = player_press_log.key = SetLabel (nomenclature QWERTY, position physique) :
+            un participant AZERTY qui presse sa touche Z est loggé "W" (DEC-051)
 ```
 
 ### 3.6.6 Points d'attention
 
 - **⚠️ Singleton :** `MotorAdviceController.Instance` peut être `null` si le GameObject n'est pas dans la scène. `GridMover` gère ce cas avec fallback flèches
 - **⚠️ RNG seedé :** Le tirage utilise `LevelRegistry.CreateRng(nameof(MotorAdviceController))` — même seed = même set actif + mêmes tirages visible/fiable. Si `LevelRegistry.Instance` est null, un RNG non seedé est utilisé (warning loggé)
-- **⚠️ Layout clavier :** Les sets lisent des **positions physiques** (`wKey/aKey/sKey/dKey`...) du New Input System — l'input est donc identique quel que soit le layout. L'**affichage** utilise `KeyControl.displayName` qui renvoie le libellé réel selon le layout OS (Z/Q/S/D en AZERTY, W/A/S/D en QWERTY). Un fallback labels AZERTY est utilisé si `Keyboard.current` est null (hors Play Mode). Les noms d'enum (ZQSD/TFGH/IJKL) restent des **identifiants internes AZERTY-centrés**, sans impact sur l'affichage runtime
+- **⚠️ Layout clavier :** Les sets lisent des **positions physiques** (`wKey/aKey/sKey/dKey`...) du New Input System — l'input est donc identique quel que soit le layout. L'**affichage** utilise `KeyControl.displayName` qui renvoie le libellé réel selon le layout OS (Z/Q/S/D en AZERTY, W/A/S/D en QWERTY) : le participant voit toujours les touches de son clavier. L'**enregistrement** (valeurs API `AWD`/`FTH`/`JIL`, `player_press_log.key` via `SetLabel`) est toujours en **nomenclature QWERTY**, quel que soit le layout (DEC-051) : une pression sur la touche Z d'un AZERTY est loggée `"W"`. Les noms d'enum (WASD/TFGH/IJKL) suivent la même nomenclature. Fallback d'affichage QWERTY si `Keyboard.current` est null (hors Play Mode)
 - **⚠️ Advice non fiable :** Si `AdviceReliable == false`, le joueur voit un set différent du set actif. Il doit identifier le bon set par essai — les erreurs déclenchent la pénalité de touche invalide
 - **⚠️ OnAdviceChanged :** Émis une seule fois au Start après tous les tirages. Si l'UI n'est pas encore abonnée (problème de timing), l'affichage ne sera pas mis à jour — en pratique non problématique car `MotorAdviceUI.Start()` appelle aussi `Refresh()` directement
 
@@ -1032,6 +1034,7 @@ Fallback  = labels AZERTY codés en dur si Keyboard.current == null (hors Play M
 | 12/03/26 | @auteur     | Création. Singleton Motor Advice : tirage seedé du set actif (ZQSD/TFGH/IJKL), advice visible/fiable configurable via SessionManager. API TryGetStep + IsActiveMoveKey. Event OnAdviceChanged pour MotorAdviceUI.                                                                                                                                              |
 | 08/07/26 | @auteur     | Affichage layout-aware : `FormatSet` renvoie désormais `KeyControl.displayName` (libellé réel selon layout OS) au lieu de labels codés en dur → corrige l'affichage QWERTY. Mapping set+direction centralisé dans `GetKeyControl` (partagé par TryGetStep/IsActiveMoveKey/FormatSet). Fallback labels AZERTY via `FallbackLabel` si `Keyboard.current` absent. |
 | 06/10/26 | @pierre     | **`ResolveMotorKey(KeyControl, out string label)` (statique, DEC-050).** Résout une touche en set moteur (`ZQSD`/`TFGH`/`IJKL`, `None` hors sets) et en étiquette pour `player_press_log` : l'étiquette suit la nomenclature des sets (labels AZERTY `Z/Q/S/D`, `T/F/G/H`, `I/J/K/L` via `FallbackLabel`, cohérents avec les valeurs API `QZD`/`FTH`/`JIL`), ou `key.name` Unity hors sets. Lecture par position physique (`GetKeyControl`), donc indépendante du layout du participant. `ActiveSet` et `DisplayedSet` sont désormais exportés par `TrialManager.ApplyMotorAdviceState` (`motor_active_set`, `motor_advised_set`). |
+| 09/10/26 | @pierre     | **Nomenclature QWERTY (DEC-051, build 1.6.0).** `MotorKeySet.ZQSD` → `WASD` ; `FallbackLabel` → `SetLabel` avec les étiquettes QWERTY (W/A/S/D) : `player_press_log.key` passe de Z/Q à W/A pour la même touche physique ; valeur API `QZD` → `AWD`. `Start` ne convertit le set imposé que sur un trial forcé (`FlowValueConverters.ToMotorKeySet` est devenu strict : valeur inconnue → erreur loggée, `None`). Input (positions physiques) et affichage (`displayName`) inchangés. |
 
 # 4. Systèmes Core
 
@@ -2528,7 +2531,7 @@ public class TrialResponseRow
 | motor_forced                                | bool   | ApplyForcedChoiceState (flow.State)            | Tirage réalisé : le set de touches était-il imposé sur ce trial (`motor_choice_is_forced`) — le set actif est alors `motor_forced_set`                                   |
 | motor_advice_visible                        | bool   | ApplyMotorAdviceState (MotorAdviceController)  | Tirage réalisé : la légende moteur était-elle affichée (`AdviceVisible`). `false` sans advisor                                                                           |
 | motor_advice_reliable                       | bool   | ApplyMotorAdviceState (MotorAdviceController)  | Tirage réalisé : la légende affichait-elle le set actif (`AdviceReliable`). `false` si cachée, `true` si moteur forcé                                                    |
-| motor_active_set | string | ApplyMotorAdviceState (MotorAdviceController) | Set réellement actif sur le trial (`ActiveSet` → `QZD`/`FTH`/`JIL`), libre ou imposé — DEC-050 |
+| motor_active_set | string | ApplyMotorAdviceState (MotorAdviceController) | Set réellement actif sur le trial (`ActiveSet` → `AWD`/`FTH`/`JIL`, nomenclature QWERTY — DEC-051), libre ou imposé — DEC-050 |
 | motor_advised_set | string | ApplyMotorAdviceState (MotorAdviceController) | Set montré par la légende (`DisplayedSet`). `"NA"` quand la légende est cachée (`AdviceVisible == false`) ; `null` réservé à « jamais mesuré » (DEC-040) — DEC-050 |
 | `<level>`_advice_explanation_configured_display_mode / _display_mode_forced_probability / _configured_content_variant / _content_variant_long_probability | string / float | FlowSerializationUtility.ApplyExplanationState (config du bloc) | Écho de `explanations.<level>` (distal, proximal, motor), valeurs mixtes incluses. Probabilités recopiées telles que stockées même quand non lues |
 | proximal / motor _advice_explanation_display_probability | float  | ApplyExplanationState (config du bloc)         | Écho de `explanations.<level>.display_probability` (pas de colonne distale)                |
@@ -2548,7 +2551,7 @@ public class TrialResponseRow
 | invalid_key_presses                         | int    | EndCurrentTrial                                | Touches hors set actif ayant coûté une pénalité (1 vert par nuage chacune, hors cooldown d'1 s)                                                                          |
 | followed_advisor_path                       | bool   | EndCurrentTrial                                | `true` si le joueur a suivi le chemin conseillé                                                                                                                          |
 | player_path_log                             | string | EndCurrentTrial                                | JSON sérialisé de `List<PlayerStep>` (coordonnées + timestamps)                                                                                                          |
-| player_press_log | string | EndCurrentTrial | JSON sérialisé (Newtonsoft) de `List<PlayerKeyPress>` : `[{key,set,t}]`, toutes les touches pressées inputs déverrouillés, `set` null hors sets — DEC-050 |
+| player_press_log | string | EndCurrentTrial | JSON sérialisé (Newtonsoft) de `List<PlayerKeyPress>` : `[{key,set,t}]`, toutes les touches pressées inputs déverrouillés, `key` en étiquette QWERTY de la position physique (W/A/S/D…, DEC-051), `set` null hors sets — DEC-050 |
 | acceptability_question_1                    | string | TrialQuestionsUI → SubmitCurrentTrialResponses | Réponse 1-7 au slider (1re question d'acceptabilité). ⚠️ **Non posée si `advisor_choice == None`** — le champ reste `null` et est omis du payload, la ligne part quand même         |
 | acceptability_question_2                    | string | TrialQuestionsUI → SubmitCurrentTrialResponses | Réponse 1-7 au slider (2e question d'acceptabilité). Même règle que la 1re                                                                                               |
 | sens_of_agency_question                     | string | TrialQuestionsUI → SubmitCurrentTrialResponses | Réponse 1-7 (7 boutons radio), posée à chaque trial                                                                                                                      |
@@ -2625,8 +2628,8 @@ Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJso
   "motor_forced": false,
   "motor_advice_visible": true,
   "motor_advice_reliable": true,
-  "motor_active_set": "QZD",
-  "motor_advised_set": "QZD",
+  "motor_active_set": "AWD",
+  "motor_advised_set": "AWD",
   "proximal_choice": "left",
   "choice_correct": true,
   "true_cloud": "left",
@@ -2639,7 +2642,7 @@ Le `TrialResponseRow` est sérialisé directement en JSON via `JsonUtility.ToJso
   "invalid_key_presses": 1,
   "followed_advisor_path": true,
   "player_path_log": "[{\"x\":5,\"y\":0,\"t\":\"2026-02-17T14:30:01.000Z\"},{\"x\":5,\"y\":1,\"t\":\"2026-02-17T14:30:01.500Z\"}]",
-  "player_press_log": "[{\"key\":\"Z\",\"set\":\"QZD\",\"t\":\"2026-02-17T14:30:00.800Z\"},{\"key\":\"Z\",\"set\":\"QZD\",\"t\":\"2026-02-17T14:30:01.300Z\"}]",
+  "player_press_log": "[{\"key\":\"W\",\"set\":\"AWD\",\"t\":\"2026-02-17T14:30:00.800Z\"},{\"key\":\"W\",\"set\":\"AWD\",\"t\":\"2026-02-17T14:30:01.300Z\"}]",
   "advisor_path_config": "[{\"x\":5,\"y\":0},{\"x\":5,\"y\":1}]",
   "started_at": "2026-02-17T14:30:00.000Z",
   "ended_at": "2026-02-17T14:30:15.000Z"
@@ -3543,3 +3546,4 @@ _Section à compléter._
 | 08/09/26 | 3.2     | **Remontée des tirages forcés réalisés.** `TrialResponseRow` gagne `proximal_forced`, `proximal_forced_value`, `proximal_forced_was_optimal`, `motor_forced` (lus dans `FlowController.State` par `TrialManager.ApplyForcedChoiceState`, qui n'écrasait jusque-là que l'écho de la config du bloc) et `motor_advice_visible` / `motor_advice_reliable` (nouveau `ApplyMotorAdviceState`, lu dans `MotorAdviceController`). Colonnes correspondantes dans `trial_responses` et l'export CSV (backend-bugs, migration `20260908150000`). |
 | 14/09/26 | 3.3     | **Explanations : texte archivé et config échoée (DEC-046).** `ExplanationText.id` et `ExplanationRuntimeState.text_id` supprimés ; `TrialResponseRow.*_advice_explanation_text_id` → `*_advice_explanation_text` (texte du corpus proposé, copié depuis `ExplanationRuntimeState.text`), plus 14 champs d'écho de la config `explanations.<level>` (`*_configured_display_mode`, `*_display_mode_forced_probability`, `*_configured_content_variant`, `*_content_variant_long_probability`, `*_display_probability` sur proximal/motor) et le tirage réalisé `*_advice_explanation_visible` (proximal/motor, `ExplanationRuntimeState.visible` ; `FlowController.RollExplanationProbability` renvoie `bool?`). `FlowSerializationUtility.ApplyExplanationState` reçoit l'`AdviceExplanationConfig` du niveau ; `FlowController.ApplyCurrentExplanationStatesToRow` la lui passe. Backend : migration `20260914120000`, export CSV 95 → 111 colonnes. |
 | 06/10/26 | 3.4     | **Niveau moteur complet et log des touches (DEC-050, build 1.5.0).** `TrialResponseRow` gagne `motor_active_set`, `motor_advised_set` (`"NA"` si légende cachée) et `player_press_log` (`[{key,set,t}]`, même forme que `player_path_log`). Nouvelle classe `Data/PlayerKeyPress` ; `MotorAdviceController.ResolveMotorKey` ; `GridMover.ReportPressedKeys` → `GameManager.OnKeyPressed` → `TrialManager.RecordKeyPress` ; `FlowSerializationUtility.ToKeyPressesJson`. Sections 3.5, 3.6, 4.5 et 5.1 mises à jour. Backend : migration `20261006120000`, export CSV 113 → 116 colonnes. Ferme Q-MOTOR-1 et D-008. |
+| 09/10/26 | 3.5     | **Sets de touches en nomenclature QWERTY (DEC-051, build 1.6.0).** `MotorKeySet.ZQSD` → `WASD`, valeur API `QZD` → `AWD` ; `MotorAdviceController.FallbackLabel` → `SetLabel` (étiquettes QWERTY), donc `player_press_log.key` passe de Z/Q à W/A pour la même touche physique ; `FlowValueConverters.ToMotorKeySet` strict (valeur inconnue → erreur loggée, `None`), set imposé converti uniquement sur trial forcé. Sections 3.6, 4.5 et 5.1 mises à jour. Backend : migration `20261009120000` (valeurs et `player_press_log` convertis), sélecteur dashboard : valeur `AWD`, libellé `QZD` quand le navigateur est en français (affichage seulement). Ferme le Lot A4. |

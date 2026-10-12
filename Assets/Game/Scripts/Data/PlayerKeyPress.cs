@@ -3,9 +3,11 @@ using System;
 // -----------------------------
 // Une pression de touche du joueur pour le log du trial courant (player_press_log).
 // Même forme que PlayerStep : un objet plat par événement, timestamp ISO UTC.
-//   key : étiquette de la touche dans la nomenclature des sets moteur
-//         (Z/Q/S/D, T/F/G/H, I/J/K/L), sinon le nom Unity de la touche.
-//   set : set moteur auquel la touche appartient (QZD / FTH / JIL),
+//   key : étiquette QWERTY de la position physique pressée, dans la
+//         nomenclature des sets moteur (W/A/S/D, T/F/G/H, I/J/K/L — un
+//         participant AZERTY qui presse Z est loggé "W", DEC-051), sinon le
+//         nom Unity de la touche.
+//   set : set moteur auquel la touche appartient (AWD / FTH / JIL),
 //         null hors des trois sets.
 // -----------------------------
 

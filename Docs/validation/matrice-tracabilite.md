@@ -38,15 +38,15 @@
 | `proximal_forced_probability` | float | [0,1] | block/flow.State | non | | |
 | `proximal_forced_optimal_probability` | float | [0,1] | block/flow.State | non | | |
 | `motor_forced_probability` | float | [0,1] | block/flow.State | non | | |
-| `motor_forced_set` | string | `QZD`/`FTH`/`JIL` ⚠️ (ex-`KOM`) | block/flow.State | **oui** | | |
+| `motor_forced_set` | string | `AWD`/`FTH`/`JIL` (nomenclature QWERTY, DEC-051 ; ex-`QZD`, ex-`KOM`) | block/flow.State | **oui** | | |
 | `proximal_forced` | bool | true/false | `flow.State.proximal_choice_is_forced` (ApplyForcedChoiceState) | non | | ajouté le 08/09/26 |
 | `proximal_forced_value` | string | `left`/`right`/null | `flow.State.proximal_choice_forced_value` si forcé | **oui** | | ajouté le 08/09/26 |
 | `proximal_forced_was_optimal` | bool? | true/false/null | `flow.State.proximal_choice_forced_was_optimal` si forcé | **oui** | | ajouté le 08/09/26 |
 | `motor_forced` | bool | true/false | `flow.State.motor_choice_is_forced` (ApplyForcedChoiceState) | non | | ajouté le 08/09/26 |
 | `motor_advice_visible` | bool | true/false | `MotorAdviceController.AdviceVisible` (ApplyMotorAdviceState) | non | | ajouté le 08/09/26 |
 | `motor_advice_reliable` | bool | true/false | `MotorAdviceController.AdviceReliable` (ApplyMotorAdviceState) | non | | ajouté le 08/09/26 |
-| `motor_active_set` | string | `QZD`/`FTH`/`JIL` | `MotorAdviceController.ActiveSet` (ApplyMotorAdviceState) | non | | ajouté le 06/10/26 (DEC-050) |
-| `motor_advised_set` | string | `QZD`/`FTH`/`JIL`/`"NA"` (légende cachée) | `MotorAdviceController.DisplayedSet` si `AdviceVisible`, sinon `"NA"` (ApplyMotorAdviceState) | non | | ajouté le 06/10/26 (DEC-050) |
+| `motor_active_set` | string | `AWD`/`FTH`/`JIL` | `MotorAdviceController.ActiveSet` (ApplyMotorAdviceState) | non | | ajouté le 06/10/26 (DEC-050) |
+| `motor_advised_set` | string | `AWD`/`FTH`/`JIL`/`"NA"` (légende cachée) | `MotorAdviceController.DisplayedSet` si `AdviceVisible`, sinon `"NA"` (ApplyMotorAdviceState) | non | | ajouté le 06/10/26 (DEC-050) |
 
 ## Config map (paramètres expérimentaux)
 
@@ -148,7 +148,7 @@
 | `overtime_steps` | int | ≥ 0 | `EndCurrentTrial` | non | | |
 | `followed_advisor_path` | bool | true/false (chemin **affiché**) | `EndCurrentTrial` | non | | |
 | `player_path_log` | string (JSON array) | `[{x,y,t}]` t=ISO UTC | `ToPlayerStepsJson` | non | | |
-| `player_press_log` | string (JSON array) | `[{key,set,t}]` set=`QZD`/`FTH`/`JIL`/null, t=ISO UTC | `ToKeyPressesJson` (Newtonsoft) ← `RecordKeyPress` | non | | ajouté le 06/10/26 (DEC-050) |
+| `player_press_log` | string (JSON array) | `[{key,set,t}]` key=étiquette QWERTY (W/A/S/D…), set=`AWD`/`FTH`/`JIL`/null, t=ISO UTC | `ToKeyPressesJson` (Newtonsoft) ← `RecordKeyPress` | non | | ajouté le 06/10/26 (DEC-050) |
 | `advisor_path_config` | string (JSON array) | `[{x,y}]` — chemin advisor **affiché**, null si non visible | `TrialManager` (ajouté `8c3baa07`, 24/08/26) | non (`[IncludeNull]`) | | |
 
 ## Questionnaire & timestamps

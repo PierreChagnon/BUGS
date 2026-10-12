@@ -200,7 +200,7 @@
   - C : Le chercheur choisit un sous-ensemble parmi lequel tirer → impact : compromis
 - **Statut :** RÉPONDU
 - **Réponse :** **Option A étendue par Note 3** (2026-05-26). `motor_forced_set ∈ {QZD, FTH, KOM}` fixé par le chercheur via dropdown dans le session config panel. **Évolution majeure** : motor passe de block-wise à trial-wise. Le set imposé s'applique **uniquement aux trials forced** du bloc (selon `motor_forced_probability ∈ [0, 1]`) ; les trials free du même bloc conservent le tirage aléatoire par trial. Tranché par DEC-019 et `Docs/specs/free-forced-choices/spec-fonc.md` (§2.4 R17–R20).
-  > ⚠️ **Errata 2026-07-28** — le domaine cité ci-dessus est celui de mai 2026. Le set `OKLM` a depuis été remplacé par `IJKL` (commit `7b3a9e86`) : le domaine réel est **`{QZD, FTH, JIL}`**. Cf. errata de `free-forced-choices/spec-fonc.md`.
+  > ⚠️ **Errata 2026-07-28** — le domaine cité ci-dessus est celui de mai 2026. Le set `OKLM` a depuis été remplacé par `IJKL` (commit `7b3a9e86`) : le domaine réel est **`{QZD, FTH, JIL}`**. Cf. errata de `free-forced-choices/spec-fonc.md`. **Errata 2026-10-09** — `QZD` est devenu `AWD` (nomenclature QWERTY, DEC-051) : domaine **`{AWD, FTH, JIL}`**.
 
 ### Q-006 — Explanations associées aux advice (short/long)
 - **Posée le :** 2026-05-12

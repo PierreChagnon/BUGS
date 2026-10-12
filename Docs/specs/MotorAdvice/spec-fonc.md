@@ -24,7 +24,7 @@
 Mettre en place un motor advice qui peut indiquer au participant le set de touches actif pour se deplacer sur la grille. Le set actif est tire aleatoirement avant chaque essai. L advice peut etre absent selon une probabilite configurable et peut etre non fiable selon une probabilite configurable.
 
 ### Perimetre IN
-- [x] Tirage du set actif avant chaque essai parmi ZQSD, TFGH, IJKL (equiprobable).
+- [x] Tirage du set actif avant chaque essai parmi WASD, TFGH, IJKL (equiprobable ; sets nommes sur le layout QWERTY, DEC-051).
 - [x] Tirage de l apparition de l advice selon une probabilite configurable.
 - [x] Si l advice apparait, tirage de sa fiabilite selon une probabilite configurable.
 - [x] Affichage du set de touches (advice) en bas a gauche pendant tout l essai.
@@ -86,11 +86,11 @@ Si l advice n est pas actif, aucun indicateur n est affiche a cet emplacement.
 #### Donnees collectees
 | Donnee | Colonne CSV V1 | Valeurs possibles | Quand enregistree |
 |:---|:---|:---|:---|
-| Set actif | `motor_active_set` *(DEC-050)* | QZD / FTH / JIL | Debut d essai |
+| Set actif | `motor_active_set` *(DEC-050)* | AWD / FTH / JIL *(nomenclature QWERTY, DEC-051)* | Debut d essai |
 | Advice affiche | `motor_advice_visible` *(errata 09/09/26)* | true / false | Debut d essai |
 | Advice fiable | `motor_advice_reliable` *(errata 09/09/26)* | true / false | Debut d essai |
-| Set affiche | `motor_advised_set` *(DEC-050)* | QZD / FTH / JIL / NA (legende cachee) | Debut d essai |
-| Touches pressees | `player_press_log` *(DEC-050)* | `[{key, set, t}]` — key = etiquette Z/Q/S/D, T/F/G/H, I/J/K/L ou nom Unity ; set = QZD / FTH / JIL / null | Chaque pression, inputs deverrouilles |
+| Set affiche | `motor_advised_set` *(DEC-050)* | AWD / FTH / JIL / NA (legende cachee) | Debut d essai |
+| Touches pressees | `player_press_log` *(DEC-050)* | `[{key, set, t}]` — key = etiquette QWERTY de la position physique (W/A/S/D, T/F/G/H, I/J/K/L — un participant AZERTY qui presse Z est logge W, DEC-051) ou nom Unity ; set = AWD / FTH / JIL / null | Chaque pression, inputs deverrouilles |
 
 ---
 
@@ -106,10 +106,10 @@ Si l advice n est pas actif, aucun indicateur n est affiche a cet emplacement.
 
 | Colonne CSV V1 | Ecran / Composant | Comportement source | Valeurs possibles |
 |:---|:---|:---|:---|
-| `motor_active_set` *(DEC-050)* | Forest Screen / Motor Advice | Enregistrer set actif | QZD / FTH / JIL |
+| `motor_active_set` *(DEC-050)* | Forest Screen / Motor Advice | Enregistrer set actif | AWD / FTH / JIL |
 | `motor_advice_visible` *(errata 09/09/26)* | Forest Screen / Motor Advice | Enregistrer advice affiche | true / false |
 | `motor_advice_reliable` *(errata 09/09/26)* | Forest Screen / Motor Advice | Enregistrer advice fiable | true / false |
-| `motor_advised_set` *(DEC-050)* | Forest Screen / Motor Advice | Enregistrer set affiche | QZD / FTH / JIL / NA |
+| `motor_advised_set` *(DEC-050)* | Forest Screen / Motor Advice | Enregistrer set affiche | AWD / FTH / JIL / NA |
 | `player_press_log` *(DEC-050)* | Forest Screen / GridMover | Enregistrer chaque touche pressee (set actif ou non, cooldown inclus) | `[{key, set, t}]` |
 
 ---

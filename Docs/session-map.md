@@ -51,7 +51,7 @@
 
 ### Écarts constatés à la clôture
 
-- Les sets sont **ZQSD / TFGH / IJKL** (et non QZD/FTH/KOM comme dans `free-forced-choices/spec-fonc.md`) — le set OKLM a été remplacé par IJKL au commit `7b3a9e86`. Valeurs API : `QZD` / `FTH` / `JIL`.
+- Les sets sont **ZQSD / TFGH / IJKL** (et non QZD/FTH/KOM comme dans `free-forced-choices/spec-fonc.md`) — le set OKLM a été remplacé par IJKL au commit `7b3a9e86`. Valeurs API : `QZD` / `FTH` / `JIL`. **MàJ 09/10/26 (DEC-051)** : sets renommés **WASD / TFGH / IJKL**, valeurs API `AWD` / `FTH` / `JIL` (nomenclature QWERTY).
 - `MotorAdviceController` a été placé dans `Controllers/` (comme le prévoyait `multi-screen-flow/spec-tech.md`) et non dans `Systems/` (comme le prévoyait `MotorAdvice/spec-tech.md:183`).
 - **Reste ouvert :** Q-002 (colonnes CSV motor advice, toujours `TBD` dans `MotorAdvice/spec-fonc.md:81-84`) et Q-004 (format d'affichage imposé du set).
 

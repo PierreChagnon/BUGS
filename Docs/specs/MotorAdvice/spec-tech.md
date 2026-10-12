@@ -66,7 +66,7 @@ graph TD
 ```csharp
 public enum MotorKeySet
 {
-    ZQSD,
+    WASD,   // W/A/S/D physiques (Z/Q/S/D sur AZERTY), valeur API AWD — DEC-051, ex-ZQSD
     TFGH,
     IJKL,
     None
@@ -132,7 +132,7 @@ Vector2Int ReadStep()
 
 ### 4.2 MotorKeySet
 
-- `ZQSD` : Haut=Z, Gauche=Q, Bas=S, Droite=D
+- `WASD` : Haut=W, Gauche=A, Bas=S, Droite=D (positions physiques ; un clavier AZERTY affiche Z/Q/S/D — DEC-051, ex-`ZQSD`)
 - `TFGH` : Haut=T, Gauche=F, Bas=G, Droite=H
 - `IJKL` : Haut=I, Gauche=J, Bas=K, Droite=L
 - `None` : aucun set (utilise pour displayedSet quand adviceVisible=false)

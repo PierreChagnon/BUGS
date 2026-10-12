@@ -130,7 +130,7 @@ public static class TrialDrawResolver
 
     static MotorKeySet DrawOtherSet(System.Random rng, MotorKeySet current)
     {
-        var options = new List<MotorKeySet> { MotorKeySet.ZQSD, MotorKeySet.TFGH, MotorKeySet.IJKL };
+        var options = new List<MotorKeySet> { MotorKeySet.WASD, MotorKeySet.TFGH, MotorKeySet.IJKL };
         options.Remove(current);
         return options[rng.Next(0, options.Count)];
     }

@@ -493,7 +493,7 @@ public class TrialResponseRow
     public bool motor_forced;
     public bool motor_advice_visible;
     public bool motor_advice_reliable;
-    // Set actif du trial et set montre par la legende (QZD / FTH / JIL), lus
+    // Set actif du trial et set montre par la legende (AWD / FTH / JIL), lus
     // dans MotorAdviceController. motor_advised_set vaut "NA" quand la legende
     // est cachee : null reste reserve a "jamais mesure" (DEC-040).
     public string motor_active_set;
@@ -682,35 +682,35 @@ public static class FlowValueConverters
         }
     }
 
+    // Valeurs API des sets moteur (DEC-051) : touches gauche-haut-droite sur le
+    // layout QWERTY. Contrat : docs/payload-examples.md (backend-bugs).
     public static string ToApiValue(MotorKeySet set)
     {
         return set switch
         {
-            MotorKeySet.ZQSD => "QZD",
+            MotorKeySet.WASD => "AWD",
             MotorKeySet.TFGH => "FTH",
             MotorKeySet.IJKL => "JIL",
             _ => null
         };
     }
 
+    // Le domaine est garanti par la validation Zod du backend (DEC-026) : toute
+    // autre valeur est une config corrompue, signalee et rendue inoperante
+    // (None : aucune touche ne deplace le joueur) plutot que remplacee en silence.
     public static MotorKeySet ToMotorKeySet(string rawValue)
     {
-        if (string.IsNullOrWhiteSpace(rawValue))
-            return MotorKeySet.ZQSD;
-
-        switch (rawValue.Trim().ToUpperInvariant())
+        switch (rawValue)
         {
-            case "QZD":
-            case "ZQSD":
-                return MotorKeySet.ZQSD;
+            case "AWD":
+                return MotorKeySet.WASD;
             case "FTH":
-            case "TFGH":
                 return MotorKeySet.TFGH;
             case "JIL":
-            case "IJKL":
                 return MotorKeySet.IJKL;
             default:
-                return MotorKeySet.ZQSD;
+                Debug.LogError($"[FlowValueConverters] motor_forced_set inconnu : '{rawValue}' (attendu AWD / FTH / JIL). Corriger la config en amont.");
+                return MotorKeySet.None;
         }
     }
 }

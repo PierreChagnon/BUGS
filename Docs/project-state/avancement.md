@@ -3,7 +3,7 @@
 > Ce fichier est le résumé condensé de l'état du projet.
 > Objectif : un rôle peut comprendre où en est le projet en lisant CE SEUL FICHIER.
 > Mis à jour après chaque session qui fait avancer le projet.
-> Dernière mise à jour : 2026-10-06 (DEC-050 : niveau moteur complet + `player_press_log`, build 1.5.0 — réponse au mail de Mark du 04/10). Mise à jour précédente : 2026-09-09 (passe de réconciliation post-revue — intègre les commits `a919a683`/DEC-030 et `88899e9a`/DEC-029 livrés le 08/09 au soir, après la revue `revue-livraison-2026-09-08.md`)
+> Dernière mise à jour : 2026-10-09 (DEC-051 : sets de touches nommés en QWERTY, `QZD` → `AWD`, build 1.6.0, Lot A4 fermé). Mise à jour précédente : 2026-10-06 (DEC-050 : niveau moteur complet + `player_press_log`, build 1.5.0 — réponse au mail de Mark du 04/10). Mise à jour antérieure : 2026-09-09 (passe de réconciliation post-revue — intègre les commits `a919a683`/DEC-030 et `88899e9a`/DEC-029 livrés le 08/09 au soir, après la revue `revue-livraison-2026-09-08.md`)
 
 ---
 
@@ -43,6 +43,7 @@
 | **Murs organiques** | Réécriture de `CorridorWallsGenerator` (génération moins rectiligne) | `624f9a99` (PR #3) |
 | **Export des tirages réalisés** *(post-revue)* | +6 champs `TrialResponseRow` (93 au total) : `proximal_forced`/`_value`/`_was_optimal`, `motor_forced`, `motor_advice_visible`, `motor_advice_reliable` ; migration Supabase `20260908150000` — ferme partiellement N1-B/D-008 | `a919a683` (08/09 soir), DEC-030 |
 | **Niveau moteur complet + log des touches** *(06/10)* | +3 champs `TrialResponseRow` : `motor_active_set`, `motor_advised_set` (`NA` si légende cachée), `player_press_log` (`[{key,set,t}]`) ; migration Supabase `20261006120000` ; export 113 → 116 colonnes ; build **1.5.0** — ferme N1-B/D-008, Q-MOTOR-1, Lot E1 | DEC-050 (06/10), mail de Mark du 04/10 |
+| **Sets de touches en nomenclature QWERTY** *(09/10)* | `QZD` → `AWD` (dashboard, Zod, migration `20261009120000` avec conversion des lignes de test et de `player_press_log`) ; `player_press_log.key` en étiquettes QWERTY (W/A/S/D) ; `FlowValueConverters.ToMotorKeySet` strict ; build **1.6.0** — ferme le Lot A4 | DEC-051 (09/10) |
 | **Ordre advisors seedé** *(post-revue)* | Ordre des 3 options tiré 1×/bloc (`BlockDrawResolver.DrawAdvisorDisplayOrder`, salt 7), non exporté — export du réalisé requis (MàJ DEC-029 du 09/09) | `88899e9a` (08/09 soir), DEC-029 |
 
 ---
@@ -134,7 +135,7 @@ inventaire des packages incomplet (N2-M — à revoir lors de la passe TDD) ·
 | Pauses obligatoires inter-blocs (compteur hors tutoriel, countdown API) | ✅ Implémenté | 23/07/26 |
 | **Free/forced (meta / distal / proximal / motor)** | ✅ Implémenté — `FlowController.cs:99-171`, `239-256` | 28/07/26 (constaté) |
 | **Explanations short/long (3 advices, opt-in + tracking)** | ✅ Implémenté — `ExplanationResolver.cs` | 28/07/26 (constaté) |
-| **Motor advice (ZQSD / TFGH / IJKL, visible × fiable)** | ✅ Implémenté — `MotorAdviceController.cs` | 28/07/26 (constaté) |
+| **Motor advice (WASD / TFGH / IJKL, visible × fiable)** | ✅ Implémenté — `MotorAdviceController.cs` | 28/07/26 (constaté) |
 | **Redirect post-expérience (platform_url)** | ✅ Implémenté — `PlatformUrlDisplay.cs` | 28/07/26 (constaté) |
 | Spec tech multi-écran flow | ✅ Finalisée | 16/03/26 |
 | Data model Supabase (`trial_responses` plate) | ✅ Finalisé | 16/03/26 |
@@ -267,7 +268,7 @@ inventaire des packages incomplet (N2-M — à revoir lors de la passe TDD) ·
 | **Reliability pattern non spécifié côté chercheur** | Impossible d'implémenter la manipulation | ✅ **Levé le 09/09/26** (DEC-037) — modèle probabiliste configuré par le chercheur, implémenté et documenté (dashboard doc backend) |
 | **Mapping des 3 questions non tranché + textes placeholders** | Validité du questionnaire | ✅ **Levé le 09/09/26** (DEC-035 + `746a4406`) — mapping fixé, les 4 textes réels posés en scène, Q-011 RÉPONDUE |
 | **`spec-tech` absentes pour free/forced et explanations** | Aucune référence opposable sur H1–H8 | 🟠 Rétro-documentation à produire |
-| `motor_forced_set` : fallback silencieux vers ZQSD | Condition expérimentale fausse sans trace | 🟠 **Lot A4** — non corrigé (`FlowValueConverters.ToMotorKeySet`, `FlowDataModels.cs:682-683` ; accepte désormais aussi les graphies `ZQSD`/`TFGH`/`IJKL`, mais une valeur inconnue retombe toujours sur ZQSD sans log). Atténué par DEC-027 : la validation Zod côté backend est censée garantir le domaine |
+| `motor_forced_set` : fallback silencieux vers ZQSD | Condition expérimentale fausse sans trace | ✅ **Levé le 09/10/26** (DEC-051, Lot A4) — `FlowValueConverters.ToMotorKeySet` n'accepte plus que `AWD`/`FTH`/`JIL` ; toute autre valeur est loggée en erreur et donne `None` (aucune touche active), plus de retombée silencieuse. Zod garantit le domaine en amont (DEC-027) |
 | `build_version` incohérent (0.4.0 vs 1.0.0) | Colonne CSV ambiguë | ✅ **Levé le 28/08/26** — constante unique `BuildInfo.Version` (Lot A5) |
 | **Modèle de perte de bugs divergent code vs GDD** | Résultats non comparables au protocole | ✅ **Levé le 28/07/26**, sign-off chercheur obtenu le 09/09/26 (DEC-039, Q-007 close) |
 | **Free/forced choices : implémentation absente** | Validité expérimentale | ✅ **Levé le 28/07/26** — implémenté |

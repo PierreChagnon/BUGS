@@ -3,9 +3,12 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
 
+// Les sets sont nommes sur le layout QWERTY (DEC-051) : WASD = touches
+// physiques W/A/S/D, qui se lisent Z/Q/S/D sur un clavier AZERTY. Valeurs API
+// correspondantes : AWD / FTH / JIL (FlowValueConverters).
 public enum MotorKeySet
 {
-    ZQSD,
+    WASD,
     TFGH,
     IJKL,
     None
@@ -21,7 +24,7 @@ public class MotorAdviceController : MonoBehaviour
 {
     public static MotorAdviceController Instance { get; private set; }
 
-    public MotorKeySet ActiveSet { get; private set; } = MotorKeySet.ZQSD;
+    public MotorKeySet ActiveSet { get; private set; } = MotorKeySet.WASD;
     public MotorKeySet DisplayedSet { get; private set; } = MotorKeySet.None;
     public bool AdviceVisible { get; private set; }
     public bool AdviceReliable { get; private set; }
@@ -45,10 +48,11 @@ public class MotorAdviceController : MonoBehaviour
         bool choiceIsForced = session != null && session.MotorChoiceIsForced;
 
         // Tirages résolus dans Data/ (set actif, visibilité, fiabilité, set affiché).
+        // Le set impose n'est lu que sur un trial force : hors forcage, il n'existe pas.
         var draw = TrialDrawResolver.DrawMotorAdvice(
             hasAdvisor,
             choiceIsForced,
-            FlowValueConverters.ToMotorKeySet(session != null ? session.MotorChoiceForcedSet : null),
+            choiceIsForced ? FlowValueConverters.ToMotorKeySet(session.MotorChoiceForcedSet) : MotorKeySet.None,
             visibleProb,
             reliableProb,
             rng);
@@ -91,7 +95,7 @@ public class MotorAdviceController : MonoBehaviour
 
         return set switch
         {
-            MotorKeySet.ZQSD => direction switch
+            MotorKeySet.WASD => direction switch
             {
                 "up" => kb.wKey,
                 "left" => kb.aKey,
@@ -122,8 +126,9 @@ public class MotorAdviceController : MonoBehaviour
     // Renvoie le LABEL a afficher pour la touche a presser dans la direction donnee.
     // Utilise KeyControl.displayName : Unity interroge l'OS et renvoie l'etiquette reelle
     // de la touche selon le layout clavier courant (ex: la touche a la position "wKey"
-    // affiche "Z" en AZERTY, "W" en QWERTY). Fallback sur les labels AZERTY si aucun
-    // clavier n'est disponible (hors Play Mode, headless...).
+    // affiche "Z" en AZERTY, "W" en QWERTY). Le participant voit donc toujours les
+    // touches de SON clavier. Fallback sur les labels QWERTY si aucun clavier n'est
+    // disponible (hors Play Mode, headless...).
     public static string FormatSet(MotorKeySet set, string direction = null)
     {
         if (direction == null) return string.Empty;
@@ -132,34 +137,37 @@ public class MotorAdviceController : MonoBehaviour
         if (key != null && !string.IsNullOrEmpty(key.displayName))
             return key.displayName;
 
-        return FallbackLabel(set, direction);
+        return SetLabel(set, direction);
     }
 
-    // Labels AZERTY codes en dur, utilises uniquement en fallback quand displayName
-    // n'est pas disponible (pas de Keyboard.current).
-    static string FallbackLabel(MotorKeySet set, string direction)
+    // Etiquette QWERTY de la touche d'un set (DEC-051) : nomenclature du contrat de
+    // donnees (W/A/S/D, T/F/G/H, I/J/K/L), independante du layout du participant.
+    // Source de player_press_log.key ; sert aussi de fallback d'affichage quand
+    // displayName n'est pas disponible (pas de Keyboard.current).
+    static string SetLabel(MotorKeySet set, string direction)
     {
         return set switch
         {
-            MotorKeySet.ZQSD => direction switch { "up" => "Z", "left" => "Q", "down" => "S", "right" => "D", _ => string.Empty },
+            MotorKeySet.WASD => direction switch { "up" => "W", "left" => "A", "down" => "S", "right" => "D", _ => string.Empty },
             MotorKeySet.TFGH => direction switch { "up" => "T", "left" => "F", "down" => "G", "right" => "H", _ => string.Empty },
             MotorKeySet.IJKL => direction switch { "up" => "I", "left" => "J", "down" => "K", "right" => "L", _ => string.Empty },
             _ => string.Empty
         };
     }
 
-    // Set moteur et etiquette d'une touche pour player_press_log : l'etiquette
-    // suit la nomenclature des sets (Z/Q/S/D, T/F/G/H, I/J/K/L, labels AZERTY
-    // comme les valeurs API QZD/FTH/JIL), independante du layout du participant.
-    // Hors des trois sets : MotorKeySet.None et le nom Unity de la touche.
+    // Set moteur et etiquette d'une touche pour player_press_log : l'etiquette est
+    // le nom QWERTY de la position physique (W/A/S/D, T/F/G/H, I/J/K/L, comme les
+    // valeurs API AWD/FTH/JIL) — un participant AZERTY qui presse Z est logge "W".
+    // Hors des trois sets : MotorKeySet.None et le nom Unity de la touche (lui
+    // aussi par position physique, reference US).
     public static MotorKeySet ResolveMotorKey(KeyControl key, out string label)
     {
-        foreach (MotorKeySet set in new[] { MotorKeySet.ZQSD, MotorKeySet.TFGH, MotorKeySet.IJKL })
+        foreach (MotorKeySet set in new[] { MotorKeySet.WASD, MotorKeySet.TFGH, MotorKeySet.IJKL })
         {
             foreach (string direction in new[] { "up", "left", "down", "right" })
             {
                 if (GetKeyControl(set, direction) != key) continue;
-                label = FallbackLabel(set, direction);
+                label = SetLabel(set, direction);
                 return set;
             }
         }
