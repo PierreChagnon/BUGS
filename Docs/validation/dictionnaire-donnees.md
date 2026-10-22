@@ -69,6 +69,7 @@
 | `optimal_path_length` | int? | ≥ 0 ou ∅ | Longueur (cases) du chemin optimal. **Nullable depuis le 26/08/26** (commit `fe5fc771`) : ∅ = jamais mesuré sur ce trial, à distinguer d'un vrai 0. |
 | `cloud_distance` | int? | ≥ 0 ou ∅ | Distance Manhattan joueur → nuages (= budget de pas). Nullable, même convention que `optimal_path_length`. |
 | `show_numerical_feedback` | bool | — | Le feedback numérique était-il affiché ? |
+| `show_communication_report` | bool | — | Le Communication Report était-il affiché sur la scène de choix de vallée du bloc ? (depuis la build 1.7.0) |
 
 ## Advice distal
 

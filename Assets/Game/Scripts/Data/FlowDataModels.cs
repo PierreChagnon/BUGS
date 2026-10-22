@@ -119,6 +119,7 @@ public class BlockConfig
     public float distal_advice_visible_probability;
     public float distal_advice_reliable_probability;
     public bool show_numerical_feedback;
+    public bool show_communication_report;
     public InContextTutorialConfig in_context_tutorial = new();
 
     public BlockConfig DeepClone()
@@ -147,6 +148,7 @@ public class BlockConfig
             distal_advice_visible_probability = distal_advice_visible_probability,
             distal_advice_reliable_probability = distal_advice_reliable_probability,
             show_numerical_feedback = show_numerical_feedback,
+            show_communication_report = show_communication_report,
             in_context_tutorial = in_context_tutorial != null ? in_context_tutorial.DeepClone() : new()
         };
     }
@@ -501,6 +503,7 @@ public class TrialResponseRow
     public float distal_advice_visible_probability;
     public float distal_advice_reliable_probability;
     public bool show_numerical_feedback;
+    public bool show_communication_report;
     public bool distal_advice_visible;
     public bool distal_advice_reliable;
     public string distal_advice_choice;

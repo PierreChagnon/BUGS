@@ -332,7 +332,7 @@ MonoBehaviour:
   _breakFadeDuration: 2
   _breakFadeInDuration: 2.5
   _breakBlackHoldDuration: 0.4
-  _editorSessionId: 3e3d2ddb-0b72-4fe6-a155-f6cd6cea549e
+  _editorSessionId: 5b53264c-5f65-409d-a5d7-e0fed0ea0e27
 --- !u!4 &530388671
 Transform:
   m_ObjectHideFlags: 0

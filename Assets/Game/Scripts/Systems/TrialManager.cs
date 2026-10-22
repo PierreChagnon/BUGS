@@ -318,6 +318,7 @@ public class TrialManager : MonoBehaviour
             distal_advice_visible_probability = block != null ? block.distal_advice_visible_probability : 0f,
             distal_advice_reliable_probability = block != null ? block.distal_advice_reliable_probability : 0f,
             show_numerical_feedback = block == null || block.show_numerical_feedback,
+            show_communication_report = block == null || block.show_communication_report,
             distal_advice_visible = flow != null && flow.State != null && flow.State.distal_advice_visible,
             distal_advice_reliable = flow != null && flow.State != null && flow.State.distal_advice_reliable,
             distal_advice_choice = flow != null && flow.State != null ? flow.State.distal_advice_choice : null,

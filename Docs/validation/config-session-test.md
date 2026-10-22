@@ -30,6 +30,7 @@
 | Fog                                                                                                  | proba 0 ; 1                                                                         |                  |                               |
 | Suboptimal traps                                                                                     | proba 0 ; 1 (min/max)                                                               |                  |                               |
 | `show_numerical_feedback`                                                                            | true ; false                                                                        |                  |                               |
+| `show_communication_report`                                                                          | true ; false                                                                        |                  |                               |
 | Tutorial                                                                                             | is_tutorial=true (⇒ **aucune ligne** dans le CSV)                                   |                  |                               |
 
 > Astuce : mettre les probabilités à **0 ou 1** dans les blocs de couverture rend le résultat **déterministe** et donc vérifiable. Garder les valeurs intermédiaires pour la session réaliste.
@@ -62,7 +63,7 @@ Champs pilotant les colonnes (source : `BlockConfig` lu par `TrialManager.BuildB
 `advisor_forced`, `advisor_forced_value`, `distal_forced`, `distal_forced_optimal_probability`,
 `proximal_forced_probability`, `proximal_forced_optimal_probability`,
 `motor_forced_probability`, `motor_forced_set`,
-`distal_advice_visible_probability`, `distal_advice_reliable_probability`, `show_numerical_feedback`,
+`distal_advice_visible_probability`, `distal_advice_reliable_probability`, `show_numerical_feedback`, `show_communication_report`,
 `distal_scene`, `trial_count`, `is_tutorial`, `block_order`, `is_order_locked`, `config_fingerprint`, `type_tag`,
 
 - paramètres map (`trap_count`, `min/max_distance`, `min/max_total_bugs`, `min/max_green_ratio`, `gap_min/max`, `fog_probability`, `path_visible_probability`, `suboptimal_path_probability`, `detour_probability`, `motor_advice_visible/reliable_probability`, `suboptimal_trap_probability`, `min/max_suboptimal_traps`)

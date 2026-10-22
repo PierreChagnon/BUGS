@@ -3161,7 +3161,7 @@ graph TD
 ### 6.5.1 Responsabilités
 
 - Afficher l'écran de choix de vallée dans la scène DistalChoiceScene
-- Afficher **toujours** le panneau « Communication Report » à l'entrée de la scène, avec un texte dynamique selon la qualité de communication du bloc et le choix d'advisor (DEC-023)
+- Afficher le panneau « Communication Report » à l'entrée de la scène, avec un texte dynamique selon la qualité de communication du bloc et le choix d'advisor (DEC-023) — sauf si le bloc a `show_communication_report = false` (DEC-052)
 - Restituer les scans de nuages des deux vallées (particules vertes/rouges) via auto-binding des groupes de particules enfants
 - Afficher l'indicateur d'advice distal (badge advisor humain M/F ou robot) sur la vallée conseillée quand `State.distal_advice_visible` est vrai
 - Griser le bouton de la vallée non autorisée quand le choix distal est forcé (DEC-019)
@@ -3189,7 +3189,7 @@ public class DistalChoiceUI : MonoBehaviour
 | Variable / Méthode                         | Type           | Description                                                                                      |
 | :----------------------------------------- | :------------- | :----------------------------------------------------------------------------------------------- |
 | \_valleyA/BAdviceIndicator                 | GameObject     | Indicateur d'advice par vallée, contient les badges advisor (HumanMale/HumanFemale/Robot)        |
-| \_enteringExplanationBlockPanel            | GameObject     | Panneau Communication Report — toujours activé au Refresh (DEC-023)                              |
+| \_enteringExplanationBlockPanel            | GameObject     | Panneau Communication Report — activé au Refresh sauf `show_communication_report = false` (DEC-052) |
 | \_enteringExplanationBlockText             | TMP_Text       | Texte dynamique du report — 1 des 6 textes selon qualité × advisor                               |
 | AdviceVisible / AdvisedScanSide            | bool / string  | Copies de `State.distal_advice_visible` / `State.distal_advice_choice`                           |
 | LeftScanData / RightScanData               | BugCloudSample | Scans affichés au participant (⚠️ jamais loggés — N1-C)                                           |
@@ -3227,7 +3227,7 @@ graph TD
 
 ### 6.5.5 Points d'attention
 
-- **⚠️ Communication Report inconditionnel (DEC-023) :** s'affiche aussi en bloc tutoriel (Q-EXP-11) et même sans FlowController (le texte reste alors celui posé dans la scène)
+- **⚠️ Communication Report désactivable par bloc (DEC-052) :** `show_communication_report = false` le masque quelle que soit la config des explanations ; l'explanation distale forced s'ouvre alors immédiatement (`IsEnteringExplanationBlockPanelOpen` faux dès le `Start`). Sinon il s'affiche aussi en bloc tutoriel (Q-EXP-11), et même sans FlowController (le texte reste alors celui posé dans la scène)
 - **⚠️ 6 textes anglais hardcodés** dans le composant — hors corpus configurable (TR3 ne couvre que les corpus d'explanations)
 - **⚠️ `_enteringExplanationBlockText` à câbler dans l'Inspector** — sinon panel affiché avec son texte statique, sans erreur
 - **⚠️ `_showHumanMale` :** `Random.value` non seedé ni loggé (même famille que N2-A / Q-RANDOM-1)
@@ -3240,6 +3240,7 @@ graph TD
 | :------- | :---------- | :------------------------------------------------------------------------------------------------------ |
 | 23/03/26 | @pierre     | Création. Choix de vallée A/B avec preview indices verts, rappel advisor, résumé config (pièges + fog). |
 | 27/08/26 | @pierre     | Communication Report toujours affiché + texte dynamique 3 cas × advisor (DEC-023). `ExplanationResolver.GetCommunicationQuality` remplace `HasAnyEnabledExplanation`. Section 6.5 resynchronisée avec le code réel (scans auto-bind, badges advisor, boutons forced). |
+| 21/10/26 | @pierre     | `Refresh` lit `BlockConfig.show_communication_report` : panneau masqué quand il vaut `false` (DEC-052, build 1.7.0). Écho dans `TrialResponseRow.show_communication_report` (`TrialManager.BuildBaseRow`). |
 
 ## 6.6 FlowContinueScreenUI
 

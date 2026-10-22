@@ -35,19 +35,22 @@ public class DistalChoiceUI : MonoBehaviour
 
     void Refresh()
     {
-        // Le Communication Report est toujours presente au joueur : seul son
-        // texte varie selon la config du bloc et le choix d'advisor.
-        SetExplanationBlockPanelVisible(true);
-
+        // Le Communication Report est presente au joueur sauf si le bloc le
+        // desactive (show_communication_report) : son texte varie selon la
+        // config du bloc et le choix d'advisor. Sans FlowController, il reste
+        // affiche avec le texte pose dans la scene.
         var flow = FlowController.Instance;
-        if (flow == null || flow.CurrentBlock == null)
+        BlockConfig block = flow != null ? flow.CurrentBlock : null;
+        SetExplanationBlockPanelVisible(block == null || block.show_communication_report);
+
+        if (block == null)
             return;
 
         AdviceVisible = flow.State != null && flow.State.distal_advice_visible;
         AdvisedScanSide = flow.State != null ? flow.State.distal_advice_choice : null;
         AdvisorType advisorType = flow.State != null ? flow.State.advisor_choice : AdvisorType.None;
 
-        UpdateExplanationBlockText(flow.CurrentBlock, advisorType);
+        UpdateExplanationBlockText(block, advisorType);
 
         BugCloudPairData distalScans = flow.GenerateCurrentDistalScans();
         LeftScanData = distalScans.firstCloud;

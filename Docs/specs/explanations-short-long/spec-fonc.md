@@ -29,7 +29,7 @@ Permettre à chaque advice (distal, proximal, motor) d'être accompagné d'une *
 - [x] Tracking du `display_mode=opt-in` : enregistrement du clic du participant sur le bouton « show explanation » et de la durée d'affichage de l'explication.
 - [x] Tracé des données dans la table `trial_responses` (table plate dénormalisée, DEC-011) avec colonnes dédiées par advice (5 colonnes par advice, 15 au total).
 - [x] Indépendance vis-à-vis de la fiabilité (`reliability`) de l'advice : un advice non fiable peut porter une explanation.
-- [x] Modal « Communication Report » en DistalChoiceScene : **toujours affichée**, texte dynamique selon la qualité de communication du bloc et le choix d'advisor (cf. §2.4, DEC-023).
+- [x] Modal « Communication Report » en DistalChoiceScene : affichée sauf si le bloc la désactive (`show_communication_report`, DEC-052), texte dynamique selon la qualité de communication du bloc et le choix d'advisor (cf. §2.4, DEC-023).
 
 ### Périmètre OUT
 
@@ -207,7 +207,7 @@ Le texte affiché est sélectionné dans le corpus du bloc indexé par l'`adviso
 ### 2.4 Communication Report (DistalChoiceScene) — *ajouté 2026-08-27, DEC-023*
 
 **Rôle :** Modal d'entrée de bloc qui annonce au participant, sous forme diégétique (« réception radio »), la qualité de la communication avec son advisor sur le bloc — c'est-à-dire la disponibilité des advices et des explanations.
-**Quand :** À chaque affichage de la DistalChoiceScene. **Toujours affichée, sans condition** — remplace l'ancien comportement où le panneau n'apparaissait que si au moins une explanation du bloc avait un `display_mode ≠ none`.
+**Quand :** À chaque affichage de la DistalChoiceScene, sauf si le bloc a `show_communication_report = false` (DEC-052). Ne dépend pas des explanations — remplace l'ancien comportement où le panneau n'apparaissait que si au moins une explanation du bloc avait un `display_mode ≠ none`.
 
 #### Ce qui est affiché
 
@@ -227,14 +227,14 @@ Le texte est choisi selon 2 axes : la **qualité de communication du bloc** (3 c
 
 #### Règles métier
 
-- **R10 (Affichage inconditionnel)** : le Communication Report est présenté à chaque entrée dans la DistalChoiceScene, sans condition — y compris quand aucune explanation n'est configurée sur le bloc.
+- **R10 (Affichage piloté par le seul switch de bloc)** : le Communication Report est présenté à chaque entrée dans la DistalChoiceScene — y compris quand aucune explanation n'est configurée sur le bloc — sauf si `show_communication_report = false`, auquel cas il n'est jamais présenté sur ce bloc, quelle que soit la config des explanations. Les explanations elles-mêmes ne sont pas affectées ; la distale forced s'ouvre alors dès l'arrivée sur la scène (DEC-052).
 - **R11 (Ordre d'évaluation)** : le cas 3 est évalué en premier — la non-visibilité des advisors prime, car elle contrôle l'apparition des explanations en amont de leurs propres probabilités. Puis le cas 1 ; sinon cas 2.
 - **R12 (Symétrie des vallées)** : les probabilités par vallée (`path_visible_probability`, `motor_advice_visible_probability`) sont vérifiées sur **les deux** vallées du bloc — « = 1 » (resp. « = 0 ») exige que les deux vallées soient à 1 (resp. 0).
 - **R13 (`display_mode` maître)** : pour proximal et motor, le `display_mode` de l'explanation est vérifié **avant** sa `display_probability` — `none` désactive l'explanation quelle que soit la probabilité configurée. Un `display_mode` invalide est traité comme `none` (cohérent avec le runtime).
 
 #### Données collectées
 
-Aucune — le Communication Report n'émet aucune colonne `trial_responses`.
+`show_communication_report` (écho du réglage de bloc, colonne 117 de l'export, depuis la build 1.7.0). La qualité et le texte affichés ne sont pas remontés.
 
 #### Question ouverte
 

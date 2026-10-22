@@ -78,6 +78,7 @@
 | `optimal_path_length` | int? | ≥ 0 ou null (= jamais mesuré, `fe5fc771`) | `SetOptimalPathLength` | **oui** | | |
 | `cloud_distance` | int? | Manhattan joueur→nuages ou null | `SetCloudDistance` | **oui** | | |
 | `show_numerical_feedback` | bool | true/false | `block.show_numerical_feedback` | non | | |
+| `show_communication_report` | bool | true/false | `block.show_communication_report` | non | | |
 
 ## Advice distal
 
