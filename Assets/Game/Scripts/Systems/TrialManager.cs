@@ -158,16 +158,21 @@ public class TrialManager : MonoBehaviour
 
         FlowSerializationUtility.ApplyQuestionnaireResponses(_currentTrialRow, responses);
 
-        // Les deux questions d'acceptabilite ne sont pas posees sans advisor (advisor_choice = none) :
-        // le trial part quand meme, les champs restent null et sont omis du payload.
+        // Sans advisor (advisor_choice = none), les questions sur l'advisor ne sont pas posees :
+        // le trial part quand meme, avec "NA" dans ces champs (DEC-040).
         if (string.IsNullOrWhiteSpace(_currentTrialRow.sens_of_agency_question))
         {
             Debug.LogWarning("[TrialManager] Reponses questionnaire incompletes: envoi du trial annule.");
             return;
         }
 
-        string humanLikenessQuestion = _currentTrialRow.human_likeness_question;
-        _currentTrialRow.human_likeness_question = null;
+        // Une vraie reponse human-likeness part en PATCH sur tout le bloc ; "NA" reste dans le POST de chaque trial.
+        string humanLikenessQuestion = null;
+        if (_currentTrialRow.human_likeness_question != FlowSerializationUtility.NotApplicableAnswer)
+        {
+            humanLikenessQuestion = _currentTrialRow.human_likeness_question;
+            _currentTrialRow.human_likeness_question = null;
+        }
 
         if (ApiClient.Instance == null)
         {

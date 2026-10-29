@@ -8,6 +8,9 @@ public static class FlowSerializationUtility
     public const string AcceptabilityQuestion2Key = "acceptability_2";
     public const string SensOfAgencyQuestionKey = "sens_of_agency";
     public const string HumanLikenessQuestionKey = "human_likeness";
+    // Reponse des questions sur l'advisor quand il n'y en a pas (DEC-040) : non posees,
+    // donc non applicables. null reste reserve a "jamais mesure".
+    public const string NotApplicableAnswer = "NA";
 
     [System.Serializable]
     private class PlayerStepsWrapper
@@ -109,6 +112,15 @@ public static class FlowSerializationUtility
                     row.human_likeness_question = response.response;
                     break;
             }
+        }
+
+        // Sans advisor, TrialQuestionsUI ne pose ni l'acceptabilite ni la human-likeness :
+        // toutes les lignes du bloc portent "NA", y compris la human-likeness (envoyee au POST, sans PATCH).
+        if (row.advisor_choice == FlowValueConverters.ToApiValue(AdvisorType.None))
+        {
+            row.acceptability_question_1 = NotApplicableAnswer;
+            row.acceptability_question_2 = NotApplicableAnswer;
+            row.human_likeness_question = NotApplicableAnswer;
         }
     }
 

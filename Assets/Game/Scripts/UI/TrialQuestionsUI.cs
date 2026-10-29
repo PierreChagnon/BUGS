@@ -103,8 +103,9 @@ public class TrialQuestionsUI : MonoBehaviour
         if (flow == null || flow.CurrentBlock == null)
             return;
 
-        // Les questions d'acceptabilite portent sur l'advisor : elles n'ont pas de sens si aucun advisor n'a ete choisi (none).
-        if (flow.State.advisor_choice != AdvisorType.None)
+        // Les questions d'acceptabilite et de human-likeness portent sur l'advisor : elles n'ont pas de sens si aucun advisor n'a ete choisi (none).
+        bool hasAdvisor = flow.State.advisor_choice != AdvisorType.None;
+        if (hasAdvisor)
         {
             _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestion1Key, _acceptabilityQuestion1, useSlider: true));
             _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestion2Key, _acceptabilityQuestion2, useSlider: true));
@@ -113,7 +114,7 @@ public class TrialQuestionsUI : MonoBehaviour
         _questions.Add(new TrialQuestionItem(FlowSerializationUtility.SensOfAgencyQuestionKey, _senseOfAgencyQuestion, useSlider: false));
 
         bool isLastTrial = flow.State.current_trial_index >= flow.CurrentBlock.trial_count - 1;
-        if (isLastTrial)
+        if (hasAdvisor && isLastTrial)
             _questions.Add(new TrialQuestionItem(FlowSerializationUtility.HumanLikenessQuestionKey, _humanLikenessQuestion, useSlider: false));
 
         var rng = new System.Random((int)flow.CurrentTrialSeed);

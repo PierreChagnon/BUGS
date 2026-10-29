@@ -156,10 +156,10 @@
 
 | Champ (code) | Type | Domaine / valeurs | Peuplé par | Omis si null | CSV ? | Statut |
 | :-- | :-- | :-- | :-- | :-: | :-: | :-- |
-| `acceptability_question_1` | string | `1`…`7` (slider ; null sans advisor) | `SubmitCurrentTrialResponses` | **oui** (sans advisor — pas d'attribut `[IncludeNull]`, Ignore global) | | |
-| `acceptability_question_2` | string | `1`…`7` (slider ; null sans advisor) | `SubmitCurrentTrialResponses` | **oui** (idem) | | |
+| `acceptability_question_1` | string | `1`…`7` (slider ; `"NA"` sans advisor, DEC-040) | `SubmitCurrentTrialResponses` | non depuis la build 1.8.0 (`"NA"` sans advisor) | | |
+| `acceptability_question_2` | string | `1`…`7` (slider ; `"NA"` sans advisor, DEC-040) | `SubmitCurrentTrialResponses` | non (idem) | | |
 | `sens_of_agency_question` | string | réponse (obligatoire) | `SubmitCurrentTrialResponses` | non | | |
-| `human_likeness_question` | string | réponse — envoyée en **PATCH** (null au POST), **répliquée sur toutes les lignes du bloc** (convention DEC-042) | `QueueHumanLikenessPatchForBlock` | **oui au POST** | | ⚠️ voir Axe 4 ; D-017 (garde advisor à venir) |
+| `human_likeness_question` | string | réponse — envoyée en **PATCH** (null au POST ; `"NA"` au POST sans advisor, DEC-040), **répliquée sur toutes les lignes du bloc** (convention DEC-042) | `QueueHumanLikenessPatchForBlock` | **oui au POST** | | ⚠️ voir Axe 4 ; D-017 close (garde advisor, build 1.8.0) |
 | `started_at` | string | ISO 8601 UTC (`"o"`) | `StartNewTrial` | non | | |
 | `ended_at` | string | ISO 8601 UTC (`"o"`) | `EndCurrentTrial` | non | | |
 
