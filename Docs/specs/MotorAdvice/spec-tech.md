@@ -190,3 +190,39 @@ Vector2Int ReadStep()
 
 - Mapping CSV V1 pour les donnees motor advice (non implemente).
 - Texte exact d affichage (formatage) a valider si protocole impose un template.
+
+---
+
+## 11. Amendement 20/11/2026 — Sets multiples (DEC-054, build 1.9.0)
+
+Spec fonc : §6 de `spec-fonc.md`.
+
+### 11.1 Chaîne de propagation
+
+| Maillon | Changement |
+|:---|:---|
+| Backend | `block_templates.motor_multi_set_count` (int 1-3, défaut 1) et `motor_multi_set_probability` (0-1, défaut 0) ; écho des deux dans `trial_responses` ; contrainte de `trial_responses.motor_active_set` élargie aux 7 combinaisons. Zod (`unity.js`, `admin.js`), mapper `session-config.js`, dashboard (Motor Choice), export CSV (colonnes 118-119, ajoutées en fin de fichier). |
+| DTO | `BlockConfig` et `TrialResponseRow` : `motor_multi_set_count`, `motor_multi_set_probability`. |
+| Normalisation | `FlowController.SanitizeBlockConfig` : compte borné à [1, 3], probabilité à [0, 1]. Un payload sans le champ (backend pas encore déployé) donne 0 → 1 : comportement d avant. |
+| Lecture | `SessionManager.MotorMultiSetCount` / `MotorMultiSetProbability` (1 / 0 sans FlowController, mode sandbox). |
+| Résolution | `TrialDrawResolver.DrawMotorAdvice` reçoit le compte, la probabilité et un second RNG. |
+| Comportement | `MotorAdviceController.ActiveSets` (liste, set principal en tête) ; `TryGetStep` et `IsActiveMoveKey` acceptent les touches de tous les sets actifs. |
+| Retour de données | `TrialManager.ApplyMotorAdviceState` écrit `motor_active_set` via `FlowValueConverters.ToApiValue(IEnumerable<MotorKeySet>)` (ordre AWD, FTH, JIL, séparateur `+`) ; `ApplyForcedChoiceState` recopie les deux réglages. |
+
+### 11.2 Tirages et RNG
+
+Tous les tirages restent dérivés de la seed du trial (`LevelRegistry.CreateRng(scope)`).
+
+1) RNG principal, scope `MotorAdviceController` — **inchangé** : set principal (`rng.Next(0, 3)` ou set imposé), visibilité, fiabilité, set affiché.
+2) RNG multi-sets, scope `MotorAdviceController:multiset` : tirage « essai multi-sets ? » (uniquement sur un essai libre avec compte > 1), puis les sets supplémentaires (tirés un à un parmi les sets encore inactifs).
+
+Le scope dédié suit le précédent de `ExplanationMixScope` : les tirages ajoutés ne décalent jamais le flux principal, donc une session sans multi-sets (ou un essai mono-set d un bloc multi-sets) se rejoue à l identique.
+
+Légende non fiable : `DrawOtherSet` tire parmi les sets **inactifs** (même consommation qu avant sur un essai mono-set : 2 options). Avec 3 sets actifs, la fiabilité est forcée à `true`.
+
+### 11.3 Test manuel
+
+1) `motor_multi_set_count = 1` : comportement et CSV identiques à la build 1.8.0 (un seul set dans `motor_active_set`).
+2) `count = 2`, `probability = 1`, legende visible et non fiable : deux sets déplacent le joueur, la légende montre le 3e, `motor_active_set` = deux sets joints par `+`, les touches du 3e set comptent dans `invalid_key_presses`.
+3) `count = 3`, `probability = 1` : les 12 touches déplacent le joueur, `motor_advice_reliable = true` sur tout essai où la légende est visible, `motor_active_set = AWD+FTH+JIL`.
+4) `motor_forced_probability = 1` avec `count = 3`, `probability = 1` : un seul set actif (le set imposé).

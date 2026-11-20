@@ -39,13 +39,15 @@
 | `proximal_forced_optimal_probability` | float | [0,1] | block/flow.State | non | | |
 | `motor_forced_probability` | float | [0,1] | block/flow.State | non | | |
 | `motor_forced_set` | string | `AWD`/`FTH`/`JIL` (nomenclature QWERTY, DEC-051 ; ex-`QZD`, ex-`KOM`) | block/flow.State | **oui** | | |
+| `motor_multi_set_count` | int | 1–3 | `block.motor_multi_set_count` (ApplyForcedChoiceState) | non | | ajouté le 20/11/26 (DEC-054) |
+| `motor_multi_set_probability` | float | [0,1] | `block.motor_multi_set_probability` (ApplyForcedChoiceState) | non | | ajouté le 20/11/26 (DEC-054) |
 | `proximal_forced` | bool | true/false | `flow.State.proximal_choice_is_forced` (ApplyForcedChoiceState) | non | | ajouté le 08/09/26 |
 | `proximal_forced_value` | string | `left`/`right`/null | `flow.State.proximal_choice_forced_value` si forcé | **oui** | | ajouté le 08/09/26 |
 | `proximal_forced_was_optimal` | bool? | true/false/null | `flow.State.proximal_choice_forced_was_optimal` si forcé | **oui** | | ajouté le 08/09/26 |
 | `motor_forced` | bool | true/false | `flow.State.motor_choice_is_forced` (ApplyForcedChoiceState) | non | | ajouté le 08/09/26 |
 | `motor_advice_visible` | bool | true/false | `MotorAdviceController.AdviceVisible` (ApplyMotorAdviceState) | non | | ajouté le 08/09/26 |
 | `motor_advice_reliable` | bool | true/false | `MotorAdviceController.AdviceReliable` (ApplyMotorAdviceState) | non | | ajouté le 08/09/26 |
-| `motor_active_set` | string | `AWD`/`FTH`/`JIL` | `MotorAdviceController.ActiveSet` (ApplyMotorAdviceState) | non | | ajouté le 06/10/26 (DEC-050) |
+| `motor_active_set` | string | `AWD`/`FTH`/`JIL`, ou plusieurs joints par `+` sur un trial multi-sets (DEC-054) | `MotorAdviceController.ActiveSets` (ApplyMotorAdviceState) | non | | ajouté le 06/10/26 (DEC-050), multi-sets le 20/11/26 |
 | `motor_advised_set` | string | `AWD`/`FTH`/`JIL`/`"NA"` (légende cachée) | `MotorAdviceController.DisplayedSet` si `AdviceVisible`, sinon `"NA"` (ApplyMotorAdviceState) | non | | ajouté le 06/10/26 (DEC-050) |
 
 ## Config map (paramètres expérimentaux)
@@ -177,7 +179,8 @@
 > +`acceptability_question_1`/`_2` (−`acceptability_question`, remplacé) — soit 87 au 08/09 —
 > puis +6 le 08/09 au soir (`a919a683`, DEC-030) : +`proximal_forced`, +`proximal_forced_value`,
 > +`proximal_forced_was_optimal`, +`motor_forced`, +`motor_advice_visible`, +`motor_advice_reliable`,
-> puis +3 le 06/10 (DEC-050, build 1.5.0) : +`motor_active_set`, +`motor_advised_set`, +`player_press_log`.
+> puis +3 le 06/10 (DEC-050, build 1.5.0) : +`motor_active_set`, +`motor_advised_set`, +`player_press_log`,
+> puis +2 le 20/11 (DEC-054, build 1.9.0) : +`motor_multi_set_count`, +`motor_multi_set_probability`.
 > ⚠️ Le total annoncé ici a été faux deux fois de suite (80→82 en juillet, 87→93 en septembre, cf.
 > D-014) — re-vérifier sur le code à chaque évolution de `TrialResponseRow`.
 > Reporter chaque ligne `❌`/`🔁`/`⚠️` ici et dans `journal-divergences.md`.

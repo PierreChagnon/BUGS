@@ -7,7 +7,27 @@
 
 ## ✅ Aucune session en cours
 
-**Dernière session close :** Motor Advice — export complet + log des touches (DEC-050) — clôturée le 2026-10-06.
+**Dernière session close :** Retours pilote de Mark du 18/11 — sliders SoA / HL (DEC-053) et sets moteur multiples (DEC-054) — clôturée le 2026-11-20.
+
+---
+
+## Session close — Retours pilote de Mark : sliders SoA / HL + sets moteur multiples (DEC-053, DEC-054)
+
+**Objectif :** traiter les deux points du mail de Mark du 18/11/26 — (1) sense of agency et human-likeness sur un slider 1-7 ancré, (2) plusieurs sets moteur actifs sur un même trial, réglables au dashboard.
+**Démarrée le :** 2026-11-20 · **Clôturée le :** 2026-11-20 (code + docs ; câblage Unity, migration, build et déploiement à faire)
+
+```
+[██████░░░░] 4/6 tâches complétées
+```
+
+| # | Symbole | Tâche | État | Livré dans |
+|---|---------|-------|------|------------|
+| 1 | 🤖 | Lot 1 : `TrialQuestionsUI` — 4 questions sur le slider, ancres par question, radio supprimés | ✅ Fait | `TrialQuestionsUI.cs` |
+| 2 | 🤖 | Lot 2 : spec (amendements MotorAdvice), DTO, `SanitizeBlockConfig`, `SessionManager`, `DrawMotorAdvice` (RNG `:multiset`), `ActiveSets`, écho CSV | ✅ Fait | `specs/MotorAdvice/*`, `FlowDataModels.cs`, `FlowController.cs`, `SessionManager.cs`, `TrialDrawResolver.cs`, `MotorAdviceController.cs`, `TrialManager.cs` |
+| 3 | 🤖 | Backend : migration `20261120120000`, Zod, mapper, dashboard Motor Choice + astuce, export 117 → 119, docs (contrat, CSV, dashboard) | ✅ Fait | `backend-bugs` |
+| 4 | 🤖 | Docs BUGS : DEC-053/054, Q-MOTOR-2, avancement, dictionnaire, matrice, config de test ; `BuildInfo.Version` 1.9.0 | ✅ Fait | `Docs/**`, `BuildInfo.cs`, `readme.md` |
+| 5 | 👤 | Unity : câbler `_labelMin` / `_labelMax` (ProximalScene), supprimer `AnswerRow` (prefab `QuestionPanel`), tester en Play Mode | ⬜ À faire | — |
+| 6 | 👤 | Appliquer la migration, déployer le backend, build WebGL 1.9.0, tester un export (trial mono-set, 2 sets, 3 sets, trial forcé) | ⬜ À faire | — |
 
 ---
 

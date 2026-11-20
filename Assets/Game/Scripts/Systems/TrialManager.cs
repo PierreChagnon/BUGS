@@ -379,6 +379,8 @@ public class TrialManager : MonoBehaviour
             row.proximal_forced_optimal_probability = block.proximal_forced_optimal_probability;
             row.motor_forced_probability = block.motor_forced_probability;
             row.motor_forced_set = block.motor_forced_set;
+            row.motor_multi_set_count = block.motor_multi_set_count;
+            row.motor_multi_set_probability = block.motor_multi_set_probability;
         }
         else if (state != null)
         {
@@ -412,7 +414,7 @@ public class TrialManager : MonoBehaviour
 
         row.motor_advice_visible = motor.AdviceVisible;
         row.motor_advice_reliable = motor.AdviceReliable;
-        row.motor_active_set = FlowValueConverters.ToApiValue(motor.ActiveSet);
+        row.motor_active_set = FlowValueConverters.ToApiValue(motor.ActiveSets);
         row.motor_advised_set = motor.AdviceVisible
             ? FlowValueConverters.ToApiValue(motor.DisplayedSet)
             : "NA";

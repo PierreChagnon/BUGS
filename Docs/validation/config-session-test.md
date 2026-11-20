@@ -18,6 +18,7 @@
 | Distal advice reliable                                                                               | false ; true                                                                        |                  |                               |
 | Motor advice visible                                                                                 | proba 0 ; 1                                                                         |                  |                               |
 | Motor advice reliable                                                                                | proba 0 ; 1                                                                         |                  |                               |
+| Motor multi-sets (`motor_multi_set_count` / `motor_multi_set_probability`, DEC-054)                  | count 1 ; 2 ; 3 × proba 0 ; 1 (+ un bloc forcé)                                     |                  |                               |
 | Explanation display_mode (×3 advices)                                                                | `none`, `forced`, `opt-in`, `forced/opt-in` (mixte, résolu par trial)               |                  | ⚠️ valeur mixte ajoutée le 27/08/26 (`3e5560e5`) |
 | Explanation content_variant                                                                          | `short`, `long`, `short/long` (mixte, résolu par trial)                             |                  | ⚠️ idem |
 | **Explanation `display_mode_forced_probability`** (lu seulement si display_mode = `forced/opt-in`)   | 0 ; 1                                                                               |                  | ⚠️ ajouté le 27/08/26 (`3e5560e5`) |
@@ -62,7 +63,7 @@ Champs pilotant les colonnes (source : `BlockConfig` lu par `TrialManager.BuildB
 
 `advisor_forced`, `advisor_forced_value`, `distal_forced`, `distal_forced_optimal_probability`,
 `proximal_forced_probability`, `proximal_forced_optimal_probability`,
-`motor_forced_probability`, `motor_forced_set`,
+`motor_forced_probability`, `motor_forced_set`, `motor_multi_set_count`, `motor_multi_set_probability`,
 `distal_advice_visible_probability`, `distal_advice_reliable_probability`, `show_numerical_feedback`, `show_communication_report`,
 `distal_scene`, `trial_count`, `is_tutorial`, `block_order`, `is_order_locked`, `config_fingerprint`, `type_tag`,
 

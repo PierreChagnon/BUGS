@@ -552,6 +552,8 @@ public class FlowController : MonoBehaviour
         block.proximal_forced_probability = Mathf.Clamp01(block.proximal_forced_probability);
         block.proximal_forced_optimal_probability = Mathf.Clamp01(block.proximal_forced_optimal_probability);
         block.motor_forced_probability = Mathf.Clamp01(block.motor_forced_probability);
+        block.motor_multi_set_count = Mathf.Clamp(block.motor_multi_set_count, 1, 3);
+        block.motor_multi_set_probability = Mathf.Clamp01(block.motor_multi_set_probability);
         SanitizeExplanationConfig(block.explanations?.distal);
         SanitizeExplanationConfig(block.explanations?.proximal);
         SanitizeExplanationConfig(block.explanations?.motor);

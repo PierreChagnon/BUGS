@@ -30,7 +30,8 @@ public static class TrialDrawResolver
 
     public struct MotorAdviceDraw
     {
-        public MotorKeySet active_set;
+        // Set principal en tete, puis les sets supplementaires d'un trial multi-sets.
+        public List<MotorKeySet> active_sets;
         public MotorKeySet displayed_set;
         public bool visible;
         public bool reliable;
@@ -70,22 +71,35 @@ public static class TrialDrawResolver
         };
     }
 
-    // Set actif, visibilité et fiabilité du conseil moteur (scope MotorAdviceController).
+    // Sets actifs, visibilité et fiabilité du conseil moteur (scope MotorAdviceController).
     // Sans advisor, le conseil n'est jamais visible mais le tirage est consommé
     // (flux stable quel que soit l'advisor).
+    // Sets multiples (DEC-054) : seulement sur un trial libre, tirés sur multiSetRng
+    // (scope dédié) pour ne jamais décaler les tirages de rng. La légende ne montre
+    // qu'un set : fiable, le set principal ; non fiable, un set inactif — avec les
+    // trois sets actifs il n'y en a aucun, la légende est donc toujours fiable.
     public static MotorAdviceDraw DrawMotorAdvice(
         bool hasAdvisor,
         bool choiceIsForced,
         MotorKeySet forcedSet,
+        int multiSetCount,
+        float multiSetProbability,
         float visibleProbability,
         float reliableProbability,
-        System.Random rng)
+        System.Random rng,
+        System.Random multiSetRng)
     {
         var draw = new MotorAdviceDraw
         {
-            active_set = choiceIsForced ? forcedSet : (MotorKeySet)rng.Next(0, 3),
+            active_sets = new List<MotorKeySet> { choiceIsForced ? forcedSet : (MotorKeySet)rng.Next(0, 3) },
             displayed_set = MotorKeySet.None
         };
+
+        if (!choiceIsForced && multiSetCount > 1 && multiSetRng.NextDouble() < multiSetProbability)
+        {
+            while (draw.active_sets.Count < multiSetCount)
+                draw.active_sets.Add(DrawOtherSet(multiSetRng, draw.active_sets));
+        }
 
         draw.visible = rng.NextDouble() < (hasAdvisor ? visibleProbability : 0f);
         if (!draw.visible)
@@ -94,12 +108,12 @@ public static class TrialDrawResolver
         if (choiceIsForced)
         {
             draw.reliable = true;
-            draw.displayed_set = draw.active_set;
+            draw.displayed_set = draw.active_sets[0];
             return draw;
         }
 
-        draw.reliable = rng.NextDouble() < reliableProbability;
-        draw.displayed_set = draw.reliable ? draw.active_set : DrawOtherSet(rng, draw.active_set);
+        draw.reliable = rng.NextDouble() < reliableProbability || draw.active_sets.Count == 3;
+        draw.displayed_set = draw.reliable ? draw.active_sets[0] : DrawOtherSet(rng, draw.active_sets);
         return draw;
     }
 
@@ -128,10 +142,11 @@ public static class TrialDrawResolver
         return rng.Next(min, max + 1);
     }
 
-    static MotorKeySet DrawOtherSet(System.Random rng, MotorKeySet current)
+    // Un set tiré parmi ceux qui ne sont pas dans excluded (au moins un doit rester).
+    static MotorKeySet DrawOtherSet(System.Random rng, List<MotorKeySet> excluded)
     {
         var options = new List<MotorKeySet> { MotorKeySet.WASD, MotorKeySet.TFGH, MotorKeySet.IJKL };
-        options.Remove(current);
+        options.RemoveAll(excluded.Contains);
         return options[rng.Next(0, options.Count)];
     }
 }

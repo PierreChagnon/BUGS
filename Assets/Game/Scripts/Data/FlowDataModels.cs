@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Newtonsoft.Json;
 using UnityEngine;
 
@@ -112,6 +113,10 @@ public class BlockConfig
     public float proximal_forced_optimal_probability;
     public float motor_forced_probability;
     public string motor_forced_set;
+    // Sets multiples (DEC-054) : nombre de sets actifs sur un trial multi-sets
+    // (1 = jamais) et probabilite par trial libre qu'il le soit.
+    public int motor_multi_set_count;
+    public float motor_multi_set_probability;
     public DistalSceneConfig distal_scene = new();
     public MapGenConfig valley_a = new();
     public MapGenConfig valley_b = new();
@@ -141,6 +146,8 @@ public class BlockConfig
             proximal_forced_optimal_probability = proximal_forced_optimal_probability,
             motor_forced_probability = motor_forced_probability,
             motor_forced_set = motor_forced_set,
+            motor_multi_set_count = motor_multi_set_count,
+            motor_multi_set_probability = motor_multi_set_probability,
             distal_scene = distal_scene != null ? distal_scene.DeepClone() : new DistalSceneConfig(),
             valley_a = valley_a != null ? valley_a.DeepClone() : new MapGenConfig(),
             valley_b = valley_b != null ? valley_b.DeepClone() : new MapGenConfig(),
@@ -486,6 +493,8 @@ public class TrialResponseRow
     public float proximal_forced_optimal_probability;
     public float motor_forced_probability;
     public string motor_forced_set;
+    public int motor_multi_set_count;
+    public float motor_multi_set_probability;
     // Tirages realises du trial (FlowController.State + MotorAdviceController),
     // a cote des probabilites configurees ci-dessus. Les deux nullables restent
     // null — donc omis du payload — quand le forcage proximal n'a pas eu lieu.
@@ -495,8 +504,9 @@ public class TrialResponseRow
     public bool motor_forced;
     public bool motor_advice_visible;
     public bool motor_advice_reliable;
-    // Set actif du trial et set montre par la legende (AWD / FTH / JIL), lus
-    // dans MotorAdviceController. motor_advised_set vaut "NA" quand la legende
+    // Sets actifs du trial (AWD / FTH / JIL, joints par '+' sur un trial
+    // multi-sets, DEC-054) et set montre par la legende, lus dans
+    // MotorAdviceController. motor_advised_set vaut "NA" quand la legende
     // est cachee : null reste reserve a "jamais mesure" (DEC-040).
     public string motor_active_set;
     public string motor_advised_set;
@@ -696,6 +706,18 @@ public static class FlowValueConverters
             MotorKeySet.IJKL => "JIL",
             _ => null
         };
+    }
+
+    // motor_active_set (DEC-054) : tous les sets actifs du trial, dans l'ordre
+    // fixe AWD, FTH, JIL, joints par '+' ("AWD", "AWD+JIL", "AWD+FTH+JIL").
+    public static string ToApiValue(IReadOnlyList<MotorKeySet> sets)
+    {
+        var values = new List<string>();
+        foreach (var set in new[] { MotorKeySet.WASD, MotorKeySet.TFGH, MotorKeySet.IJKL })
+            if (sets.Contains(set))
+                values.Add(ToApiValue(set));
+
+        return values.Count > 0 ? string.Join("+", values) : null;
     }
 
     // Le domaine est garanti par la validation Zod du backend (DEC-026) : toute

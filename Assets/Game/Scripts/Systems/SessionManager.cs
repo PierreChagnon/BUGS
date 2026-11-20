@@ -83,6 +83,17 @@ public class SessionManager : MonoBehaviour
             ? FlowController.Instance.State.motor_choice_forced_set
             : null;
 
+    // Réglages multi-sets du bloc (DEC-054) ; en sandbox, jamais de multi-sets.
+    public int MotorMultiSetCount =>
+        FlowController.Instance != null && FlowController.Instance.CurrentBlock != null
+            ? FlowController.Instance.CurrentBlock.motor_multi_set_count
+            : 1;
+
+    public float MotorMultiSetProbability =>
+        FlowController.Instance != null && FlowController.Instance.CurrentBlock != null
+            ? FlowController.Instance.CurrentBlock.motor_multi_set_probability
+            : 0f;
+
     public bool ShouldShowEquipmentFailureOverlay =>
         FlowController.Instance != null &&
         FlowController.Instance.ShouldShowEquipmentFailureOverlay;

@@ -7,21 +7,23 @@ using UnityEngine.UI;
 // apres le panneau de resultats (RoundUI).
 // 3 questions apres chaque trial (2 d'acceptabilite, 1 de sens d'agentivite), + 1 en fin de dernier trial du bloc.
 // L'ordre des ecrans est melange a partir du seed du trial.
-// Deux echelles de reponse : un slider entier 1-7 pour l'acceptabilite, 7 boutons radio pour les autres.
-// Les deux produisent une reponse "1"..."7".
+// Toutes les questions se repondent sur le meme slider entier 1-7 (DEC-053), avec
+// les ancres de leur echelle aux extremites. La reponse vaut "1"..."7".
 public class TrialQuestionsUI : MonoBehaviour
 {
     struct TrialQuestionItem
     {
         public string key;
         public string text;
-        public bool useSlider;
+        public string minLabel;
+        public string maxLabel;
 
-        public TrialQuestionItem(string key, string text, bool useSlider)
+        public TrialQuestionItem(string key, string text, string minLabel, string maxLabel)
         {
             this.key = key;
             this.text = text;
-            this.useSlider = useSlider;
+            this.minLabel = minLabel;
+            this.maxLabel = maxLabel;
         }
     }
 
@@ -31,16 +33,24 @@ public class TrialQuestionsUI : MonoBehaviour
     [SerializeField] private string _senseOfAgencyQuestion = "Question de sens d'agentivite (a definir)";
     [SerializeField] private string _humanLikenessQuestion = "Question de ressemblance humaine (a definir)";
 
+    [Header("Ancres du slider (sous le 1 et sous le 7)")]
+    [SerializeField] private string _acceptabilityMinLabel = "not at all";
+    [SerializeField] private string _acceptabilityMaxLabel = "completely";
+    [SerializeField] private string _senseOfAgencyMinLabel = "No Control";
+    [SerializeField] private string _senseOfAgencyMaxLabel = "Full Control";
+    [SerializeField] private string _humanLikenessMinLabel = "Not at all human";
+    [SerializeField] private string _humanLikenessMaxLabel = "Completely human";
+
     [Header("UI")]
     [SerializeField] private GameObject _panel;
     [SerializeField] private TMP_Text _questionText;
     [SerializeField] private TMP_Text _progressText;
-    [Tooltip("Rangee des boutons radio (AnswerRow)")]
-    [SerializeField] private GameObject _answerRow;
-    [SerializeField] private Toggle[] _choiceToggles; // 7 toggles : strongly disagree → strongly agree
     [Tooltip("Rangee du slider (SliderRow), contient le Slider ScaleSlider")]
     [SerializeField] private GameObject _sliderRow;
-    [SerializeField] private Button _confirmButton;
+    [Tooltip("Etiquette sous l'extremite 1 du slider (LabelMin, sous SliderRow)")]
+    [SerializeField] private TMP_Text _labelMin;
+    [Tooltip("Etiquette sous l'extremite 7 du slider (LabelMax, sous SliderRow)")]
+    [SerializeField] private TMP_Text _labelMax;
     [SerializeField] private RoundUI _roundUI;
 
     readonly List<TrialQuestionItem> _questions = new();
@@ -55,22 +65,14 @@ public class TrialQuestionsUI : MonoBehaviour
             _panel.SetActive(false);
 
         if (_sliderRow != null)
-            _scaleSlider = _sliderRow.GetComponentInChildren<Slider>(true);
-        if (_scaleSlider == null)
-            Debug.LogError("[TrialQuestionsUI] Slider introuvable sous _sliderRow: les questions d'acceptabilite ne pourront pas etre repondues.");
-
-        for (int i = 0; i < _choiceToggles.Length; i++)
         {
-            int index = i;
-            _choiceToggles[i].onValueChanged.AddListener(isOn =>
-            {
-                if (isOn) DeselectAllExcept(index);
-                RefreshConfirmButton();
-            });
+            _sliderRow.SetActive(true);
+            _scaleSlider = _sliderRow.GetComponentInChildren<Slider>(true);
         }
-
-        if (_confirmButton != null)
-            _confirmButton.interactable = false;
+        if (_scaleSlider == null)
+            Debug.LogError("[TrialQuestionsUI] Slider introuvable sous _sliderRow: les questions ne pourront pas etre repondues.");
+        if (_labelMin == null || _labelMax == null)
+            Debug.LogError("[TrialQuestionsUI] _labelMin / _labelMax non assignes: les ancres du slider ne changeront pas selon la question.");
 
         if (GameManager.Instance != null)
             GameManager.Instance.OnRoundEnded += HandleRoundEnded;
@@ -107,15 +109,15 @@ public class TrialQuestionsUI : MonoBehaviour
         bool hasAdvisor = flow.State.advisor_choice != AdvisorType.None;
         if (hasAdvisor)
         {
-            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestion1Key, _acceptabilityQuestion1, useSlider: true));
-            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestion2Key, _acceptabilityQuestion2, useSlider: true));
+            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestion1Key, _acceptabilityQuestion1, _acceptabilityMinLabel, _acceptabilityMaxLabel));
+            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.AcceptabilityQuestion2Key, _acceptabilityQuestion2, _acceptabilityMinLabel, _acceptabilityMaxLabel));
         }
 
-        _questions.Add(new TrialQuestionItem(FlowSerializationUtility.SensOfAgencyQuestionKey, _senseOfAgencyQuestion, useSlider: false));
+        _questions.Add(new TrialQuestionItem(FlowSerializationUtility.SensOfAgencyQuestionKey, _senseOfAgencyQuestion, _senseOfAgencyMinLabel, _senseOfAgencyMaxLabel));
 
         bool isLastTrial = flow.State.current_trial_index >= flow.CurrentBlock.trial_count - 1;
         if (hasAdvisor && isLastTrial)
-            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.HumanLikenessQuestionKey, _humanLikenessQuestion, useSlider: false));
+            _questions.Add(new TrialQuestionItem(FlowSerializationUtility.HumanLikenessQuestionKey, _humanLikenessQuestion, _humanLikenessMinLabel, _humanLikenessMaxLabel));
 
         var rng = new System.Random((int)flow.CurrentTrialSeed);
         for (int i = _questions.Count - 1; i > 0; i--)
@@ -146,27 +148,15 @@ public class TrialQuestionsUI : MonoBehaviour
     public void OnConfirmClicked()
     {
         if (_currentIndex < 0 || _currentIndex >= _questions.Count) return;
+        if (_scaleSlider == null) return;
 
         var question = _questions[_currentIndex];
-        string response;
-        if (question.useSlider)
-        {
-            if (_scaleSlider == null) return;
-            response = Mathf.RoundToInt(_scaleSlider.value).ToString(); // slider entier 1…7
-        }
-        else
-        {
-            int selected = GetSelectedIndex();
-            if (selected < 0) return;
-            response = (selected + 1).ToString(); // 1=strongly disagree … 7=strongly agree
-        }
-
         _responses.Add(new QuestionResponse
         {
             order = _currentIndex + 1,
             question_key = question.key,
             question_text = question.text,
-            response = response
+            response = Mathf.RoundToInt(_scaleSlider.value).ToString() // slider entier 1…7
         });
 
         _currentIndex++;
@@ -188,42 +178,14 @@ public class TrialQuestionsUI : MonoBehaviour
 
         if (_questionText != null)
             _questionText.text = question.text;
-
-        if (_answerRow != null)
-            _answerRow.SetActive(!question.useSlider);
-        if (_sliderRow != null)
-            _sliderRow.SetActive(question.useSlider);
-
-        foreach (var toggle in _choiceToggles)
-            toggle.isOn = false;
+        if (_labelMin != null)
+            _labelMin.text = $"1\n{question.minLabel}";
+        if (_labelMax != null)
+            _labelMax.text = $"7\n{question.maxLabel}";
 
         // Le slider a toujours une valeur : il repart du milieu de l'echelle et la validation est immediate.
         if (_scaleSlider != null)
             _scaleSlider.value = Mathf.Round((_scaleSlider.minValue + _scaleSlider.maxValue) / 2f);
-
-        if (_confirmButton != null)
-            _confirmButton.interactable = question.useSlider;
-    }
-
-    void RefreshConfirmButton()
-    {
-        if (_confirmButton != null)
-            _confirmButton.interactable = GetSelectedIndex() >= 0;
-    }
-
-    void DeselectAllExcept(int keepIndex)
-    {
-        for (int i = 0; i < _choiceToggles.Length; i++)
-            if (i != keepIndex)
-                _choiceToggles[i].isOn = false;
-    }
-
-    int GetSelectedIndex()
-    {
-        for (int i = 0; i < _choiceToggles.Length; i++)
-            if (_choiceToggles[i].isOn)
-                return i;
-        return -1;
     }
 
     void SubmitAndContinue()

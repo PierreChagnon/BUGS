@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
@@ -15,8 +16,10 @@ public enum MotorKeySet
 }
 
 // -----------------------------
-// Motor Advice: applique le tirage du set actif + advice visible/fiable
-// (résolu par TrialDrawResolver). Fournit un mapping input pour GridMover.
+// Motor Advice: applique le tirage des sets actifs + advice visible/fiable
+// (résolu par TrialDrawResolver). Fournit un mapping input pour GridMover :
+// toute touche d'un set actif déplace le joueur (plusieurs sets sur un trial
+// multi-sets, DEC-054).
 // -----------------------------
 
 [DefaultExecutionOrder(-5)]
@@ -24,7 +27,8 @@ public class MotorAdviceController : MonoBehaviour
 {
     public static MotorAdviceController Instance { get; private set; }
 
-    public MotorKeySet ActiveSet { get; private set; } = MotorKeySet.WASD;
+    // Set principal en tête (celui que montre une légende fiable).
+    public IReadOnlyList<MotorKeySet> ActiveSets { get; private set; } = new[] { MotorKeySet.WASD };
     public MotorKeySet DisplayedSet { get; private set; } = MotorKeySet.None;
     public bool AdviceVisible { get; private set; }
     public bool AdviceReliable { get; private set; }
@@ -39,7 +43,6 @@ public class MotorAdviceController : MonoBehaviour
 
     void Start()
     {
-        var rng = CreateRng();
         var session = SessionManager.Instance;
 
         float visibleProb = session != null ? session.Map.motor_advice_visible_probability : 1f;
@@ -47,22 +50,25 @@ public class MotorAdviceController : MonoBehaviour
         bool hasAdvisor = session == null || session.HasAdvisor;
         bool choiceIsForced = session != null && session.MotorChoiceIsForced;
 
-        // Tirages résolus dans Data/ (set actif, visibilité, fiabilité, set affiché).
+        // Tirages résolus dans Data/ (sets actifs, visibilité, fiabilité, set affiché).
         // Le set impose n'est lu que sur un trial force : hors forcage, il n'existe pas.
         var draw = TrialDrawResolver.DrawMotorAdvice(
             hasAdvisor,
             choiceIsForced,
             choiceIsForced ? FlowValueConverters.ToMotorKeySet(session.MotorChoiceForcedSet) : MotorKeySet.None,
+            session != null ? session.MotorMultiSetCount : 1,
+            session != null ? session.MotorMultiSetProbability : 0f,
             visibleProb,
             reliableProb,
-            rng);
+            CreateRng(nameof(MotorAdviceController)),
+            CreateRng($"{nameof(MotorAdviceController)}:multiset"));
 
-        ActiveSet = draw.active_set;
+        ActiveSets = draw.active_sets;
         AdviceVisible = draw.visible;
         AdviceReliable = draw.reliable;
         DisplayedSet = draw.displayed_set;
 
-        Debug.Log($"[MotorAdviceController]: visible={AdviceVisible} (prob={(hasAdvisor ? visibleProb : 0f)}), reliable={reliableProb}");
+        Debug.Log($"[MotorAdviceController]: active={FlowValueConverters.ToApiValue(ActiveSets)}, visible={AdviceVisible} (prob={(hasAdvisor ? visibleProb : 0f)}), reliable={reliableProb}");
         FlowController.Instance?.ResolveMotorExplanationForCurrentTrial(AdviceVisible);
         OnAdviceChanged?.Invoke();
     }
@@ -72,17 +78,22 @@ public class MotorAdviceController : MonoBehaviour
         step = Vector2Int.zero;
         if (Keyboard.current == null) return false;
 
-        if (IsDirectionPressed(ActiveSet, "up")) { step = Vector2Int.up; return true; }
-        if (IsDirectionPressed(ActiveSet, "left")) { step = Vector2Int.left; return true; }
-        if (IsDirectionPressed(ActiveSet, "down")) { step = Vector2Int.down; return true; }
-        if (IsDirectionPressed(ActiveSet, "right")) { step = Vector2Int.right; return true; }
+        if (IsDirectionPressed("up")) { step = Vector2Int.up; return true; }
+        if (IsDirectionPressed("left")) { step = Vector2Int.left; return true; }
+        if (IsDirectionPressed("down")) { step = Vector2Int.down; return true; }
+        if (IsDirectionPressed("right")) { step = Vector2Int.right; return true; }
         return false;
     }
 
-    static bool IsDirectionPressed(MotorKeySet set, string direction)
+    bool IsDirectionPressed(string direction)
     {
-        var key = GetKeyControl(set, direction);
-        return key != null && key.wasPressedThisFrame;
+        foreach (var set in ActiveSets)
+        {
+            var key = GetKeyControl(set, direction);
+            if (key != null && key.wasPressedThisFrame) return true;
+        }
+
+        return false;
     }
 
     // Retourne le KeyControl (position PHYSIQUE de la touche, referencee sur le layout US)
@@ -180,13 +191,19 @@ public class MotorAdviceController : MonoBehaviour
     {
         if (Keyboard.current == null || key == null) return false;
 
-        return key == GetKeyControl(ActiveSet, "up")
-            || key == GetKeyControl(ActiveSet, "left")
-            || key == GetKeyControl(ActiveSet, "down")
-            || key == GetKeyControl(ActiveSet, "right");
+        foreach (var set in ActiveSets)
+        {
+            if (key == GetKeyControl(set, "up")
+                || key == GetKeyControl(set, "left")
+                || key == GetKeyControl(set, "down")
+                || key == GetKeyControl(set, "right"))
+                return true;
+        }
+
+        return false;
     }
 
-    static System.Random CreateRng()
+    static System.Random CreateRng(string scope)
     {
         if (LevelRegistry.Instance == null)
         {
@@ -194,6 +211,6 @@ public class MotorAdviceController : MonoBehaviour
             return new System.Random();
         }
 
-        return LevelRegistry.Instance.CreateRng(nameof(MotorAdviceController));
+        return LevelRegistry.Instance.CreateRng(scope);
     }
 }

@@ -8,6 +8,10 @@
 > du 04/10/26 à Q-MOTOR-1). S'y ajoute **`player_press_log`**, le log de toutes les touches pressées
 > pendant l'essai, qui permet de mesurer l'adhérence au conseil moteur touche par touche.
 
+> 🆕 **Amendement 20/11/2026 — sets multiples (DEC-054, build 1.9.0)** : un essai peut avoir
+> 2 ou 3 sets actifs en même temps. Voir §6. Les règles « un seul set actif » des sections 1 à 4
+> restent vraies pour tout essai mono-set (cas par défaut, `motor_multi_set_count = 1`).
+
 > Produit par le Rôle 2 (Analyse Fonctionnelle).
 > Decrit le QUOI et le POURQUOI. Jamais le COMMENT technique.
 
@@ -121,3 +125,49 @@ Si l advice n est pas actif, aucun indicateur n est affiche a cet emplacement.
 | 1 | ~~Quelles sont les colonnes CSV V1 exactes pour le motor advice (set actif, advice affiche, fiabilite, set affiche) ?~~ **Resolue le 06/10/26** (DEC-050, option A : 4 colonnes dediees + `player_press_log`) | A: Definir 4 colonnes / B: Reutiliser colonnes existantes | Traçabilite et pipeline data | ✅ |
 | 2 | Faut il afficher un texte d explanation (short/long) en plus du set ? | A: Oui / B: Non | UI et contenu | 🟡 |
 | 3 | Format d affichage exact du set (ordre, separators, labels) est il impose par le protocole ? | A: Libre / B: Template fixe | UI et comprehension | 🟡 |
+| 4 | Sets multiples : conseil non fiable avec 3 sets actifs, essais forcés, format CSV (Q-MOTOR-2) | Voir §6.3 | Analyse de l advice-following | 🟢 tranché par initiative le 20/11, confirmation de Mark attendue |
+
+---
+
+## 6. Amendement 20/11/2026 — Sets multiples (DEC-054)
+
+**Source :** mail de Mark du 18/11/2026 (fil « BUGS Status + CSV export reference », point 2).
+**Pourquoi :** avec un seul set actif, le participant finit forcément par suivre un conseil moteur fiable
+pour progresser. Avec plusieurs sets actifs, il peut ignorer le conseil et progresser quand même : on
+peut alors mesurer s il suit le conseil par choix.
+
+### 6.1 Réglages de bloc (dashboard, section Motor Choice)
+
+| Réglage | Valeurs | Défaut | Effet |
+|:---|:---|:---|:---|
+| `motor_multi_set_count` | 1, 2 ou 3 | 1 | Nombre de sets actifs sur un essai multi-sets. À 1, aucun essai n est multi-sets (comportement d avant). |
+| `motor_multi_set_probability` | 0 – 1 | 0 | Probabilité, tirée à chaque essai, que l essai soit multi-sets. Sans effet quand le compte vaut 1. |
+
+Comme tous les réglages du jeu, c est une probabilité par essai (proportion attendue), jamais une proportion exacte.
+
+### 6.2 Règles métier
+
+- Un **essai forcé** (`motor_forced`) reste mono-set : seul le set imposé est actif. Le tirage multi-sets ne concerne que les essais libres.
+- Sur un **essai libre multi-sets** : le set principal est tiré comme avant ; les autres sets actifs sont tirés au hasard parmi les sets restants, jusqu au nombre réglé.
+- **Déplacement** : n importe quelle touche d un set actif déplace le joueur ; le participant peut mélanger les sets pendant l essai.
+- **Touches invalides** (`invalid_key_presses`) : une touche est invalide si elle n appartient à **aucun** set actif.
+- **Légende** : elle montre toujours un seul set. Fiable → le set principal (actif). Non fiable → un set **inactif**.
+- **3 sets actifs** : il n existe aucun set inactif à montrer, la légende est donc **toujours fiable** sur ces essais (`motor_advice_reliable = true`), quel que soit le tirage de fiabilité.
+
+### 6.3 Questions posées à Mark le 20/11 (Q-MOTOR-2) et choix retenus en attendant sa réponse
+
+| # | Question | Choix retenu |
+|:---|:---|:---|
+| 1 | Conseil non fiable quand les 3 sets sont actifs | Toujours fiable sur ces essais |
+| 2 | Essais forcés | Restent mono-set |
+| 3 | Format CSV | `motor_active_set` liste les sets actifs dans l ordre fixe AWD, FTH, JIL, joints par `+` (`AWD`, `AWD+JIL`, `AWD+FTH+JIL`) |
+
+### 6.4 Données collectées (ajouts)
+
+| Donnee | Colonne CSV | Valeurs possibles | Quand enregistree |
+|:---|:---|:---|:---|
+| Sets actifs | `motor_active_set` *(domaine élargi)* | AWD / FTH / JIL / AWD+FTH / AWD+JIL / FTH+JIL / AWD+FTH+JIL | Debut d essai |
+| Nombre de sets d un essai multi-sets (config) | `motor_multi_set_count` | 1 / 2 / 3 | Écho de la config du bloc, chaque essai |
+| Probabilité multi-sets (config) | `motor_multi_set_probability` | 0 – 1 | Écho de la config du bloc, chaque essai |
+
+Un essai est multi-sets quand `motor_active_set` contient `+` : pas de colonne dédiée.
