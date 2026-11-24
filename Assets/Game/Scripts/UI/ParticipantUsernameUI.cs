@@ -19,7 +19,9 @@ using UnityEngine.UI;
 
 public class ParticipantUsernameUI : MonoBehaviour
 {
-    // Meme borne que participantUsernameSchema (backend) et la contrainte DB.
+    // Memes regles que participantUsernameSchema (backend) et la contrainte DB :
+    // 1 a 64 lettres ou chiffres, rien d'autre (pas d'espace, pas de "=" qui
+    // serait evalue comme formule a l'ouverture du CSV).
     const int MaxLength = 64;
 
     [Tooltip("Champ de saisie du username.")]
@@ -41,6 +43,7 @@ public class ParticipantUsernameUI : MonoBehaviour
         }
 
         _usernameInput.characterLimit = MaxLength;
+        _usernameInput.contentType = TMP_InputField.ContentType.Alphanumeric;
 
         _partTwoLabel = _partTwoButton.GetComponentInChildren<TMP_Text>(true);
         if (_partTwoLabel != null)

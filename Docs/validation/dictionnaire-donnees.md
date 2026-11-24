@@ -122,8 +122,8 @@ Pour chaque advice `X` ∈ {`distal`, `motor`, `proximal`}, 9 colonnes `X_advice
 | `green_bugs_accumulated` | int | ≥ 0 | Score vert cumulé dans le bloc (monotone croissant). |
 | `green_bugs_session_total` | int | ≥ 0 | Score vert cumulé sur toute la session, blocs tutoriels exclus (monotone croissant, jamais remis à zéro entre les blocs). |
 | `traps_hit` | int | ≥ 0 | Nombre de pièges déclenchés. |
-| `steps` | int | ≥ 0 | Déplacements effectués, case de départ non comptée : sur un trajet direct, `steps` = `cloud_distance`. **Avant la build 1.3.0, la case de départ était comptée (`steps` = déplacements + 1).** |
-| `overtime_steps` | int | ≥ 0 | Déplacements au-delà du budget : max(0, `steps` − `cloud_distance`) depuis la build 1.3.0. |
+| `steps` | int | ≥ 0 | Déplacements effectués, case de départ non comptée et déplacement sur le nuage compté : sur un trajet direct, `steps` = `cloud_distance`. **Exact depuis la build 1.9.1 seulement** : de 1.3.0 à 1.9.0, le déplacement sur le nuage était perdu (le trigger physique du nuage terminait le round en plein déplacement), `steps` = déplacements − 1 ; avant 1.3.0, la case de départ comptée compensait (`steps` = déplacements). Limitation 13 de `csv-export-reference.md`. |
+| `overtime_steps` | int | ≥ 0 | Déplacements au-delà du budget : max(0, `steps` − `cloud_distance`). Avant la build 1.9.1, un dépassement de n pas donnait n − 1 (et une pénalité de moins). |
 | `invalid_key_presses` | int | ≥ 0, ∅ | Touches hors set(s) actif(s) ayant coûté une pénalité (1 vert par nuage chacune). ∅ avant la build 1.3.0. |
 | `followed_advisor_path` | bool | — | A suivi le chemin **affiché** (⚠️ pas forcément optimal — voir §Limites). |
 | `player_path_log` | JSON array | `[{x,y,t}]` | Trajectoire complète, `t` = timestamp ISO UTC par pas. |
@@ -166,7 +166,7 @@ chaque ligne du participant.
 | :-- | :-- | :-- |
 | `participant_id` | string (UUID) | Jointure avec `trial_responses.participant_id`. |
 | `session_template_id` | string | Modèle de session. |
-| `username` | string | 1 à 64 caractères, sans espaces en tête ni en fin. Un nouvel envoi remplace la valeur. |
+| `username` | string | 1 à 64 lettres ou chiffres depuis la build 1.9.1 (champ de saisie `Alphanumeric`, validation API et contrainte DB) ; avant, tout caractère, sans espaces en tête ni en fin. Un nouvel envoi remplace la valeur. |
 | `submitted_at` | timestamptz | Horodatage serveur du dernier envoi. |
 
 **Limites** : absent si le participant abandonne avant l'écran de fin ; aucune normalisation

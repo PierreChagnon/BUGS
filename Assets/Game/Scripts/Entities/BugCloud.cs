@@ -42,18 +42,6 @@ public class BugCloud : MonoBehaviour
         transform.Rotate(0, rotationSpeed * Time.deltaTime, 0);
     }
 
-    private void OnTriggerEnter(Collider other)
-    {
-        if (!other.CompareTag("Player")) return;
-
-        Debug.Log("[BugCloud] Collecte déclenchée !");
-
-        if (GameManager.Instance != null && !GameManager.Instance.OnCloudCollected(this))
-            return;
-
-        Destroy(gameObject);
-    }
-
     void OnDestroy()
     {
         // Assure la désinscription même si l'objet est détruit autrement

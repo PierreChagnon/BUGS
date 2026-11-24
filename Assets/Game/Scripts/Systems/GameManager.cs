@@ -219,9 +219,10 @@ public class GameManager : MonoBehaviour
             (registry == null || !registry.IsVisited(cell));
     }
 
-    // Case de depart : visitee, revelee et tracee comme les autres, mais ce n'est
-    // pas un deplacement. steps ne compte que les deplacements, comme
-    // cloud_distance (build 1.3.0 ; avant, steps valait deplacements + 1).
+    // Case de depart : visitee et revelee comme les autres, mais ce n'est pas un
+    // deplacement. steps compte exactement les deplacements, comme cloud_distance,
+    // depuis la build 1.9.1 (1.3.0-1.9.0 : deplacements - 1, le pas qui atteint le
+    // nuage etant perdu ; avant 1.3.0 : la case de depart compensait ce pas perdu).
     public void OnPlayerSpawned(Vector2Int cell) => RegisterPlayerCell(cell, isMove: false);
 
     public void OnPlayerStep(Vector2Int cell) => RegisterPlayerCell(cell, isMove: true);
@@ -248,7 +249,7 @@ public class GameManager : MonoBehaviour
 
         trialManager?.RecordMove(cell);
 
-        // Fallbacks déterministes si les triggers physiques ratent.
+        // Piège : filet déterministe si le trigger physique a raté.
         if (LevelRegistry.Instance != null && LevelRegistry.Instance.HasTrap(cell))
         {
             OnTrapTriggered();
@@ -280,8 +281,13 @@ public class GameManager : MonoBehaviour
         if (_forcedCollectableCloud != null && cloudToCollect != _forcedCollectableCloud)
             return;
 
-        Debug.Log("[GameManager] Nuage détecté sur la cellule du joueur : collecte forcée (fallback grille).");
-        OnCloudCollected(cloudToCollect);
+        // Seul chemin de collecte : il passe apres le comptage du pas, donc le
+        // deplacement qui atteint le nuage compte dans steps, overtime_steps et
+        // player_path_log (build 1.9.1 ; avant, le trigger physique du nuage
+        // terminait le round en plein deplacement et ce pas etait perdu).
+        Debug.Log("[GameManager] Nuage atteint : collecte.");
+        if (OnCloudCollected(cloudToCollect))
+            Destroy(cloudToCollect.gameObject);
     }
 
     void OnStepBudgetExceeded()
@@ -366,7 +372,7 @@ public class GameManager : MonoBehaviour
         OnWrongInputCooldownChanged?.Invoke(false);
     }
 
-    public bool OnCloudCollected(BugCloud cloud)
+    bool OnCloudCollected(BugCloud cloud)
     {
         if (_roundOver)
             return false;

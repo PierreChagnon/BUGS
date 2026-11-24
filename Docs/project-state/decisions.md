@@ -471,10 +471,26 @@
 - **Impact :** Unity : `BlockConfig` / `TrialResponseRow` (+2 champs), `FlowController.SanitizeBlockConfig`, `SessionManager.MotorMultiSetCount` / `MotorMultiSetProbability`, `TrialDrawResolver.DrawMotorAdvice` (second RNG, scope `MotorAdviceController:multiset`, qui laisse le flux principal inchangé), `MotorAdviceController.ActiveSets`, `TrialManager` (écho + `FlowValueConverters.ToApiValue(IReadOnlyList<MotorKeySet>)`). Backend : migration `20261120120000_add_motor_multi_set.sql`, Zod (`unity.js`, `admin.js`), mapper `session-config.js`, dashboard (Motor Choice + astuce), export CSV (117 → 119 colonnes), docs. Spec : amendement §6 de `specs/MotorAdvice/spec-fonc.md` et §11 de `spec-tech.md`. **Build 1.9.0.**
 - **Statut :** ACTIF
 
+### DEC-055 — Le déplacement qui atteint le nuage compte : collecte par la grille uniquement
+- **Date :** 2026-11-24 *(constat de l'audit du 20/11/2026)*
+- **Tag :** [TECH]
+- **Décision :** La collecte du nuage ne passe plus par le trigger physique (`BugCloud.OnTriggerEnter`, supprimé) mais seulement par `GameManager.TryCollectCloudAtCell`, appelé à la fin de `RegisterPlayerCell`, après le comptage du pas. Le nuage est détruit après une collecte acceptée.
+- **Raison :** le trigger se déclenchait en plein déplacement et terminait le round avant que le pas soit enregistré : `steps` valait déplacements − 1, `overtime_steps` et les pénalités de dépassement avaient un pas de retard (budget réel D+1), `player_path_log` s'arrêtait une case avant le nuage.
+- **Impact :** Unity : `BugCloud.cs`, `GameManager.cs` (`OnCloudCollected` devient privé). Sens de `steps`, `overtime_steps`, `player_path_log` modifié → **build 1.9.1** (la 1.9.0 n'a jamais été livrée). Docs : limitation 13 de `csv-export-reference.md`, dictionnaire de données.
+- **Statut :** ACTIF
+
+### DEC-056 — Username limité aux lettres et chiffres
+- **Date :** 2026-11-24
+- **Tag :** [TECH] / [FONC]
+- **Décision :** Le username de fin de partie 1 n'accepte que `A-Z`, `a-z`, `0-9` (1 à 64 caractères) : champ TMP en `ContentType.Alphanumeric` (`ParticipantUsernameUI`), regex Zod (`participantUsernameSchema`) et contrainte DB (migration `20261124120000`, `not valid` pour ne pas toucher aux lignes existantes).
+- **Raison :** un username commençant par `=` (ou `+`, `-`, `@`) est évalué comme une formule à l'ouverture du CSV dans un tableur (audit du 20/11). Les identifiants Prolific, que les participants saisissent en pratique, sont alphanumériques.
+- **Impact :** build 1.9.1 ; docs `payload-examples.md`, `csv-export-reference.md` (colonne 116), dictionnaire de données.
+- **Statut :** ACTIF
+
 ## Index par tag
 
 - **[SCOPE]** : DEC-004, DEC-005, DEC-008 *(annulée)*, DEC-024, DEC-031, DEC-033, DEC-034, DEC-036, DEC-038
-- **[FONC]** : DEC-001, DEC-003 *(annulée)*, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018 *(colonne id amendée par DEC-046)*, DEC-019, DEC-023 *(amendée par DEC-052)*, DEC-025, DEC-028, DEC-029, DEC-031, DEC-032, DEC-033, DEC-034, DEC-035, DEC-037, DEC-039, DEC-040, DEC-041, DEC-042, DEC-043, DEC-044 *(pt 2 amendée par DEC-045)*, DEC-045, DEC-046, DEC-047, DEC-048, DEC-049, DEC-050, DEC-051, DEC-052, DEC-053, DEC-054
-- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013 *(amendée par DEC-042)*, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022, DEC-026, DEC-027, DEC-029, DEC-030, DEC-036, DEC-040, DEC-042, DEC-043, DEC-045, DEC-046, DEC-047, DEC-048, DEC-049, DEC-050, DEC-051, DEC-052, DEC-054
+- **[FONC]** : DEC-001, DEC-003 *(annulée)*, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018 *(colonne id amendée par DEC-046)*, DEC-019, DEC-023 *(amendée par DEC-052)*, DEC-025, DEC-028, DEC-029, DEC-031, DEC-032, DEC-033, DEC-034, DEC-035, DEC-037, DEC-039, DEC-040, DEC-041, DEC-042, DEC-043, DEC-044 *(pt 2 amendée par DEC-045)*, DEC-045, DEC-046, DEC-047, DEC-048, DEC-049, DEC-050, DEC-051, DEC-052, DEC-053, DEC-054, DEC-056
+- **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013 *(amendée par DEC-042)*, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022, DEC-026, DEC-027, DEC-029, DEC-030, DEC-036, DEC-040, DEC-042, DEC-043, DEC-045, DEC-046, DEC-047, DEC-048, DEC-049, DEC-050, DEC-051, DEC-052, DEC-054, DEC-055, DEC-056
 - **[PLANNING]** : _(aucune pour l'instant)_
 - **[CLIENT]** : DEC-037, DEC-039, DEC-041, DEC-050, DEC-053, DEC-054
