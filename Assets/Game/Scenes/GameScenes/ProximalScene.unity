@@ -4155,8 +4155,8 @@ MonoBehaviour:
   _senseOfAgencyQuestion: How much control did you feel you had over the outcome
     of the mission?
   _humanLikenessQuestion: How human-like did you find your advisor?
-  _acceptabilityMinLabel: not at all
-  _acceptabilityMaxLabel: completely
+  _acceptabilityMinLabel: Not at all
+  _acceptabilityMaxLabel: Completely
   _senseOfAgencyMinLabel: No Control
   _senseOfAgencyMaxLabel: Full Control
   _humanLikenessMinLabel: Not at all human
