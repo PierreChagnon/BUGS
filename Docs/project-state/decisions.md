@@ -487,10 +487,18 @@
 - **Impact :** build 1.9.1 ; docs `payload-examples.md`, `csv-export-reference.md` (colonne 116), dictionnaire de données.
 - **Statut :** ACTIF
 
+### DEC-057 — Pastille « nouveau contenu » sur les boutons d'explanation opt-in
+- **Date :** 2026-11-24
+- **Tag :** [FONC]
+- **Décision :** Chaque bouton d'explanation opt-in (distal, proximal, moteur) porte une pastille orange au coin haut-droit (`NewContentBadge`, créée par code dans `AdviceExplanationUIBase.Awake`, enfant du bouton). Elle s'affiche et disparaît avec le bouton, qui disparaît lui-même après le clic : elle signale toujours une explanation pas encore lue.
+- **Raison :** demande de Pierre : sur la ProximalScene, avec une explanation forced et une opt-in, fermer la forced puis voir le bouton opt-in donne l'impression qu'il rouvrira la même explanation. Appliquée à tous les boutons opt-in, sans distinguer les cas : le comportement s'y prête.
+- **Impact :** Unity : `UI/NewContentBadge.cs` (nouveau), `AdviceExplanationUIBase.cs`. Aucun changement de données. **Build 1.9.2** (patch). Docs : `dashboard-configuration.md` (mode `opt-in`).
+- **Statut :** ACTIF
+
 ## Index par tag
 
 - **[SCOPE]** : DEC-004, DEC-005, DEC-008 *(annulée)*, DEC-024, DEC-031, DEC-033, DEC-034, DEC-036, DEC-038
-- **[FONC]** : DEC-001, DEC-003 *(annulée)*, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018 *(colonne id amendée par DEC-046)*, DEC-019, DEC-023 *(amendée par DEC-052)*, DEC-025, DEC-028, DEC-029, DEC-031, DEC-032, DEC-033, DEC-034, DEC-035, DEC-037, DEC-039, DEC-040, DEC-041, DEC-042, DEC-043, DEC-044 *(pt 2 amendée par DEC-045)*, DEC-045, DEC-046, DEC-047, DEC-048, DEC-049, DEC-050, DEC-051, DEC-052, DEC-053, DEC-054, DEC-056
+- **[FONC]** : DEC-001, DEC-003 *(annulée)*, DEC-006 *(résolu)*, DEC-010, DEC-012, DEC-017, DEC-018 *(colonne id amendée par DEC-046)*, DEC-019, DEC-023 *(amendée par DEC-052)*, DEC-025, DEC-028, DEC-029, DEC-031, DEC-032, DEC-033, DEC-034, DEC-035, DEC-037, DEC-039, DEC-040, DEC-041, DEC-042, DEC-043, DEC-044 *(pt 2 amendée par DEC-045)*, DEC-045, DEC-046, DEC-047, DEC-048, DEC-049, DEC-050, DEC-051, DEC-052, DEC-053, DEC-054, DEC-056, DEC-057
 - **[TECH]** : DEC-002, DEC-007, DEC-009, DEC-011, DEC-013 *(amendée par DEC-042)*, DEC-014, DEC-015, DEC-016, DEC-020, DEC-021, DEC-022, DEC-026, DEC-027, DEC-029, DEC-030, DEC-036, DEC-040, DEC-042, DEC-043, DEC-045, DEC-046, DEC-047, DEC-048, DEC-049, DEC-050, DEC-051, DEC-052, DEC-054, DEC-055, DEC-056
 - **[PLANNING]** : _(aucune pour l'instant)_
 - **[CLIENT]** : DEC-037, DEC-039, DEC-041, DEC-050, DEC-053, DEC-054

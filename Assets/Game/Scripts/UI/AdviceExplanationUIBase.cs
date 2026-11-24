@@ -37,6 +37,9 @@ public abstract class AdviceExplanationUIBase : MonoBehaviour
         if (_showButtonRoot == null && _showButton != null)
             _showButtonRoot = _showButton.gameObject;
 
+        if (_showButtonRoot != null)
+            NewContentBadge.AttachTo(_showButtonRoot.GetComponent<RectTransform>());
+
         if (_showButton != null)
             _showButton.onClick.AddListener(HandleShowClicked);
 
