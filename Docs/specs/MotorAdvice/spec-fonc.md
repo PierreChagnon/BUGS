@@ -125,7 +125,7 @@ Si l advice n est pas actif, aucun indicateur n est affiche a cet emplacement.
 | 1 | ~~Quelles sont les colonnes CSV V1 exactes pour le motor advice (set actif, advice affiche, fiabilite, set affiche) ?~~ **Resolue le 06/10/26** (DEC-050, option A : 4 colonnes dediees + `player_press_log`) | A: Definir 4 colonnes / B: Reutiliser colonnes existantes | Traçabilite et pipeline data | ✅ |
 | 2 | Faut il afficher un texte d explanation (short/long) en plus du set ? | A: Oui / B: Non | UI et contenu | 🟡 |
 | 3 | Format d affichage exact du set (ordre, separators, labels) est il impose par le protocole ? | A: Libre / B: Template fixe | UI et comprehension | 🟡 |
-| 4 | Sets multiples : conseil non fiable avec 3 sets actifs, essais forcés, format CSV (Q-MOTOR-2) | Voir §6.3 | Analyse de l advice-following | 🟢 tranché par initiative le 20/11, confirmation de Mark attendue |
+| 4 | ~~Sets multiples : conseil non fiable avec 3 sets actifs, essais forcés, format CSV (Q-MOTOR-2)~~ **Résolue le 20/11/26** (validé par Mark) | Voir §6.3 | Analyse de l advice-following | ✅ |
 
 ---
 
@@ -154,7 +154,7 @@ Comme tous les réglages du jeu, c est une probabilité par essai (proportion at
 - **Légende** : elle montre toujours un seul set. Fiable → le set principal (actif). Non fiable → un set **inactif**.
 - **3 sets actifs** : il n existe aucun set inactif à montrer, la légende est donc **toujours fiable** sur ces essais (`motor_advice_reliable = true`), quel que soit le tirage de fiabilité.
 
-### 6.3 Questions posées à Mark le 20/11 (Q-MOTOR-2) et choix retenus en attendant sa réponse
+### 6.3 Questions posées à Mark le 20/11 (Q-MOTOR-2), choix validés par Mark le 20/11
 
 | # | Question | Choix retenu |
 |:---|:---|:---|

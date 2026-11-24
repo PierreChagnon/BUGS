@@ -3,7 +3,7 @@
 > Ce fichier est le résumé condensé de l'état du projet.
 > Objectif : un rôle peut comprendre où en est le projet en lisant CE SEUL FICHIER.
 > Mis à jour après chaque session qui fait avancer le projet.
-> Dernière mise à jour : 2026-11-20 (retours pilote de Mark du 18/11 : DEC-053 sense of agency et human-likeness sur le slider 1-7, DEC-054 plusieurs sets moteur actifs par trial, build 1.9.0 — Q-MOTOR-2 en attente de confirmation). Mise à jour précédente : 2026-10-09 (DEC-051 : sets de touches nommés en QWERTY, `QZD` → `AWD`, build 1.6.0, Lot A4 fermé). Mise à jour antérieure : 2026-10-06 (DEC-050 : niveau moteur complet + `player_press_log`, build 1.5.0 — réponse au mail de Mark du 04/10). Mise à jour antérieure : 2026-09-09 (passe de réconciliation post-revue — intègre les commits `a919a683`/DEC-030 et `88899e9a`/DEC-029 livrés le 08/09 au soir, après la revue `revue-livraison-2026-09-08.md`)
+> Dernière mise à jour : 2026-11-20 (retours pilote de Mark du 18/11 : DEC-053 sense of agency et human-likeness sur le slider 1-7, DEC-054 plusieurs sets moteur actifs par trial, build 1.9.0 — Q-MOTOR-2 validée par Mark le 20/11). Mise à jour précédente : 2026-10-09 (DEC-051 : sets de touches nommés en QWERTY, `QZD` → `AWD`, build 1.6.0, Lot A4 fermé). Mise à jour antérieure : 2026-10-06 (DEC-050 : niveau moteur complet + `player_press_log`, build 1.5.0 — réponse au mail de Mark du 04/10). Mise à jour antérieure : 2026-09-09 (passe de réconciliation post-revue — intègre les commits `a919a683`/DEC-030 et `88899e9a`/DEC-029 livrés le 08/09 au soir, après la revue `revue-livraison-2026-09-08.md`)
 
 ---
 
@@ -233,7 +233,7 @@ inventaire des packages incomplet (N2-M — à revoir lors de la passe TDD) ·
 | Réf | Sujet | Bloque quoi | Urgence |
 |:---|:---|:---|:---|
 | Q-002 → **Q-MOTOR-1** | Colonnes CSV motor advice | ✅ **RÉPONDUE le 04/10 par Mark, livrée le 06/10** (DEC-050) : `motor_active_set`, `motor_advised_set`, `player_press_log` — le niveau moteur est complet | ✅ close |
-| **Q-MOTOR-2** | Sets multiples : légende avec 3 sets actifs, essais forcés, format CSV | Rien (livré avec les choix 1A/2A/3A, DEC-054) | 🟢 confirmation de Mark attendue (mail du 20/11) |
+| **Q-MOTOR-2** | Sets multiples : légende avec 3 sets actifs, essais forcés, format CSV | Rien | ✅ **RÉPONDUE le 20/11/26** par Mark : choix 1A/2A/3A validés (DEC-054) |
 | **Q-DISTAL-1** | Logger le stimulus distal réellement affiché ? | Analyse du choix distal | 🔴 **Nouveau 28/07/26** (N1-C) |
 | **Q-RANDOM-1** | Ordre des advisors et apparence de l'advisor humain : à contrôler ? | Biais de position sur le méta-choix (H1) | 🟡 **MàJ 09/09/26** : seed ✅ (DEC-029), genre du badge ✅ validé 1×/bloc (DEC-044) — reste l'**export des tirages réalisés** (ordre + genre), requis par le pilotage (MàJ DEC-029) |
 | **Q-ROW-1** | 1 ligne par écran vs 1 ligne par trial : acter la divergence | Interprétation de tout export | ✅ **RÉSOLUE le 09/09/26** (DEC-043) — 1 ligne = 1 trial confirmé, +2 colonnes de repérage `screen_type`/`screen_id` à livrer |

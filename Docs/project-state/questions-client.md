@@ -704,13 +704,14 @@
 ### Q-MOTOR-2 — Sets multiples : légende avec 3 sets actifs, essais forcés, format CSV
 - **Posée le :** 2026-11-20 *(mail de Pierre à Mark, fil « BUGS Status + CSV export reference »)*
 - **Origine :** demande de Mark du 18/11/2026 (point 2), DEC-054
-- **Bloque :** Rien — livré avec les choix ci-dessous (build 1.9.0), à corriger si Mark répond autrement
+- **Bloque :** Rien
 - **Question :** (1) quand les 3 sets sont actifs, il n'existe aucun set « faux » à montrer : la légende peut-elle être toujours fiable sur ces essais ? (2) les essais moteur forcés restent-ils à un seul set ? (3) `motor_active_set` en une colonne (`"AWD+JIL"`) convient-il à son pipeline d'analyse ?
 - **Options :**
   - (1) A : toujours fiable avec 3 sets actifs → impact : `motor_advice_reliable_probability` sans effet sur ces essais / B : autre règle à définir
   - (2) A : forcé = mono-set / B : sets multiples aussi sur les essais forcés → impact : le set imposé devient le set principal, petit changement de `TrialDrawResolver`
   - (3) A : une colonne, sets joints par `+` / B : une colonne booléenne par set → impact : migration + 3 colonnes
-- **Statut :** EN ATTENTE *(confirmation)* — choix retenus : **1A, 2A, 3A** (DEC-054)
+- **Statut :** RÉPONDU *(2026-11-20, Mark : « all of this sounds good and accurate to our needs »)*
+- **Réponse :** **1A, 2A, 3A**, tels qu'implémentés dans DEC-054.
 
 ---
 
